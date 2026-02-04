@@ -5,12 +5,12 @@
 
 const Redis = require('ioredis');
 
-// Redis configuration - uses environment variables or defaults
+// Redis configuration - uses environment variables or defaults to localhost
 const redisConfig = {
-  host: process.env.REDIS_HOST || 'redis-16374.crce263.ap-south-1-1.ec2.cloud.redislabs.com',
-  port: parseInt(process.env.REDIS_PORT) || 16374,
-  password: process.env.REDIS_PASSWORD || 'wF5uS8DxyUU7OPxwPv2dJOGAOpo9pS6t',
-  username: process.env.REDIS_USERNAME || 'default',
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD || null,
+  username: process.env.REDIS_USERNAME || null,
   db: parseInt(process.env.REDIS_DB) || 0,
   maxRetriesPerRequest: 3,
   retryDelayOnFailover: 1000,
