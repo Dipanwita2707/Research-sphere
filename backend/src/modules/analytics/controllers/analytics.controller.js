@@ -5,27 +5,39 @@ const prisma = require('../../../shared/config/database');
  */
 exports.getUniversityOverview = async (req, res) => {
   try {
+    // Batch queries to reduce concurrent connections
+    // First batch: Schools and Departments
     const [
       totalSchools,
       activeSchools,
       totalDepartments,
       activeDepartments,
+    ] = await Promise.all([
+      prisma.facultySchoolList.count(),
+      prisma.facultySchoolList.count({ where: { isActive: true } }),
+      prisma.department.count(),
+      prisma.department.count({ where: { isActive: true } }),
+    ]);
+
+    // Second batch: Programs and Employees
+    const [
       totalProgrammes,
       totalEmployees,
       activeEmployees,
+    ] = await Promise.all([
+      prisma.program.count(),
+      prisma.employeeDetails.count(),
+      prisma.employeeDetails.count({ where: { isActive: true } }),
+    ]);
+
+    // Third batch: Students and IPR
+    const [
       totalStudents,
       activeStudents,
       totalIprApplications,
       approvedIpr,
       pendingIpr,
     ] = await Promise.all([
-      prisma.facultySchoolList.count(),
-      prisma.facultySchoolList.count({ where: { isActive: true } }),
-      prisma.department.count(),
-      prisma.department.count({ where: { isActive: true } }),
-      prisma.program.count(),
-      prisma.employeeDetails.count(),
-      prisma.employeeDetails.count({ where: { isActive: true } }),
       prisma.studentDetails.count(),
       prisma.studentDetails.count({ where: { isActive: true } }),
       prisma.iprApplication.count(),
