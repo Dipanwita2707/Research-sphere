@@ -213,6 +213,9 @@ exports.createSchool = async (req, res) => {
     // Log school creation
     await auditLogger.logSchoolCreation(school, req.user?.id, req);
 
+    // Invalidate school cache
+    await cache.invalidatePattern(`${cache.CACHE_KEYS.SCHOOL}*`);
+
     res.status(201).json({
       success: true,
       message: 'School created successfully',
@@ -310,6 +313,9 @@ exports.updateSchool = async (req, res) => {
     // Log school update
     await auditLogger.logSchoolUpdate(existing, school, req.user?.id, req);
 
+    // Invalidate school cache
+    await cache.invalidatePattern(`${cache.CACHE_KEYS.SCHOOL}*`);
+
     res.json({
       success: true,
       message: 'School updated successfully',
@@ -361,6 +367,9 @@ exports.deleteSchool = async (req, res) => {
       where: { id },
     });
 
+    // Invalidate school cache
+    await cache.invalidatePattern(`${cache.CACHE_KEYS.SCHOOL}*`);
+
     res.json({
       success: true,
       message: 'School deleted successfully',
@@ -398,6 +407,9 @@ exports.toggleSchoolStatus = async (req, res) => {
         isActive: !school.isActive,
       },
     });
+
+    // Invalidate school cache
+    await cache.invalidatePattern(`${cache.CACHE_KEYS.SCHOOL}*`);
 
     res.json({
       success: true,
