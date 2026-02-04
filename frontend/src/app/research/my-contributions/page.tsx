@@ -61,7 +61,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
   book: { label: 'Book', icon: BookOpen, color: 'bg-green-500', gradient: 'from-green-500 to-green-600' },
   book_chapter: { label: 'Book Chapter', icon: BookOpen, color: 'bg-emerald-500', gradient: 'from-emerald-500 to-emerald-600' },
   conference_paper: { label: 'Conference Paper', icon: Presentation, color: 'bg-purple-500', gradient: 'from-purple-500 to-purple-600' },
-  grant: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500', gradient: 'from-orange-500 to-orange-600' },
+  grant_proposal: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500', gradient: 'from-orange-500 to-orange-600' },
 };
 
 export default function MyContributionsPage() {
@@ -551,7 +551,7 @@ export default function MyContributionsPage() {
             {filteredGrants.map((grant, index) => {
               const statusConfig = STATUS_CONFIG[grant.status] || STATUS_CONFIG.draft;
               const StatusIcon = statusConfig.icon;
-              const pubTypeConfig = PUBLICATION_TYPE_CONFIG['grant'];
+              const pubTypeConfig = PUBLICATION_TYPE_CONFIG['grant_proposal'];
               const PubTypeIcon = pubTypeConfig?.icon || FileText;
               
               return (

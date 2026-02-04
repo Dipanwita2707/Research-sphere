@@ -78,6 +78,32 @@ module.exports = {
       fontSize: {
         'xxs': ['10px', { lineHeight: '14px' }],
       },
+      animation: {
+        'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+        'slide-in-left': 'slideInLeft 0.5s ease-out forwards',
+        'slide-in-right': 'slideInRight 0.5s ease-out forwards',
+        'spin-slow': 'spin 8s linear infinite',
+        'spin-slow-reverse': 'spinReverse 6s linear infinite',
+        'bounce-slow': 'bounce 3s infinite',
+      },
+      keyframes: {
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(20px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInLeft: {
+          '0%': { opacity: '0', transform: 'translateX(-30px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        slideInRight: {
+          '0%': { opacity: '0', transform: 'translateX(30px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
+        spinReverse: {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(-360deg)' },
+        },
+      },
     },
   },
   plugins: [],

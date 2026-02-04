@@ -1,24 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const localFileService = require('../services/localFile.service');
+const s3FileService = require('../services/s3File.service');
 const { protect } = require('../../../shared/middleware/auth');
 
 // All routes require authentication
 router.use(protect);
 
-// Upload file directly to local storage
-router.post('/upload', localFileService.upload.single('file'), localFileService.uploadFile);
+// Upload file to S3
+router.post('/upload', s3FileService.upload.single('file'), s3FileService.uploadFile);
 
 // Upload prototype ZIP file (up to 50MB) for IPR Complete Filing
-router.post('/upload-prototype', localFileService.uploadPrototype.single('file'), localFileService.uploadPrototypeFile);
+router.post('/upload-prototype', s3FileService.uploadPrototype.single('file'), s3FileService.uploadPrototypeFile);
 
-// Download file from local storage
-router.get('/download/*', localFileService.downloadFile);
+// Download file from S3
+router.get('/download/*', s3FileService.downloadFile);
 
 // Get file info
-router.get('/info/*', localFileService.getFileInfo);
+router.get('/info/*', s3FileService.getFileInfo);
 
 // Delete file
-router.delete('/file', localFileService.deleteFile);
+router.delete('/file', s3FileService.deleteFile);
 
 module.exports = router;

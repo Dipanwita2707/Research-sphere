@@ -45,6 +45,21 @@ exports.getAllSchools = async (req, res) => {
                 },
               },
             },
+            departments: {
+              select: {
+                id: true,
+                departmentCode: true,
+                departmentName: true,
+                shortName: true,
+                isActive: true,
+              },
+              where: {
+                isActive: true,
+              },
+              orderBy: {
+                departmentName: 'asc',
+              },
+            },
             _count: {
               select: {
                 departments: true,

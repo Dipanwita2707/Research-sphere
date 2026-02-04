@@ -53,7 +53,7 @@ const PUBLICATION_TYPES = [
     href: '/research/apply?type=conference_paper'
   },
   {
-    type: 'grant',
+    type: 'grant_proposal',
     label: 'Grant / Funding',
     icon: DollarSign,
     color: 'bg-orange-500',

@@ -240,7 +240,9 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       try {
         const policy = await policyService.getPolicyByType(formData.ideaFor);
         setCurrentPolicy(policy);
-        logger.debug(`Loaded ${formData.ideaFor} policy:`, policy);
+        console.log(`[IPR Policy] Loaded ${formData.ideaFor} policy:`, policy);
+        console.log(`[IPR Policy] baseIncentiveAmount:`, policy?.baseIncentiveAmount, 'type:', typeof policy?.baseIncentiveAmount);
+        console.log(`[IPR Policy] basePoints:`, policy?.basePoints, 'type:', typeof policy?.basePoints);
       } catch (err) {
         logger.error('Error fetching policy:', err);
         // Policy service already returns defaults on error
@@ -482,18 +484,55 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
   // Helper function to calculate incentive and points for IPR contributors
   // Employees get both incentive and points, students get only incentive, external get neither
   const calculateContributorIncentivePoints = (employeeCategory: string, employeeType: string) => {
-    // Use policy if available, otherwise use defaults
-    const baseIncentive = currentPolicy?.baseIncentiveAmount || 
-                          (formData.ideaFor === 'patent' ? 50000 : 
-                          formData.ideaFor === 'copyright' ? 15000 :
-                          formData.ideaFor === 'design' ? 20000 :
-                          formData.ideaFor === 'trademark' ? 10000 : 10000);
+    // Debug log current policy state
+    console.log('[IPR Incentive Calc] currentPolicy:', currentPolicy);
     
-    const basePoints = currentPolicy?.basePoints ||
-                       (formData.ideaFor === 'patent' ? 50 : 
-                       formData.ideaFor === 'copyright' ? 20 :
-                       formData.ideaFor === 'design' ? 25 :
-                       formData.ideaFor === 'trademark' ? 15 : 20);
+    // Use policy if available, otherwise use defaults
+    // Convert Decimal/string to number properly
+    let totalBaseIncentive: number;
+    if (currentPolicy?.baseIncentiveAmount !== undefined && currentPolicy?.baseIncentiveAmount !== null) {
+      totalBaseIncentive = typeof currentPolicy.baseIncentiveAmount === 'string' 
+        ? parseFloat(currentPolicy.baseIncentiveAmount) 
+        : Number(currentPolicy.baseIncentiveAmount);
+      console.log('[IPR Incentive Calc] Using policy totalBaseIncentive:', totalBaseIncentive);
+    } else {
+      totalBaseIncentive = formData.ideaFor === 'patent' ? 50000 : 
+         formData.ideaFor === 'copyright' ? 15000 :
+         formData.ideaFor === 'design' ? 20000 :
+         formData.ideaFor === 'trademark' ? 10000 : 10000;
+      console.log('[IPR Incentive Calc] Using DEFAULT totalBaseIncentive:', totalBaseIncentive);
+    }
+    
+    let totalBasePoints: number;
+    if (currentPolicy?.basePoints !== undefined && currentPolicy?.basePoints !== null) {
+      totalBasePoints = Number(currentPolicy.basePoints);
+      console.log('[IPR Incentive Calc] Using policy totalBasePoints:', totalBasePoints);
+    } else {
+      totalBasePoints = formData.ideaFor === 'patent' ? 50 : 
+         formData.ideaFor === 'copyright' ? 20 :
+         formData.ideaFor === 'design' ? 25 :
+         formData.ideaFor === 'trademark' ? 15 : 20;
+      console.log('[IPR Incentive Calc] Using DEFAULT totalBasePoints:', totalBasePoints);
+    }
+    
+    // Count eligible contributors for INCENTIVE (all internal - staff, faculty, students)
+    // Note: Applicant is NOT included in the count - only added contributors are counted
+    const eligibleForIncentive = contributors.filter(c => c.employeeCategory === 'internal').length;
+    const totalEligibleForIncentive = eligibleForIncentive > 0 ? eligibleForIncentive : 1; // At least 1 to avoid division by zero
+    
+    // Count eligible contributors for POINTS (only staff/faculty, NO students)
+    // Note: Applicant is NOT included in the count - only added contributors are counted
+    const eligibleForPoints = contributors.filter(c => c.employeeCategory === 'internal' && c.employeeType !== 'student').length;
+    const totalEligibleForPoints = eligibleForPoints > 0 ? eligibleForPoints : 1; // At least 1 to avoid division by zero
+    
+    console.log('[IPR Incentive Calc] Total eligible for incentive:', totalEligibleForIncentive);
+    console.log('[IPR Incentive Calc] Total eligible for points:', totalEligibleForPoints);
+    
+    // Divide the total amount by number of eligible contributors
+    const baseIncentive = totalEligibleForIncentive > 0 ? totalBaseIncentive / totalEligibleForIncentive : 0;
+    const basePoints = totalEligibleForPoints > 0 ? totalBasePoints / totalEligibleForPoints : 0;
+    
+    console.log('[IPR Incentive Calc] Per contributor - Incentive:', baseIncentive, 'Points:', basePoints);
     
     // External contributors get no incentive or points
     if (employeeCategory === 'external') {
@@ -1411,14 +1450,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                               <td className="px-4 py-2 border text-sm">{contributor.phone}</td>
                               <td className="px-4 py-2 border text-sm text-center">
                                 {contributor.employeeCategory === 'internal' ? (
-                                  <span className="text-green-600 font-medium">₹{incentive.toLocaleString()}</span>
+                                  <span className="text-green-600 font-medium">₹{incentive.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 ) : (
                                   <span className="text-gray-400">N/A</span>
                                 )}
                               </td>
                               <td className="px-4 py-2 border text-sm text-center">
                                 {contributor.employeeCategory === 'internal' && contributor.employeeType !== 'student' ? (
-                                  <span className="text-blue-600 font-medium">{points}</span>
+                                  <span className="text-blue-600 font-medium">{points.toFixed(2)}</span>
                                 ) : contributor.employeeCategory === 'internal' && contributor.employeeType === 'student' ? (
                                   <span className="text-gray-400 text-xs">No Points</span>
                                 ) : (

@@ -134,10 +134,12 @@ exports.createBookPolicy = async (req, res) => {
       });
     }
 
+    // Choose the correct model based on publication type
+    const modelName = publicationType === 'book' ? 'bookIncentivePolicy' : 'bookChapterIncentivePolicy';
+
     // Check for overlapping active policies
-    const existingPolicies = await prisma.bookIncentivePolicy.findMany({
+    const existingPolicies = await prisma[modelName].findMany({
       where: {
-        publicationType,
         isActive: true,
         OR: [
           {
@@ -163,14 +165,13 @@ exports.createBookPolicy = async (req, res) => {
     }
 
     // Create the policy
-    const policy = await prisma.bookIncentivePolicy.create({
+    const policy = await prisma[modelName].create({
       data: {
-        publicationType,
         policyName,
         authoredIncentiveAmount: parseFloat(authoredIncentiveAmount),
-        authoredPoints: parseInt(authoredPoints),
+        authoredPoints: parseInt(authoredPoints) || 0,
         editedIncentiveAmount: parseFloat(editedIncentiveAmount),
-        editedPoints: parseInt(editedPoints),
+        editedPoints: parseInt(editedPoints) || 0,
         splitPolicy: splitPolicy || 'equal',
         indexingBonuses: indexingBonuses || {
           scopus_indexed: 10000,

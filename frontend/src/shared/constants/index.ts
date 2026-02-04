@@ -131,7 +131,7 @@ export const PUBLICATION_TYPES = {
   BOOK_CHAPTER: 'book_chapter',
   CONFERENCE_PAPER: 'conference_paper',
   PATENT: 'patent',
-  GRANT: 'grant',
+  GRANT: 'grant_proposal',
 } as const;
 
 // Author Types

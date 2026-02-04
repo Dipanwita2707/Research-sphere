@@ -39,7 +39,7 @@ const RESEARCH_TYPE_CONFIG = {
   research_paper: { label: 'Research Paper', icon: FileText, color: 'bg-blue-500' },
   book: { label: 'Book / Chapter', icon: BookOpen, color: 'bg-green-500' },
   conference_paper: { label: 'Conference', icon: FileText, color: 'bg-purple-500' },
-  grant: { label: 'Grant', icon: FileText, color: 'bg-orange-500' },
+  grant_proposal: { label: 'Grant', icon: FileText, color: 'bg-orange-500' },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {

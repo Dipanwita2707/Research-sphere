@@ -1,6 +1,61 @@
 const prisma = require('../../../shared/config/database');
 const { logIprFiling, logIprUpdate, logIprStatusChange, logFileUpload, getIp } = require('../../../shared/utils/auditLogger');
 
+// Helper function to calculate IPR incentives based on policy
+const calculateIprIncentives = async (iprType, filingType, projectType) => {
+  try {
+    // Fetch the active policy for this IPR type
+    const policy = await prisma.incentivePolicy.findFirst({
+      where: {
+        iprType,
+        isActive: true,
+        effectiveFrom: { lte: new Date() },
+        OR: [
+          { effectiveTo: null },
+          { effectiveTo: { gte: new Date() } }
+        ]
+      },
+      orderBy: {
+        effectiveFrom: 'desc'
+      }
+    });
+
+    if (!policy) {
+      console.log(`No active policy found for IPR type: ${iprType}`);
+      return { incentiveAmount: 0, pointsAwarded: 0 };
+    }
+
+    let incentiveAmount = parseFloat(policy.baseIncentiveAmount);
+    let pointsAwarded = policy.basePoints;
+
+    // Apply filing type multiplier if exists
+    if (policy.filingTypeMultiplier && typeof policy.filingTypeMultiplier === 'object') {
+      const multiplier = policy.filingTypeMultiplier[filingType];
+      if (multiplier) {
+        incentiveAmount *= parseFloat(multiplier);
+      }
+    }
+
+    // Apply project type bonus if exists
+    if (policy.projectTypeBonus && typeof policy.projectTypeBonus === 'object') {
+      const bonus = policy.projectTypeBonus[projectType];
+      if (bonus) {
+        incentiveAmount += parseFloat(bonus);
+      }
+    }
+
+    console.log(`IPR Incentive calculated - Type: ${iprType}, Filing: ${filingType}, Project: ${projectType}, Amount: ${incentiveAmount}, Points: ${pointsAwarded}`);
+
+    return {
+      incentiveAmount: Math.round(incentiveAmount * 100) / 100, // Round to 2 decimal places
+      pointsAwarded
+    };
+  } catch (error) {
+    console.error('Error calculating IPR incentives:', error);
+    return { incentiveAmount: 0, pointsAwarded: 0 };
+  }
+};
+
 // Helper function to generate unique application number
 const generateApplicationNumber = async (iprType) => {
   const currentYear = new Date().getFullYear();
@@ -259,6 +314,36 @@ const createIprApplication = async (req, res) => {
         // Re-throw other errors
         throw error;
       }
+    }
+
+    // Calculate incentives based on policy
+    const { incentiveAmount, pointsAwarded } = await calculateIprIncentives(iprType, filingType, projectType);
+    
+    // Update the IPR application with calculated incentives
+    if (incentiveAmount > 0 || pointsAwarded > 0) {
+      iprApplication = await prisma.iprApplication.update({
+        where: { id: iprApplication.id },
+        data: {
+          incentiveAmount,
+          pointsAwarded
+        },
+        include: {
+          applicantDetails: true,
+          sdgs: true,
+          school: {
+            select: {
+              facultyName: true,
+              facultyCode: true,
+            },
+          },
+          department: {
+            select: {
+              departmentName: true,
+              departmentCode: true,
+            },
+          },
+        },
+      });
     }
 
     // Create status history entry

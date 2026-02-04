@@ -17,7 +17,7 @@ exports.getPendingReviews = async (req, res) => {
     const { status, publicationType, schoolId } = req.query;
 
     // Handle grants separately - they use a different table
-    if (publicationType === 'grant') {
+    if (publicationType === 'grant_proposal') {
       return exports.getPendingGrantReviews(req, res);
     }
 
@@ -501,7 +501,8 @@ exports.getPendingGrantReviews = async (req, res) => {
     }
 
     const permissions = userDrdPermission?.permissions || {};
-    const assignedSchoolIds = userDrdPermission?.assignedGrantSchoolIds || [];
+    // Filter out null/undefined values from assignedSchoolIds to prevent Prisma errors
+    const assignedSchoolIds = (userDrdPermission?.assignedGrantSchoolIds || []).filter(id => id !== null && id !== undefined);
 
     // Check grant permissions
     const hasGrantApprove = permissions.grant_approve === true;
@@ -677,7 +678,7 @@ exports.getPendingGrantReviews = async (req, res) => {
       id: grant.id,
       applicationNumber: grant.applicationNumber,
       title: grant.title,
-      publicationType: 'grant',
+      publicationType: 'grant_proposal',
       status: grant.status,
       applicantUserId: grant.applicantUserId,
       schoolId: grant.schoolId,
@@ -751,7 +752,7 @@ exports.getAllPendingReviews = async (req, res) => {
 
     // Fetch research contributions (use 'research_paper' to avoid infinite recursion)
     const researchReq = { ...req, query: { ...req.query, publicationType: 'research_paper' } };
-    const grantReq = { ...req, query: { ...req.query, publicationType: 'grant' } };
+    const grantReq = { ...req, query: { ...req.query, publicationType: 'grant_proposal' } };
 
     // Get contributions and grants in parallel
     const [researchResponse, grantResponse] = await Promise.all([

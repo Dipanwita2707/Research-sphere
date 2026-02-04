@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { FileText, BookOpen, FileBarChart, Presentation, ChevronDown, ChevronUp, AlertCircle, Users, RefreshCw } from 'lucide-react';
+import { FileText, BookOpen, FileBarChart, Presentation, ChevronDown, ChevronUp, AlertCircle, Users, RefreshCw, Info } from 'lucide-react';
 import progressTrackerService, {
   TrackerPublicationType,
   CreateTrackerRequest,
@@ -22,6 +22,64 @@ import {
   ConferencePaperStatusForm,
 } from '@/features/progress-tracking/components/status-forms';
 import logger from '@/shared/utils/logger';
+
+// 11 Indexing Categories matching ResearchContributionForm
+const INDEXING_CATEGORIES = [
+  { 
+    value: 'nature_science_lancet_cell_nejm', 
+    label: 'Nature/Science/The Lancet/Cell/NEJM',
+    description: 'Top-tier journals',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'subsidiary_if_above_20', 
+    label: 'Subsidiary Journals (IF > 20)',
+    description: 'High impact subsidiary journals (IF must be > 20)',
+    requiredFields: ['impactFactor']
+  },
+  { 
+    value: 'scopus', 
+    label: 'SCOPUS',
+    description: 'SCOPUS indexed - requires Quartile, SJR, and Impact Factor',
+    requiredFields: ['quartile', 'sjr', 'impactFactor']
+  },
+  { 
+    value: 'scie_wos', 
+    label: 'SCIE/SCI (WOS)',
+    description: 'Web of Science indexed',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'pubmed', 
+    label: 'PubMed',
+    description: 'PubMed indexed',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'naas_rating_6_plus', 
+    label: 'NAAS (Rating ≥ 6)',
+    description: 'NAAS rated journals - requires Rating ≥ 6',
+    requiredFields: ['naasRating']
+  },
+  { 
+    value: 'abdc_scopus_wos', 
+    label: 'ABDC Journals (SCOPUS/WOS)',
+    description: 'ABDC journals indexed in SCOPUS/WOS',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'sgtu_in_house', 
+    label: 'SGTU In-House Journal',
+    description: 'SGT University in-house publications',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'case_centre_uk', 
+    label: 'The Case Centre UK',
+    description: 'Case studies published in The Case Centre UK',
+    requiredFields: [] as string[]
+  },
+];
 
 export default function NewTrackerPage() {
   const router = useRouter();
@@ -98,7 +156,13 @@ export default function NewTrackerPage() {
   // Category 2: Research Classification
   const [interdisciplinary, setInterdisciplinary] = useState<'yes' | 'no'>('no');
   const [sdgs, setSdgs] = useState<string[]>([]);
-  const [targetedResearch, setTargetedResearch] = useState<'scopus' | 'sci_scie' | 'both'>('scopus');
+  const [indexingCategories, setIndexingCategories] = useState<string[]>([]);
+  
+  // Conditional sub-fields based on indexing categories
+  const [impactFactor, setImpactFactor] = useState<number | ''>('');
+  const [sjr, setSjr] = useState<number | ''>('');
+  const [quartile, setQuartile] = useState<string>('');
+  const [naasRating, setNaasRating] = useState<number | ''>('');
 
   // Category 3: Current Status & All Publication/Status-Specific Fields (Combined)
   const [currentStatus, setCurrentStatus] = useState<ResearchTrackerStatus>('communicated');
@@ -155,9 +219,25 @@ export default function NewTrackerPage() {
     if (typeData.sdgs && Array.isArray(typeData.sdgs)) {
       setSdgs(typeData.sdgs as string[]);
     }
-    if (typeData.targetedResearch) {
-      setTargetedResearch(typeData.targetedResearch as 'scopus' | 'sci_scie' | 'both');
+    // Handle both old targetedResearch format and new indexingCategories
+    if (typeData.indexingCategories && Array.isArray(typeData.indexingCategories)) {
+      setIndexingCategories(typeData.indexingCategories as string[]);
+    } else if (typeData.targetedResearch) {
+      // Convert old format to new format for backwards compatibility
+      const tr = typeData.targetedResearch as string;
+      if (tr === 'scopus') {
+        setIndexingCategories(['scopus']);
+      } else if (tr === 'sci_scie') {
+        setIndexingCategories(['scie_wos']);
+      } else if (tr === 'both') {
+        setIndexingCategories(['scopus', 'scie_wos']);
+      }
     }
+    // Set conditional sub-fields
+    if (typeData.impactFactor) setImpactFactor(typeData.impactFactor as number);
+    if (typeData.sjr) setSjr(typeData.sjr as number);
+    if (typeData.quartile) setQuartile(typeData.quartile as string);
+    if (typeData.naasRating) setNaasRating(typeData.naasRating as number);
     
     // Set status data (excluding status-specific info like rejection details)
     // Keep fields like authors, journal info, etc.
@@ -197,6 +277,46 @@ export default function NewTrackerPage() {
       return;
     }
 
+    // Validate indexing categories for research papers
+    if (selectedType === 'research_paper' && indexingCategories.length === 0) {
+      setError('Please select at least one indexing category');
+      return;
+    }
+
+    // Validate conditional sub-fields based on selected indexing categories
+    if (selectedType === 'research_paper') {
+      const requiredFields = new Set<string>();
+      indexingCategories.forEach(cat => {
+        const category = INDEXING_CATEGORIES.find(c => c.value === cat);
+        if (category) {
+          category.requiredFields.forEach(f => requiredFields.add(f));
+        }
+      });
+
+      if (requiredFields.has('quartile') && !quartile) {
+        setError('Quartile is required for the selected indexing categories');
+        return;
+      }
+      if (requiredFields.has('impactFactor') && !impactFactor) {
+        setError('Impact Factor is required for the selected indexing categories');
+        return;
+      }
+      if (requiredFields.has('naasRating') && !naasRating) {
+        setError('NAAS Rating is required for the selected indexing categories');
+        return;
+      }
+      // Validate subsidiary IF > 20
+      if (indexingCategories.includes('subsidiary_if_above_20') && impactFactor && Number(impactFactor) <= 20) {
+        setError('Impact Factor must be greater than 20 for Subsidiary Journals');
+        return;
+      }
+      // Validate NAAS rating >= 6
+      if (indexingCategories.includes('naas_rating_6_plus') && naasRating && (Number(naasRating) < 6 || Number(naasRating) > 10)) {
+        setError('NAAS Rating must be between 6 and 10');
+        return;
+      }
+    }
+
     setLoading(true);
     setError('');
 
@@ -216,7 +336,12 @@ export default function NewTrackerPage() {
         ...statusData,
         interdisciplinary,
         sdgs,
-        targetedResearch,
+        indexingCategories,
+        // Include conditional sub-fields
+        ...(impactFactor ? { impactFactor: Number(impactFactor) } : {}),
+        ...(sjr ? { sjr: Number(sjr) } : {}),
+        ...(quartile ? { quartile } : {}),
+        ...(naasRating ? { naasRating: Number(naasRating) } : {}),
         ...(selectedType === 'conference_paper' ? { conferenceSubType } : {}),
       };
 
@@ -648,24 +773,170 @@ export default function NewTrackerPage() {
                   <p className="text-xs text-gray-500 mt-1">{sdgs.length} goal(s) selected</p>
                 </div>
 
-                {/* Targeted Research Category - Only for Research Papers */}
+                {/* Indexing Categories - Only for Research Papers (Multi-select) */}
                 {selectedType === 'research_paper' && (
+                <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Targeted Research Category <span className="text-red-500">*</span>
+                    Indexing Categories <span className="text-red-500">*</span>
+                    <span className="text-xs text-gray-500 ml-2">(Select all that apply)</span>
                   </label>
-                  <select
-                    value={targetedResearch}
-                    onChange={(e) => setTargetedResearch(e.target.value as 'scopus' | 'sci_scie' | 'both')}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-                    required
-                  >
-                    <option value="scopus">Scopus</option>
-                    <option value="sci_scie">SCI/SCIE (WoS)</option>
-                    <option value="both">Both (Scopus & SCI/SCIE)</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">This determines the indexing category for your research</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto">
+                    {INDEXING_CATEGORIES.map((cat) => (
+                      <label 
+                        key={cat.value} 
+                        className={`flex items-start gap-2 p-2 rounded cursor-pointer transition-colors ${
+                          indexingCategories.includes(cat.value) 
+                            ? 'bg-purple-100 border border-purple-300' 
+                            : 'hover:bg-purple-50 border border-transparent'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={indexingCategories.includes(cat.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setIndexingCategories([...indexingCategories, cat.value]);
+                            } else {
+                              setIndexingCategories(indexingCategories.filter(c => c !== cat.value));
+                              // Clear conditional fields if category is deselected
+                              const remainingCategories = indexingCategories.filter(c => c !== cat.value);
+                              const stillNeedsQuartile = remainingCategories.some(c => 
+                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('quartile')
+                              );
+                              const stillNeedsIF = remainingCategories.some(c => 
+                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('impactFactor')
+                              );
+                              const stillNeedsSJR = remainingCategories.some(c => 
+                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('sjr')
+                              );
+                              const stillNeedsNAAS = remainingCategories.some(c => 
+                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('naasRating')
+                              );
+                              if (!stillNeedsQuartile) setQuartile('');
+                              if (!stillNeedsIF) setImpactFactor('');
+                              if (!stillNeedsSJR) setSjr('');
+                              if (!stillNeedsNAAS) setNaasRating('');
+                            }
+                          }}
+                          className="mt-0.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-800">{cat.label}</span>
+                          <p className="text-xs text-gray-500">{cat.description}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{indexingCategories.length} category(ies) selected</p>
                 </div>
+
+                {/* Conditional Sub-fields based on selected indexing categories */}
+                {indexingCategories.length > 0 && (() => {
+                  const requiredFields = new Set<string>();
+                  indexingCategories.forEach(cat => {
+                    const category = INDEXING_CATEGORIES.find(c => c.value === cat);
+                    if (category) {
+                      category.requiredFields.forEach(f => requiredFields.add(f));
+                    }
+                  });
+
+                  if (requiredFields.size === 0) return null;
+
+                  return (
+                    <div className="border-t border-gray-200 pt-4 mt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Info className="w-4 h-4 text-blue-500" />
+                        <h4 className="text-sm font-medium text-gray-700">Additional Required Fields</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Quartile */}
+                        {requiredFields.has('quartile') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Quartile <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={quartile}
+                              onChange={(e) => setQuartile(e.target.value)}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                              required
+                            >
+                              <option value="">Select Quartile</option>
+                              <option value="Top 1%">Top 1%</option>
+                              <option value="Top 5%">Top 5%</option>
+                              <option value="Q1">Q1</option>
+                              <option value="Q2">Q2</option>
+                              <option value="Q3">Q3</option>
+                              <option value="Q4">Q4</option>
+                            </select>
+                          </div>
+                        )}
+
+                        {/* SJR */}
+                        {requiredFields.has('sjr') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              SJR <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={sjr}
+                              onChange={(e) => setSjr(e.target.value ? parseFloat(e.target.value) : '')}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                              placeholder="e.g., 0.5"
+                              required
+                            />
+                          </div>
+                        )}
+
+                        {/* Impact Factor */}
+                        {requiredFields.has('impactFactor') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Impact Factor <span className="text-red-500">*</span>
+                              {indexingCategories.includes('subsidiary_if_above_20') && (
+                                <span className="text-xs text-amber-600 ml-1">(Must be &gt; 20)</span>
+                              )}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={impactFactor}
+                              onChange={(e) => setImpactFactor(e.target.value ? parseFloat(e.target.value) : '')}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                              placeholder="e.g., 2.5"
+                              required
+                            />
+                          </div>
+                        )}
+
+                        {/* NAAS Rating */}
+                        {requiredFields.has('naasRating') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              NAAS Rating <span className="text-red-500">*</span>
+                              <span className="text-xs text-amber-600 ml-1">(Must be ≥ 6 and ≤ 10)</span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="6"
+                              max="10"
+                              value={naasRating}
+                              onChange={(e) => setNaasRating(e.target.value ? parseFloat(e.target.value) : '')}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                              placeholder="e.g., 7.5"
+                              required
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+                </>
                 )}
               </div>
             )}
@@ -715,70 +986,6 @@ export default function NewTrackerPage() {
                   </p>
                 </div>
 
-                {/* Quartile, SJR, Impact Factor - Available for Research Papers */}
-                {selectedType === 'research_paper' && (
-                  <div className="pt-4 border-t border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">
-                      📊 Research Metrics
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Quartile - Show only for Scopus and Both */}
-                      {(targetedResearch === 'scopus' || targetedResearch === 'both') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quartile <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            value={(statusData.quartile as string) || ''}
-                            onChange={(e) => handleStatusDataChange({ ...statusData, quartile: e.target.value })}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                          >
-                            <option value="">Select Quartile</option>
-                            <option value="Top 1%">Top 1%</option>
-                            <option value="Top 5%">Top 5%</option>
-                            <option value="Q1">Q1</option>
-                            <option value="Q2">Q2</option>
-                            <option value="Q3">Q3</option>
-                            <option value="Q4">Q4</option>
-                          </select>
-                        </div>
-                      )}
-
-                      {/* SJR - Show only for Scopus and Both */}
-                      {(targetedResearch === 'scopus' || targetedResearch === 'both') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">SJR</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={(statusData.sjr as number) || ''}
-                            onChange={(e) => handleStatusDataChange({ ...statusData, sjr: parseFloat(e.target.value) || 0 })}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            placeholder="e.g., 0.5"
-                          />
-                        </div>
-                      )}
-
-                      {/* Impact Factor - Show only for SCI/SCIE and Both */}
-                      {(targetedResearch === 'sci_scie' || targetedResearch === 'both') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Impact Factor <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={(statusData.impactFactor as number) || ''}
-                            onChange={(e) => handleStatusDataChange({ ...statusData, impactFactor: parseFloat(e.target.value) || 0 })}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                            placeholder="e.g., 2.5"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Conference Sub-Type Selection - For Conference Papers */}
                 {selectedType === 'conference_paper' && (
                   <div className="pt-4 border-t border-gray-200">
@@ -819,7 +1026,7 @@ export default function NewTrackerPage() {
                     {selectedType === 'research_paper' && (
                       <ResearchPaperStatusForm 
                         status={currentStatus} 
-                        data={{ ...statusData, targetedResearchType: targetedResearch }} 
+                        data={{ ...statusData, indexingCategories }} 
                         onChange={handleStatusDataChange} 
                       />
                     )}

@@ -36,7 +36,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
   book: { label: 'Book', icon: BookOpen, color: 'bg-green-500' },
   book_chapter: { label: 'Book Chapter', icon: BookOpen, color: 'bg-green-400' },
   conference_paper: { label: 'Conference Paper', icon: Presentation, color: 'bg-purple-500' },
-  grant: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500' },
+  grant_proposal: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500' },
 };
 
 export default function ContributedResearchPage() {

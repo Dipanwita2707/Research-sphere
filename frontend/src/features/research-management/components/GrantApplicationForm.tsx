@@ -815,12 +815,9 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-600 to-orange-700 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <DollarSign className="w-8 h-8 text-white" />
-            <div>
-              <h1 className="text-xl font-bold text-white">Grant / Funding Application</h1>
-              <p className="text-orange-100 text-sm">Submit your research grant proposal</p>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-white">Grant / Funding Application</h1>
+            <p className="text-orange-100 text-sm">Submit your research grant proposal</p>
           </div>
         </div>
         

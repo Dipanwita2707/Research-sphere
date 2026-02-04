@@ -53,13 +53,20 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     }
   }, [coAuthors]);
 
-  // Map classification targetedResearch values to form values
-  const mapTargetedResearch = (value: string | undefined): string => {
-    if (value === 'sci_scie') return 'wos';
-    return value || 'scopus';
+  // Get indexing categories from data (with backwards compatibility for old targetedResearchType)
+  const getIndexingCategories = (): string[] => {
+    if (data.indexingCategories && Array.isArray(data.indexingCategories)) {
+      return data.indexingCategories as string[];
+    }
+    // Backwards compatibility: convert old targetedResearchType to indexingCategories
+    const tr = data.targetedResearchType as string;
+    if (tr === 'scopus') return ['scopus'];
+    if (tr === 'sci_scie' || tr === 'wos') return ['scie_wos'];
+    if (tr === 'both') return ['scopus', 'scie_wos'];
+    return [];
   };
 
-  const targetedResearchType = mapTargetedResearch(data.targetedResearchType as string);
+  const indexingCategories = getIndexingCategories();
 
   // Search for internal SGT users
   const handleSearch = useCallback(async (query: string) => {
@@ -208,19 +215,104 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     const sgtAuthors = (data.sgtAuthors as number) || 1;
     const internalCoAuthors = (data.internalCoAuthors as number) || 0;
 
-    const roles = [
+    // Get roles already taken by existing co-authors
+    const usedRoles: string[] = [];
+    coAuthors.forEach((author, idx) => {
+      if (author.name && idx !== editingIndex) {
+        if (author.authorRole === 'first_author' || author.authorRole === 'first') {
+          usedRoles.push('first_author');
+        } else if (author.authorRole === 'corresponding_author' || author.authorRole === 'corresponding') {
+          usedRoles.push('corresponding_author');
+        } else if (author.authorRole === 'first_and_corresponding' || author.authorRole === 'first_and_corresponding_author') {
+          usedRoles.push('first_author');
+          usedRoles.push('corresponding_author');
+        }
+      }
+    });
+
+    // Check user's role from userRole field in data
+    const userRole = (data.userRole as string) || '';
+    if (userRole === 'first_and_corresponding' || userRole === 'first_and_corresponding_author') {
+      usedRoles.push('first_author');
+      usedRoles.push('corresponding_author');
+    } else if (userRole === 'first' || userRole === 'first_author') {
+      usedRoles.push('first_author');
+    } else if (userRole === 'corresponding' || userRole === 'corresponding_author') {
+      usedRoles.push('corresponding_author');
+    }
+
+    // RULE 1: Solo author (Total=1, Internal=1, Co-Authors=0) -> No other authors to add
+    // This shouldn't show the add form at all, but if it does, return empty
+    if (totalAuthors === 1 && sgtAuthors === 1 && internalCoAuthors === 0) {
+      return [];
+    }
+
+    // RULE 2: All internal authors are co-authors (sgtAuthors = internalCoAuthors + 1)
+    // This means the user is NOT a co-author, so all OTHER internal authors MUST be co-authors
+    if (newAuthor.authorCategory === 'Internal' && sgtAuthors === internalCoAuthors + 1) {
+      return [
+        { value: 'co_author', label: 'Co-Author' },
+      ];
+    }
+
+    // RULE 3: Internal Co-Authors = 0, meaning NO co-authors allowed among internal authors
+    // The other internal author must be First or Corresponding (whichever isn't taken)
+    if (newAuthor.authorCategory === 'Internal' && internalCoAuthors === 0 && sgtAuthors > 1) {
+      const roles = [];
+      
+      // Check if First & Corresponding combined is available
+      if (!usedRoles.includes('first_author') && !usedRoles.includes('corresponding_author')) {
+        roles.push({ value: 'first_and_corresponding', label: 'First and Corresponding Author' });
+      }
+      
+      // Check individual roles
+      if (!usedRoles.includes('first_author')) {
+        roles.push({ value: 'first', label: 'First Author' });
+      }
+      if (!usedRoles.includes('corresponding_author')) {
+        roles.push({ value: 'corresponding', label: 'Corresponding Author' });
+      }
+      
+      return roles.length > 0 ? roles : [{ value: 'co_author', label: 'Co-Author' }];
+    }
+
+    // RULE 4: Two total authors - special handling
+    if (totalAuthors === 2) {
+      // If user is co-author, other must be First & Corresponding
+      if (userRole === 'co_author' || userRole === 'co') {
+        return [
+          { value: 'first_and_corresponding', label: 'First and Corresponding Author' },
+        ];
+      }
+      // If user is First/Corresponding, other must be co-author
+      if (userRole && userRole !== 'co_author' && userRole !== 'co') {
+        return [
+          { value: 'co_author', label: 'Co-Author' },
+        ];
+      }
+    }
+
+    // DEFAULT: Flexible scenarios - build available roles dynamically
+    const allRoles = [
+      { value: 'first_and_corresponding', label: 'First and Corresponding Author' },
+      { value: 'first', label: 'First Author' },
+      { value: 'corresponding', label: 'Corresponding Author' },
       { value: 'co_author', label: 'Co-Author' },
     ];
 
-    // For Internal authors, check if they can be first or corresponding
-    if (newAuthor.authorCategory === 'Internal' && internalCoAuthors === 0 && sgtAuthors > 1) {
-      roles.unshift(
-        { value: 'first', label: 'First Author' },
-        { value: 'corresponding', label: 'Corresponding Author' }
-      );
-    }
-
-    return roles;
+    // Filter out roles that are already used
+    return allRoles.filter(role => {
+      // Co-author can be used multiple times
+      if (role.value === 'co_author') {
+        return true;
+      }
+      // First and Corresponding Author - can use if neither role is taken
+      if (role.value === 'first_and_corresponding') {
+        return !usedRoles.includes('first_author') && !usedRoles.includes('corresponding_author');
+      }
+      // First author and corresponding author can only be used once
+      return !usedRoles.includes(role.value === 'first' ? 'first_author' : 'corresponding_author');
+    });
   };
 
   // Render Add Other Authors section
@@ -452,6 +544,32 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     <option key={role.value} value={role.value}>{role.label}</option>
                   ))}
                 </select>
+                {/* Role validation helper text */}
+                {(() => {
+                  const totalAuthors = (data.totalAuthors as number) || 1;
+                  const sgtAuthors = (data.sgtAuthors as number) || 1;
+                  const internalCoAuthors = (data.internalCoAuthors as number) || 0;
+                  const userRole = (data.userRole as string) || '';
+                  const availableRoles = getAvailableRoles();
+                  
+                  // Show rule explanations
+                  if (newAuthor.authorCategory === 'Internal') {
+                    if (sgtAuthors === internalCoAuthors + 1) {
+                      return <p className="text-xs text-blue-600 mt-1">Rule: All other SGT authors must be Co-Authors</p>;
+                    }
+                    if (internalCoAuthors === 0 && sgtAuthors > 1) {
+                      return <p className="text-xs text-blue-600 mt-1">Rule: No Co-Authors allowed - must be First or Corresponding</p>;
+                    }
+                    if (totalAuthors === 2 && userRole === 'co_author') {
+                      return <p className="text-xs text-blue-600 mt-1">Rule: Must be First & Corresponding (2 authors total)</p>;
+                    }
+                  }
+                  
+                  if (availableRoles.length < 4) {
+                    return <p className="text-xs text-gray-500 mt-1">Some roles are already assigned</p>;
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Designation (Internal only) */}
@@ -589,7 +707,16 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     type="number"
                     min="1"
                     value={(data.totalAuthors as number) || ''}
-                    onChange={(e) => handleChange('totalAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      if (value < 1) return;
+                      handleChange('totalAuthors', value);
+                      // Adjust sgtAuthors if it exceeds new totalAuthors
+                      const currentSgt = (data.sgtAuthors as number) || 1;
+                      if (currentSgt > value) {
+                        handleChange('sgtAuthors', value);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -603,7 +730,18 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     min="1"
                     max={(data.totalAuthors as number) || 1}
                     value={(data.sgtAuthors as number) || ''}
-                    onChange={(e) => handleChange('sgtAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      const maxAllowed = (data.totalAuthors as number) || 1;
+                      if (value < 1 || value > maxAllowed) return;
+                      handleChange('sgtAuthors', value);
+                      // Adjust internalCoAuthors if it exceeds max allowed
+                      const maxCoAuthors = value - 1;
+                      const currentCoAuthors = (data.internalCoAuthors as number) || 0;
+                      if (currentCoAuthors > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -611,13 +749,26 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Internal Co-Authors <span className="text-red-500">*</span>
+                    <span className="text-gray-400 ml-1 font-normal">(Max: {((data.sgtAuthors as number) || 1) - 1})</span>
                   </label>
                   <input
                     type="number"
                     min="0"
                     max={((data.sgtAuthors as number) || 1) - 1}
-                    value={(data.internalCoAuthors as number) || 0}
-                    onChange={(e) => handleChange('internalCoAuthors', parseInt(e.target.value))}
+                    value={(data.internalCoAuthors as number) ?? 0}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (isNaN(value) || value < 0) {
+                        handleChange('internalCoAuthors', 0);
+                        return;
+                      }
+                      const maxCoAuthors = ((data.sgtAuthors as number) || 1) - 1;
+                      if (value > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                        return;
+                      }
+                      handleChange('internalCoAuthors', value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     placeholder="0"
                   />
@@ -819,7 +970,16 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     type="number"
                     min="1"
                     value={(data.totalAuthors as number) || ''}
-                    onChange={(e) => handleChange('totalAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      if (value < 1) return;
+                      handleChange('totalAuthors', value);
+                      // Adjust sgtAuthors if it exceeds new totalAuthors
+                      const currentSgt = (data.sgtAuthors as number) || 1;
+                      if (currentSgt > value) {
+                        handleChange('sgtAuthors', value);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -833,7 +993,18 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     min="1"
                     max={(data.totalAuthors as number) || 1}
                     value={(data.sgtAuthors as number) || ''}
-                    onChange={(e) => handleChange('sgtAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      const maxAllowed = (data.totalAuthors as number) || 1;
+                      if (value < 1 || value > maxAllowed) return;
+                      handleChange('sgtAuthors', value);
+                      // Adjust internalCoAuthors if it exceeds max allowed
+                      const maxCoAuthors = value - 1;
+                      const currentCoAuthors = (data.internalCoAuthors as number) || 0;
+                      if (currentCoAuthors > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -841,13 +1012,26 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Internal Co-Authors <span className="text-red-500">*</span>
+                    <span className="text-gray-400 ml-1 font-normal">(Max: {((data.sgtAuthors as number) || 1) - 1})</span>
                   </label>
                   <input
                     type="number"
                     min="0"
                     max={((data.sgtAuthors as number) || 1) - 1}
-                    value={(data.internalCoAuthors as number) || 0}
-                    onChange={(e) => handleChange('internalCoAuthors', parseInt(e.target.value))}
+                    value={(data.internalCoAuthors as number) ?? 0}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (isNaN(value) || value < 0) {
+                        handleChange('internalCoAuthors', 0);
+                        return;
+                      }
+                      const maxCoAuthors = ((data.sgtAuthors as number) || 1) - 1;
+                      if (value > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                        return;
+                      }
+                      handleChange('internalCoAuthors', value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     placeholder="0"
                   />
@@ -1002,7 +1186,16 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     type="number"
                     min="1"
                     value={(data.totalAuthors as number) || ''}
-                    onChange={(e) => handleChange('totalAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      if (value < 1) return;
+                      handleChange('totalAuthors', value);
+                      // Adjust sgtAuthors if it exceeds new totalAuthors
+                      const currentSgt = (data.sgtAuthors as number) || 1;
+                      if (currentSgt > value) {
+                        handleChange('sgtAuthors', value);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -1016,7 +1209,18 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     min="1"
                     max={(data.totalAuthors as number) || 1}
                     value={(data.sgtAuthors as number) || ''}
-                    onChange={(e) => handleChange('sgtAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      const maxAllowed = (data.totalAuthors as number) || 1;
+                      if (value < 1 || value > maxAllowed) return;
+                      handleChange('sgtAuthors', value);
+                      // Adjust internalCoAuthors if it exceeds max allowed
+                      const maxCoAuthors = value - 1;
+                      const currentCoAuthors = (data.internalCoAuthors as number) || 0;
+                      if (currentCoAuthors > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -1024,13 +1228,26 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Internal Co-Authors <span className="text-red-500">*</span>
+                    <span className="text-gray-400 ml-1 font-normal">(Max: {((data.sgtAuthors as number) || 1) - 1})</span>
                   </label>
                   <input
                     type="number"
                     min="0"
                     max={((data.sgtAuthors as number) || 1) - 1}
-                    value={(data.internalCoAuthors as number) || 0}
-                    onChange={(e) => handleChange('internalCoAuthors', parseInt(e.target.value))}
+                    value={(data.internalCoAuthors as number) ?? 0}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (isNaN(value) || value < 0) {
+                        handleChange('internalCoAuthors', 0);
+                        return;
+                      }
+                      const maxCoAuthors = ((data.sgtAuthors as number) || 1) - 1;
+                      if (value > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                        return;
+                      }
+                      handleChange('internalCoAuthors', value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     placeholder="0"
                   />
@@ -1240,7 +1457,16 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     type="number"
                     min="1"
                     value={(data.totalAuthors as number) || ''}
-                    onChange={(e) => handleChange('totalAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      if (value < 1) return;
+                      handleChange('totalAuthors', value);
+                      // Adjust sgtAuthors if it exceeds new totalAuthors
+                      const currentSgt = (data.sgtAuthors as number) || 1;
+                      if (currentSgt > value) {
+                        handleChange('sgtAuthors', value);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -1254,7 +1480,18 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     min="1"
                     max={(data.totalAuthors as number) || 1}
                     value={(data.sgtAuthors as number) || ''}
-                    onChange={(e) => handleChange('sgtAuthors', parseInt(e.target.value))}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 1;
+                      const maxAllowed = (data.totalAuthors as number) || 1;
+                      if (value < 1 || value > maxAllowed) return;
+                      handleChange('sgtAuthors', value);
+                      // Adjust internalCoAuthors if it exceeds max allowed
+                      const maxCoAuthors = value - 1;
+                      const currentCoAuthors = (data.internalCoAuthors as number) || 0;
+                      if (currentCoAuthors > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     required
                   />
@@ -1262,13 +1499,26 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                     Internal Co-Authors <span className="text-red-500">*</span>
+                    <span className="text-gray-400 ml-1 font-normal">(Max: {((data.sgtAuthors as number) || 1) - 1})</span>
                   </label>
                   <input
                     type="number"
                     min="0"
                     max={((data.sgtAuthors as number) || 1) - 1}
-                    value={(data.internalCoAuthors as number) || 0}
-                    onChange={(e) => handleChange('internalCoAuthors', parseInt(e.target.value))}
+                    value={(data.internalCoAuthors as number) ?? 0}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (isNaN(value) || value < 0) {
+                        handleChange('internalCoAuthors', 0);
+                        return;
+                      }
+                      const maxCoAuthors = ((data.sgtAuthors as number) || 1) - 1;
+                      if (value > maxCoAuthors) {
+                        handleChange('internalCoAuthors', maxCoAuthors);
+                        return;
+                      }
+                      handleChange('internalCoAuthors', value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500"
                     placeholder="0"
                   />
@@ -1357,8 +1607,21 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
             </div>
           </div>
 
-          {/* Volume, Issue, Pages */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Volume, Issue, Pages, DOI */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Volume <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={(data.volume as string) || ''}
+                onChange={(e) => handleChange('volume', e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="e.g., 12"
+                required
+              />
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Issue <span className="text-red-500">*</span>
@@ -1387,17 +1650,31 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                ISSN <span className="text-red-500">*</span>
+                DOI
               </label>
               <input
                 type="text"
-                value={(data.issn as string) || ''}
-                onChange={(e) => handleChange('issn', e.target.value)}
+                value={(data.doi as string) || ''}
+                onChange={(e) => handleChange('doi', e.target.value)}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="xxxx-xxxx"
-                required
+                placeholder="10.xxxx/..."
               />
             </div>
+          </div>
+
+          {/* ISSN */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              ISSN <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={(data.issn as string) || ''}
+              onChange={(e) => handleChange('issn', e.target.value)}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              placeholder="xxxx-xxxx"
+              required
+            />
           </div>
 
           {/* Publication URL/Weblink */}

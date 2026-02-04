@@ -25,6 +25,25 @@ const updateProfileValidation = [
 // Public routes
 router.post('/login', loginValidation, authController.login);
 
+// Diagnostic endpoint to check environment configuration
+router.get('/config', (req, res) => {
+  const config = require('../../../shared/config/app.config');
+  res.json({
+    success: true,
+    data: {
+      env: config.env,
+      corsOrigin: config.cors.origin,
+      cookieSettings: {
+        sameSite: config.env === 'production' ? 'none' : 'lax',
+        secure: config.env === 'production',
+        httpOnly: true
+      },
+      hasCookie: !!req.cookies.token,
+      hasAuthHeader: !!req.headers.authorization
+    }
+  });
+});
+
 // Protected routes
 router.use(protect);
 router.post('/logout', authController.logout);

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getFileUrl } from '@/shared/api/api';
+import { getFileUrl, getResearchDocumentDownloadUrl } from '@/shared/api/api';
 import { useParams, useRouter } from 'next/navigation';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
@@ -133,7 +133,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
   book: { label: 'Book', icon: BookOpen, color: 'bg-green-500' },
   book_chapter: { label: 'Book Chapter', icon: BookOpen, color: 'bg-green-400' },
   conference_paper: { label: 'Conference Paper', icon: Presentation, color: 'bg-purple-500' },
-  grant: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500' },
+  grant_proposal: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500' },
 };
 
 // Helper functions for formatting display values
@@ -215,6 +215,52 @@ const INDEXING_CATEGORY_LABELS: Record<string, string> = {
   'case_centre_uk': 'The Case Centre UK',
   'other_indexed': 'Other Indexed Journals',
   'non_indexed_reputed': 'Non-Indexed Reputed Journals',
+};
+
+// Helper to parse manuscript file path (can be string or JSON object)
+interface ManuscriptFileInfo {
+  s3Key: string;
+  name: string;
+  size?: number;
+  mimetype?: string;
+}
+
+const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null => {
+  if (!filePath) return null;
+  
+  // If it's already an object with s3Key
+  if (typeof filePath === 'object' && filePath !== null && 's3Key' in filePath) {
+    const obj = filePath as ManuscriptFileInfo;
+    return {
+      s3Key: obj.s3Key,
+      name: obj.name || obj.s3Key.split('/').pop() || 'document',
+      size: obj.size,
+      mimetype: obj.mimetype
+    };
+  }
+  
+  // If it's a string, try to parse as JSON first
+  if (typeof filePath === 'string') {
+    try {
+      const parsed = JSON.parse(filePath);
+      if (parsed && typeof parsed === 'object' && 's3Key' in parsed) {
+        return {
+          s3Key: parsed.s3Key,
+          name: parsed.name || parsed.s3Key.split('/').pop() || 'document',
+          size: parsed.size,
+          mimetype: parsed.mimetype
+        };
+      }
+    } catch {
+      // It's a plain string (old format: just the S3 key)
+      return {
+        s3Key: filePath,
+        name: filePath.split('/').pop() || 'document'
+      };
+    }
+  }
+  
+  return null;
 };
 
 export default function ResearchReviewPage() {
@@ -814,7 +860,7 @@ export default function ResearchReviewPage() {
                contribution.publicationType === 'book' ? 'Book Details' :
                contribution.publicationType === 'book_chapter' ? 'Book Chapter Details' :
                contribution.publicationType === 'conference_paper' ? 'Conference Details' :
-               contribution.publicationType === 'grant' ? 'Grant Details' :
+               contribution.publicationType === 'grant_proposal' ? 'Grant Details' :
                'Publication Details'}
             </h2>
             {isEditMode && (
@@ -1331,7 +1377,7 @@ export default function ResearchReviewPage() {
             )}
             
             {/* Grant specific */}
-            {contribution.publicationType === 'grant' && (
+            {contribution.publicationType === 'grant_proposal' && (
               <>
                 {(contribution.grantTitle || isEditMode) && (
                   <div>
@@ -1493,26 +1539,29 @@ export default function ResearchReviewPage() {
             Submitted Documents
           </h2>
           <div className="space-y-3">
-            {contribution.manuscriptFilePath ? (
-              <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                  <div>
-                    <div className="font-medium text-gray-900">Research Document</div>
-                    <div className="text-sm text-gray-500">Main manuscript/publication</div>
+            {contribution.manuscriptFilePath ? (() => {
+              const manuscriptInfo = parseManuscriptFilePath(contribution.manuscriptFilePath);
+              return manuscriptInfo ? (
+                <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <FileText className="w-6 h-6 text-blue-600" />
+                    <div>
+                      <div className="font-medium text-gray-900">Research Document</div>
+                      <div className="text-sm text-gray-500">{manuscriptInfo.name}</div>
+                    </div>
                   </div>
+                  <a
+                    href={getResearchDocumentDownloadUrl(contribution.id, 'manuscript', manuscriptInfo.name)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    View
+                  </a>
                 </div>
-                <a
-                  href={getFileUrl(contribution.manuscriptFilePath)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View
-                </a>
-              </div>
-            ) : (
+              ) : null;
+            })() : (
               <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
                 <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                 <p className="text-sm text-gray-500">No research document uploaded</p>
@@ -1522,7 +1571,7 @@ export default function ResearchReviewPage() {
             {contribution.supportingDocsFilePaths && (contribution.supportingDocsFilePaths as any).files?.length > 0 ? (
               <div className="space-y-2">
                 <h3 className="text-sm font-medium text-gray-700 mt-4">Supporting Documents</h3>
-                {((contribution.supportingDocsFilePaths as any).files as Array<{path: string, name: string, size?: number}>).map((doc, index) => (
+                {((contribution.supportingDocsFilePaths as any).files as Array<{path: string, s3Key?: string, name: string, size?: number}>).map((doc, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <FileText className="w-5 h-5 text-gray-600" />
@@ -1536,7 +1585,7 @@ export default function ResearchReviewPage() {
                       </div>
                     </div>
                     <a
-                      href={getFileUrl(doc.path)}
+                      href={getResearchDocumentDownloadUrl(contribution.id, 'supporting', doc.name)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center px-3 py-1.5 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700 transition-colors"

@@ -239,13 +239,22 @@ export default function SchoolAssignmentManager({ config }: SchoolAssignmentMana
       setMembers(Array.isArray(membersData) ? membersData : []);
       
       const schoolsData = schoolsWithMembersRes.data?.data || [];
-      setSchoolsWithMembers(Array.isArray(schoolsData) ? schoolsData : []);
+      
+      // Transform the backend response to match the expected structure
+      const transformedSchoolsData = (Array.isArray(schoolsData) ? schoolsData : []).map((s: any) => ({
+        schoolId: s.id,
+        schoolCode: s.facultyCode,
+        schoolName: s.facultyName,
+        assignedMemberIds: s.assignedMembers?.map((m: any) => m.userId) || [],
+        members: s.assignedMembers || [],
+      }));
+      setSchoolsWithMembers(transformedSchoolsData);
       
       // Extract schools list
-      const schoolsList = (Array.isArray(schoolsData) ? schoolsData : []).map((s: SchoolWithMembers) => ({
-        id: s.schoolId,
-        facultyCode: s.schoolCode,
-        facultyName: s.schoolName,
+      const schoolsList = (Array.isArray(schoolsData) ? schoolsData : []).map((s: any) => ({
+        id: s.id,
+        facultyCode: s.facultyCode,
+        facultyName: s.facultyName,
       }));
       setSchools(schoolsList);
     } catch (err: unknown) {

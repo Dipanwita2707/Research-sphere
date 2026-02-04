@@ -45,7 +45,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
   book: { label: 'Book', icon: BookOpen },
   book_chapter: { label: 'Book Chapter', icon: BookOpen },
   conference_paper: { label: 'Conference Paper', icon: Presentation },
-  grant: { label: 'Grant Proposal', icon: DollarSign },
+  grant_proposal: { label: 'Grant Proposal', icon: DollarSign },
 };
 
 export default function EditContributionPage() {
@@ -2361,7 +2361,7 @@ export default function EditContributionPage() {
         )}
 
         {/* Grant message */}
-        {contribution.publicationType === 'grant' && (
+        {contribution.publicationType === 'grant_proposal' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Grant Details</h2>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

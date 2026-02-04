@@ -96,6 +96,16 @@ export default function ResearchApplyPage() {
     return <ResearchTypeSelector />;
   }
 
+  // Redirect grant_proposal to the dedicated grant application page
+  if (type === 'grant_proposal') {
+    router.replace(editId ? `/research/apply-grant?edit=${editId}` : '/research/apply-grant');
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 dark:border-orange-400"></div>
+      </div>
+    );
+  }
+
   // Valid type - show form
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">

@@ -11,6 +11,7 @@ import { centralDepartmentService, CentralDepartment } from '@/features/admin-ma
 interface School {
   id: string;
   facultyName: string;
+  departments?: Department[];
 }
 
 interface Department {
@@ -125,7 +126,7 @@ export default function EmployeeManagement() {
   useEffect(() => {
     if (formData.schoolId) {
       const school = schools.find((s) => s.id === formData.schoolId);
-      setDepartments((school as any)?.departments || []);
+      setDepartments(school?.departments || []);
       // Clear central department selection when school is selected
       setFormData(prev => ({ ...prev, centralDepartmentId: '' }));
     } else {

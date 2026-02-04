@@ -32,10 +32,15 @@ export interface PerformanceStats {
  */
 export const getUserPerformance = async (userId: number): Promise<PerformanceData[]> => {
   try {
+    // Skip API call if userId is invalid
+    if (!userId || userId === 0 || isNaN(userId)) {
+      throw new Error('Invalid user ID');
+    }
+    
     const response = await api.get(`/api/analytics/user/${userId}/performance`);
     return response.data;
   } catch (error) {
-    logger.error('Error fetching user performance:', error);
+    logger.debug('Using fallback performance data (API not available)');
     // Return fallback weekly data showing progressive improvement
     return [
       { term: 'Week 1', attendance: 45, tasksCompleted: 58, deptEngagement: 40, responseTime: 35, overallScore: 42 },

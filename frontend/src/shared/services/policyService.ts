@@ -21,7 +21,7 @@ interface IPRPolicy {
  */
 export const getPolicyByType = async (iprType: string): Promise<IPRPolicy> => {
   try {
-    const response = await api.get(`/api/v1/incentive-policies/type/${iprType}`);
+    const response = await api.get(`/incentive-policies/type/${iprType}`);
     
     if (response.data.success) {
       return response.data.data;

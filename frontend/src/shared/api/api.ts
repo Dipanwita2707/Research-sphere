@@ -28,6 +28,17 @@ export const getUploadUrl = (filePath: string): string => {
   return `${getHostUrl()}/uploads/${cleanPath}`;
 };
 
+// Helper to get S3 download URL for research documents
+// This constructs the proper API endpoint that streams files from S3
+export const getResearchDocumentDownloadUrl = (
+  contributionId: string,
+  documentType: 'manuscript' | 'supporting',
+  filename: string
+): string => {
+  const encodedFilename = encodeURIComponent(filename);
+  return `${API_URL}/research/${contributionId}/documents/${documentType}/${encodedFilename}`;
+};
+
 // Retry configuration
 interface RetryConfig {
   retries?: number;

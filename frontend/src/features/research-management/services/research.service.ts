@@ -6,7 +6,7 @@ export type ResearchPublicationType =
   | 'book'
   | 'book_chapter'
   | 'conference_paper'
-  | 'grant';
+  | 'grant_proposal';
 
 export type ResearchContributionStatus = 
   | 'draft'

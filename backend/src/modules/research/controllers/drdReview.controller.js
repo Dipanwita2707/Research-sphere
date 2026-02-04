@@ -79,7 +79,8 @@ const getPendingDrdReviews = async (req, res) => {
     }
 
     const permissions = userDrdPermission?.permissions || {};
-    const assignedSchoolIds = userDrdPermission?.assignedSchoolIds || [];
+    // Filter out null/undefined values from assignedSchoolIds to prevent Prisma errors
+    const assignedSchoolIds = (userDrdPermission?.assignedSchoolIds || []).filter(id => id !== null && id !== undefined);
     const isDrdHead = permissions.ipr_approve === true || permissions.drd_ipr_approve === true;
     const isDrdMember = permissions.ipr_review === true || permissions.ipr_recommend === true || 
                         permissions.drd_ipr_review === true || permissions.drd_ipr_recommend === true;
@@ -128,13 +129,13 @@ const getPendingDrdReviews = async (req, res) => {
       // 3. Applications assigned to them as reviewer
       where.OR = [
         { schoolId: { in: assignedSchoolIds } },
-        { schoolId: null },  // Include unassigned applications
+        { schoolId: null },
         { currentReviewerId: userId }
       ];
     } else if (!isDrdHead && isDrdMember && assignedSchoolIds.length === 0) {
       // DRD Member with no assigned schools: see unassigned apps and their assigned applications
       where.OR = [
-        { schoolId: null },  // Include unassigned applications
+        { schoolId: null },
         { currentReviewerId: userId }
       ];
     }

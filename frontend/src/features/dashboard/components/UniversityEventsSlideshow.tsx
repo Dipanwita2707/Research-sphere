@@ -70,37 +70,37 @@ export default function UniversityEventsSlideshow() {
       transition={{ duration: 0.5, delay: 0.9 }}
       className="mb-8"
     >
-      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl md:rounded-3xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors duration-200">
-        <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-center p-4 sm:p-6 lg:p-12">
+      <div className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl shadow-lg overflow-hidden border border-gray-100 dark:border-gray-700 transition-colors duration-200">
+        <div className="grid lg:grid-cols-2 gap-4 lg:gap-6 items-center p-4 sm:p-5 lg:p-8">
           {/* Left Content - Text Section */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="space-y-4 lg:space-y-6 order-2 lg:order-1"
+            className="space-y-3 lg:space-y-4 order-2 lg:order-1"
           >
             <div>
-              <h2 className="text-2xl sm:text-3xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-2 lg:mb-4 leading-tight">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white mb-2 leading-tight">
                 Research Excellence at <span className="text-blue-600 dark:text-blue-400">SGT University.</span>
               </h2>
-              <p className="text-lg sm:text-xl lg:text-2xl text-gray-700 dark:text-gray-300">
+              <p className="text-sm sm:text-base lg:text-lg text-gray-700 dark:text-gray-300">
                 Pioneering innovations and groundbreaking discoveries <span className="font-semibold text-blue-600 dark:text-blue-400">shaping the future.</span>
               </p>
             </div>
             
-            <div className="space-y-3 lg:space-y-4">
+            <div className="space-y-2 lg:space-y-3">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
-                className="flex items-start gap-4 p-4 bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-xl shadow-sm"
+                className="flex items-start gap-3 p-3 bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-xl shadow-sm"
               >
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Track Research Impact</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">Monitor publications, citations, and research impact across all disciplines in real-time.</p>
+                  <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white mb-1">Track Research Impact</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Monitor publications, citations, and research impact across all disciplines in real-time.</p>
                 </div>
               </motion.div>
               
@@ -108,14 +108,14 @@ export default function UniversityEventsSlideshow() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 }}
-                className="flex items-start gap-4 p-4 bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-xl shadow-sm"
+                className="flex items-start gap-3 p-3 bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-xl shadow-sm"
               >
-                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Foster Innovation & IPR</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">Manage intellectual property, patents, and innovation from ideation to commercialization.</p>
+                  <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white mb-1">Foster Innovation & IPR</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm">Manage intellectual property, patents, and innovation from ideation to commercialization.</p>
                 </div>
               </motion.div>
             </div>
@@ -128,7 +128,7 @@ export default function UniversityEventsSlideshow() {
             transition={{ duration: 0.6 }}
             className="relative order-1 lg:order-2"
           >
-            <div className="relative h-[280px] sm:h-[350px] lg:h-[450px] rounded-xl lg:rounded-2xl overflow-hidden shadow-xl lg:shadow-2xl group">
+            <div className="relative h-[250px] sm:h-[300px] lg:h-[350px] rounded-xl overflow-hidden shadow-xl group">
               {/* Slideshow Container */}
               <AnimatePresence mode="wait">
                 <motion.div

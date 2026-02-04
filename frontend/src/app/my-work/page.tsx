@@ -41,7 +41,7 @@ const RESEARCH_TYPES = [
   { type: 'research_paper', label: 'Research Paper', icon: FileText, color: 'bg-blue-500', description: 'Journal articles', href: '/research/apply?type=research_paper' },
   { type: 'book', label: 'Book / Chapter', icon: BookOpen, color: 'bg-green-500', description: 'Books and chapters', href: '/research/apply?type=book' },
   { type: 'conference_paper', label: 'Conference', icon: Presentation, color: 'bg-purple-500', description: 'Conference papers', href: '/research/apply?type=conference_paper' },
-  { type: 'grant', label: 'Grant / Funding', icon: DollarSign, color: 'bg-orange-500', description: 'Research grants', href: '/research/apply?type=grant' },
+  { type: 'grant_proposal', label: 'Grant / Funding', icon: DollarSign, color: 'bg-orange-500', description: 'Research grants', href: '/research/apply-grant' },
 ];
 
 const IPR_STATUS_CONFIG = {

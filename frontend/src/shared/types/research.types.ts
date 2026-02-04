@@ -123,7 +123,8 @@ export interface ResearchContribution {
   calculatedPoints: Nullable<number>;
   
   // File Paths
-  manuscriptFilePath: Nullable<string>;
+  // manuscriptFilePath can be a string (old format: S3 key) or an object (new format with s3Key, name, etc.)
+  manuscriptFilePath: Nullable<string | { s3Key: string; name: string; size?: number; mimetype?: string }>;
   supportingDocsFilePaths: Nullable<SupportingDocsFilePaths>;
   
   // SDG Goals

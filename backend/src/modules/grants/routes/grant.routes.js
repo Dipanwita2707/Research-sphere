@@ -11,19 +11,11 @@ const grantController = require('../controllers/grant.controller');
 const { protect, requirePermission, requireAnyPermission } = require('../../../shared/middleware/auth');
 const prisma = require('../../../shared/config/database');
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/research/grants');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'grant-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Configure multer with memory storage for S3 uploads
+const memoryStorage = multer.memoryStorage();
 
 const upload = multer({
-  storage,
+  storage: memoryStorage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = ['.pdf', '.zip', '.doc', '.docx'];

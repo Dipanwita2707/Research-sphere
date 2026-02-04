@@ -53,13 +53,13 @@ export default function QuickAccessModules() {
       icon: Users,
       color: 'from-purple-500 to-pink-500',
       gradient: 'from-purple-50 to-pink-50',
-      link: '/attendance/rfid',
+      link: 'http://192.168.7.20:3000',
       stats: [
         { label: 'Today', value: 'Present' },
         { label: 'This Week', value: '95%' },
         { label: 'Monthly', value: '92%' },
       ],
-      isExternal: false,
+      isExternal: true,
     },
   ];
 

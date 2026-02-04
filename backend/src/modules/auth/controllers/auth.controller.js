@@ -230,13 +230,16 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user.id);
 
-    // Set cookie
-    res.cookie('token', token, {
+    // Set cookie with appropriate sameSite setting for cross-origin
+    // sameSite: 'none' REQUIRES secure: true for cross-origin cookies
+    const cookieOptions = {
       expires: new Date(Date.now() + config.jwt.cookieExpire * 24 * 60 * 60 * 1000),
       httpOnly: true,
-      secure: config.env === 'production',
-      sameSite: 'strict'
-    });
+      sameSite: config.env === 'production' ? 'none' : 'lax',
+      secure: config.env === 'production' ? true : false, // Must be true when sameSite is 'none'
+    };
+    
+    res.cookie('token', token, cookieOptions);
 
     // Audit log with full details
     await auditService.log({
@@ -277,10 +280,15 @@ exports.login = async (req, res) => {
 // Logout
 exports.logout = async (req, res) => {
   try {
-    res.cookie('token', 'none', {
+    // Clear cookie with same options as login
+    const cookieOptions = {
       expires: new Date(Date.now() + 1000),
-      httpOnly: true
-    });
+      httpOnly: true,
+      sameSite: config.env === 'production' ? 'none' : 'lax',
+      secure: config.env === 'production' ? true : false,
+    };
+    
+    res.cookie('token', 'none', cookieOptions);
 
     // Audit log with full details
     await auditService.log({

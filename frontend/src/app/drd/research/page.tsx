@@ -52,7 +52,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
   book: { label: 'Book', icon: BookOpen, color: 'bg-green-500' },
   book_chapter: { label: 'Book Chapter', icon: BookOpen, color: 'bg-green-400' },
   conference_paper: { label: 'Conference Paper', icon: Presentation, color: 'bg-purple-500' },
-  grant: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500' },
+  grant_proposal: { label: 'Grant', icon: DollarSign, color: 'bg-orange-500' },
 };
 
 type StatusFilter = 'all' | 'submitted' | 'under_review' | 'changes_required' | 'resubmitted' | 'approved';
@@ -465,7 +465,7 @@ export default function DrdResearchDashboard() {
               );
               
               // Determine review page URL based on publication type
-              const isGrant = contribution.publicationType === 'grant';
+              const isGrant = contribution.publicationType === 'grant_proposal';
               const reviewUrl = isGrant 
                 ? `/drd/research/grant-review/${contribution.id}`
                 : `/drd/research/review/${contribution.id}`;

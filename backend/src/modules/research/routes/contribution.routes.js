@@ -7,26 +7,13 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const researchContributionController = require('../controllers/contribution.controller');
 const researchReviewController = require('../controllers/review.controller');
 const { protect, requirePermission, checkResearchFilePermission } = require('../../../shared/middleware/auth');
 const prisma = require('../../../shared/config/database');
 
-// Configure multer for document uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../../../../uploads/research');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Configure multer with memory storage for S3 uploads
+const memoryStorage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [
@@ -48,10 +35,11 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage: storage,
+  storage: memoryStorage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 50 * 1024 * 1024, // 50MB limit per file
+    files: 11, // Allow up to 11 files total (1 main + 10 supporting)
   },
 });
 
@@ -237,6 +225,13 @@ router.post(
     { name: 'supportingDocuments', maxCount: 10 }
   ]),
   researchContributionController.uploadDocuments
+);
+
+// Download research document or supporting document
+router.get(
+  '/:id/documents/:type/:filename',
+  protect,
+  researchContributionController.downloadDocument
 );
 
 // ============================================

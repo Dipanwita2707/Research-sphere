@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getFileUrl } from '@/shared/api/api';
+import { getFileUrl, getResearchDocumentDownloadUrl } from '@/shared/api/api';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -65,7 +65,7 @@ const PUBLICATION_TYPE_CONFIG: Record<ResearchPublicationType, { label: string; 
   book: { label: 'Book', icon: BookOpen, gradientFrom: 'from-green-500', gradientTo: 'to-green-600' },
   book_chapter: { label: 'Book Chapter', icon: BookOpen, gradientFrom: 'from-emerald-500', gradientTo: 'to-emerald-600' },
   conference_paper: { label: 'Conference Paper', icon: Presentation, gradientFrom: 'from-purple-500', gradientTo: 'to-purple-600' },
-  grant: { label: 'Grant Proposal', icon: DollarSign, gradientFrom: 'from-orange-500', gradientTo: 'to-orange-600' },
+  grant_proposal: { label: 'Grant Proposal', icon: DollarSign, gradientFrom: 'from-orange-500', gradientTo: 'to-orange-600' },
 };
 
 const TARGETED_RESEARCH_LABELS: Record<string, string> = {
@@ -117,6 +117,52 @@ interface EditSuggestion {
   reviewer?: { uid: string; employeeDetails?: { displayName: string } };
   createdAt: string;
 }
+
+// Helper to parse manuscript file path (can be string or JSON object)
+interface ManuscriptFileInfo {
+  s3Key: string;
+  name: string;
+  size?: number;
+  mimetype?: string;
+}
+
+const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null => {
+  if (!filePath) return null;
+  
+  // If it's already an object with s3Key
+  if (typeof filePath === 'object' && filePath !== null && 's3Key' in filePath) {
+    const obj = filePath as ManuscriptFileInfo;
+    return {
+      s3Key: obj.s3Key,
+      name: obj.name || obj.s3Key.split('/').pop() || 'document',
+      size: obj.size,
+      mimetype: obj.mimetype
+    };
+  }
+  
+  // If it's a string, try to parse as JSON first
+  if (typeof filePath === 'string') {
+    try {
+      const parsed = JSON.parse(filePath);
+      if (parsed && typeof parsed === 'object' && 's3Key' in parsed) {
+        return {
+          s3Key: parsed.s3Key,
+          name: parsed.name || parsed.s3Key.split('/').pop() || 'document',
+          size: parsed.size,
+          mimetype: parsed.mimetype
+        };
+      }
+    } catch {
+      // It's a plain string (old format: just the S3 key)
+      return {
+        s3Key: filePath,
+        name: filePath.split('/').pop() || 'document'
+      };
+    }
+  }
+  
+  return null;
+};
 
 export default function ContributionDetailPage() {
   const params = useParams();
@@ -354,25 +400,35 @@ export default function ContributionDetailPage() {
             <span className="text-sm text-gray-500">My Incentive</span>
             <Coins className="w-5 h-5 text-green-500" />
           </div>
-          {['approved', 'completed'].includes(contribution.status) && contribution.authors ? (
-            (() => {
-              const currentUserAuthor = contribution.authors.find((a: any) => a.userId === user?.id);
-              const myIncentive = currentUserAuthor?.incentiveShare || 0;
+          {(() => {
+            // Find current user's author record
+            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId === user?.id);
+            const myIncentive = currentUserAuthor?.incentiveShare || 0;
+            const isApprovedOrCompleted = ['approved', 'completed'].includes(contribution.status);
+            
+            if (myIncentive > 0) {
               return (
                 <div>
-                  <p className="text-2xl font-bold text-green-600">₹{Number(myIncentive).toLocaleString()}</p>
-                  <p className="text-xs text-green-600 mt-1">✓ Credited</p>
+                  <p className={`text-2xl font-bold ${isApprovedOrCompleted ? 'text-green-600' : 'text-blue-600'}`}>
+                    ₹{Number(myIncentive).toLocaleString()}
+                  </p>
+                  <p className={`text-xs mt-1 ${isApprovedOrCompleted ? 'text-green-600' : 'text-gray-500'}`}>
+                    {isApprovedOrCompleted ? '✓ Credited' : 'Estimated'}
+                  </p>
                 </div>
               );
-            })()
-          ) : contribution.calculatedIncentiveAmount ? (
-            <div>
-              <p className="text-2xl font-bold text-blue-600">₹{Number(contribution.calculatedIncentiveAmount).toLocaleString()}</p>
-              <p className="text-xs text-gray-500 mt-1">Estimated</p>
-            </div>
-          ) : (
-            <p className="text-2xl font-bold text-gray-400">-</p>
-          )}
+            } else if (contribution.calculatedIncentiveAmount) {
+              // Fallback: If no author share calculated yet, show total with note
+              return (
+                <div>
+                  <p className="text-2xl font-bold text-gray-400">-</p>
+                  <p className="text-xs text-gray-500 mt-1">Pending calculation</p>
+                </div>
+              );
+            } else {
+              return <p className="text-2xl font-bold text-gray-400">-</p>;
+            }
+          })()}
         </div>
 
         {/* Points Card */}
@@ -381,25 +437,35 @@ export default function ContributionDetailPage() {
             <span className="text-sm text-gray-500">My Points</span>
             <Award className="w-5 h-5 text-purple-500" />
           </div>
-          {['approved', 'completed'].includes(contribution.status) && contribution.authors ? (
-            (() => {
-              const currentUserAuthor = contribution.authors.find((a: any) => a.userId === user?.id);
-              const myPoints = currentUserAuthor?.pointsShare || 0;
+          {(() => {
+            // Find current user's author record
+            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId === user?.id);
+            const myPoints = currentUserAuthor?.pointsShare || 0;
+            const isApprovedOrCompleted = ['approved', 'completed'].includes(contribution.status);
+            
+            if (myPoints > 0) {
               return (
                 <div>
-                  <p className="text-2xl font-bold text-purple-600">{myPoints}</p>
-                  <p className="text-xs text-purple-600 mt-1">✓ Credited</p>
+                  <p className={`text-2xl font-bold ${isApprovedOrCompleted ? 'text-purple-600' : 'text-indigo-600'}`}>
+                    {myPoints}
+                  </p>
+                  <p className={`text-xs mt-1 ${isApprovedOrCompleted ? 'text-purple-600' : 'text-gray-500'}`}>
+                    {isApprovedOrCompleted ? '✓ Credited' : 'Estimated'}
+                  </p>
                 </div>
               );
-            })()
-          ) : contribution.calculatedPoints ? (
-            <div>
-              <p className="text-2xl font-bold text-indigo-600">{contribution.calculatedPoints}</p>
-              <p className="text-xs text-gray-500 mt-1">Estimated</p>
-            </div>
-          ) : (
-            <p className="text-2xl font-bold text-gray-400">-</p>
-          )}
+            } else if (contribution.calculatedPoints) {
+              // Fallback: If no author share calculated yet, show pending
+              return (
+                <div>
+                  <p className="text-2xl font-bold text-gray-400">-</p>
+                  <p className="text-xs text-gray-500 mt-1">Pending calculation</p>
+                </div>
+              );
+            } else {
+              return <p className="text-2xl font-bold text-gray-400">-</p>;
+            }
+          })()}
         </div>
 
         {/* Authors Card */}
@@ -953,38 +1019,41 @@ export default function ContributionDetailPage() {
                 </h3>
                 {(contribution.manuscriptFilePath || (contribution.supportingDocsFilePaths as any)?.files?.length > 0) ? (
                   <div className="space-y-3">
-                    {contribution.manuscriptFilePath && (
-                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <FileText className="w-5 h-5 text-blue-600" />
+                    {contribution.manuscriptFilePath && (() => {
+                      const manuscriptInfo = parseManuscriptFilePath(contribution.manuscriptFilePath);
+                      return manuscriptInfo ? (
+                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <FileText className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  Research Document
+                                </p>
+                                <p className="text-sm text-gray-500">{manuscriptInfo.name}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                Research Document
-                              </p>
-                              <p className="text-sm text-gray-500">Main research document</p>
-                            </div>
+                            <a
+                              href={getResearchDocumentDownloadUrl(contribution.id, 'manuscript', manuscriptInfo.name)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              <span>Download</span>
+                            </a>
                           </div>
-                          <a
-                            href={getFileUrl(contribution.manuscriptFilePath)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            <span>Download</span>
-                          </a>
                         </div>
-                      </div>
-                    )}
+                      ) : null;
+                    })()}
                     
                     {(contribution.supportingDocsFilePaths as any)?.files?.length > 0 && (
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">Supporting Documents</p>
                         <div className="space-y-2">
-                          {((contribution.supportingDocsFilePaths as any).files as Array<{name: string, path: string, size: number}>).map((doc: any, index: number) => (
+                          {((contribution.supportingDocsFilePaths as any).files as Array<{name: string, path: string, s3Key?: string, size: number}>).map((doc: any, index: number) => (
                             <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
@@ -999,7 +1068,7 @@ export default function ContributionDetailPage() {
                                   </div>
                                 </div>
                                 <a
-                                  href={getFileUrl(doc.path)}
+                                  href={getResearchDocumentDownloadUrl(contribution.id, 'supporting', doc.name)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="px-3 py-1.5 bg-gray-600 text-white rounded text-xs font-medium hover:bg-gray-700 transition-colors flex items-center space-x-1"

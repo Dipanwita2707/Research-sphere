@@ -5,6 +5,7 @@
 
 const prisma = require('../../../shared/config/database');
 const { logResearchFiling, logResearchUpdate, logResearchStatusChange, logFileUpload, getIp } = require('../../../shared/utils/auditLogger');
+const { uploadToS3 } = require('../../../shared/utils/s3');
 
 /**
  * Generate unique application number for grants
@@ -115,10 +116,17 @@ exports.createGrantApplication = async (req, res) => {
       applicantType = 'internal_staff';
     }
 
-    // Handle file upload
+    // Handle file upload - upload to S3
     let proposalFilePath = null;
     if (req.file) {
-      proposalFilePath = `/uploads/research/grants/${req.file.filename}`;
+      const s3Result = await uploadToS3(
+        req.file.buffer,
+        'research/grants',
+        userId.toString(),
+        req.file.originalname,
+        req.file.mimetype
+      );
+      proposalFilePath = s3Result.key;
     }
 
     // Create grant application with nested relations

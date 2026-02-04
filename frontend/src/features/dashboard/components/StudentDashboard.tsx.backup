@@ -1,0 +1,380 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useAuthStore } from '@/shared/auth/authStore';
+import { 
+  FileText,
+  MessageSquare,
+  BookOpen,
+  Calendar,
+  GraduationCap,
+  TrendingUp,
+  ExternalLink,
+  Zap
+} from 'lucide-react';
+import api from '@/shared/api/api';
+import { logger } from '@/shared/utils/logger';
+import { FadeInUp } from '../animations/AnimatedComponents';
+import UniversityEventsSlideshow from './UniversityEventsSlideshow';
+import PermissionBasedDashboard from './PermissionBasedDashboard';
+import CurrentActionSection from './CurrentActionSection';
+import RecentNotifications from './RecentNotifications';
+import SocialFootprints from './SocialFootprints';
+import Footer from '../layouts/Footer';
+
+interface StudentData {
+  uid: string;
+  section: string;
+  batch: string;
+  program: string;
+  cgpa: number;
+  research: number;
+  publications: number;
+  iprFiled: number;
+  happening: number;
+  messages: number;
+  assignments: number;
+  events: number;
+}
+
+export default function StudentDashboard() {
+  const { user } = useAuthStore();
+  const [studentData, setStudentData] = useState<StudentData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStudentData();
+  }, []);
+
+  const fetchStudentData = async () => {
+    try {
+      // TODO: Replace with actual API call when backend is ready
+      // For now, using mock data
+      setStudentData({
+        uid: '22912084',
+        section: 'CSE-A',
+        batch: '2025',
+        program: 'B.Tech. (Computer Science & Engineering) (P132)',
+        cgpa: 8.5,
+        research: 5,
+        publications: 12,
+        iprFiled: 205,
+        happening: 10,
+        messages: 59,
+        assignments: 25,
+        events: 3,
+      });
+    } catch (error) {
+      logger.error('Failed to fetch student data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getUserName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user?.firstName) return user.firstName;
+    return user?.username || 'Student';
+  };
+
+  const getCurrentDate = () => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const now = new Date();
+    return `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear().toString().slice(-2)}`;
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <FadeInUp delay={0.1}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-8">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+              {/* Left: Greeting and Info */}
+              <div className="flex-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{getCurrentDate()}</p>
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-1">
+                  {getGreeting()},
+                </h1>
+                <h2 className="text-4xl font-bold text-blue-600 dark:text-blue-400 mb-4">
+                  {getUserName()}
+                </h2>
+                
+                <div className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                  <p><span className="font-semibold">UID:</span> {studentData?.uid} | <span className="font-semibold">Section:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</p>
+                  <p>{studentData?.program}</p>
+                </div>
+
+                <p className="mt-4 text-gray-600 dark:text-gray-400">
+                  Welcome to your Faculty dashboard. Track your progress, manage your work, and stay connected.
+                </p>
+              </div>
+
+              {/* Right: Stats Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-2 gap-4 lg:w-auto w-full">
+                <div className="bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl p-4 text-white shadow-lg">
+                  <FileText className="w-8 h-8 mb-2" />
+                  <p className="text-3xl font-bold">{studentData?.happening}</p>
+                  <p className="text-sm opacity-90">Happening</p>
+                </div>
+                <div className="bg-gradient-to-br from-orange-400 via-orange-500 to-yellow-500 rounded-xl p-4 text-white shadow-lg">
+                  <MessageSquare className="w-8 h-8 mb-2" />
+                  <p className="text-3xl font-bold">{studentData?.messages}</p>
+                  <p className="text-sm opacity-90">Messages</p>
+                </div>
+                <div className="bg-gradient-to-br from-orange-500 to-red-500 rounded-xl p-4 text-white shadow-lg">
+                  <BookOpen className="w-8 h-8 mb-2" />
+                  <p className="text-3xl font-bold">{studentData?.assignments}</p>
+                  <p className="text-sm opacity-90">Assignments</p>
+                </div>
+                <div className="bg-gradient-to-br from-cyan-400 to-blue-500 rounded-xl p-4 text-white shadow-lg">
+                  <Calendar className="w-8 h-8 mb-2" />
+                  <p className="text-3xl font-bold">{studentData?.events}</p>
+                  <p className="text-sm opacity-90">Events</p>
+                </div>
+              </div>
+            </div>
+
+            {/* CGPA and Research Section */}
+            <div className="mt-6 grid lg:grid-cols-2 gap-6">
+              {/* CGPA Card */}
+              <div className="bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm opacity-90 mb-1">CGPA</p>
+                    <p className="text-5xl font-bold mb-4">{studentData?.cgpa}</p>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+                          <GraduationCap className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">Research</p>
+                          <p className="text-2xl font-bold">{studentData?.research}</p>
+                        </div>
+                        <div className="ml-auto text-3xl font-bold">{studentData?.research}</div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <p className="opacity-90">Publications</p>
+                        <p className="text-xl font-bold">{studentData?.publications}</p>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <p className="opacity-90">IPR Filed</p>
+                        <p className="text-xl font-bold">{studentData?.iprFiled}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Circular Progress */}
+                  <div className="relative w-24 h-24">
+                    <svg className="transform -rotate-90 w-24 h-24">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke="rgba(255,255,255,0.2)"
+                        strokeWidth="8"
+                        fill="none"
+                      />
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r="40"
+                        stroke="white"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={`${(studentData?.cgpa || 0) * 25.13} 251.3`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold">{studentData?.cgpa}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* University Ranking Banner */}
+              <div className="bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-2xl p-6 flex items-center justify-between shadow-lg border border-yellow-200 dark:border-yellow-800">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center text-white font-bold">
+                      THE
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">World University</p>
+                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">Rankings 2026</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Times Higher Education</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">World University Rankings 2026</p>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-6xl font-bold text-yellow-600 dark:text-yellow-400 mb-1">5<sup className="text-3xl">th</sup></div>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">IN INDIA</p>
+                </div>
+
+                <div className="text-right">
+                  <div className="bg-red-500 text-white px-4 py-2 rounded-lg mb-2">
+                    <p className="text-xs font-semibold">amongst all Government</p>
+                    <p className="text-xs font-semibold">Universities, IIT's &</p>
+                    <p className="text-xs font-semibold">Private Institutions</p>
+                  </div>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">Worldwide: 501-600 Band</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </FadeInUp>
+
+        {/* Quick Access Section */}
+        <FadeInUp delay={0.3}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Quick Access</h2>
+            
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Learning Management System */}
+              <div className="group bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all cursor-pointer hover:scale-105">
+                <BookOpen className="w-12 h-12 mb-4" />
+                <h3 className="text-xl font-bold mb-2">Learning Management System</h3>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Active Courses, Assignments, & Learning Materials</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">Active Courses</p>
+                      <p className="text-2xl font-bold">8</p>
+                    </div>
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">Assignments</p>
+                      <p className="text-2xl font-bold">10</p>
+                    </div>
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">Learning Materials</p>
+                      <p className="text-2xl font-bold">10%</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end text-sm font-semibold group-hover:translate-x-1 transition-transform">
+                  Open <ExternalLink className="w-4 h-4 ml-1" />
+                </div>
+              </div>
+
+              {/* Monthly Progress Tracker */}
+              <div className="group bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all cursor-pointer hover:scale-105">
+                <TrendingUp className="w-12 h-12 mb-4" />
+                <h3 className="text-xl font-bold mb-2">Monthly Progress Tracker</h3>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Research, 5, Publications, 12, IPR Filed</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">Research</p>
+                      <p className="text-2xl font-bold">5</p>
+                    </div>
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">Publications</p>
+                      <p className="text-2xl font-bold">12</p>
+                    </div>
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">IPR Filed</p>
+                      <p className="text-2xl font-bold">8</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end text-sm font-semibold group-hover:translate-x-1 transition-transform">
+                  Open <ExternalLink className="w-4 h-4 ml-1" />
+                </div>
+              </div>
+
+              {/* RFID Attendance System */}
+              <div className="group bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all cursor-pointer hover:scale-105">
+                <Zap className="w-12 h-12 mb-4" />
+                <h3 className="text-xl font-bold mb-2">RFID Attendance System</h3>
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>Present</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">Today</p>
+                      <p className="text-2xl font-bold">P</p>
+                    </div>
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">Present</p>
+                      <p className="text-2xl font-bold">95%</p>
+                    </div>
+                    <div className="bg-white/20 backdrop-blur rounded-lg p-2 text-center">
+                      <p className="text-sm opacity-90">This Week</p>
+                      <p className="text-2xl font-bold">92%</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end text-sm font-semibold group-hover:translate-x-1 transition-transform">
+                  Open <ExternalLink className="w-4 h-4 ml-1" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </FadeInUp>
+
+        {/* University Events Slideshow */}
+        <UniversityEventsSlideshow />
+
+        {/* Permission-Based Dashboard (Existing Widgets) + Current Action Section */}
+        <FadeInUp delay={0.7}>
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Your Modules - Left Side */}
+            <div>
+              <div className="bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-2xl shadow-md p-6 border border-blue-100 dark:border-gray-700 h-full">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Your Modules</h2>
+                <PermissionBasedDashboard 
+                  userPermissions={[]}
+                  userRole="student"
+                />
+              </div>
+            </div>
+
+            {/* Current Action + Recent Notifications - Right Side */}
+            <div className="space-y-6">
+              <CurrentActionSection userName={getUserName()} userId={user?.id} />
+              <RecentNotifications />
+            </div>
+          </div>
+        </FadeInUp>
+
+        {/* Social Footprints Section */}
+        <FadeInUp delay={0.9}>
+          <SocialFootprints />
+        </FadeInUp>
+      </div>
+
+      {/* Footer - Full Width Outside Main Container */}
+      <Footer />
+    </>
+  );
+}

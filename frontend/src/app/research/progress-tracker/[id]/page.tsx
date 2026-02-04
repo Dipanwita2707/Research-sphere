@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { logger } from '@/shared/utils/logger';
 import Link from 'next/link';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { getFileUrl } from '@/shared/api/api';
 import progressTrackerService, {
   ResearchProgressTracker,
   ResearchTrackerStatus,
@@ -20,6 +21,65 @@ import ResearchPaperStatusForm from '@/features/progress-tracking/components/sta
 import BookStatusForm from '@/features/progress-tracking/components/status-forms/BookStatusForm';
 import BookChapterStatusForm from '@/features/progress-tracking/components/status-forms/BookChapterStatusForm';
 import ConferencePaperStatusForm from '@/features/progress-tracking/components/status-forms/ConferencePaperStatusForm';
+import { Info } from 'lucide-react';
+
+// 11 Indexing Categories matching ResearchContributionForm
+const INDEXING_CATEGORIES = [
+  { 
+    value: 'nature_science_lancet_cell_nejm', 
+    label: 'Nature/Science/The Lancet/Cell/NEJM',
+    description: 'Top-tier journals',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'subsidiary_if_above_20', 
+    label: 'Subsidiary Journals (IF > 20)',
+    description: 'High impact subsidiary journals (IF must be > 20)',
+    requiredFields: ['impactFactor']
+  },
+  { 
+    value: 'scopus', 
+    label: 'SCOPUS',
+    description: 'SCOPUS indexed - requires Quartile, SJR, and Impact Factor',
+    requiredFields: ['quartile', 'sjr', 'impactFactor']
+  },
+  { 
+    value: 'scie_wos', 
+    label: 'SCIE/SCI (WOS)',
+    description: 'Web of Science indexed',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'pubmed', 
+    label: 'PubMed',
+    description: 'PubMed indexed',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'naas_rating_6_plus', 
+    label: 'NAAS (Rating ≥ 6)',
+    description: 'NAAS rated journals - requires Rating ≥ 6',
+    requiredFields: ['naasRating']
+  },
+  { 
+    value: 'abdc_scopus_wos', 
+    label: 'ABDC Journals (SCOPUS/WOS)',
+    description: 'ABDC journals indexed in SCOPUS/WOS',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'sgtu_in_house', 
+    label: 'SGTU In-House Journal',
+    description: 'SGT University in-house publications',
+    requiredFields: [] as string[]
+  },
+  { 
+    value: 'case_centre_uk', 
+    label: 'The Case Centre UK',
+    description: 'Case studies published in The Case Centre UK',
+    requiredFields: [] as string[]
+  },
+];
 
 export default function TrackerDetailPage() {
   const router = useRouter();
@@ -109,6 +169,20 @@ export default function TrackerDetailPage() {
         ...(typeData || {}),
         ...mergedStatusData, // Merge all status history data (latest values take precedence)
       };
+      
+      // Backwards compatibility: Convert old targetedResearch to new indexingCategories
+      if (!initialData.indexingCategories && (initialData.targetedResearch || initialData.targetedResearchType)) {
+        const tr = (initialData.targetedResearch || initialData.targetedResearchType) as string;
+        if (tr === 'scopus') {
+          initialData.indexingCategories = ['scopus'];
+        } else if (tr === 'sci_scie') {
+          initialData.indexingCategories = ['scie_wos'];
+        } else if (tr === 'both') {
+          initialData.indexingCategories = ['scopus', 'scie_wos'];
+        } else {
+          initialData.indexingCategories = [];
+        }
+      }
       
       logger.debug('Initializing form with data:', initialData);
       logger.debug('Type data:', typeData);
@@ -277,7 +351,7 @@ export default function TrackerDetailPage() {
     // Handle booleans
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
     
-    // Handle arrays (like coAuthors, sdgGoals)
+    // Handle arrays (like coAuthors, sdgGoals, indexingCategories)
     if (Array.isArray(value)) {
       if (value.length === 0) return null;
       // If it's an array of author objects
@@ -289,7 +363,7 @@ export default function TrackerDetailPage() {
         }).join('; ');
       }
       // SDG goals - format nicely
-      if (key === 'sdgGoals') {
+      if (key === 'sdgs' || key === 'sdgGoals') {
         const sdgLabels: Record<string, string> = {
           '1': 'No Poverty', '2': 'Zero Hunger', '3': 'Good Health', '4': 'Quality Education',
           '5': 'Gender Equality', '6': 'Clean Water', '7': 'Clean Energy', '8': 'Decent Work',
@@ -298,6 +372,21 @@ export default function TrackerDetailPage() {
           '15': 'Life on Land', '16': 'Peace & Justice', '17': 'Partnerships'
         };
         return value.map((v: string) => `SDG ${v}: ${sdgLabels[v] || v}`).join(', ');
+      }
+      // Indexing categories - format nicely
+      if (key === 'indexingCategories') {
+        const categoryLabels: Record<string, string> = {
+          'nature_science_lancet_cell_nejm': 'Nature/Science/Lancet/Cell/NEJM',
+          'subsidiary_if_above_20': 'Subsidiary Journals (IF > 20)',
+          'scopus': 'SCOPUS',
+          'scie_wos': 'SCIE/SCI (WOS)',
+          'pubmed': 'PubMed',
+          'naas_rating_6_plus': 'NAAS (Rating ≥ 6)',
+          'abdc_scopus_wos': 'ABDC Journals (SCOPUS/WOS)',
+          'sgtu_in_house': 'SGTU In-House Journal',
+          'case_centre_uk': 'The Case Centre UK',
+        };
+        return value.map((v: string) => categoryLabels[v] || v).join(', ');
       }
       return value.join(', ');
     }
@@ -318,14 +407,32 @@ export default function TrackerDetailPage() {
     
     // Handle enum-like values
     const enumMappings: Record<string, Record<string, string>> = {
+      userRole: { 
+        'first_and_corresponding': 'First & Corresponding Author',
+        'first': 'First Author',
+        'corresponding': 'Corresponding Author',
+        'co_author': 'Co-Author'
+      },
+      authorType: {
+        'Faculty': 'Faculty',
+        'Student': 'Student',
+        'Research Scholar': 'Research Scholar'
+      },
+      authorRole: {
+        'first_and_corresponding': 'First & Corresponding',
+        'first': 'First Author',
+        'corresponding': 'Corresponding',
+        'co_author': 'Co-Author'
+      },
       bookIndexingType: { scopus_indexed: 'Scopus Indexed', non_indexed: 'Non-Indexed', sgt_publication_house: 'SGT Publication House' },
       bookPublicationType: { authored: 'Authored', edited: 'Edited' },
       nationalInternational: { national: 'National', international: 'International' },
       conferenceType: { national: 'National', international: 'International', regional: 'Regional' },
       conferenceSubType: { paper_not_indexed: 'Paper (Not Indexed)', paper_indexed_scopus: 'Paper (Scopus Indexed)', keynote_speaker_invited_talks: 'Keynote/Invited Talk', organizer_coordinator_member: 'Organizer/Coordinator' },
       proceedingsQuartile: { q1: 'Q1', q2: 'Q2', q3: 'Q3', q4: 'Q4', na: 'N/A' },
-      isInterdisciplinary: { yes: 'Yes', no: 'No' },
+      interdisciplinary: { yes: 'Yes', no: 'No' },
       hasLpuStudents: { yes: 'Yes', no: 'No' },
+      hasInternationalAuthor: { yes: 'Yes', no: 'No' },
       industryCollaboration: { yes: 'Yes', no: 'No' },
       communicatedWithOfficialId: { yes: 'Yes', no: 'No' },
       centralFacilityUsed: { yes: 'Yes', no: 'No' },
@@ -342,6 +449,43 @@ export default function TrackerDetailPage() {
     
     // Handle strings and numbers
     return String(value);
+  };
+
+  // Helper function to format field labels
+  const formatFieldLabel = (key: string): string => {
+    const labelMappings: Record<string, string> = {
+      sjr: 'SJR',
+      sdgs: 'UN SDGs',
+      quartile: 'Quartile',
+      userRole: 'User Role',
+      coAuthors: 'Co-Authors',
+      naasRating: 'NAAS Rating',
+      sgtAuthors: 'SGT Authors',
+      impactFactor: 'Impact Factor',
+      manuscriptId: 'Manuscript ID',
+      totalAuthors: 'Total Authors',
+      progressNotes: 'Progress Notes',
+      hasLpuStudents: 'Has LPU Students',
+      journalDetails: 'Journal Details',
+      journalName: 'Journal Name',
+      communicationDate: 'Communication Date',
+      interdisciplinary: 'Interdisciplinary',
+      internalCoAuthors: 'Internal Co-Authors',
+      indexingCategories: 'Indexing Categories',
+      hasInternationalAuthor: 'Has International Author',
+      communicatedWithOfficialId: 'Communicated with Official ID',
+      volume: 'Volume',
+      issue: 'Issue',
+      pageNumbers: 'Pages',
+      doi: 'DOI',
+      issn: 'ISSN',
+      weblink: 'Publication URL',
+      publicationUrl: 'Publication URL',
+      publicationWeblink: 'Publication URL',
+      publicationDate: 'Publication Date',
+    };
+    
+    return labelMappings[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
 
   if (loading) {
@@ -670,23 +814,173 @@ export default function TrackerDetailPage() {
                   <p className="text-xs text-gray-500 mt-1">{((formData.sdgs as string[]) || []).length} goal(s) selected</p>
                 </div>
 
-                {/* Targeted Research Category */}
+                {/* Indexing Categories (Multi-select) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Targeted Research Category <span className="text-red-500">*</span>
+                    Indexing Categories <span className="text-red-500">*</span>
+                    <span className="text-xs text-gray-500 ml-2">(Select all that apply)</span>
                   </label>
-                  <select
-                    value={(formData.targetedResearch as string) || (formData.targetedResearchType as string) || 'scopus'}
-                    onChange={(e) => setFormData({ ...formData, targetedResearch: e.target.value, targetedResearchType: e.target.value })}
-                    disabled={isLocked}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                  >
-                    <option value="scopus">Scopus</option>
-                    <option value="sci_scie">SCI/SCIE (WoS)</option>
-                    <option value="both">Both (Scopus & SCI/SCIE)</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">This determines the indexing category for your research</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto bg-white">
+                    {INDEXING_CATEGORIES.map((cat) => {
+                      const currentCategories = (formData.indexingCategories as string[]) || [];
+                      return (
+                        <label 
+                          key={cat.value} 
+                          className={`flex items-start gap-2 p-2 rounded cursor-pointer transition-colors ${
+                            currentCategories.includes(cat.value) 
+                              ? 'bg-purple-100 border border-purple-300' 
+                              : 'hover:bg-purple-50 border border-transparent'
+                          } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={currentCategories.includes(cat.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, indexingCategories: [...currentCategories, cat.value] });
+                              } else {
+                                const remainingCategories = currentCategories.filter(c => c !== cat.value);
+                                // Clear conditional fields if category is deselected
+                                const stillNeedsQuartile = remainingCategories.some(c => 
+                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('quartile')
+                                );
+                                const stillNeedsIF = remainingCategories.some(c => 
+                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('impactFactor')
+                                );
+                                const stillNeedsSJR = remainingCategories.some(c => 
+                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('sjr')
+                                );
+                                const stillNeedsNAAS = remainingCategories.some(c => 
+                                  INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('naasRating')
+                                );
+                                const updates: Record<string, unknown> = { indexingCategories: remainingCategories };
+                                if (!stillNeedsQuartile) updates.quartile = '';
+                                if (!stillNeedsIF) updates.impactFactor = '';
+                                if (!stillNeedsSJR) updates.sjr = '';
+                                if (!stillNeedsNAAS) updates.naasRating = '';
+                                setFormData({ ...formData, ...updates });
+                              }
+                            }}
+                            disabled={isLocked}
+                            className="mt-0.5 rounded border-gray-300 text-purple-600 focus:ring-purple-500 disabled:opacity-50"
+                          />
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-gray-800">{cat.label}</span>
+                            <p className="text-xs text-gray-500">{cat.description}</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">{((formData.indexingCategories as string[]) || []).length} category(ies) selected</p>
                 </div>
+
+                {/* Conditional Sub-fields based on selected indexing categories */}
+                {(() => {
+                  const currentCategories = (formData.indexingCategories as string[]) || [];
+                  const requiredFields = new Set<string>();
+                  currentCategories.forEach(cat => {
+                    const category = INDEXING_CATEGORIES.find(c => c.value === cat);
+                    if (category) {
+                      category.requiredFields.forEach(f => requiredFields.add(f));
+                    }
+                  });
+
+                  if (requiredFields.size === 0) return null;
+
+                  return (
+                    <div className="border-t border-gray-200 pt-4 mt-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Info className="w-4 h-4 text-blue-500" />
+                        <h4 className="text-sm font-medium text-gray-700">Additional Required Fields</h4>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Quartile */}
+                        {requiredFields.has('quartile') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Quartile <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              value={(formData.quartile as string) || ''}
+                              onChange={(e) => setFormData({ ...formData, quartile: e.target.value })}
+                              disabled={isLocked}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 disabled:bg-gray-100"
+                            >
+                              <option value="">Select Quartile</option>
+                              <option value="Top 1%">Top 1%</option>
+                              <option value="Top 5%">Top 5%</option>
+                              <option value="Q1">Q1</option>
+                              <option value="Q2">Q2</option>
+                              <option value="Q3">Q3</option>
+                              <option value="Q4">Q4</option>
+                            </select>
+                          </div>
+                        )}
+
+                        {/* SJR */}
+                        {requiredFields.has('sjr') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              SJR <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={(formData.sjr as number) || ''}
+                              onChange={(e) => setFormData({ ...formData, sjr: e.target.value ? parseFloat(e.target.value) : '' })}
+                              disabled={isLocked}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 disabled:bg-gray-100"
+                              placeholder="e.g., 0.5"
+                            />
+                          </div>
+                        )}
+
+                        {/* Impact Factor */}
+                        {requiredFields.has('impactFactor') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Impact Factor <span className="text-red-500">*</span>
+                              {currentCategories.includes('subsidiary_if_above_20') && (
+                                <span className="text-xs text-amber-600 ml-1">(Must be &gt; 20)</span>
+                              )}
+                            </label>
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={(formData.impactFactor as number) || ''}
+                              onChange={(e) => setFormData({ ...formData, impactFactor: e.target.value ? parseFloat(e.target.value) : '' })}
+                              disabled={isLocked}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 disabled:bg-gray-100"
+                              placeholder="e.g., 2.5"
+                            />
+                          </div>
+                        )}
+
+                        {/* NAAS Rating */}
+                        {requiredFields.has('naasRating') && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              NAAS Rating <span className="text-red-500">*</span>
+                              <span className="text-xs text-amber-600 ml-1">(Must be ≥ 6 and ≤ 10)</span>
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="6"
+                              max="10"
+                              value={(formData.naasRating as number) || ''}
+                              onChange={(e) => setFormData({ ...formData, naasRating: e.target.value ? parseFloat(e.target.value) : '' })}
+                              disabled={isLocked}
+                              className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 disabled:bg-gray-100"
+                              placeholder="e.g., 7.5"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
@@ -713,71 +1007,6 @@ export default function TrackerDetailPage() {
             </button>
             {expandedSections.statusFields && (
               <div className="p-4 bg-gray-50 space-y-4">
-                {/* Research Metrics - For Research Papers */}
-                {tracker.publicationType === 'research_paper' && (
-                  <div className="pb-4 border-b border-gray-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">📊 Research Metrics</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Quartile */}
-                      {((formData.targetedResearch as string) === 'scopus' || (formData.targetedResearch as string) === 'both' || (formData.targetedResearchType as string) === 'scopus' || (formData.targetedResearchType as string) === 'both') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quartile <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            value={(formData.quartile as string) || ''}
-                            onChange={(e) => setFormData({ ...formData, quartile: e.target.value })}
-                            disabled={isLocked}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                          >
-                            <option value="">Select Quartile</option>
-                            <option value="Top 1%">Top 1%</option>
-                            <option value="Top 5%">Top 5%</option>
-                            <option value="Q1">Q1</option>
-                            <option value="Q2">Q2</option>
-                            <option value="Q3">Q3</option>
-                            <option value="Q4">Q4</option>
-                          </select>
-                        </div>
-                      )}
-
-                      {/* SJR */}
-                      {((formData.targetedResearch as string) === 'scopus' || (formData.targetedResearch as string) === 'both' || (formData.targetedResearchType as string) === 'scopus' || (formData.targetedResearchType as string) === 'both') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">SJR</label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={(formData.sjr as number) || ''}
-                            onChange={(e) => setFormData({ ...formData, sjr: parseFloat(e.target.value) || 0 })}
-                            disabled={isLocked}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            placeholder="e.g., 0.5"
-                          />
-                        </div>
-                      )}
-
-                      {/* Impact Factor */}
-                      {((formData.targetedResearch as string) === 'sci_scie' || (formData.targetedResearch as string) === 'both' || (formData.targetedResearchType as string) === 'sci_scie' || (formData.targetedResearchType as string) === 'both') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Impact Factor <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={(formData.impactFactor as number) || ''}
-                            onChange={(e) => setFormData({ ...formData, impactFactor: parseFloat(e.target.value) || 0 })}
-                            disabled={isLocked}
-                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-                            placeholder="e.g., 2.5"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Conference Sub-Type - For Conference Papers */}
                 {tracker.publicationType === 'conference_paper' && (
                   <div className="pb-4 border-b border-gray-200">
@@ -806,7 +1035,7 @@ export default function TrackerDetailPage() {
                 {tracker.publicationType === 'research_paper' && (
                   <ResearchPaperStatusForm
                     status={formData.currentStatus as ResearchTrackerStatus}
-                    data={formData}
+                    data={{ ...formData, indexingCategories: formData.indexingCategories }}
                     onChange={isLocked ? () => {} : setFormData}
                   />
                 )}
@@ -898,7 +1127,7 @@ export default function TrackerDetailPage() {
                             {entry.attachments.map((att: any, i: number) => (
                               <a
                                 key={i}
-                                href={att.path}
+                                href={getFileUrl(att.path)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
@@ -1155,7 +1384,7 @@ export default function TrackerDetailPage() {
                               {entry.statusData.changedFields.map((change: any, idx: number) => (
                                 <div key={idx} className="text-xs bg-white rounded p-2 border border-gray-200">
                                   <div className="font-medium text-gray-700 mb-1">
-                                    {change.field.replace(/([A-Z])/g, ' $1').replace(/^./, (str: string) => str.toUpperCase())}
+                                    {formatFieldLabel(change.field)}
                                   </div>
                                   <div className="flex items-start gap-2">
                                     <div className="flex-1">
@@ -1172,26 +1401,89 @@ export default function TrackerDetailPage() {
                               ))}
                             </div>
                           ) : (
-                            <details className="text-sm">
-                              <summary className="cursor-pointer text-indigo-600 hover:text-indigo-700">
-                                View Details
+                            <details className="text-sm group">
+                              <summary className="cursor-pointer text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-2 select-none">
+                                <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                                View Research Details
                               </summary>
-                              <dl className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                                {Object.entries(entry.statusData).map(([key, value]) => {
-                                  const displayValue = formatDisplayValue(key, value);
-                                  if (!displayValue) return null;
+                              <div className="mt-3 bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+                                {(() => {
+                                  // Flatten initialData if it exists
+                                  let dataToDisplay: Record<string, unknown> = { ...entry.statusData };
+                                  if (entry.statusData.initialData && typeof entry.statusData.initialData === 'object') {
+                                    dataToDisplay = { ...entry.statusData.initialData };
+                                  }
                                   
-                                  const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                                  // Group fields by category for better organization
+                                  const basicFields: [string, unknown][] = [];
+                                  const publicationFields: [string, unknown][] = [];
+                                  const metricFields: [string, unknown][] = [];
+                                  const authorFields: [string, unknown][] = [];
+                                  const classificationFields: [string, unknown][] = [];
+                                  const otherFields: [string, unknown][] = [];
+                                  
+                                  Object.entries(dataToDisplay).forEach(([key, value]) => {
+                                    // Skip internal/meta fields
+                                    if (['initialData', 'changedFields'].includes(key)) return;
+                                    
+                                    if (['manuscriptId', 'journalDetails', 'journalName', 'communicationDate', 'progressNotes'].includes(key)) {
+                                      basicFields.push([key, value]);
+                                    } else if (['volume', 'issue', 'pageNumbers', 'doi', 'issn', 'weblink', 'publicationUrl', 'publicationWeblink', 'publicationDate'].includes(key)) {
+                                      publicationFields.push([key, value]);
+                                    } else if (['impactFactor', 'sjr', 'quartile', 'naasRating'].includes(key)) {
+                                      metricFields.push([key, value]);
+                                    } else if (['userRole', 'coAuthors', 'totalAuthors', 'sgtAuthors', 'internalCoAuthors', 'hasInternationalAuthor'].includes(key)) {
+                                      authorFields.push([key, value]);
+                                    } else if (['indexingCategories', 'interdisciplinary', 'sdgs', 'hasLpuStudents', 'communicatedWithOfficialId'].includes(key)) {
+                                      classificationFields.push([key, value]);
+                                    } else {
+                                      otherFields.push([key, value]);
+                                    }
+                                  });
+                                  
+                                  const renderFieldGroup = (title: string, fields: [string, unknown][], icon: string) => {
+                                    const validFields = fields.filter(([key, value]) => formatDisplayValue(key, value) !== null);
+                                    if (validFields.length === 0) return null;
+                                    
+                                    return (
+                                      <div key={title} className="space-y-2">
+                                        <h4 className="text-xs font-semibold text-gray-700 flex items-center gap-1.5 uppercase tracking-wide">
+                                          <span>{icon}</span>
+                                          {title}
+                                        </h4>
+                                        <dl className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-5">
+                                          {validFields.map(([key, value]) => {
+                                            const displayValue = formatDisplayValue(key, value);
+                                            if (!displayValue) return null;
+                                            
+                                            return (
+                                              <div key={key} className={`${['coAuthors', 'sdgs', 'indexingCategories', 'progressNotes', 'weblink', 'publicationUrl'].includes(key) ? 'md:col-span-2' : ''}`}>
+                                                <dt className="text-xs text-gray-500 mb-0.5">{formatFieldLabel(key)}</dt>
+                                                <dd className="text-sm font-medium text-gray-900 break-words">
+                                                  {displayValue}
+                                                </dd>
+                                              </div>
+                                            );
+                                          })}
+                                        </dl>
+                                      </div>
+                                    );
+                                  };
+                                  
                                   return (
-                                    <div key={key} className="col-span-2">
-                                      <dt className="text-gray-500">{label}</dt>
-                                      <dd className="font-medium break-words">
-                                        {displayValue}
-                                      </dd>
-                                    </div>
+                                    <>
+                                      {renderFieldGroup('Basic Information', basicFields, '📄')}
+                                      {renderFieldGroup('Publication Details', publicationFields, '📰')}
+                                      {renderFieldGroup('Metrics & Indexing', metricFields, '📊')}
+                                      {renderFieldGroup('Authorship', authorFields, '👥')}
+                                      {renderFieldGroup('Classification', classificationFields, '🏷️')}
+                                      {renderFieldGroup('Additional Details', otherFields, '📝')}
+                                    </>
                                   );
-                                })}
-                              </dl>
+                                })()}
+                              </div>
                             </details>
                           )}
                         </div>
@@ -1205,7 +1497,7 @@ export default function TrackerDetailPage() {
                             {entry.attachments.map((att, i) => (
                               <a
                                 key={i}
-                                href={att.path}
+                                href={getFileUrl(att.path)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs text-indigo-600 hover:underline"

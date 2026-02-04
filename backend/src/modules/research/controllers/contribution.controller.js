@@ -6,6 +6,7 @@
 
 const prisma = require('../../../shared/config/database');
 const { logResearchFiling, logResearchUpdate, logResearchStatusChange, logFileUpload, getIp } = require('../../../shared/utils/auditLogger');
+const { uploadToS3 } = require('../../../shared/utils/s3');
 
 // Helper function to normalize quartile values from frontend to Prisma enum names
 const normalizeQuartileValue = (quartile) => {
@@ -1238,6 +1239,7 @@ exports.createResearchContribution = async (req, res) => {
       nationalInternational,
       bookPublicationType,
       bookIndexingType,
+      bookType,
       bookLetter,
       communicatedWithOfficialId,
       personalEmail,
@@ -1436,6 +1438,7 @@ exports.createResearchContribution = async (req, res) => {
         quartile,
         conferenceSubType,
         proceedingsQuartile,
+        bookType, // For book/book_chapter: 'authored' or 'edited'
         // New fields for category-specific calculations
         indexingCategories: indexingCategories || [],
         impactFactor: impactFactor ? Number(impactFactor) : null,
@@ -1585,6 +1588,7 @@ exports.createResearchContribution = async (req, res) => {
         nationalInternational: truncateField(nationalInternational, 32),
         bookPublicationType: truncateField(bookPublicationType, 32),
         bookIndexingType: truncateField(bookIndexingType, 32),
+        bookType: truncateField(bookType, 32), // 'authored' or 'edited'
         bookLetter: truncateField(bookLetter, 8),
         communicatedWithOfficialId: communicatedWithOfficialId === 'yes' || communicatedWithOfficialId === true,
         personalEmail: truncateField(personalEmail, 256),
@@ -1735,6 +1739,7 @@ exports.createResearchContribution = async (req, res) => {
             quartile,
             conferenceSubType,
             proceedingsQuartile,
+            bookType, // For book/book_chapter: 'authored' or 'edited'
             // Include all category-specific fields for proper calculation
             indexingCategories: indexingCategories || [],
             impactFactor: impactFactor ? Number(impactFactor) : null,
@@ -2325,7 +2330,7 @@ exports.getResearchContributionById = async (req, res) => {
         isApplicant,
         isAuthor,
         isGrant,
-        publicationType: isGrant ? 'grant' : contribution.publicationType,
+        publicationType: isGrant ? 'grant_proposal' : contribution.publicationType,
         hasPendingSuggestions: contribution.editSuggestions?.some(s => s.status === 'pending') || false
       }
     });
@@ -2479,13 +2484,14 @@ exports.updateResearchContribution = async (req, res) => {
     );
     
     let incentiveUpdate = {};
-    if (contributionData.sjr || contributionData.quartile || contributionData.authorRole || contributionData.publicationDate || contributionData.conferenceSubType || contributionData.proceedingsQuartile || contributionData.indexingCategories || contributionData.impactFactor || contributionData.naasRating || contributionData.subsidiaryImpactFactor) {
+    if (contributionData.sjr || contributionData.quartile || contributionData.authorRole || contributionData.publicationDate || contributionData.conferenceSubType || contributionData.proceedingsQuartile || contributionData.indexingCategories || contributionData.impactFactor || contributionData.naasRating || contributionData.subsidiaryImpactFactor || contributionData.bookType) {
       const incentiveCalculation = await calculateIncentives(
         {
           publicationDate: contributionData.publicationDate || contribution.publicationDate,
           quartile: quartileValue,
           conferenceSubType: contributionData.conferenceSubType || contribution.conferenceSubType,
           proceedingsQuartile: contributionData.proceedingsQuartile || contribution.proceedingsQuartile,
+          bookType: contributionData.bookType || contribution.bookType, // For book/book_chapter: 'authored' or 'edited'
           // Include indexing categories and category-specific fields
           indexingCategories: contributionData.indexingCategories || contribution.indexingCategories || [],
           impactFactor: contributionData.impactFactor !== undefined ? Number(contributionData.impactFactor) : (contribution.impactFactor ? Number(contribution.impactFactor) : null),
@@ -2628,6 +2634,7 @@ exports.updateResearchContribution = async (req, res) => {
             quartile: quartileValue,
             conferenceSubType: contributionData.conferenceSubType || contribution.conferenceSubType,
             proceedingsQuartile: contributionData.proceedingsQuartile || contribution.proceedingsQuartile,
+            bookType: contributionData.bookType || contribution.bookType, // For book/book_chapter: 'authored' or 'edited'
             // Include all category-specific fields for proper calculation
             indexingCategories: contributionData.indexingCategories || contribution.indexingCategories || [],
             impactFactor: contributionData.impactFactor !== undefined ? Number(contributionData.impactFactor) : (contribution.impactFactor ? Number(contribution.impactFactor) : null),
@@ -2727,6 +2734,7 @@ exports.updateResearchContribution = async (req, res) => {
             quartile: quartileValue,
             conferenceSubType: contributionData.conferenceSubType || contribution.conferenceSubType,
             proceedingsQuartile: contributionData.proceedingsQuartile || contribution.proceedingsQuartile,
+            bookType: contributionData.bookType || contribution.bookType, // For book/book_chapter: 'authored' or 'edited'
             // Include all category-specific fields for proper calculation
             indexingCategories: contributionData.indexingCategories || contribution.indexingCategories || [],
             impactFactor: contributionData.impactFactor !== undefined ? Number(contributionData.impactFactor) : (contribution.impactFactor ? Number(contribution.impactFactor) : null),
@@ -2955,6 +2963,7 @@ exports.submitResearchContribution = async (req, res) => {
               quartile: contribution.quartile,
               conferenceSubType: contribution.conferenceSubType,
               proceedingsQuartile: contribution.proceedingsQuartile,
+              bookType: contribution.bookType, // For book/book_chapter: 'authored' or 'edited'
               indexingCategories: contribution.indexingCategories || [],
               impactFactor: contribution.impactFactor ? Number(contribution.impactFactor) : null,
               sjr: contribution.sjr ? Number(contribution.sjr) : null,
@@ -2997,6 +3006,7 @@ exports.submitResearchContribution = async (req, res) => {
             quartile: contribution.quartile,
             conferenceSubType: contribution.conferenceSubType,
             proceedingsQuartile: contribution.proceedingsQuartile,
+            bookType: contribution.bookType, // For book/book_chapter: 'authored' or 'edited'
             indexingCategories: contribution.indexingCategories || [],
             impactFactor: contribution.impactFactor ? Number(contribution.impactFactor) : null,
             sjr: contribution.sjr ? Number(contribution.sjr) : null,
@@ -3558,6 +3568,7 @@ exports.addAuthor = async (req, res) => {
         quartile: contribution.quartile,
         conferenceSubType: contribution.conferenceSubType,
         proceedingsQuartile: contribution.proceedingsQuartile,
+        bookType: contribution.bookType, // For book/book_chapter: 'authored' or 'edited'
         // Include all category-specific fields for proper calculation
         indexingCategories: contribution.indexingCategories || [],
         impactFactor: contribution.impactFactor ? Number(contribution.impactFactor) : null,
@@ -3940,27 +3951,45 @@ exports.uploadDocuments = async (req, res) => {
     };
 
     if (req.files) {
-      // Handle research document
+      // Handle research document - upload to S3
       if (req.files.researchDocument && req.files.researchDocument[0]) {
         const file = req.files.researchDocument[0];
+        const s3Result = await uploadToS3(
+          file.buffer,
+          'research',
+          userId.toString(),
+          file.originalname,
+          file.mimetype
+        );
         uploadedFiles.researchDocument = {
-          filename: file.filename,
+          filename: file.originalname,
           originalName: file.originalname,
-          path: `/uploads/research/${file.filename}`,
+          path: s3Result.key,
+          s3Key: s3Result.key,
           size: file.size,
           mimetype: file.mimetype
         };
       }
 
-      // Handle supporting documents
+      // Handle supporting documents - upload to S3
       if (req.files.supportingDocuments) {
-        uploadedFiles.supportingDocuments = req.files.supportingDocuments.map(file => ({
-          filename: file.filename,
-          originalName: file.originalname,
-          path: `/uploads/research/${file.filename}`,
-          size: file.size,
-          mimetype: file.mimetype
-        }));
+        for (const file of req.files.supportingDocuments) {
+          const s3Result = await uploadToS3(
+            file.buffer,
+            'research/supporting',
+            userId.toString(),
+            file.originalname,
+            file.mimetype
+          );
+          uploadedFiles.supportingDocuments.push({
+            filename: file.originalname,
+            originalName: file.originalname,
+            path: s3Result.key,
+            s3Key: s3Result.key,
+            size: file.size,
+            mimetype: file.mimetype
+          });
+        }
       }
     }
 
@@ -3968,7 +3997,14 @@ exports.uploadDocuments = async (req, res) => {
     const updateData = {};
     
     if (uploadedFiles.researchDocument) {
-      updateData.manuscriptFilePath = uploadedFiles.researchDocument.path;
+      // Store as JSON string with all file info for proper download handling
+      updateData.manuscriptFilePath = JSON.stringify({
+        s3Key: uploadedFiles.researchDocument.s3Key,
+        name: uploadedFiles.researchDocument.originalName,
+        size: uploadedFiles.researchDocument.size,
+        mimetype: uploadedFiles.researchDocument.mimetype,
+        uploadedAt: new Date().toISOString()
+      });
     }
 
     if (uploadedFiles.supportingDocuments.length > 0) {
@@ -3978,6 +4014,7 @@ exports.uploadDocuments = async (req, res) => {
         ...(existingSupportingDocs.files || []),
         ...uploadedFiles.supportingDocuments.map(doc => ({
           path: doc.path,
+          s3Key: doc.s3Key,
           name: doc.originalName,
           size: doc.size,
           mimetype: doc.mimetype,
@@ -4013,6 +4050,113 @@ exports.uploadDocuments = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to upload documents',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Download research document or supporting document
+ * @route GET /api/v1/research/:id/documents/:type/:filename
+ */
+exports.downloadDocument = async (req, res) => {
+  try {
+    const { id, type, filename } = req.params;
+    const userId = req.user.id;
+
+    // Get contribution with file paths
+    const contribution = await prisma.researchContribution.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        applicantUserId: true,
+        manuscriptFilePath: true,
+        supportingDocsFilePaths: true,
+        status: true
+      }
+    });
+
+    if (!contribution) {
+      return res.status(404).json({
+        success: false,
+        message: 'Research contribution not found'
+      });
+    }
+
+    // Check permissions - user must be owner or have review permissions
+    const canAccess = 
+      contribution.applicantUserId === userId ||
+      req.user.role === 'admin' ||
+      req.user.role === 'central_admin' ||
+      req.user.role === 'reviewer';
+
+    if (!canAccess) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to access this file'
+      });
+    }
+
+    let s3Key = null;
+    let originalFilename = filename;
+
+    // Get S3 key based on document type
+    if (type === 'manuscript' && contribution.manuscriptFilePath) {
+      // Handle both old format (plain string key) and new format (JSON object)
+      let manuscript = contribution.manuscriptFilePath;
+      if (typeof manuscript === 'string') {
+        try {
+          manuscript = JSON.parse(manuscript);
+        } catch (e) {
+          // Old format: just the S3 key string
+          s3Key = manuscript;
+          originalFilename = filename;
+        }
+      }
+      // New format: object with s3Key property
+      if (manuscript && typeof manuscript === 'object') {
+        s3Key = manuscript.s3Key;
+        originalFilename = manuscript.name || filename;
+      }
+    } else if (type === 'supporting' && contribution.supportingDocsFilePaths) {
+      const supportingDocs = typeof contribution.supportingDocsFilePaths === 'string'
+        ? JSON.parse(contribution.supportingDocsFilePaths)
+        : contribution.supportingDocsFilePaths;
+      
+      const doc = supportingDocs.files?.find(f => 
+        f.name === filename || f.s3Key?.includes(filename)
+      );
+      
+      if (doc) {
+        s3Key = doc.s3Key;
+        originalFilename = doc.name || filename;
+      }
+    }
+
+    if (!s3Key) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found'
+      });
+    }
+
+    // Download from S3
+    const { downloadFromS3 } = require('../../../shared/utils/s3');
+    const fileData = await downloadFromS3(s3Key);
+
+    // Set response headers for file download
+    res.setHeader('Content-Type', fileData.contentType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFilename}"`);
+    res.setHeader('Content-Length', fileData.contentLength);
+
+    // Pipe the stream to response
+    fileData.stream.pipe(res);
+
+  } catch (error) {
+    console.error('Download document error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to download document',
       error: error.message
     });
   }

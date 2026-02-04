@@ -4,12 +4,12 @@ const { PrismaClient } = require('@prisma/client');
 let prisma;
 
 if (process.env.NODE_ENV === 'production') {
-  // Production: Single instance
+  // Production: Single instance with connection pooling
   prisma = new PrismaClient({
     log: ['error'], // Minimal logging in production
     datasources: {
       db: {
-        url: process.env.DATABASE_URL,
+        url: process.env.DATABASE_URL + '?connection_limit=10&pool_timeout=20',
       },
     },
     transactionOptions: {
@@ -19,13 +19,13 @@ if (process.env.NODE_ENV === 'production') {
     },
   });
 } else {
-  // Development: Use global variable to preserve client across HMR
+  // Development: Use global variable to preserve client across HMR with connection pooling
   if (!global.prisma) {
     global.prisma = new PrismaClient({
       log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
       datasources: {
         db: {
-          url: process.env.DATABASE_URL,
+          url: process.env.DATABASE_URL + '?connection_limit=5&pool_timeout=20',
         },
       },
       transactionOptions: {

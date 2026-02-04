@@ -21,10 +21,11 @@ const Footer = () => {
     {
       title: 'Quick Links',
       links: [
-        { name: 'Dashboard', href: '/dashboard' },
-        { name: 'Research', href: '/research' },
-        { name: 'IPR Module', href: '/ipr' },
-        { name: 'Publications', href: '/publications' },
+        { name: 'Dashboard', href: '/dashboard', isExternal: false },
+        { name: 'Research', href: '/research', isExternal: false },
+        { name: 'IPR Module', href: '/ipr', isExternal: false },
+        { name: 'Admissions', href: 'http://localhost:3000/', isExternal: true },
+        { name: 'Publications', href: '/publications', isExternal: false },
       ],
     },
     {
@@ -188,15 +189,29 @@ const Footer = () => {
                 <ul className="space-y-1">
                   {section.links.map((link) => (
                     <li key={link.name}>
-                      <Link
-                        href={link.href}
-                        className="flex items-center gap-2 text-xs text-gray-400 hover:text-blue-400 transition-colors group"
-                      >
-                        <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -ml-2 group-hover:ml-0 transition-all" />
-                        <span className="group-hover:translate-x-1 transition-transform">
-                          {link.name}
-                        </span>
-                      </Link>
+                      {(link as any).isExternal ? (
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-xs text-gray-400 hover:text-blue-400 transition-colors group"
+                        >
+                          <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -ml-2 group-hover:ml-0 transition-all" />
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            {link.name}
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          href={link.href}
+                          className="flex items-center gap-2 text-xs text-gray-400 hover:text-blue-400 transition-colors group"
+                        >
+                          <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -ml-2 group-hover:ml-0 transition-all" />
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            {link.name}
+                          </span>
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>

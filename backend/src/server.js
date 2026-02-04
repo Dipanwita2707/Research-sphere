@@ -50,8 +50,8 @@ app.use('/api/*/auth/login', loginLimiter);
 app.use('/api/', apiLimiter);
 
 // Body parsing middleware with size limits for security
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 // Compression for responses (reduces bandwidth for 25k users)
@@ -82,15 +82,24 @@ if (config.env === 'development') {
   });
 }
 
-// Static file serving for uploads
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// Health check
+// Health check (both at root and API level for Render)
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     status: 'ok', 
     message: 'Server is running',
     timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/v1/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    message: 'API is running',
+    timestamp: new Date().toISOString(),
+    version: 'v1'
   });
 });
 
