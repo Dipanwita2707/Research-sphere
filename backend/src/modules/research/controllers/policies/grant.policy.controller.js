@@ -1,5 +1,6 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
+const cache = require('../../../../shared/config/redis');
 
 // Project categories and types
 const PROJECT_CATEGORIES = ['govt', 'non_govt', 'industry'];
@@ -235,6 +236,9 @@ exports.createGrantPolicy = async (req, res) => {
     // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'grant', req.user.id, req);
 
+    // Invalidate cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.status(201).json({
       success: true,
       message: 'Grant policy created successfully',
@@ -355,6 +359,9 @@ exports.updateGrantPolicy = async (req, res) => {
     // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, policy, 'grant', req.user.id, req);
 
+    // Invalidate cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.status(200).json({
       success: true,
       message: 'Grant policy updated successfully',
@@ -397,6 +404,9 @@ exports.deleteGrantPolicy = async (req, res) => {
 
     // Log policy deletion
     await auditLogger.logPolicyDeletion(existingPolicy, 'grant', req.user.id, req);
+
+    // Invalidate cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(200).json({
       success: true,

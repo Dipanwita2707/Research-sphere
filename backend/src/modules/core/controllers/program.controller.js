@@ -1,4 +1,5 @@
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 
 /**
  * Get all programs
@@ -332,6 +333,9 @@ exports.createProgram = async (req, res) => {
       },
     });
 
+    // Invalidate program cache
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
+
     res.status(201).json({
       success: true,
       message: 'Program created successfully',
@@ -502,6 +506,9 @@ exports.updateProgram = async (req, res) => {
       },
     });
 
+    // Invalidate program cache
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
+
     res.json({
       success: true,
       message: 'Program updated successfully',
@@ -562,6 +569,9 @@ exports.deleteProgram = async (req, res) => {
       where: { id },
     });
 
+    // Invalidate program cache
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
+
     res.json({
       success: true,
       message: 'Program deleted successfully',
@@ -599,6 +609,9 @@ exports.toggleProgramStatus = async (req, res) => {
         isActive: !program.isActive,
       },
     });
+
+    // Invalidate program cache
+    await cache.delPattern(`${cache.CACHE_KEYS.PROGRAM}*`);
 
     res.json({
       success: true,

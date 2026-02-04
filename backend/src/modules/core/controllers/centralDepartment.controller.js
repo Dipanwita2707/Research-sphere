@@ -1,4 +1,5 @@
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 
 /**
  * Get all central departments
@@ -160,6 +161,9 @@ exports.createCentralDepartment = async (req, res) => {
       },
     });
 
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
+
     res.status(201).json({
       success: true,
       message: 'Central department created successfully',
@@ -250,6 +254,9 @@ exports.updateCentralDepartment = async (req, res) => {
       },
     });
 
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
+
     res.json({
       success: true,
       message: 'Central department updated successfully',
@@ -285,6 +292,9 @@ exports.deleteCentralDepartment = async (req, res) => {
     await prisma.centralDepartment.delete({
       where: { id },
     });
+
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
 
     res.json({
       success: true,
@@ -323,6 +333,9 @@ exports.toggleCentralDepartmentStatus = async (req, res) => {
         isActive: !department.isActive,
       },
     });
+
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
 
     res.json({
       success: true,

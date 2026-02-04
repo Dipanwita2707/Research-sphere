@@ -1,5 +1,6 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
+const cache = require('../../../../shared/config/redis');
 
 // Default policies for research publications
 const DEFAULT_RESEARCH_POLICIES = {
@@ -382,6 +383,9 @@ exports.createPolicy = async (req, res) => {
     // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'research', req.user.id, req);
 
+    // Invalidate policy cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.status(201).json({
       success: true,
       message: 'Research incentive policy created successfully',
@@ -535,6 +539,9 @@ exports.updatePolicy = async (req, res) => {
     // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, updatedPolicy, 'research', req.user.id, req);
 
+    // Invalidate policy cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.json({
       success: true,
       message: 'Research incentive policy updated successfully',
@@ -574,6 +581,9 @@ exports.deletePolicy = async (req, res) => {
 
     // Log policy deletion
     await auditLogger.logPolicyDeletion(existingPolicy, 'research', req.user.id, req);
+
+    // Invalidate policy cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.json({
       success: true,

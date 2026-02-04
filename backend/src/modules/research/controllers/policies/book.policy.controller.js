@@ -1,5 +1,6 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
+const cache = require('../../../../shared/config/redis');
 
 /**
  * Get all book incentive policies
@@ -188,6 +189,9 @@ exports.createBookPolicy = async (req, res) => {
     // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'book', req.user.id, req);
 
+    // Invalidate cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.status(201).json({
       success: true,
       message: 'Book policy created successfully',
@@ -262,6 +266,9 @@ exports.updateBookPolicy = async (req, res) => {
     // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, updatedPolicy, 'book', req.user.id, req);
 
+    // Invalidate cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.status(200).json({
       success: true,
       message: 'Book policy updated successfully',
@@ -304,6 +311,9 @@ exports.deleteBookPolicy = async (req, res) => {
 
     // Log policy deletion
     await auditLogger.logPolicyDeletion(existingPolicy, 'book', req.user.id, req);
+
+    // Invalidate cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(200).json({
       success: true,

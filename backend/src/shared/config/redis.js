@@ -7,19 +7,20 @@ const Redis = require('ioredis');
 
 // Redis configuration - uses environment variables or defaults
 const redisConfig = {
-  host: process.env.REDIS_HOST || '127.0.0.1',
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
+  host: process.env.REDIS_HOST || 'redis-16374.crce263.ap-south-1-1.ec2.cloud.redislabs.com',
+  port: parseInt(process.env.REDIS_PORT) || 16374,
+  password: process.env.REDIS_PASSWORD || 'wF5uS8DxyUU7OPxwPv2dJOGAOpo9pS6t',
+  username: process.env.REDIS_USERNAME || 'default',
   db: parseInt(process.env.REDIS_DB) || 0,
-  maxRetriesPerRequest: 1, // Reduced from 3 to 1
-  retryDelayOnFailover: 1000, // Increased delay
+  maxRetriesPerRequest: 3,
+  retryDelayOnFailover: 1000,
   enableReadyCheck: true,
-  lazyConnect: true, // Don't connect immediately
-  connectTimeout: 3000, // 3 second timeout
-  commandTimeout: 2000, // 2 second command timeout
+  lazyConnect: false, // Connect immediately
+  connectTimeout: 10000, // 10 second timeout
+  commandTimeout: 5000, // 5 second command timeout
   retryStrategy: (times) => {
-    // Stop retrying after 2 attempts
-    if (times > 2) {
+    // Stop retrying after 3 attempts
+    if (times > 3) {
       return null;
     }
     return Math.min(times * 2000, 5000); // Max 5 second delay

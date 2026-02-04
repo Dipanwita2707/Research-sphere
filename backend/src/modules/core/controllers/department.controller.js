@@ -296,6 +296,9 @@ exports.createDepartment = async (req, res) => {
       },
     });
 
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
+
     // Log department creation
     await auditLogger.logDepartmentCreation(department, req.user?.id, req);
 
@@ -400,6 +403,9 @@ exports.updateDepartment = async (req, res) => {
       },
     });
 
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
+
     // Log department update
     await auditLogger.logDepartmentUpdate(existing, department, req.user?.id, req);
 
@@ -455,6 +461,9 @@ exports.deleteDepartment = async (req, res) => {
       where: { id },
     });
 
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
+
     res.json({
       success: true,
       message: 'Department deleted successfully',
@@ -492,6 +501,9 @@ exports.toggleDepartmentStatus = async (req, res) => {
         isActive: !department.isActive,
       },
     });
+
+    // Invalidate department cache
+    await cache.delPattern(`${cache.CACHE_KEYS.DEPARTMENT}*`);
 
     res.json({
       success: true,

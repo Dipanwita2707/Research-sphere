@@ -1,5 +1,6 @@
 const prisma = require('../../../../shared/config/database');
 const auditLogger = require('../../../../shared/utils/auditLogger');
+const cache = require('../../../../shared/config/redis');
 
 // Conference sub-types
 const CONFERENCE_SUB_TYPES = [
@@ -252,6 +253,9 @@ exports.createConferencePolicy = async (req, res) => {
     // Log policy creation
     await auditLogger.logPolicyCreation(policy, 'conference', req.user.id, req);
 
+    // Invalidate policy cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.status(201).json({
       success: true,
       message: 'Conference policy created successfully',
@@ -324,6 +328,9 @@ exports.updateConferencePolicy = async (req, res) => {
     // Log policy update
     await auditLogger.logPolicyUpdate(existingPolicy, policy, 'conference', req.user.id, req);
 
+    // Invalidate policy cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
+
     res.status(200).json({
       success: true,
       message: 'Conference policy updated successfully',
@@ -363,6 +370,9 @@ exports.deleteConferencePolicy = async (req, res) => {
 
     // Log policy deletion
     await auditLogger.logPolicyDeletion(existingPolicy, 'conference', req.user.id, req);
+
+    // Invalidate policy cache
+    await cache.delPattern(`${cache.CACHE_KEYS.POLICY}*`);
 
     res.status(200).json({
       success: true,
