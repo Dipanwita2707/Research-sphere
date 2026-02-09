@@ -9,7 +9,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed": "node src/database/seed.js",
+    "seed": "node src/shared/database/seed.js",
+    "seed:admin": "node scripts/database/seeds/seed-admin.js",
     "test": "jest"
   },
   "keywords": [

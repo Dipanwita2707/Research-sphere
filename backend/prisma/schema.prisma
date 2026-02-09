@@ -10,56 +10,78 @@ datasource db {
 }
 
 model UserLogin {
-  id                            String                        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  uid                           String                        @unique @db.VarChar(32)
-  email                         String?                       @unique @db.Citext
-  phone                         String?                       @db.VarChar(20)
-  profileImageFilePath          String?                       @map("profile_image_file_path")
-  profileImage                  String?                       @map("profile_image") @db.VarChar(64)
-  passwordHash                  String                        @map("password_hash")
-  role                          UserRoleEnum
-  status                        String                        @default("active") @db.VarChar(32)
-  lastLoginAt                   DateTime?                     @map("last_login_at") @db.Timestamptz(6)
-  createdAt                     DateTime                      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                     DateTime                      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  auditLogs                     AuditLog[]
-  cardsIssued                   Card[]                        @relation("IssuedBy")
-  headOfCentralDepts            CentralDepartment[]           @relation("HeadOfCentralDepartment")
-  assignedCentralDeptPerms      CentralDepartmentPermission[] @relation("AssignedCentralDeptPermissions")
-  centralDeptPermissions        CentralDepartmentPermission[] @relation("UserCentralDeptPermissions")
-  changesHistory                ChangeHistory[]
-  headOfDepartments             Department[]                  @relation("HeadOfDepartment")
-  assignedSchoolDeptPerms       DepartmentPermission[]        @relation("AssignedDepartmentPermissions")
-  schoolDeptPermissions         DepartmentPermission[]        @relation("UserDepartmentPermissions")
-  documentChangeReviews         DocumentChange[]              @relation("DocumentChangeReviewer")
-  employeeDetails               EmployeeDetails?
-  headOfFaculties               FacultySchoolList[]           @relation("HeadOfFaculty")
-  approvedIPRs                  IPR[]                         @relation("IPRApprover")
-  createdIPRs                   IPR[]                         @relation("IPRCreator")
-  iprApplications               IprApplication[]              @relation("IprApplications")
-  iprCollaborativeSessions      IprCollaborativeSession[]     @relation("IprCollaborativeSessions")
-  uploadedIPRDocuments          IPRDocument[]                 @relation("IPRDocumentUploader")
-  iprEditSuggestions            IprEditSuggestion[]           @relation("IprEditSuggestions")
-  iprFinanceReviews             IprFinance[]                  @relation("IprFinanceReviews")
-  iprReviews                    IprReview[]                   @relation("IprReviews")
-  iprStatusChanges              IprStatusHistory[]            @relation("IprStatusChanges")
-  parentLogin                   ParentDetails?                @relation("ParentLogin")
-  programCoordinators           Program[]                     @relation("ProgramCoordinator")
-  reissueRequestsApproved       ReissueRequest[]              @relation("ApprovedBy")
-  reissueRequestsMade           ReissueRequest[]              @relation("RequestedBy")
-  researchPapers                ResearchPaper[]               @relation("ResearchPapers")
-  researchPaperReviews          ResearchPaperReview[]         @relation("ResearchPaperReviews")
-  researchPaperStatusChanges    ResearchPaperStatusHistory[]  @relation("ResearchPaperStatusChanges")
-  classTeachers                 Section[]                     @relation("ClassTeacher")
-  approvedStudents              StudentDetails[]              @relation("DataApprovedBy")
-  studentLogin                  StudentDetails?               @relation("StudentLogin")
-  assignedDepartmentPermissions UserDepartmentPermission[]    @relation("AssignedBy")
-  departmentPermissions         UserDepartmentPermission[]
-  createdGatePasses             GatePass[]                    @relation("GatePassCreator")
-  gatePassesAsHost              GatePass[]                    @relation("GatePassHost")
-  gatePassesAsEntryGuard        GatePass[]                    @relation("GatePassEntryGuard")
-  gatePassesAsExitGuard         GatePass[]                    @relation("GatePassExitGuard")
-  gatePassHistoryActions        GatePassHistory[]             @relation("GatePassHistoryPerformer")
+  id                                  String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  uid                                 String                               @unique @db.VarChar(32)
+  email                               String?                              @unique @db.Citext
+  phone                               String?                              @db.VarChar(20)
+  profileImageFilePath                String?                              @map("profile_image_file_path")
+  profileImage                        String?                              @map("profile_image") @db.VarChar(64)
+  passwordHash                        String                               @map("password_hash")
+  role                                UserRoleEnum
+  status                              String                               @default("active") @db.VarChar(32)
+  lastLoginAt                         DateTime?                            @map("last_login_at") @db.Timestamptz(6)
+  createdAt                           DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                           DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  auditLogs                           AuditLog[]
+  cardsIssued                         Card[]                               @relation("IssuedBy")
+  headOfCentralDepts                  CentralDepartment[]                  @relation("HeadOfCentralDepartment")
+  assignedCentralDeptPerms            CentralDepartmentPermission[]        @relation("AssignedCentralDeptPermissions")
+  centralDeptPermissions              CentralDepartmentPermission[]        @relation("UserCentralDeptPermissions")
+  changesHistory                      ChangeHistory[]
+  headOfDepartments                   Department[]                         @relation("HeadOfDepartment")
+  assignedSchoolDeptPerms             DepartmentPermission[]               @relation("AssignedDepartmentPermissions")
+  schoolDeptPermissions               DepartmentPermission[]               @relation("UserDepartmentPermissions")
+  documentChangeReviews               DocumentChange[]                     @relation("DocumentChangeReviewer")
+  employeeDetails                     EmployeeDetails?
+  headOfFaculties                     FacultySchoolList[]                  @relation("HeadOfFaculty")
+  approvedIPRs                        IPR[]                                @relation("IPRApprover")
+  createdIPRs                         IPR[]                                @relation("IPRCreator")
+  iprApplications                     IprApplication[]                     @relation("IprApplications")
+  iprCollaborativeSessions            IprCollaborativeSession[]            @relation("IprCollaborativeSessions")
+  iprContributions                    IprContributor[]                     @relation("IprContributors")
+  uploadedIPRDocuments                IPRDocument[]                        @relation("IPRDocumentUploader")
+  iprEditSuggestions                  IprEditSuggestion[]                  @relation("IprEditSuggestions")
+  iprFinanceReviews                   IprFinance[]                         @relation("IprFinanceReviews")
+  iprReviews                          IprReview[]                          @relation("IprReviews")
+  iprStatusChanges                    IprStatusHistory[]                   @relation("IprStatusChanges")
+  iprStatusUpdates                    IprStatusUpdate[]                    @relation("IprStatusUpdates")
+  createdIncentivePolicies            IncentivePolicy[]                    @relation("IncentivePolicyCreatedBy")
+  updatedIncentivePolicies            IncentivePolicy[]                    @relation("IncentivePolicyUpdatedBy")
+  userSettings                        UserSettings?                        @relation("UserSettings")
+  notifications                       Notification[]                       @relation("UserNotifications")
+  parentLogin                         ParentDetails?                       @relation("ParentLogin")
+  programCoordinators                 Program[]                            @relation("ProgramCoordinator")
+  reissueRequestsApproved             ReissueRequest[]                     @relation("ApprovedBy")
+  reissueRequestsMade                 ReissueRequest[]                     @relation("RequestedBy")
+  researchContributions               ResearchContribution[]               @relation("ResearchContributions")
+  researchContributionAuthorship      ResearchContributionAuthor[]         @relation("ResearchContributionAuthors")
+  researchContributionEditSuggestions ResearchContributionEditSuggestion[] @relation("ResearchContributionEditSuggestions")
+  researchContributionReviews         ResearchContributionReview[]         @relation("ResearchContributionReviews")
+  researchContributionStatusChanges   ResearchContributionStatusHistory[]  @relation("ResearchContributionStatusChanges")
+  grantApplicationEditSuggestions     GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
+  createdResearchPolicies             ResearchIncentivePolicy[]            @relation("ResearchPolicyCreatedBy")
+  updatedResearchPolicies             ResearchIncentivePolicy[]            @relation("ResearchPolicyUpdatedBy")
+  createdBookPolicies                 BookIncentivePolicy[]                @relation("BookPolicyCreatedBy")
+  updatedBookPolicies                 BookIncentivePolicy[]                @relation("BookPolicyUpdatedBy")
+  createdBookChapterPolicies          BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
+  updatedBookChapterPolicies          BookChapterIncentivePolicy[]         @relation("BookChapterPolicyUpdatedBy")
+  createdConferencePolicies           ConferenceIncentivePolicy[]          @relation("ConferencePolicyCreatedBy")
+  updatedConferencePolicies           ConferenceIncentivePolicy[]          @relation("ConferencePolicyUpdatedBy")
+  createdGrantPolicies                GrantIncentivePolicy[]               @relation("GrantPolicyCreatedBy")
+  updatedGrantPolicies                GrantIncentivePolicy[]               @relation("GrantPolicyUpdatedBy")
+  researchPapers                      ResearchPaper[]                      @relation("ResearchPapers")
+  researchPaperReviews                ResearchPaperReview[]                @relation("ResearchPaperReviews")
+  researchPaperStatusChanges          ResearchPaperStatusHistory[]         @relation("ResearchPaperStatusChanges")
+  researchProgressTrackers            ResearchProgressTracker[]            @relation("ResearchProgressTrackers")
+  classTeachers                       Section[]                            @relation("ClassTeacher")
+  approvedStudents                    StudentDetails[]                     @relation("DataApprovedBy")
+  studentLogin                        StudentDetails?                      @relation("StudentLogin")
+  assignedDepartmentPermissions       UserDepartmentPermission[]           @relation("AssignedBy")
+  departmentPermissions               UserDepartmentPermission[]
+  grantApplications                   GrantApplication[]                   @relation("GrantApplications")
+  grantInvestigators                  GrantInvestigator[]                  @relation("GrantInvestigators")
+  grantApplicationReviews             GrantApplicationReview[]             @relation("GrantApplicationReviews")
+  grantApplicationStatusChanges       GrantApplicationStatusHistory[]      @relation("GrantApplicationStatusChanges")
 
   @@map("user_login")
 }
@@ -163,18 +185,97 @@ model ReissueRequest {
 }
 
 model AuditLog {
-  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  actorId     String?    @map("actor_id") @db.Uuid
-  action      String     @db.VarChar(256)
-  targetTable String?    @map("target_table") @db.VarChar(128)
-  targetId    String?    @map("target_id") @db.Uuid
-  details     Json       @default("{}")
-  ipAddress   String?    @map("ip_address") @db.Inet
-  userAgent   String?    @map("user_agent")
-  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  actor       UserLogin? @relation(fields: [actorId], references: [id])
+  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  actorId        String?         @map("actor_id") @db.Uuid
+  action         String          @db.VarChar(256)
+  actionType     AuditActionType @default(OTHER) @map("action_type")
+  module         String?         @db.VarChar(64) // e.g., 'ipr', 'research', 'auth', 'admin'
+  category       String?         @db.VarChar(64) // e.g., 'application', 'approval', 'login', 'export'
+  severity       AuditSeverity   @default(INFO)
+  targetTable    String?         @map("target_table") @db.VarChar(128)
+  targetId       String?         @map("target_id") @db.Uuid
+  details        Json            @default("{}")
+  oldValues      Json?           @map("old_values") // For tracking changes
+  newValues      Json?           @map("new_values") // For tracking changes
+  ipAddress      String?         @map("ip_address") @db.Inet
+  userAgent      String?         @map("user_agent")
+  sessionId      String?         @map("session_id") @db.VarChar(256)
+  requestPath    String?         @map("request_path") @db.VarChar(512)
+  requestMethod  String?         @map("request_method") @db.VarChar(10)
+  responseStatus Int?            @map("response_status")
+  duration       Int?            // Response time in milliseconds
+  errorMessage   String?         @map("error_message")
+  metadata       Json?           // Additional context-specific data
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor          UserLogin?      @relation(fields: [actorId], references: [id])
 
   @@map("audit_log")
+}
+
+// Enum for audit action types
+enum AuditActionType {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+  APPROVE
+  REJECT
+  SUBMIT
+  REVIEW
+  UPLOAD
+  DOWNLOAD
+  EMAIL_SENT
+  PERMISSION_CHANGE
+  STATUS_CHANGE
+  CONFIG_CHANGE
+  OTHER
+}
+
+// Enum for audit severity levels
+enum AuditSeverity {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+// Configuration for audit report recipients
+model AuditReportConfig {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name           String   @db.VarChar(128)
+  email          String   @db.VarChar(256)
+  role           String   @db.VarChar(64) // 'admin', 'authority', 'compliance', etc.
+  isActive       Boolean  @default(true) @map("is_active")
+  receiveMonthly Boolean  @default(true) @map("receive_monthly")
+  receiveWeekly  Boolean  @default(false) @map("receive_weekly")
+  receiveDaily   Boolean  @default(false) @map("receive_daily")
+  modules        String[] @default([]) // Filter by modules, empty = all
+  severities     String[] @default([]) // Filter by severity, empty = all
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("audit_report_config")
+}
+
+// Track sent audit reports
+model AuditReportHistory {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reportType  String   @map("report_type") @db.VarChar(32) // 'daily', 'weekly', 'monthly'
+  periodStart DateTime @map("period_start") @db.Timestamptz(6)
+  periodEnd   DateTime @map("period_end") @db.Timestamptz(6)
+  recipients  String[] // Email addresses
+  totalLogs   Int      @map("total_logs")
+  filePath    String?  @map("file_path") // Path to stored report file
+  status      String   @db.VarChar(32) // 'sent', 'failed', 'pending'
+  errorMsg    String?  @map("error_msg")
+  sentAt      DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@map("audit_report_history")
 }
 
 model ChangeHistory {
@@ -382,19 +483,27 @@ model DepartmentPermission {
 }
 
 model CentralDepartmentPermission {
-  id             String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId         String            @map("user_id") @db.Uuid
-  centralDeptId  String            @map("central_dept_id") @db.Uuid
-  permissions    Json              @default("{}")
-  isPrimary      Boolean           @default(false) @map("is_primary")
-  isActive       Boolean           @default(true) @map("is_active")
-  assignedBy     String?           @map("assigned_by") @db.Uuid
-  assignedAt     DateTime          @default(now()) @map("assigned_at") @db.Timestamptz(6)
-  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  assignedByUser UserLogin?        @relation("AssignedCentralDeptPermissions", fields: [assignedBy], references: [id])
-  centralDept    CentralDepartment @relation(fields: [centralDeptId], references: [id], onDelete: Cascade)
-  user           UserLogin         @relation("UserCentralDeptPermissions", fields: [userId], references: [id], onDelete: Cascade)
+  id                          String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                      String            @map("user_id") @db.Uuid
+  centralDeptId               String            @map("central_dept_id") @db.Uuid
+  permissions                 Json              @default("{}")
+  isPrimary                   Boolean           @default(false) @map("is_primary")
+  isActive                    Boolean           @default(true) @map("is_active")
+  assignedBy                  String?           @map("assigned_by") @db.Uuid
+  assignedAt                  DateTime          @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  createdAt                   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  assignedSchoolIds           Json              @default("[]") @map("assigned_school_ids")
+  assignedResearchSchoolIds   Json?             @default("[]") @map("assigned_research_school_ids")
+  assignedBookSchoolIds       Json?             @default("[]") @map("assigned_book_school_ids")
+  assignedConferenceSchoolIds Json?             @default("[]") @map("assigned_conference_school_ids")
+  assignedGrantSchoolIds      Json?             @default("[]") @map("assigned_grant_school_ids")
+  // Monthly Report Scope - school and department IDs for viewing progress tracker reports
+  assignedMonthlyReportSchoolIds      Json?             @default("[]") @map("assigned_monthly_report_school_ids")
+  assignedMonthlyReportDepartmentIds  Json?             @default("[]") @map("assigned_monthly_report_department_ids")
+  assignedByUser              UserLogin?        @relation("AssignedCentralDeptPermissions", fields: [assignedBy], references: [id])
+  centralDept                 CentralDepartment @relation(fields: [centralDeptId], references: [id], onDelete: Cascade)
+  user                        UserLogin         @relation("UserCentralDeptPermissions", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, centralDeptId])
   @@index([userId])
@@ -404,26 +513,30 @@ model CentralDepartmentPermission {
 }
 
 model FacultySchoolList {
-  id              String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  facultyCode     String           @unique @map("faculty_code") @db.VarChar(32)
-  facultyName     String           @map("faculty_name") @db.VarChar(256)
-  facultyType     FacultyTypeEnum  @map("faculty_type")
-  shortName       String?          @map("short_name") @db.VarChar(64)
-  description     String?
-  establishedYear Int?             @map("established_year")
-  headOfFacultyId String?          @map("head_of_faculty") @db.Uuid
-  contactEmail    String?          @map("contact_email") @db.Citext
-  contactPhone    String?          @map("contact_phone") @db.VarChar(20)
-  officeLocation  String?          @map("office_location")
-  websiteUrl      String?          @map("website_url")
-  isActive        Boolean          @default(true) @map("is_active")
-  metadata        Json             @default("{}")
-  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  departments     Department[]
-  headOfFaculty   UserLogin?       @relation("HeadOfFaculty", fields: [headOfFacultyId], references: [id])
-  iprApplications IprApplication[] @relation("SchoolIprApplications")
-  researchPapers  ResearchPaper[]  @relation("SchoolResearchPapers")
+  id                    String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  facultyCode           String                 @unique @map("faculty_code") @db.VarChar(32)
+  facultyName           String                 @map("faculty_name") @db.VarChar(256)
+  facultyType           FacultyTypeEnum        @map("faculty_type")
+  shortName             String?                @map("short_name") @db.VarChar(64)
+  description           String?
+  establishedYear       Int?                   @map("established_year")
+  headOfFacultyId       String?                @map("head_of_faculty") @db.Uuid
+  contactEmail          String?                @map("contact_email") @db.Citext
+  contactPhone          String?                @map("contact_phone") @db.VarChar(20)
+  officeLocation        String?                @map("office_location")
+  websiteUrl            String?                @map("website_url")
+  isActive              Boolean                @default(true) @map("is_active")
+  metadata              Json                   @default("{}")
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  departments           Department[]
+  primaryEmployees      EmployeeDetails[]      @relation("PrimarySchool")
+  headOfFaculty         UserLogin?             @relation("HeadOfFaculty", fields: [headOfFacultyId], references: [id])
+  iprApplications       IprApplication[]       @relation("SchoolIprApplications")
+  researchContributions    ResearchContribution[]    @relation("SchoolResearchContributions")
+  researchProgressTrackers ResearchProgressTracker[] @relation("SchoolResearchProgressTrackers")
+  researchPapers        ResearchPaper[]        @relation("SchoolResearchPapers")
+  grantApplications        GrantApplication[]        @relation("SchoolGrantApplications")
 
   @@map("faculty_school_list")
 }
@@ -451,7 +564,10 @@ model Department {
   primaryEmployees      EmployeeDetails[]      @relation("PrimaryDepartment")
   iprApplications       IprApplication[]       @relation("DepartmentIprApplications")
   programs              Program[]
+  researchContributions    ResearchContribution[]    @relation("DepartmentResearchContributions")
+  researchProgressTrackers ResearchProgressTracker[] @relation("DepartmentResearchProgressTrackers")
   researchPapers        ResearchPaper[]        @relation("DepartmentResearchPapers")
+  grantApplications        GrantApplication[]        @relation("DepartmentGrantApplications")
 
   @@map("department")
 }
@@ -544,7 +660,7 @@ model StudentDetails {
   phone                String?          @db.VarChar(15)
   photoFilePath        String?          @map("photo_file_path")
   photo                String?          @db.VarChar(64)
-  sectionId            String           @map("section_id") @db.Uuid
+  sectionId            String?          @map("section_id") @db.Uuid
   programId            String?          @map("program_id") @db.Uuid
   rollNumber           String?          @map("roll_number") @db.VarChar(32)
   admissionDate        DateTime?        @map("admission_date") @db.Date
@@ -571,12 +687,14 @@ model StudentDetails {
   metadata             Json             @default("{}")
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  mentorId             String?          @map("mentor_id") @db.Uuid
   cards                Card[]           @relation("StudentCards")
   parents              ParentDetails[]
   reissueRequests      ReissueRequest[] @relation("StudentReissueRequests")
   dataApprovedBy       UserLogin?       @relation("DataApprovedBy", fields: [dataApprovedById], references: [id])
+  mentor               UserLogin?       @relation("StudentMentor", fields: [mentorId], references: [id])
   program              Program?         @relation(fields: [programId], references: [id])
-  section              Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section              Section?         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   userLogin            UserLogin?       @relation("StudentLogin", fields: [userLoginId], references: [id])
 
   @@map("student_details")
@@ -630,6 +748,15 @@ model IprApplication {
   completedAt             DateTime?                 @map("completed_at") @db.Timestamptz(6)
   createdAt               DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  applicationNumber       String?                   @unique @map("application_number") @db.VarChar(32)
+  conversionDate          DateTime?                 @map("conversion_date") @db.Timestamptz(6)
+  sourceProvisionalId     String?                   @map("source_provisional_id") @db.Uuid
+  govtApplicationId       String?                   @map("govt_application_id") @db.VarChar(128)
+  govtFilingDate          DateTime?                 @map("govt_filing_date") @db.Timestamptz(6)
+  publicationDate         DateTime?                 @map("publication_date") @db.Timestamptz(6)
+  publicationId           String?                   @map("publication_id") @db.VarChar(128)
+  status                  IprStatusEnum             @default(draft)
+  revisionCount           Int                       @default(0) @map("revision_count")
   documentChanges         DocumentChange[]          @relation("DocumentChanges")
   applicantDetails        IprApplicantDetails?
   applicantUser           UserLogin?                @relation("IprApplications", fields: [applicantUserId], references: [id])
@@ -794,6 +921,72 @@ model IprFinance {
   @@map("ipr_finance")
 }
 
+model IprStatusUpdate {
+  id                     String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  iprApplicationId       String         @map("ipr_application_id") @db.Uuid
+  createdById            String         @map("created_by_id") @db.Uuid
+  updateMessage          String         @map("update_message")
+  updateType             String         @map("update_type") @db.VarChar(64)
+  priority               String         @default("medium") @map("priority") @db.VarChar(32)
+  isVisibleToApplicant   Boolean        @default(true) @map("is_visible_to_applicant")
+  isVisibleToInventors   Boolean        @default(true) @map("is_visible_to_inventors")
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  iprApplication         IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
+  createdBy              UserLogin      @relation("IprStatusUpdates", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([iprApplicationId])
+  @@index([createdById])
+  @@index([updateType])
+  @@map("ipr_status_update")
+}
+
+model IncentivePolicy {
+  id                    String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  iprType               String     @map("ipr_type") @db.VarChar(50)
+  policyName            String     @map("policy_name") @db.VarChar(255)
+  baseIncentiveAmount   Decimal    @map("base_incentive_amount") @db.Decimal(15, 2)
+  basePoints            Int        @map("base_points")
+  splitPolicy           String     @map("split_policy") @db.VarChar(50)
+  primaryInventorShare  Decimal?   @map("primary_inventor_share") @db.Decimal(5, 2)
+  filingTypeMultiplier  Json?      @map("filing_type_multiplier") @db.JsonB
+  projectTypeBonus      Json?      @map("project_type_bonus") @db.JsonB
+  isActive              Boolean    @default(true) @map("is_active")
+  effectiveFrom         DateTime   @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo           DateTime?  @map("effective_to") @db.Timestamptz(6)
+  createdById           String     @map("created_by_id") @db.Uuid
+  updatedById           String?    @map("updated_by_id") @db.Uuid
+  createdAt             DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy             UserLogin  @relation("IncentivePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy             UserLogin? @relation("IncentivePolicyUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([iprType, isActive], name: "unique_active_policy_per_type")
+  @@index([iprType])
+  @@index([isActive])
+  @@map("incentive_policy")
+}
+
+model UserSettings {
+  id                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId             String    @unique @map("user_id") @db.Uuid
+  emailNotifications Boolean   @default(true) @map("email_notifications")
+  pushNotifications  Boolean   @default(true) @map("push_notifications")
+  iprUpdates         Boolean   @default(true) @map("ipr_updates")
+  taskReminders      Boolean   @default(true) @map("task_reminders")
+  systemAlerts       Boolean   @default(true) @map("system_alerts")
+  weeklyDigest       Boolean   @default(false) @map("weekly_digest")
+  theme              String    @default("light") @db.VarChar(20)
+  language           String    @default("en") @db.VarChar(10)
+  compactView        Boolean   @default(false) @map("compact_view")
+  showTips           Boolean   @default(true) @map("show_tips")
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user               UserLogin @relation("UserSettings", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
 model ResearchPaper {
   id                      String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   authorUserId            String                       @map("author_user_id") @db.Uuid
@@ -940,6 +1133,789 @@ model DocumentChange {
   @@index([status])
   @@index([reviewerId])
   @@map("document_change")
+}
+
+model Notification {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  type          String    @db.VarChar(50)
+  title         String    @db.VarChar(255)
+  message       String
+  referenceType String?   @map("reference_type") @db.VarChar(50)
+  referenceId   String?   @map("reference_id") @db.Uuid
+  isRead        Boolean   @default(false) @map("is_read")
+  readAt        DateTime? @map("read_at") @db.Timestamptz(6)
+  metadata      Json      @default("{}")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          UserLogin @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@index([referenceId])
+  @@map("notification")
+}
+
+model ResearchContribution {
+  id                         String                                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  applicationNumber          String?                               @unique @map("application_number") @db.VarChar(32)
+  applicantUserId            String?                               @map("applicant_user_id") @db.Uuid
+  applicantType              ApplicantTypeEnum                     @map("applicant_type")
+  publicationType            ResearchPublicationTypeEnum           @map("publication_type")
+  title                      String                                @db.VarChar(512)
+  abstract                   String?
+  keywords                   String?                               @db.VarChar(512)
+  schoolId                   String?                               @map("school_id") @db.Uuid
+  departmentId               String?                               @map("department_id") @db.Uuid
+  status                     ResearchContributionStatusEnum        @default(draft)
+  currentReviewerId          String?                               @map("current_reviewer_id") @db.Uuid
+  revisionCount              Int                                   @default(0) @map("revision_count")
+  indexingCategories         String[]                              @default([]) @map("indexing_categories")
+  distributionMethodUsed     DistributionMethodEnum?               @map("distribution_method_used")
+  internationalAuthor        Boolean?                              @default(false) @map("international_author")
+  foreignCollaborationsCount Int?                                  @default(0) @map("foreign_collaborations_count")
+  impactFactor               Decimal?                              @map("impact_factor") @db.Decimal(10, 4)
+  sjr                        Decimal?                              @db.Decimal(10, 4)
+  naasRating                 Decimal?                              @map("naas_rating") @db.Decimal(4, 2)
+  subsidiaryImpactFactor     Decimal?                              @map("subsidiary_impact_factor") @db.Decimal(10, 4)
+  interdisciplinaryFromSgt   Boolean?                              @default(false) @map("interdisciplinary_from_sgt")
+  studentsFromSgt            Boolean?                              @default(false) @map("students_from_sgt")
+  journalName                String?                               @map("journal_name") @db.VarChar(512)
+  totalAuthors               Int?                                  @default(1) @map("total_authors")
+  sgtAffiliatedAuthors       Int?                                  @default(1) @map("sgt_affiliated_authors")
+  internalCoAuthors          Int?                                  @default(0) @map("internal_co_authors")
+  volume                     String?                               @db.VarChar(64)
+  issue                      String?                               @db.VarChar(64)
+  pageNumbers                String?                               @map("page_numbers") @db.VarChar(64)
+  doi                        String?                               @db.VarChar(256)
+  issn                       String?                               @db.VarChar(32)
+  publisherName              String?                               @map("publisher_name") @db.VarChar(256)
+  isbn                       String?                               @db.VarChar(32)
+  edition                    String?                               @db.VarChar(64)
+  chapterNumber              String?                               @map("chapter_number") @db.VarChar(32)
+  bookTitle                  String?                               @map("book_title") @db.VarChar(512)
+  editors                    String?                               @db.VarChar(512)
+  publisherLocation          String?                               @map("publisher_location") @db.VarChar(256)
+  conferenceName             String?                               @map("conference_name") @db.VarChar(512)
+  conferenceLocation         String?                               @map("conference_location") @db.VarChar(256)
+  conferenceDate             DateTime?                             @map("conference_date") @db.Date
+  proceedingsTitle           String?                               @map("proceedings_title") @db.VarChar(512)
+  fundingAgency              String?                               @map("funding_agency") @db.VarChar(256)
+  proposalType               String?                               @map("proposal_type") @db.VarChar(64)
+  requestedAmount            Decimal?                              @map("requested_amount") @db.Decimal(15, 2)
+  sanctionedAmount           Decimal?                              @map("sanctioned_amount") @db.Decimal(15, 2)
+  projectDurationMonths      Int?                                  @map("project_duration_months")
+  projectStartDate           DateTime?                             @map("project_start_date") @db.Date
+  projectEndDate             DateTime?                             @map("project_end_date") @db.Date
+  publicationDate            DateTime?                             @map("publication_date") @db.Date
+  publicationStatus          String?                               @map("publication_status") @db.VarChar(64)
+  manuscriptFilePath         String?                               @map("manuscript_file_path") @db.VarChar(512)
+  supportingDocsFilePaths    Json?                                 @map("supporting_docs_file_paths")
+  indexingDetails            Json?                                 @default("{}") @map("indexing_details")
+  calculatedIncentiveAmount  Decimal?                              @map("calculated_incentive_amount") @db.Decimal(15, 2)
+  calculatedPoints           Int?                                  @map("calculated_points")
+  incentiveAmount            Decimal?                              @map("incentive_amount") @db.Decimal(15, 2)
+  pointsAwarded              Int?                                  @map("points_awarded")
+  creditedAt                 DateTime?                             @map("credited_at") @db.Timestamptz(6)
+  submittedAt                DateTime?                             @map("submitted_at") @db.Timestamptz(6)
+  completedAt                DateTime?                             @map("completed_at") @db.Timestamptz(6)
+  createdAt                  DateTime                              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  quartile                   quartile_enum?
+  sdg_goals                  String[]
+  nationalInternational      String?                               @map("national_international") @db.VarChar(32)
+  bookPublicationType        String?                               @map("book_publication_type") @db.VarChar(32)
+  communicatedWithOfficialId Boolean                               @default(true) @map("communicated_with_official_id")
+  facultyRemarks             String?                               @map("faculty_remarks")
+  bookIndexingType           String?                               @map("book_indexing_type") @db.VarChar(32)
+  bookLetter                 String?                               @map("book_letter") @db.VarChar(8)
+  personalEmail              String?                               @map("personal_email") @db.VarChar(256)
+  conferenceSubType          String?                               @map("conference_sub_type") @db.VarChar(64)
+  proceedingsQuartile        String?                               @map("proceedings_quartile") @db.VarChar(16)
+  totalPresenters            Int?                                  @default(1) @map("total_presenters")
+  isPresenter                Boolean?                              @default(false) @map("is_presenter")
+  virtualConference          Boolean?                              @default(false) @map("virtual_conference")
+  fullPaper                  Boolean?                              @default(false) @map("full_paper")
+  conferenceHeldAtSgt        Boolean?                              @default(false) @map("conference_held_at_sgt")
+  conferenceBestPaperAward   Boolean?                              @default(false) @map("conference_best_paper_award")
+  industryCollaboration      Boolean?                              @default(false) @map("industry_collaboration")
+  centralFacilityUsed        Boolean?                              @default(false) @map("central_facility_used")
+  issnIsbnIssueNo            String?                               @map("issn_isbn_issue_no") @db.VarChar(64)
+  paperDoi                   String?                               @map("paper_doi") @db.VarChar(256)
+  weblink                    String?                               @db.VarChar(512)
+  paperweblink               String?                               @db.VarChar(512)
+  priorityFundingArea        String?                               @map("priority_funding_area") @db.VarChar(256)
+  conferenceRole             String?                               @map("conference_role") @db.VarChar(64)
+  indexedIn                  String?                               @map("indexed_in") @db.VarChar(32)
+  conferenceHeldLocation     String?                               @map("conference_held_location") @db.VarChar(32)
+  venue                      String?                               @db.VarChar(512)
+  topic                      String?                               @db.VarChar(512)
+  attendedVirtual            Boolean?                              @default(false) @map("attended_virtual")
+  eventCategory              String?                               @map("event_category") @db.VarChar(32)
+  organizerRole              String?                               @map("organizer_role") @db.VarChar(64)
+  conferenceType             String?                               @map("conference_type") @db.VarChar(32)
+  applicantUser              UserLogin?                            @relation("ResearchContributions", fields: [applicantUserId], references: [id])
+  department                 Department?                           @relation("DepartmentResearchContributions", fields: [departmentId], references: [id])
+  school                     FacultySchoolList?                    @relation("SchoolResearchContributions", fields: [schoolId], references: [id])
+  applicantDetails           ResearchContributionApplicantDetails?
+  authors                    ResearchContributionAuthor[]
+  editSuggestions            ResearchContributionEditSuggestion[]
+  reviews                    ResearchContributionReview[]
+  statusHistory              ResearchContributionStatusHistory[]
+  progressTracker            ResearchProgressTracker?              @relation("TrackerToContribution")
+
+  @@index([applicantUserId])
+  @@index([status])
+  @@index([publicationType])
+  @@index([schoolId])
+  @@index([departmentId])
+  @@index([conferenceSubType])
+  @@map("research_contribution")
+}
+
+model ResearchContributionApplicantDetails {
+  id                     String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  researchContributionId String               @unique(map: "research_contribution_applicant_details_contribution_key") @map("research_contribution_id") @db.Uuid
+  employeeCategory       String?              @map("employee_category") @db.VarChar(64)
+  employeeType           String?              @map("employee_type") @db.VarChar(64)
+  uid                    String?              @db.VarChar(64)
+  email                  String?              @db.VarChar(256)
+  phone                  String?              @db.VarChar(20)
+  universityDeptName     String?              @map("university_dept_name") @db.VarChar(256)
+  mentorName             String?              @map("mentor_name") @db.VarChar(256)
+  mentorUid              String?              @map("mentor_uid") @db.VarChar(64)
+  isPhdWork              Boolean?             @default(false) @map("is_phd_work")
+  phdTitle               String?              @map("phd_title") @db.VarChar(512)
+  phdObjectives          String?              @map("phd_objectives")
+  coveredObjectives      String?              @map("covered_objectives") @db.VarChar(256)
+  addressesSocietal      Boolean?             @default(false) @map("addresses_societal")
+  addressesGovernment    Boolean?             @default(false) @map("addresses_government")
+  addressesEnvironmental Boolean?             @default(false) @map("addresses_environmental")
+  addressesIndustrial    Boolean?             @default(false) @map("addresses_industrial")
+  addressesBusiness      Boolean?             @default(false) @map("addresses_business")
+  addressesConceptual    Boolean?             @default(false) @map("addresses_conceptual")
+  enrichesDiscipline     Boolean?             @default(false) @map("enriches_discipline")
+  isNewsworthy           Boolean?             @default(false) @map("is_newsworthy")
+  metadata               Json?                @default("{}")
+  createdAt              DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  researchContribution   ResearchContribution @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_applicant_details_contribution_fkey")
+
+  @@map("research_contribution_applicant_details")
+}
+
+model ResearchContributionAuthor {
+  id                     String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  researchContributionId String                 @map("research_contribution_id") @db.Uuid
+  userId                 String?                @map("user_id") @db.Uuid
+  uid                    String?                @db.VarChar(64)
+  registrationNo         String?                @map("registration_no") @db.VarChar(64)
+  name                   String                 @db.VarChar(256)
+  email                  String?                @db.VarChar(256)
+  phone                  String?                @db.VarChar(20)
+  affiliation            String?                @db.VarChar(256)
+  department             String?                @db.VarChar(256)
+  designation            String?                @db.VarChar(256)
+  isInternational        Boolean                @default(false) @map("is_international")
+  authorOrder            Int                    @default(1) @map("author_order")
+  isCorresponding        Boolean                @default(false) @map("is_corresponding")
+  authorType             ResearchAuthorTypeEnum @default(co_author) @map("author_type")
+  authorPosition         Int?                   @map("author_position")
+  isInternal             Boolean                @default(true) @map("is_internal")
+  authorCategory         String?                @map("author_category") @db.VarChar(64)
+  isPhdWork              Boolean?               @default(false) @map("is_phd_work")
+  phdTitle               String?                @map("phd_title") @db.VarChar(512)
+  phdObjectives          String?                @map("phd_objectives")
+  coveredObjectives      String?                @map("covered_objectives") @db.VarChar(256)
+  addressesSocietal      Boolean?               @default(false) @map("addresses_societal")
+  addressesGovernment    Boolean?               @default(false) @map("addresses_government")
+  addressesEnvironmental Boolean?               @default(false) @map("addresses_environmental")
+  addressesIndustrial    Boolean?               @default(false) @map("addresses_industrial")
+  addressesBusiness      Boolean?               @default(false) @map("addresses_business")
+  addressesConceptual    Boolean?               @default(false) @map("addresses_conceptual")
+  isNewsworthy           Boolean?               @default(false) @map("is_newsworthy")
+  incentiveShare         Decimal?               @map("incentive_share") @db.Decimal(15, 2)
+  pointsShare            Int?                   @map("points_share")
+  canView                Boolean                @default(true) @map("can_view")
+  canEdit                Boolean                @default(false) @map("can_edit")
+  createdAt              DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  researchContribution   ResearchContribution   @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_author_contribution_fkey")
+  user                   UserLogin?             @relation("ResearchContributionAuthors", fields: [userId], references: [id])
+
+  @@unique([researchContributionId, uid], map: "research_contribution_author_contribution_uid_key")
+  @@index([userId])
+  @@index([researchContributionId], map: "research_contribution_author_contribution_id_idx")
+  @@map("research_contribution_author")
+}
+
+model ResearchContributionReview {
+  id                      String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  researchContributionId  String               @map("research_contribution_id") @db.Uuid
+  reviewerId              String               @map("reviewer_id") @db.Uuid
+  reviewerRole            String               @map("reviewer_role") @db.VarChar(64)
+  comments                String?
+  edits                   Json?
+  decision                String               @db.VarChar(32)
+  hasSuggestions          Boolean              @default(false) @map("has_suggestions")
+  suggestionsCount        Int                  @default(0) @map("suggestions_count")
+  pendingSuggestionsCount Int                  @default(0) @map("pending_suggestions_count")
+  reviewedAt              DateTime?            @map("reviewed_at") @db.Timestamptz(6)
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  researchContribution    ResearchContribution @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_review_contribution_fkey")
+  reviewer                UserLogin            @relation("ResearchContributionReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@index([reviewerId])
+  @@index([researchContributionId], map: "research_contribution_review_contribution_id_idx")
+  @@map("research_contribution_review")
+}
+
+model ResearchContributionStatusHistory {
+  id                     String                          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  researchContributionId String                          @map("research_contribution_id") @db.Uuid
+  fromStatus             ResearchContributionStatusEnum? @map("from_status")
+  toStatus               ResearchContributionStatusEnum  @map("to_status")
+  changedById            String                          @map("changed_by_id") @db.Uuid
+  comments               String?
+  metadata               Json?
+  changedAt              DateTime                        @default(now()) @map("changed_at") @db.Timestamptz(6)
+  changedBy              UserLogin                       @relation("ResearchContributionStatusChanges", fields: [changedById], references: [id], onDelete: Cascade, map: "research_contribution_status_history_changed_by_fkey")
+  researchContribution   ResearchContribution            @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_status_history_contribution_fkey")
+
+  @@index([researchContributionId], map: "research_contribution_status_history_contribution_id_idx")
+  @@map("research_contribution_status_history")
+}
+
+model ResearchContributionEditSuggestion {
+  id                     String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  researchContributionId String                   @map("research_contribution_id") @db.Uuid
+  reviewerId             String                   @map("reviewer_id") @db.Uuid
+  fieldName              String                   @map("field_name") @db.VarChar(128)
+  fieldPath              String?                  @map("field_path") @db.VarChar(256)
+  originalValue          String?                  @map("original_value")
+  suggestedValue         String?                  @map("suggested_value")
+  suggestionNote         String?                  @map("suggestion_note")
+  status                 EditSuggestionStatusEnum @default(pending)
+  applicantResponse      String?                  @map("applicant_response")
+  reviewedAt             DateTime?                @map("reviewed_at") @db.Timestamptz(6)
+  respondedAt            DateTime?                @map("responded_at") @db.Timestamptz(6)
+  createdAt              DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  researchContribution   ResearchContribution     @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_edit_suggestion_contribution_fkey")
+  reviewer               UserLogin                @relation("ResearchContributionEditSuggestions", fields: [reviewerId], references: [id], onDelete: Cascade, map: "research_contribution_edit_suggestion_reviewer_fkey")
+
+  @@index([reviewerId])
+  @@index([researchContributionId], map: "research_contribution_edit_suggestion_contribution_id_idx")
+  @@map("research_contribution_edit_suggestion")
+}
+
+model ResearchIncentivePolicy {
+  id                              String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  publicationType                 String                       @map("publication_type") @db.VarChar(50)
+  policyName                      String                       @map("policy_name") @db.VarChar(255)
+  baseIncentiveAmount             Decimal                      @map("base_incentive_amount") @db.Decimal(15, 2)
+  basePoints                      Int                          @map("base_points")
+  splitPolicy                     String                       @map("split_policy") @db.VarChar(50)
+  distributionMethod              DistributionMethodEnum       @default(author_role_based) @map("distribution_method")
+  primaryAuthorShare              Decimal?                     @map("primary_author_share") @db.Decimal(5, 2)
+  authorTypeMultipliers           Json?                        @default("{\"co_author\": 0.5, \"first_author\": 1.0, \"corresponding_author\": 0.8, \"first_and_corresponding_author\": 1.2}") @map("author_type_multipliers")
+  positionBasedDistribution       Json?                        @map("position_based_distribution") // {"1": 40, "2": 30, "3": 15, "4": 10, "5": 5, "6+": 0}
+  indexingBonuses                 Json?                        @default("{\"ugc\": 2500, \"wos\": 7500, \"both\": 10000, \"scopus\": 5000}") @map("indexing_bonuses")
+  impactFactorTiers               Json?                        @default("[{\"max\": 1, \"min\": 0, \"bonus\": 0}, {\"max\": 3, \"min\": 1, \"bonus\": 5000}, {\"max\": 5, \"min\": 3, \"bonus\": 10000}, {\"max\": 100, \"min\": 5, \"bonus\": 20000}]") @map("impact_factor_tiers")
+  isActive                        Boolean                      @default(true) @map("is_active")
+  effectiveFrom                   DateTime                     @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo                     DateTime?                    @map("effective_to") @db.Timestamptz(6)
+  createdById                     String                       @map("created_by_id") @db.Uuid
+  updatedById                     String?                      @map("updated_by_id") @db.Uuid
+  createdAt                       DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  first_author_percentage         Decimal?                     @default(40) @db.Decimal(5, 2)
+  corresponding_author_percentage Decimal?                     @default(30) @db.Decimal(5, 2)
+  createdBy                       UserLogin                    @relation("ResearchPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "research_incentive_policy_created_by_fkey")
+  updatedBy                       UserLogin?                   @relation("ResearchPolicyUpdatedBy", fields: [updatedById], references: [id], map: "research_incentive_policy_updated_by_fkey")
+
+  @@index([publicationType])
+  @@index([isActive])
+  @@map("research_incentive_policy")
+}
+
+model BookIncentivePolicy {
+  id                              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  policyName                      String     @map("policy_name") @db.VarChar(255)
+  authoredIncentiveAmount         Decimal    @map("authored_incentive_amount") @db.Decimal(15, 2)
+  authoredPoints                  Int        @map("authored_points")
+  editedIncentiveAmount           Decimal    @map("edited_incentive_amount") @db.Decimal(15, 2)
+  editedPoints                    Int        @map("edited_points")
+  splitPolicy                     String     @map("split_policy") @db.VarChar(50) // 'equal' or 'weighted'
+  indexingBonuses                 Json?      @default("{\"scopus_indexed\": 10000, \"non_indexed\": 0, \"sgt_publication_house\": 2000}") @map("indexing_bonuses")
+  internationalBonus              Decimal?   @default(5000) @map("international_bonus") @db.Decimal(15, 2)
+  isActive                        Boolean    @default(true) @map("is_active")
+  effectiveFrom                   DateTime   @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo                     DateTime?  @map("effective_to") @db.Timestamptz(6)
+  createdById                     String     @map("created_by_id") @db.Uuid
+  updatedById                     String?    @map("updated_by_id") @db.Uuid
+  createdAt                       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy                       UserLogin  @relation("BookPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "book_incentive_policy_created_by_fkey")
+  updatedBy                       UserLogin? @relation("BookPolicyUpdatedBy", fields: [updatedById], references: [id], map: "book_incentive_policy_updated_by_fkey")
+
+  @@index([isActive])
+  @@map("book_incentive_policy")
+}
+
+model BookChapterIncentivePolicy {
+  id                              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  policyName                      String     @map("policy_name") @db.VarChar(255)
+  authoredIncentiveAmount         Decimal    @map("authored_incentive_amount") @db.Decimal(15, 2)
+  authoredPoints                  Int        @map("authored_points")
+  editedIncentiveAmount           Decimal    @map("edited_incentive_amount") @db.Decimal(15, 2)
+  editedPoints                    Int        @map("edited_points")
+  splitPolicy                     String     @map("split_policy") @db.VarChar(50) // 'equal' or 'weighted'
+  indexingBonuses                 Json?      @default("{\"scopus_indexed\": 10000, \"non_indexed\": 0, \"sgt_publication_house\": 2000}") @map("indexing_bonuses")
+  internationalBonus              Decimal?   @default(5000) @map("international_bonus") @db.Decimal(15, 2)
+  isActive                        Boolean    @default(true) @map("is_active")
+  effectiveFrom                   DateTime   @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo                     DateTime?  @map("effective_to") @db.Timestamptz(6)
+  createdById                     String     @map("created_by_id") @db.Uuid
+  updatedById                     String?    @map("updated_by_id") @db.Uuid
+  createdAt                       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy                       UserLogin  @relation("BookChapterPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "book_chapter_incentive_policy_created_by_fkey")
+  updatedBy                       UserLogin? @relation("BookChapterPolicyUpdatedBy", fields: [updatedById], references: [id], map: "book_chapter_incentive_policy_updated_by_fkey")
+
+  @@index([isActive])
+  @@map("book_chapter_incentive_policy")
+}
+
+model ConferenceIncentivePolicy {
+  id                              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  policyName                      String     @map("policy_name") @db.VarChar(255)
+  conferenceSubType               String     @map("conference_sub_type") @db.VarChar(50) // 'paper_indexed_scopus', 'paper_not_indexed', 'keynote_speaker_invited_talks', 'organizer_coordinator_member'
+  
+  // For paper_indexed_scopus - quartile-based incentives (similar to research)
+  quartileIncentives              Json?      @default("[]") @map("quartile_incentives") // [{quartile: 'Q1', incentiveAmount: 50000, points: 50}, ...]
+  rolePercentages                 Json?      @default("[]") @map("role_percentages") // [{role: 'first_author', percentage: 50}, ...]
+  
+  // For other conference types - flat incentive (single amount and points)
+  flatIncentiveAmount             Decimal?   @map("flat_incentive_amount") @db.Decimal(15, 2)
+  flatPoints                      Int?       @map("flat_points")
+  
+  splitPolicy                     String     @map("split_policy") @db.VarChar(50) // 'equal' or 'percentage_based'
+  internationalBonus              Decimal?   @default(5000) @map("international_bonus") @db.Decimal(15, 2)
+  bestPaperAwardBonus             Decimal?   @default(5000) @map("best_paper_award_bonus") @db.Decimal(15, 2)
+  isActive                        Boolean    @default(true) @map("is_active")
+  effectiveFrom                   DateTime   @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo                     DateTime?  @map("effective_to") @db.Timestamptz(6)
+  createdById                     String     @map("created_by_id") @db.Uuid
+  updatedById                     String?    @map("updated_by_id") @db.Uuid
+  createdAt                       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy                       UserLogin  @relation("ConferencePolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "conference_incentive_policy_created_by_fkey")
+  updatedBy                       UserLogin? @relation("ConferencePolicyUpdatedBy", fields: [updatedById], references: [id], map: "conference_incentive_policy_updated_by_fkey")
+
+  @@index([isActive])
+  @@index([conferenceSubType])
+  @@map("conference_incentive_policy")
+}
+
+model GrantIncentivePolicy {
+  id                              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  policyName                      String     @map("policy_name") @db.VarChar(255)
+  projectCategory                 String     @map("project_category") @db.VarChar(50) // 'govt', 'non_govt', 'industry'
+  projectType                     String     @map("project_type") @db.VarChar(50) // 'indian', 'international'
+  
+  // Incentive structure
+  baseIncentiveAmount             Decimal    @map("base_incentive_amount") @db.Decimal(15, 2)
+  basePoints                      Int        @map("base_points")
+  
+  // Role-based distribution
+  splitPolicy                     String     @map("split_policy") @db.VarChar(50) // 'equal' or 'percentage_based'
+  rolePercentages                 Json?      @default("[]") @map("role_percentages") // [{role: 'pi', percentage: 40}, {role: 'co_pi', percentage: 30}, ...]
+  
+  // Multipliers and bonuses
+  fundingAmountMultiplier         Json?      @map("funding_amount_multiplier") @db.JsonB // {threshold: 1000000, multiplier: 1.2}
+  internationalBonus              Decimal?   @default(10000) @map("international_bonus") @db.Decimal(15, 2)
+  consortiumBonus                 Decimal?   @default(5000) @map("consortium_bonus") @db.Decimal(15, 2)
+  
+  // Policy metadata
+  isActive                        Boolean    @default(true) @map("is_active")
+  effectiveFrom                   DateTime   @default(now()) @map("effective_from") @db.Timestamptz(6)
+  effectiveTo                     DateTime?  @map("effective_to") @db.Timestamptz(6)
+  createdById                     String     @map("created_by_id") @db.Uuid
+  updatedById                     String?    @map("updated_by_id") @db.Uuid
+  createdAt                       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  createdBy                       UserLogin  @relation("GrantPolicyCreatedBy", fields: [createdById], references: [id], onDelete: Cascade, map: "grant_incentive_policy_created_by_fkey")
+  updatedBy                       UserLogin? @relation("GrantPolicyUpdatedBy", fields: [updatedById], references: [id], map: "grant_incentive_policy_updated_by_fkey")
+
+  @@index([isActive])
+  @@index([projectCategory])
+  @@index([projectType])
+  @@map("grant_incentive_policy")
+}
+
+// ==========================================
+// RESEARCH PROGRESS TRACKER MODELS
+// ==========================================
+
+model ResearchProgressTracker {
+  id                     String                              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  trackingNumber         String                              @unique @map("tracking_number") @db.VarChar(32)
+  userId                 String                              @map("user_id") @db.Uuid
+  publicationType        ResearchPublicationTypeEnum         @map("publication_type")
+  title                  String                              @db.VarChar(512)
+  currentStatus          ResearchTrackerStatusEnum           @default(writing) @map("current_status")
+  schoolId               String?                             @map("school_id") @db.Uuid
+  departmentId           String?                             @map("department_id") @db.Uuid
+
+  // Type-specific data stored as JSON
+  researchPaperData      Json?                               @map("research_paper_data")
+  bookData               Json?                               @map("book_data")
+  bookChapterData        Json?                               @map("book_chapter_data")
+  conferencePaperData    Json?                               @map("conference_paper_data")
+
+  // Common fields
+  expectedCompletionDate DateTime?                           @map("expected_completion_date") @db.Date
+  actualCompletionDate   DateTime?                           @map("actual_completion_date") @db.Date
+  notes                  String?
+  
+  // Link to submitted incentive claim
+  researchContributionId String?                             @unique @map("research_contribution_id") @db.Uuid
+  
+  // Timestamps
+  createdAt              DateTime                            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime                            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  user                   UserLogin                           @relation("ResearchProgressTrackers", fields: [userId], references: [id], onDelete: Cascade)
+  school                 FacultySchoolList?                  @relation("SchoolResearchProgressTrackers", fields: [schoolId], references: [id])
+  department             Department?                         @relation("DepartmentResearchProgressTrackers", fields: [departmentId], references: [id])
+  researchContribution   ResearchContribution?               @relation("TrackerToContribution", fields: [researchContributionId], references: [id])
+  statusHistory          ResearchProgressStatusHistory[]
+
+  @@index([userId])
+  @@index([publicationType])
+  @@index([currentStatus])
+  @@index([schoolId])
+  @@index([departmentId])
+  @@index([title])
+  @@index([trackingNumber])
+  @@map("research_progress_tracker")
+}
+
+model ResearchProgressStatusHistory {
+  id                 String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  trackerId          String                      @map("tracker_id") @db.Uuid
+  fromStatus         ResearchTrackerStatusEnum?  @map("from_status")
+  toStatus           ResearchTrackerStatusEnum   @map("to_status")
+  
+  // Status-specific data stored as JSON
+  statusData         Json?                       @map("status_data")
+  
+  // Attachments for this status update
+  attachments        Json?                       @default("[]")
+  
+  // Tracking dates
+  reportedDate       DateTime                    @map("reported_date") @db.Date
+  actualDate         DateTime?                   @map("actual_date") @db.Date
+  
+  notes              String?
+  changedAt          DateTime                    @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  // Relations
+  tracker            ResearchProgressTracker     @relation(fields: [trackerId], references: [id], onDelete: Cascade)
+
+  @@index([trackerId])
+  @@index([toStatus])
+  @@map("research_progress_status_history")
+}
+
+enum ResearchTrackerStatusEnum {
+  writing
+  communicated
+  submitted
+  rejected
+  accepted
+  published
+
+  @@map("research_tracker_status_enum")
+}
+
+// ==========================================
+// GRANT APPLICATION MODELS
+// ==========================================
+
+model GrantApplication {
+  id                       String                     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  applicationNumber        String?                    @unique @map("application_number") @db.VarChar(32)
+  applicantUserId          String?                    @map("applicant_user_id") @db.Uuid
+  applicantType            ApplicantTypeEnum          @map("applicant_type")
+  
+  // Project Basic Information
+  title                    String                     @db.VarChar(512)
+  submittedAmount          Decimal?                   @map("submitted_amount") @db.Decimal(15, 2)
+  sdgGoals                 String[]                   @map("sdg_goals")
+  
+  // Project Type
+  projectType              GrantProjectTypeEnum       @default(indian) @map("project_type")
+  
+  // International Consortium Details (only when projectType = international)
+  numberOfConsortiumOrgs   Int?                       @default(0) @map("number_of_consortium_orgs")
+  
+  // Project Status & Category
+  projectStatus            GrantProjectStatusEnum     @default(submitted) @map("project_status")
+  projectCategory          GrantProjectCategoryEnum   @default(govt) @map("project_category")
+  
+  // Funding Agency (conditional based on projectCategory)
+  fundingAgencyType        GrantFundingAgencyEnum?    @map("funding_agency_type")
+  fundingAgencyName        String?                    @map("funding_agency_name") @db.VarChar(256)
+  
+  // Investigator Configuration
+  totalInvestigators       Int                        @default(1) @map("total_investigators")
+  numberOfInternalPIs      Int                        @default(1) @map("number_of_internal_pis")
+  numberOfInternalCoPIs    Int                        @default(0) @map("number_of_internal_co_pis")
+  isPIExternal             Boolean                    @default(false) @map("is_pi_external")
+  myRole                   GrantInvestigatorRoleEnum  @default(pi) @map("my_role")
+  
+  // Dates
+  dateOfSubmission         DateTime?                  @map("date_of_submission") @db.Date
+  projectStartDate         DateTime?                  @map("project_start_date") @db.Date
+  projectEndDate           DateTime?                  @map("project_end_date") @db.Date
+  projectDurationMonths    Int?                       @map("project_duration_months")
+  
+  // School & Department
+  schoolId                 String?                    @map("school_id") @db.Uuid
+  departmentId             String?                    @map("department_id") @db.Uuid
+  
+  // Application Status (workflow)
+  status                   GrantApplicationStatusEnum @default(draft)
+  currentReviewerId        String?                    @map("current_reviewer_id") @db.Uuid
+  revisionCount            Int                        @default(0) @map("revision_count")
+  
+  // Approval/Rejection Details
+  approvedAt               DateTime?                  @map("approved_at") @db.Timestamptz(6)
+  approvedById             String?                    @map("approved_by_id") @db.Uuid
+  rejectedAt               DateTime?                  @map("rejected_at") @db.Timestamptz(6)
+  rejectedById             String?                    @map("rejected_by_id") @db.Uuid
+  
+  // Documents
+  proposalFilePath         String?                    @map("proposal_file_path") @db.VarChar(512)
+  supportingDocsFilePaths  Json?                      @map("supporting_docs_file_paths")
+  
+  // Incentives
+  calculatedIncentiveAmount Decimal?                  @map("calculated_incentive_amount") @db.Decimal(15, 2)
+  calculatedPoints          Int?                      @map("calculated_points")
+  incentiveAmount           Decimal?                  @map("incentive_amount") @db.Decimal(15, 2)
+  pointsAwarded             Int?                      @map("points_awarded")
+  creditedAt                DateTime?                 @map("credited_at") @db.Timestamptz(6)
+  
+  // Timestamps
+  submittedAt              DateTime?                  @map("submitted_at") @db.Timestamptz(6)
+  completedAt              DateTime?                  @map("completed_at") @db.Timestamptz(6)
+  createdAt                DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  applicantUser            UserLogin?                 @relation("GrantApplications", fields: [applicantUserId], references: [id])
+  school                   FacultySchoolList?         @relation("SchoolGrantApplications", fields: [schoolId], references: [id])
+  department               Department?                @relation("DepartmentGrantApplications", fields: [departmentId], references: [id])
+  consortiumOrganizations  GrantConsortiumOrganization[]
+  investigators            GrantInvestigator[]
+  reviews                  GrantApplicationReview[]
+  statusHistory            GrantApplicationStatusHistory[]
+  editSuggestions          GrantApplicationEditSuggestion[]
+
+  @@index([applicantUserId])
+  @@index([status])
+  @@index([projectType])
+  @@index([projectCategory])
+  @@index([schoolId])
+  @@index([departmentId])
+  @@map("grant_application")
+}
+
+model GrantConsortiumOrganization {
+  id                       String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grantApplicationId       String              @map("grant_application_id") @db.Uuid
+  organizationName         String              @map("organization_name") @db.VarChar(256)
+  country                  String              @db.VarChar(128)
+  numberOfMembers          Int                 @default(1) @map("number_of_members")
+  isCoordinator            Boolean             @default(false) @map("is_coordinator")
+  displayOrder             Int                 @default(0) @map("display_order")
+  createdAt                DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  grantApplication         GrantApplication    @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
+  investigators            GrantInvestigator[] @relation("ConsortiumOrgInvestigators")
+
+  @@index([grantApplicationId])
+  @@map("grant_consortium_organization")
+}
+
+model GrantInvestigator {
+  id                       String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grantApplicationId       String                       @map("grant_application_id") @db.Uuid
+  userId                   String?                      @map("user_id") @db.Uuid
+  uid                      String?                      @db.VarChar(64)
+  name                     String                       @db.VarChar(256)
+  email                    String?                      @db.VarChar(256)
+  phone                    String?                      @db.VarChar(20)
+  designation              String?                      @db.VarChar(256)
+  affiliation              String?                      @db.VarChar(256)
+  department               String?                      @db.VarChar(256)
+  
+  // Role
+  roleType                 GrantInvestigatorRoleEnum    @default(co_pi) @map("role_type")
+  isInternal               Boolean                      @default(true) @map("is_internal")
+  investigatorType         String?                      @map("investigator_type") @db.VarChar(64) // Faculty, Student
+  
+  // For external investigators from consortium
+  consortiumOrgId          String?                      @map("consortium_org_id") @db.Uuid
+  isTeamCoordinator        Boolean                      @default(false) @map("is_team_coordinator")
+  
+  // Incentive share
+  incentiveShare           Decimal?                     @map("incentive_share") @db.Decimal(15, 2)
+  pointsShare              Int?                         @map("points_share")
+  
+  displayOrder             Int                          @default(0) @map("display_order")
+  createdAt                DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  grantApplication         GrantApplication             @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
+  user                     UserLogin?                   @relation("GrantInvestigators", fields: [userId], references: [id])
+  consortiumOrg            GrantConsortiumOrganization? @relation("ConsortiumOrgInvestigators", fields: [consortiumOrgId], references: [id])
+
+  @@unique([grantApplicationId, uid])
+  @@index([grantApplicationId])
+  @@index([userId])
+  @@index([consortiumOrgId])
+  @@map("grant_investigator")
+}
+
+model GrantApplicationReview {
+  id                       String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grantApplicationId       String               @map("grant_application_id") @db.Uuid
+  reviewerId               String               @map("reviewer_id") @db.Uuid
+  reviewerRole             String               @map("reviewer_role") @db.VarChar(64)
+  comments                 String?
+  edits                    Json?
+  decision                 String               @db.VarChar(32)
+  hasSuggestions           Boolean              @default(false) @map("has_suggestions")
+  suggestionsCount         Int                  @default(0) @map("suggestions_count")
+  pendingSuggestionsCount  Int                  @default(0) @map("pending_suggestions_count")
+  reviewedAt               DateTime?            @map("reviewed_at") @db.Timestamptz(6)
+  createdAt                DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  grantApplication         GrantApplication     @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
+  reviewer                 UserLogin            @relation("GrantApplicationReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@index([grantApplicationId])
+  @@index([reviewerId])
+  @@map("grant_application_review")
+}
+
+model GrantApplicationStatusHistory {
+  id                       String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grantApplicationId       String                      @map("grant_application_id") @db.Uuid
+  fromStatus               GrantApplicationStatusEnum? @map("from_status")
+  toStatus                 GrantApplicationStatusEnum  @map("to_status")
+  changedById              String                      @map("changed_by_id") @db.Uuid
+  comments                 String?
+  metadata                 Json?
+  changedAt                DateTime                    @default(now()) @map("changed_at") @db.Timestamptz(6)
+  
+  // Relations
+  grantApplication         GrantApplication            @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
+  changedBy                UserLogin                   @relation("GrantApplicationStatusChanges", fields: [changedById], references: [id], onDelete: Cascade)
+
+  @@index([grantApplicationId])
+  @@map("grant_application_status_history")
+}
+
+model GrantApplicationEditSuggestion {
+  id                   String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grantApplicationId   String                   @map("grant_application_id") @db.Uuid
+  reviewerId           String                   @map("reviewer_id") @db.Uuid
+  fieldName            String                   @map("field_name") @db.VarChar(128)
+  fieldPath            String?                  @map("field_path") @db.VarChar(256)
+  originalValue        String?                  @map("original_value")
+  suggestedValue       String?                  @map("suggested_value")
+  suggestionNote       String?                  @map("suggestion_note")
+  status               EditSuggestionStatusEnum @default(pending)
+  applicantResponse    String?                  @map("applicant_response")
+  reviewedAt           DateTime?                @map("reviewed_at") @db.Timestamptz(6)
+  respondedAt          DateTime?                @map("responded_at") @db.Timestamptz(6)
+  createdAt            DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  grantApplication     GrantApplication         @relation(fields: [grantApplicationId], references: [id], onDelete: Cascade)
+  reviewer             UserLogin                @relation("GrantApplicationEditSuggestions", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@index([reviewerId])
+  @@index([grantApplicationId])
+  @@map("grant_application_edit_suggestion")
+}
+
+// Grant Enums
+enum GrantProjectTypeEnum {
+  indian
+  international
+
+  @@map("grant_project_type_enum")
+}
+
+enum GrantProjectStatusEnum {
+  submitted
+  approved
+
+  @@map("grant_project_status_enum")
+}
+
+enum GrantProjectCategoryEnum {
+  govt
+  non_govt
+  industry
+
+  @@map("grant_project_category_enum")
+}
+
+enum GrantFundingAgencyEnum {
+  dst
+  dbt
+  anrf
+  csir
+  icssr
+  other
+
+  @@map("grant_funding_agency_enum")
+}
+
+enum GrantInvestigatorRoleEnum {
+  pi
+  co_pi
+
+  @@map("grant_investigator_role_enum")
+}
+
+enum GrantApplicationStatusEnum {
+  draft
+  submitted
+  under_review
+  changes_required
+  resubmitted
+  recommended
+  approved
+  rejected
+  completed
+  cancelled
+
+  @@map("grant_application_status_enum")
 }
 
 enum UserRoleEnum {
@@ -1274,26 +2250,175 @@ enum GatePassActionEnum {
   @@map("gate_pass_action_enum")
 }
 
-enum NotificationRecipientEnum {
+// Removed TargetedResearchTypeEnum - now using indexingCategories String[] instead
+// Available indexing categories:
+// - nature_science_lancet_cell_nejm (Nature/Science/The Lancet/Cell/NEJM)
+// - subsidiary_if_above_20 (Subsidiary journals IF>20)
+// - pubmed (PubMed)
+// - ugc (UGC)
+// - naas_rating_6_plus (NAAS Rating ≥ 6)
+// - abdc_scopus_wos (ABDC Journals indexed in SCOPUS/WOS)
+// - sgtu_in_house (SGTU In-House Journal)
+// - case_centre_uk (The Case Centre UK)
+
+enum DistributionMethodEnum {
+  author_role_based
+  author_position_based
+
+  @@map("distribution_method_enum")
+}
+
+enum quartile_enum {
+  Top_1_  @map("Top 1%")
+  Top_5_  @map("Top 5%")
+  Q1
+  Q2
+  Q3
+  Q4
+}
+
+enum NoteCategoryEnum {
+  academic
+  administrative
+
+  @@map("note_category_enum")
+}
+
+enum NoteStatusEnum {
+  draft
+  pending
+  approved
+  rejected
+  reverted
+
+  @@map("note_status_enum")
+}
+
+enum NoteApprovalPeriodEnum {
+  one_time
+  recurring
+
+  @@map("note_approval_period_enum")
+}
+
+enum NoteRecurringFrequencyEnum {
+  weekly
+  monthly
+  quarterly
+  half_yearly
+  annually
+
+  @@map("note_recurring_frequency_enum")
+}
+
+enum gate_pass_action_enum {
+  created
+  updated
+  checked_in
+  checked_out
+  denied
+  cancelled
+  notification_sent
+}
+
+enum gate_pass_status_enum {
+  pending
+  active
+  checked_in
+  completed
+  denied
+  expired
+  cancelled
+}
+
+enum gender_enum {
+  male
+  female
+  other
+}
+
+enum id_proof_type_enum {
+  aadhaar
+  pan
+  driving_license
+  voter_id
+  passport
+}
+
+enum notification_recipient_enum {
   visitor
   host
   security
-  
-  @@map("notification_recipient_enum")
 }
 
-enum NotificationTypeEnum {
-  email
-  sms
-  whatsapp
-  
-  @@map("notification_type_enum")
-}
-
-enum NotificationStatusEnum {
+enum notification_status_enum {
   pending
   sent
   failed
-  
-  @@map("notification_status_enum")
+}
+
+enum notification_type_enum {
+  email
+  sms
+  whatsapp
+}
+
+enum vehicle_type_enum {
+  two_wheeler
+  four_wheeler
+  other
+}
+
+enum visit_purpose_enum {
+  meeting
+  delivery
+  maintenance
+  event
+  interview
+  other
+}
+
+enum EntryType {
+  entry
+  exit
+}
+
+enum EventPaymentType {
+  free
+  paid
+}
+
+enum EventStatus {
+  draft
+  published
+  ongoing
+  completed
+  cancelled
+}
+
+enum EventType {
+  workshop
+  seminar
+  conference
+  competition
+  cultural
+  sports
+  tech_fest
+  hackathon
+  webinar
+  other
+}
+
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+}
+
+enum RegistrationStatus {
+  pending
+  confirmed
+  cancelled
+  waitlisted
 }

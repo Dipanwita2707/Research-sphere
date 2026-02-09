@@ -22,7 +22,12 @@ import {
   BarChart3,
   BookOpen,
   FileText,
-  Presentation
+  Presentation,
+  Calendar,
+  Plus,
+  List,
+  UserPlus,
+  CheckSquare
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -148,6 +153,18 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
     });
   }
   
+  // Event Management - Available for all authenticated users
+  items.push({
+    name: 'Event Management',
+    href: '/events',
+    icon: Calendar,
+    subItems: [
+      { name: 'Browse Events', href: '/events', icon: List },
+      { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
+      { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
+    ]
+  });
+  
   // Common items
   items.push(
     { name: 'Notifications', href: '/notifications', icon: Bell },
@@ -213,7 +230,7 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR']); // Admin and Research & IPR expanded by default
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, and Event Management expanded by default
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
 
   useEffect(() => {

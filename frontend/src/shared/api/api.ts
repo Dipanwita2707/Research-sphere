@@ -69,10 +69,24 @@ const api: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor - add request ID and timestamp for debugging
+// Request interceptor - add auth token and request metadata
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Add request metadata for debugging
+    // Attach Bearer token so backend auth works (cross-origin cookies may not be sent)
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('auth-storage');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { state?: { token?: string | null } };
+          const token = parsed?.state?.token;
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        }
+      } catch (_) {
+        // ignore
+      }
+    }
     (config as any)._requestId = Math.random().toString(36).substring(7);
     (config as any)._startTime = Date.now();
     return config;
