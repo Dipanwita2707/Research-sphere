@@ -449,6 +449,17 @@ export default function NavigationHeader() {
             { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
           ],
         },
+        
+        // Gate Entry Management
+        {
+          name: '🚪 Gate Entry',
+          description: 'Manage campus gate entries',
+          children: [
+            { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' },
+            { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' },
+            { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' },
+          ],
+        },
       ],
     });
   }

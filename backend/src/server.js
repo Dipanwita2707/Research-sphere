@@ -17,6 +17,9 @@ const coreModule = require('./modules/core');
 // Import audit module separately (mounted at root level)
 const auditModule = require('./modules/audit');
 
+// Import gate-entry module
+const gateEntryModule = require('./modules/gate-entry');
+
 const app = express();
 
 // Trust proxy for load balancer (important for rate limiting with 25k users)
@@ -145,6 +148,9 @@ app.use(`${API_PREFIX}`, coreModule);
 
 // Audit module (separate for security isolation)
 app.use(`${API_PREFIX}/audit`, auditModule);
+
+// Gate Entry module
+app.use(`${API_PREFIX}/gate-entry`, gateEntryModule);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);
