@@ -12,8 +12,8 @@ router.post('/upload', s3FileService.upload.single('file'), s3FileService.upload
 // Upload prototype ZIP file (up to 50MB) for IPR Complete Filing
 router.post('/upload-prototype', s3FileService.uploadPrototype.single('file'), s3FileService.uploadPrototypeFile);
 
-// Download file from S3
-router.get('/download/*', s3FileService.downloadFile);
+// Download file from S3 (path may contain slashes, e.g. noting/userId/file.pdf)
+router.get(/^\/download\/(.*)/, s3FileService.downloadFile);
 
 // Get file info
 router.get('/info/*', s3FileService.getFileInfo);

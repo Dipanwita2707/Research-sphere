@@ -1,0 +1,480 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { 
+  ArrowLeft, 
+  UserPlus, 
+  Trash2, 
+  Shield, 
+  QrCode, 
+  MapPin,
+  Loader2,
+  AlertCircle,
+  Search,
+  Users,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
+import { eventService } from '@/features/event-management/services/event.service';
+import type { Event, EventVolunteer } from '@/features/event-management/types/event.types';
+import { useToast } from '@/shared/ui-components/Toast';
+
+interface UserSearchResult {
+  id: string;
+  name: string;
+  email: string;
+  department?: string;
+}
+
+export default function VolunteersPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const eventId = params.id as string;
+
+  const [event, setEvent] = useState<Event | null>(null);
+  const [volunteers, setVolunteers] = useState<EventVolunteer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Volunteer form state
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedUserName, setSelectedUserName] = useState('');
+  const [volunteerRole, setVolunteerRole] = useState('');
+  const [assignedGate, setAssignedGate] = useState('');
+  const [canScanQr, setCanScanQr] = useState(false);
+
+  useEffect(() => {
+    loadEventAndVolunteers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+
+  const loadEventAndVolunteers = async () => {
+    try {
+      setLoading(true);
+      const [eventData, volunteersData] = await Promise.all([
+        eventService.getEvent(eventId),
+        eventService.getVolunteers(eventId)
+      ]);
+      setEvent(eventData);
+      setVolunteers(volunteersData);
+    } catch (error: any) {
+      toast({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to load volunteers'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearchUsers = async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setSearching(true);
+      // Mock search - replace with actual API call
+      // const results = await userService.searchUsers(query);
+      
+      // For now, mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setSearchResults([
+        { id: '1', name: 'John Doe', email: 'john@example.com', department: 'CSE' },
+        { id: '2', name: 'Jane Smith', email: 'jane@example.com', department: 'ECE' }
+      ]);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSelectUser = (user: UserSearchResult) => {
+    setSelectedUserId(user.id);
+    setSelectedUserName(user.name);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  const handleAssignVolunteer = async () => {
+    if (!selectedUserId) {
+      toast({ type: 'error', message: 'Please select a user' });
+      return;
+    }
+
+    if (!volunteerRole.trim()) {
+      toast({ type: 'error', message: 'Please specify a role' });
+      return;
+    }
+
+    try {
+      setAssigning(true);
+      await eventService.assignVolunteer(eventId, {
+        userId: selectedUserId,
+        role: volunteerRole.trim(),
+        assignedGate: assignedGate.trim() || undefined,
+        canScanQr
+      });
+
+      toast({ type: 'success', message: 'Volunteer assigned successfully' });
+      
+      // Reset form
+      setSelectedUserId('');
+      setSelectedUserName('');
+      setVolunteerRole('');
+      setAssignedGate('');
+      setCanScanQr(false);
+      
+      // Reload volunteers
+      loadEventAndVolunteers();
+    } catch (error: any) {
+      toast({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to assign volunteer'
+      });
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleRemoveVolunteer = async (volunteerId: string) => {
+    if (!confirm('Are you sure you want to remove this volunteer?')) {
+      return;
+    }
+
+    try {
+      await eventService.removeVolunteer(eventId, volunteerId);
+      toast({ type: 'success', message: 'Volunteer removed successfully' });
+      loadEventAndVolunteers();
+    } catch (error: any) {
+      toast({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to remove volunteer'
+      });
+    }
+  };
+
+  const handleToggleQrPermission = async (volunteerId: string, currentStatus: boolean) => {
+    try {
+      await eventService.updateVolunteer(eventId, volunteerId, {
+        canScanQr: !currentStatus
+      });
+      toast({ 
+        type: 'success', 
+        message: `QR scanning permission ${!currentStatus ? 'granted' : 'revoked'}` 
+      });
+      loadEventAndVolunteers();
+    } catch (error: any) {
+      toast({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to update permission'
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-orange-500 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Loading volunteers...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Event Not Found</h2>
+          <Link
+            href="/events"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Events
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <Link
+            href={`/events/${eventId}`}
+            className="inline-flex items-center gap-2 text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 mb-4 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Event Details
+          </Link>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Manage Volunteers
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                {event.name}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <Users className="w-5 h-5 text-gray-400" />
+              <span className="text-lg font-bold text-gray-900 dark:text-white">
+                {volunteers.length}
+              </span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Volunteers
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Assign New Volunteer Form */}
+          <div className="lg:col-span-1">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden sticky top-6">
+              <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-5 py-3">
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                  <UserPlus className="w-4 h-4" />
+                  Assign Volunteer
+                </h3>
+              </div>
+              <div className="p-5 space-y-4">
+                {/* User Search */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Search User <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={selectedUserName || searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        handleSearchUsers(e.target.value);
+                        if (!e.target.value) {
+                          setSelectedUserId('');
+                          setSelectedUserName('');
+                        }
+                      }}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="Search by name or email..."
+                      disabled={!!selectedUserId}
+                    />
+                    {selectedUserId && (
+                      <button
+                        onClick={() => {
+                          setSelectedUserId('');
+                          setSelectedUserName('');
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <XCircle className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Search Results Dropdown */}
+                  {searching && (
+                    <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto" />
+                    </div>
+                  )}
+                  {searchResults.length > 0 && !selectedUserId && (
+                    <div className="mt-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {searchResults.map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => handleSelectUser(user)}
+                          className="w-full p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors border-b border-gray-100 dark:border-gray-600 last:border-b-0"
+                        >
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {user.name}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {user.email}
+                            {user.department && ` • ${user.department}`}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Role <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={volunteerRole}
+                    onChange={(e) => setVolunteerRole(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    placeholder="e.g., Entry Manager, Support Staff"
+                  />
+                </div>
+
+                {/* Assigned Gate */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Assigned Gate
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={assignedGate}
+                      onChange={(e) => setAssignedGate(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="e.g., Gate A, Main Entry"
+                    />
+                  </div>
+                </div>
+
+                {/* QR Scanning Permission */}
+                <div>
+                  <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-all">
+                    <input
+                      type="checkbox"
+                      checked={canScanQr}
+                      onChange={(e) => setCanScanQr(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded"
+                    />
+                    <div className="flex items-center gap-2">
+                      <QrCode className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Allow QR Scanning
+                      </span>
+                    </div>
+                  </label>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Grant permission to scan attendee QR codes
+                  </p>
+                </div>
+
+                {/* Assign Button */}
+                <button
+                  onClick={handleAssignVolunteer}
+                  disabled={assigning || !selectedUserId}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {assigning ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Assigning...
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus className="w-5 h-5" />
+                      Assign Volunteer
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Volunteers List */}
+          <div className="lg:col-span-2">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-600 px-5 py-3">
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Current Volunteers ({volunteers.length})
+                </h3>
+              </div>
+              <div className="p-5">
+                {volunteers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                      No volunteers assigned yet
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
+                      Assign volunteers using the form on the left
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {volunteers.map((volunteer) => (
+                      <div
+                        key={volunteer.id}
+                        className="p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-purple-300 dark:hover:border-purple-600 transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                                {volunteer.user?.name || 'Unknown User'}
+                              </h4>
+                              <span className="px-2 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 rounded-full text-xs font-medium">
+                                {volunteer.role}
+                              </span>
+                            </div>
+                            <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                              <p>{volunteer.user?.email || 'No email'}</p>
+                              {volunteer.assignedGate && (
+                                <p className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3" />
+                                  {volunteer.assignedGate}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-2">
+                                <button
+                                  onClick={() => handleToggleQrPermission(volunteer.id, volunteer.canScanQr)}
+                                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                                    volunteer.canScanQr
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200'
+                                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {volunteer.canScanQr ? (
+                                    <>
+                                      <CheckCircle className="w-3 h-3" />
+                                      QR Scanning Enabled
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="w-3 h-3" />
+                                      QR Scanning Disabled
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveVolunteer(volunteer.id)}
+                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            title="Remove volunteer"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

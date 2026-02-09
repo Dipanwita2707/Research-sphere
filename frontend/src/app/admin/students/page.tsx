@@ -30,6 +30,13 @@ interface Section {
   semester: number;
 }
 
+interface FacultyOption {
+  id: string;
+  uid: string;
+  name: string;
+  email?: string | null;
+}
+
 interface Student {
   id: string;
   studentId: string;
@@ -48,6 +55,12 @@ interface Student {
   parentContact: string | null;
   emergencyContact: string | null;
   address: string | null;
+  mentorId?: string | null;
+  mentor?: {
+    id: string;
+    uid: string;
+    employeeDetails?: { firstName?: string; lastName?: string; displayName?: string };
+  };
   userLogin?: {
     uid: string;
     email: string;
@@ -83,6 +96,7 @@ export default function StudentManagement() {
     password: '',
     programId: '',
     sectionId: '',
+    mentorId: '',
     currentSemester: '1',
     admissionDate: '',
     dateOfBirth: '',
@@ -92,6 +106,8 @@ export default function StudentManagement() {
     emergencyContact: '',
     address: '',
   });
+  const [mentors, setMentors] = useState<FacultyOption[]>([]);
+  const [mentorError, setMentorError] = useState('');
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -137,6 +153,18 @@ export default function StudentManagement() {
     }
   }, []);
 
+  const fetchFacultyByProgram = useCallback(async (programId: string) => {
+    try {
+      const response = await api.get(`/students/programs/${programId}/faculty`);
+      setMentors(response.data.data || []);
+      setMentorError('');
+    } catch (error) {
+      logger.error('Error fetching faculty:', error);
+      setMentors([]);
+      setMentorError('Could not load mentors for this program.');
+    }
+  }, []);
+
   useEffect(() => {
     fetchStudents();
     fetchPrograms();
@@ -145,10 +173,13 @@ export default function StudentManagement() {
   useEffect(() => {
     if (formData.programId) {
       fetchSections(formData.programId);
+      fetchFacultyByProgram(formData.programId);
     } else {
       setSections([]);
+      setMentors([]);
+      setMentorError('');
     }
-  }, [formData.programId, fetchSections]);
+  }, [formData.programId, fetchSections, fetchFacultyByProgram]);
 
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
@@ -167,6 +198,7 @@ export default function StudentManagement() {
       password: '',
       programId: '',
       sectionId: '',
+      mentorId: '',
       currentSemester: '1',
       admissionDate: '',
       dateOfBirth: '',
@@ -178,6 +210,8 @@ export default function StudentManagement() {
     });
     setEditingStudent(null);
     setSections([]);
+    setMentors([]);
+    setMentorError('');
   };
 
   const openCreateModal = () => {
@@ -198,6 +232,7 @@ export default function StudentManagement() {
       password: '',
       programId: student.program?.id || '',
       sectionId: student.section?.id || '',
+      mentorId: student.mentorId || student.mentor?.id || '',
       currentSemester: student.currentSemester.toString(),
       admissionDate: '',
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : '',
@@ -209,21 +244,30 @@ export default function StudentManagement() {
     });
     if (student.program?.id) {
       fetchSections(student.program.id);
+      fetchFacultyByProgram(student.program.id);
+    } else {
+      setMentors([]);
     }
+    setMentorError('');
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    setMentorError('');
 
+    // Mentor is now optional. If provided, validate that program is selected first.
+    if (!editingStudent && formData.mentorId && !formData.programId) {
+      setMentorError('Please select a program first to assign a mentor.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       if (editingStudent) {
-        // Update student
         await api.put(`/students/${editingStudent.id}`, formData);
         toast({ type: 'success', message: 'Student updated successfully' });
       } else {
-        // Create student
         await api.post('/students', formData);
         toast({ type: 'success', message: 'Student created successfully' });
       }
@@ -232,7 +276,13 @@ export default function StudentManagement() {
       fetchStudents();
     } catch (error: unknown) {
       logger.error('Error saving student:', error);
-      toast({ type: 'error', message: extractErrorMessage(error) || 'Failed to save student' });
+      const msg = extractErrorMessage(error);
+      const errCode = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const isMentorError = errCode && ['MENTOR_REQUIRED', 'MENTOR_NOT_FOUND', 'MENTOR_NOT_FACULTY', 'MENTOR_DIFFERENT_DEPARTMENT'].includes(errCode);
+      if (msg && (isMentorError || msg.toLowerCase().includes('mentor'))) {
+        setMentorError(msg);
+      }
+      toast({ type: 'error', message: msg || 'Failed to save student' });
     } finally {
       setSubmitting(false);
     }
@@ -609,7 +659,7 @@ export default function StudentManagement() {
                       </label>
                       <select
                         value={formData.programId}
-                        onChange={(e) => setFormData({ ...formData, programId: e.target.value, sectionId: '' })}
+                        onChange={(e) => setFormData({ ...formData, programId: e.target.value, sectionId: '', mentorId: '' })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                         required
                       >
@@ -623,12 +673,47 @@ export default function StudentManagement() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Assign Mentor <span className="text-gray-500 text-xs">(Optional)</span>
+                      </label>
+                      <select
+                        value={formData.mentorId}
+                        onChange={(e) => { setFormData({ ...formData, mentorId: e.target.value }); setMentorError(''); }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 disabled:cursor-not-allowed ${mentorError ? 'border-red-500' : 'border-gray-300'}`}
+                        disabled={!formData.programId}
+                        title={!formData.programId ? 'Select a program first' : ''}
+                      >
+                        <option value="">
+                          {!formData.programId ? 'Select program first' : 'Select Mentor (Optional)'}
+                        </option>
+                        {mentors.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} ({m.uid})
+                          </option>
+                        ))}
+                      </select>
+                      {mentorError && (
+                        <p className="mt-1 text-sm text-red-600 flex items-center gap-1" role="alert">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          {mentorError}
+                        </p>
+                      )}
+                      {!mentorError && (
+                        <p className="mt-1 text-sm text-gray-500">
+                          Mentor assignment is optional. If assigned, mentor must be from the same department.
+                        </p>
+                      )}
+                      {formData.programId && mentors.length === 0 && !mentorError && (
+                        <p className="mt-1 text-sm text-amber-600">No faculty found in this department.</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Section
                       </label>
                       <select
                         value={formData.sectionId}
                         onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
                         disabled={!formData.programId}
                       >
                         <option value="">Select Section</option>
