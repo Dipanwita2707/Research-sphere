@@ -2,6 +2,34 @@ const prisma = require('../../../shared/config/database');
 const bcrypt = require('bcryptjs');
 const auditLogger = require('../../../shared/utils/auditLogger');
 
+/**
+ * Validates that mentorId is a faculty member in the same department as the student.
+ * @param {string} mentorId - UserLogin id of the mentor (optional)
+ * @param {string} studentDepartmentId - Department id (from program)
+ * @returns {{ valid: boolean, error?: string, code?: string }}
+ */
+async function validateMentorForDepartment(mentorId, studentDepartmentId) {
+  // Mentor is now optional
+  if (!mentorId) {
+    return { valid: true }; // No mentor is valid
+  }
+  const mentor = await prisma.userLogin.findUnique({
+    where: { id: mentorId },
+    include: { employeeDetails: { include: { primaryDepartment: true } } },
+  });
+  if (!mentor) {
+    return { valid: false, error: 'Mentor not found', code: 'MENTOR_NOT_FOUND' };
+  }
+  if (mentor.role !== 'faculty') {
+    return { valid: false, error: 'Selected mentor must be a faculty member', code: 'MENTOR_NOT_FACULTY' };
+  }
+  const mentorDeptId = mentor.employeeDetails?.primaryDepartmentId || mentor.employeeDetails?.primaryDepartment?.id;
+  if (!mentorDeptId || mentorDeptId !== studentDepartmentId) {
+    return { valid: false, error: 'Mentor must belong to the same department as the student', code: 'MENTOR_DIFFERENT_DEPARTMENT' };
+  }
+  return { valid: true };
+}
+
 // Create new student
 const createStudent = async (req, res) => {
   try {
@@ -16,6 +44,7 @@ const createStudent = async (req, res) => {
       password,
       programId,
       sectionId,
+      mentorId,
       currentSemester,
       admissionDate,
       dateOfBirth,
@@ -26,11 +55,33 @@ const createStudent = async (req, res) => {
       address,
     } = req.body;
 
-    // Validate required fields (sectionId is optional)
+    // Validate required fields (sectionId and mentorId are optional)
     if (!studentId || !firstName || !email || !programId || !registrationNo) {
       return res.status(400).json({
         success: false,
         message: 'Required fields: studentId, firstName, email, programId, registrationNo',
+      });
+    }
+
+    // Resolve student's department from program
+    const program = await prisma.program.findUnique({
+      where: { id: programId },
+      select: { departmentId: true },
+    });
+    if (!program) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid program',
+        error: 'INVALID_PROGRAM',
+      });
+    }
+
+    const mentorValidation = await validateMentorForDepartment(mentorId, program.departmentId);
+    if (!mentorValidation.valid) {
+      return res.status(400).json({
+        success: false,
+        message: mentorValidation.error,
+        error: mentorValidation.code,
       });
     }
 
@@ -97,7 +148,7 @@ const createStudent = async (req, res) => {
       if (middleName) displayName += ` ${middleName}`;
       if (lastName) displayName += ` ${lastName}`;
 
-      // Create StudentDetails
+      // Create StudentDetails (mentorId and section are now optional)
       const student = await tx.studentDetails.create({
         data: {
           userLoginId: user.id,
@@ -110,7 +161,8 @@ const createStudent = async (req, res) => {
           email,
           phone: phone || null,
           programId,
-          ...(sectionId && { sectionId }),
+          mentorId: mentorId || null,
+          ...(sectionId && { section: { connect: { id: sectionId } } }),
           currentSemester: currentSemester ? parseInt(currentSemester) : 1,
           admissionDate: admissionDate ? new Date(admissionDate) : null,
           dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
@@ -214,6 +266,20 @@ const getAllStudents = async (req, res) => {
               status: true,
             },
           },
+          mentor: {
+            select: {
+              id: true,
+              uid: true,
+              email: true,
+              employeeDetails: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                },
+              },
+            },
+          },
           program: {
             select: {
               id: true,
@@ -282,6 +348,20 @@ const getStudentById = async (req, res) => {
             createdAt: true,
           },
         },
+        mentor: {
+          select: {
+            id: true,
+            uid: true,
+            email: true,
+            employeeDetails: {
+              select: {
+                firstName: true,
+                lastName: true,
+                displayName: true,
+              },
+            },
+          },
+        },
         program: {
           select: {
             id: true,
@@ -343,6 +423,7 @@ const updateStudent = async (req, res) => {
       phone,
       programId,
       sectionId,
+      mentorId,
       currentSemester,
       dateOfBirth,
       gender,
@@ -364,6 +445,37 @@ const updateStudent = async (req, res) => {
       });
     }
 
+    // If mentorId is being set/updated, validate mentor is faculty in same department
+    const effectiveProgramId = programId || existingStudent.programId;
+    if (mentorId !== undefined) {
+      if (!effectiveProgramId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Student must have a program to assign a mentor',
+          error: 'PROGRAM_REQUIRED',
+        });
+      }
+      const program = await prisma.program.findUnique({
+        where: { id: effectiveProgramId },
+        select: { departmentId: true },
+      });
+      if (!program) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid program',
+          error: 'INVALID_PROGRAM',
+        });
+      }
+      const mentorValidation = await validateMentorForDepartment(mentorId, program.departmentId);
+      if (!mentorValidation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: mentorValidation.error,
+          error: mentorValidation.code,
+        });
+      }
+    }
+
     // Build display name
     let displayName = firstName || existingStudent.firstName;
     if (middleName) displayName += ` ${middleName}`;
@@ -371,24 +483,29 @@ const updateStudent = async (req, res) => {
     if (lastName) displayName += ` ${lastName}`;
     else if (existingStudent.lastName) displayName += ` ${existingStudent.lastName}`;
 
+    const updateData = {
+      firstName: firstName || existingStudent.firstName,
+      middleName: middleName !== undefined ? middleName : existingStudent.middleName,
+      lastName: lastName !== undefined ? lastName : existingStudent.lastName,
+      displayName,
+      phone: phone !== undefined ? phone : existingStudent.phone,
+      programId: programId || existingStudent.programId,
+      sectionId: sectionId || existingStudent.sectionId,
+      currentSemester: currentSemester ? parseInt(currentSemester) : existingStudent.currentSemester,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existingStudent.dateOfBirth,
+      gender: gender !== undefined ? gender : existingStudent.gender,
+      bloodGroup: bloodGroup !== undefined ? bloodGroup : existingStudent.bloodGroup,
+      parentContact: parentContact !== undefined ? parentContact : existingStudent.parentContact,
+      emergencyContact: emergencyContact !== undefined ? emergencyContact : existingStudent.emergencyContact,
+      address: address !== undefined ? address : existingStudent.address,
+    };
+    if (mentorId !== undefined) {
+      updateData.mentorId = mentorId || null;
+    }
+
     const updatedStudent = await prisma.studentDetails.update({
       where: { id },
-      data: {
-        firstName: firstName || existingStudent.firstName,
-        middleName: middleName !== undefined ? middleName : existingStudent.middleName,
-        lastName: lastName !== undefined ? lastName : existingStudent.lastName,
-        displayName,
-        phone: phone !== undefined ? phone : existingStudent.phone,
-        programId: programId || existingStudent.programId,
-        sectionId: sectionId || existingStudent.sectionId,
-        currentSemester: currentSemester ? parseInt(currentSemester) : existingStudent.currentSemester,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existingStudent.dateOfBirth,
-        gender: gender !== undefined ? gender : existingStudent.gender,
-        bloodGroup: bloodGroup !== undefined ? bloodGroup : existingStudent.bloodGroup,
-        parentContact: parentContact !== undefined ? parentContact : existingStudent.parentContact,
-        emergencyContact: emergencyContact !== undefined ? emergencyContact : existingStudent.emergencyContact,
-        address: address !== undefined ? address : existingStudent.address,
-      },
+      data: updateData,
       include: {
         program: {
           select: {
@@ -548,6 +665,69 @@ const getSectionsByProgram = async (req, res) => {
   }
 };
 
+// Get faculty (mentors) by program — only faculty from the program's department
+const getFacultyByProgram = async (req, res) => {
+  try {
+    const { programId } = req.params;
+
+    const program = await prisma.program.findUnique({
+      where: { id: programId },
+      select: { departmentId: true },
+    });
+    if (!program) {
+      return res.status(404).json({
+        success: false,
+        message: 'Program not found',
+      });
+    }
+
+    const faculty = await prisma.userLogin.findMany({
+      where: {
+        role: 'faculty',
+        status: 'active',
+        employeeDetails: {
+          is: {
+            primaryDepartmentId: program.departmentId,
+            isActive: true,
+          },
+        },
+      },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        employeeDetails: {
+          select: {
+            firstName: true,
+            lastName: true,
+            displayName: true,
+          },
+        },
+      },
+      orderBy: { uid: 'asc' },
+    });
+
+    const data = faculty.map((f) => {
+      const name = f.employeeDetails?.displayName ||
+        [f.employeeDetails?.firstName, f.employeeDetails?.lastName].filter(Boolean).join(' ') ||
+        f.uid;
+      return { id: f.id, uid: f.uid, name, email: f.email };
+    });
+
+    res.json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    console.error('Get faculty by program error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch faculty',
+      error: error.message,
+    });
+  }
+};
+
 // Reset student password
 const resetStudentPassword = async (req, res) => {
   try {
@@ -603,5 +783,6 @@ module.exports = {
   toggleStudentStatus,
   getPrograms,
   getSectionsByProgram,
+  getFacultyByProgram,
   resetStudentPassword,
 };

@@ -243,20 +243,28 @@ const auditMiddleware = (options = {}) => {
           if (originalPath.includes('/upload')) actionType = AuditActionType.UPLOAD;
         }
 
-        // Extract target ID from response or params
+        // Helper function to validate UUID format
+        const isValidUUID = (str) => {
+          if (!str) return false;
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          return uuidRegex.test(str);
+        };
+
+        // Extract target ID from response or params (only if valid UUID)
         let targetId = null;
-        if (responseBody?.data?.id) {
+        if (responseBody?.data?.id && isValidUUID(responseBody.data.id)) {
           targetId = responseBody.data.id;
-        } else if (req.params?.id) {
+        } else if (req.params?.id && isValidUUID(req.params.id)) {
           targetId = req.params.id;
-        } else if (req.params?.applicationId) {
+        } else if (req.params?.applicationId && isValidUUID(req.params.applicationId)) {
           targetId = req.params.applicationId;
-        } else if (req.params?.contributionId) {
+        } else if (req.params?.contributionId && isValidUUID(req.params.contributionId)) {
           targetId = req.params.contributionId;
         }
 
         // Determine target table from route
         let targetTable = null;
+        if (originalPath.includes('/events')) targetTable = 'events';
         if (originalPath.includes('/ipr')) targetTable = 'ipr_applications';
         if (originalPath.includes('/research')) targetTable = 'research_contributions';
         if (originalPath.includes('/book')) targetTable = 'book_chapters';
@@ -300,8 +308,8 @@ const auditMiddleware = (options = {}) => {
         if (Object.keys(req.params || {}).length > 0) {
           auditData.metadata.params = req.params;
           
-          // Try to extract target ID
-          if (req.params.id) {
+          // Try to extract target ID (only if valid UUID and not already set)
+          if (!auditData.targetId && req.params.id && isValidUUID(req.params.id)) {
             auditData.targetId = req.params.id;
           }
         }

@@ -56,6 +56,9 @@ export default function EmployeeManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [filterDesignation, setFilterDesignation] = useState('all');
+  const [designations, setDesignations] = useState<string[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     uid: '',
@@ -89,6 +92,7 @@ export default function EmployeeManagement() {
         params: {
           role: filterRole !== 'all' ? filterRole : undefined,
           employeeCategory: filterCategory !== 'all' ? filterCategory : undefined,
+          designation: filterDesignation !== 'all' ? filterDesignation : undefined,
           search: searchQuery || undefined,
         },
       });
@@ -98,7 +102,16 @@ export default function EmployeeManagement() {
     } finally {
       setLoading(false);
     }
-  }, [filterRole, filterCategory, searchQuery]);
+  }, [filterRole, filterCategory, filterDesignation, searchQuery]);
+
+  const fetchDesignations = useCallback(async () => {
+    try {
+      const response = await api.get('/employees/designations');
+      setDesignations(response.data?.data ?? []);
+    } catch (error) {
+      logger.error('Error fetching designations:', error);
+    }
+  }, []);
 
   const fetchSchools = useCallback(async () => {
     try {
@@ -241,12 +254,33 @@ export default function EmployeeManagement() {
     }
   };
 
+  const handleDelete = async (employee: Employee) => {
+    const name = employee.employeeDetails?.displayName || employee.uid;
+    if (!confirm(`Are you sure you want to delete "${name}"? This will remove the employee and their login. This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      setDeletingId(employee.id);
+      await api.delete(`/employees/${employee.id}`);
+      toast({ type: 'success', message: 'Employee deleted successfully' });
+      fetchEmployees();
+    } catch (error: unknown) {
+      toast({ type: 'error', message: extractErrorMessage(error) || 'Failed to delete employee' });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   useEffect(() => {
     const delayDebounce = setTimeout(() => {
       fetchEmployees();
     }, 500);
     return () => clearTimeout(delayDebounce);
   }, [fetchEmployees]);
+
+  useEffect(() => {
+    fetchDesignations();
+  }, [fetchDesignations]);
 
   if (loading) {
     return (
@@ -296,6 +330,16 @@ export default function EmployeeManagement() {
             <option value="all">All Categories</option>
             <option value="teaching">Teaching</option>
             <option value="non_teaching">Non-Teaching</option>
+          </select>
+          <select
+            value={filterDesignation}
+            onChange={(e) => setFilterDesignation(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="all">All Designations</option>
+            {designations.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
           </select>
           <button
             onClick={() => handleOpenModal()}
@@ -402,8 +446,21 @@ export default function EmployeeManagement() {
                   <button
                     onClick={() => handleOpenModal(employee)}
                     className="text-blue-600 hover:text-blue-900 mr-3"
+                    title="Edit"
                   >
                     <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(employee)}
+                    disabled={deletingId === employee.id}
+                    className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                    title="Delete"
+                  >
+                    {deletingId === employee.id ? (
+                      <span className="inline-block w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
                   </button>
                 </td>
               </tr>

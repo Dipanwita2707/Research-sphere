@@ -261,6 +261,67 @@ const seedDatabase = async () => {
     });
     console.log('✅ Finance Department created');
 
+    // Noting workflow: DSW and Central Team (manage at /admin/central-departments; members get approval rights)
+    const dswDepartment = await prisma.centralDepartment.upsert({
+      where: { departmentCode: 'DSW' },
+      update: {},
+      create: {
+        departmentCode: 'DSW',
+        departmentName: 'Department of Student Welfare',
+        shortName: 'DSW',
+        departmentType: 'noting',
+        isActive: true,
+        headOfDepartmentId: admin.id
+      }
+    });
+    console.log('✅ DSW Central Department created');
+
+    const centralTeamDepartment = await prisma.centralDepartment.upsert({
+      where: { departmentCode: 'CENTRAL_TEAM' },
+      update: {},
+      create: {
+        departmentCode: 'CENTRAL_TEAM',
+        departmentName: 'Central Team (Noting)',
+        shortName: 'Central Team',
+        departmentType: 'noting',
+        isActive: true,
+        headOfDepartmentId: admin.id
+      }
+    });
+    console.log('✅ Central Team Central Department created');
+
+    await prisma.centralDepartmentPermission.upsert({
+      where: {
+        userId_centralDeptId: { userId: admin.id, centralDeptId: dswDepartment.id }
+      },
+      update: {},
+      create: {
+        userId: admin.id,
+        centralDeptId: dswDepartment.id,
+        isPrimary: true,
+        isActive: true,
+        assignedBy: admin.id,
+        permissions: { noting_approve: true },
+        assignedSchoolIds: []
+      }
+    });
+    await prisma.centralDepartmentPermission.upsert({
+      where: {
+        userId_centralDeptId: { userId: admin.id, centralDeptId: centralTeamDepartment.id }
+      },
+      update: {},
+      create: {
+        userId: admin.id,
+        centralDeptId: centralTeamDepartment.id,
+        isPrimary: true,
+        isActive: true,
+        assignedBy: admin.id,
+        permissions: { noting_approve: true },
+        assignedSchoolIds: []
+      }
+    });
+    console.log('✅ DSW & Central Team permissions granted to admin for noting');
+
     // Grant central department permissions to admin for DRD
     await prisma.centralDepartmentPermission.upsert({
       where: {
