@@ -96,7 +96,12 @@ model UserLogin {
   assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
   departmentPermissions                             UserDepartmentPermission[]
   userSettings                                      UserSettings?                        @relation("UserSettings")
-  clubsAsFacultyFacilitator                         Club[]                               @relation("ClubFacultyFacilitator")
+
+  @@map("user_login")
+}
+
+model EmployeeDetails {
+  id                        String                clubsAsFacultyFacilitator                         Club[]                               @relation("ClubFacultyFacilitator")
   clubsAsViceChairperson                            Club[]                               @relation("ClubViceChairperson")
   clubMemberships                                   ClubMember[]                         @relation("ClubMemberStudent")
   clubMembersAdded                                  ClubMember[]                         @relation("ClubMemberAddedBy")
@@ -2526,7 +2531,7 @@ model GatePass {
   
   // Vehicle Details
   hasVehicle            Boolean            @default(false) @map("has_vehicle")
-  vehicleType           vehicle_type_enum? @map("vehicle_type")
+  vehicleType           vehicle_typvehicle_type")
   vehicleNumber         String?            @map("vehicle_number") @db.VarChar(50)
   vehicleModel          String?            @map("vehicle_model") @db.VarChar(100)
   
@@ -2607,7 +2612,7 @@ model GatePassNotification {
   @@index([gatePassId])
   @@map("gate_pass_notification")
 }
-=======
+
 // ============================================
 // DSW (Dean of Students' Welfare) System
 // ============================================
@@ -2824,4 +2829,4 @@ enum ClubChangeRequestStatusEnum {
   @@map("club_change_request_status_enum")
 }
 
->>>>>>> a31d1e1e97ad7ac86252b5416fb50fb823607f2c
+
