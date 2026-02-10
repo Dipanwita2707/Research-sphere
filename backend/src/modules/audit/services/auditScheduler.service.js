@@ -37,7 +37,7 @@ class AuditReportScheduler {
       // Schedule log cleanup - runs weekly on Sunday at 03:00
       this.scheduleLogCleanup();
 
-      console.log('✅ Audit report scheduler initialized');
+      console.log('[SUCCESS] Audit report scheduler initialized');
     } catch (error) {
       console.error('Failed to initialize audit report scheduler:', error);
     }
@@ -49,7 +49,7 @@ class AuditReportScheduler {
   scheduleMonthlyReport() {
     // Run at 00:00 on the 1st day of every month
     const job = cron.schedule('0 0 1 * *', async () => {
-      console.log('📊 Starting monthly audit report generation...');
+      console.log('[REPORT] Starting monthly audit report generation...');
       await this.generateAndSendReport('monthly');
     }, {
       scheduled: true,
@@ -57,7 +57,7 @@ class AuditReportScheduler {
     });
 
     this.jobs.set('monthly', job);
-    console.log('📅 Monthly audit report scheduled for 1st of each month at 00:00 IST');
+    console.log('[SCHEDULE] Monthly audit report scheduled for 1st of each month at 00:00 IST');
   }
 
   /**
@@ -66,7 +66,7 @@ class AuditReportScheduler {
   scheduleWeeklyReport() {
     // Run at 00:00 every Monday
     const job = cron.schedule('0 0 * * 1', async () => {
-      console.log('📊 Starting weekly audit report generation...');
+      console.log('[REPORT] Starting weekly audit report generation...');
       await this.generateAndSendReport('weekly');
     }, {
       scheduled: true,
@@ -74,7 +74,7 @@ class AuditReportScheduler {
     });
 
     this.jobs.set('weekly', job);
-    console.log('📅 Weekly audit report scheduled for every Monday at 00:00 IST');
+    console.log('[SCHEDULE] Weekly audit report scheduled for every Monday at 00:00 IST');
   }
 
   /**
@@ -83,7 +83,7 @@ class AuditReportScheduler {
   scheduleDailyReport() {
     // Run at 00:00 every day
     const job = cron.schedule('0 0 * * *', async () => {
-      console.log('📊 Starting daily audit report generation...');
+      console.log('[REPORT] Starting daily audit report generation...');
       await this.generateAndSendReport('daily');
     }, {
       scheduled: true,
@@ -91,7 +91,7 @@ class AuditReportScheduler {
     });
 
     this.jobs.set('daily', job);
-    console.log('📅 Daily audit report scheduled for every day at 00:00 IST');
+    console.log('[SCHEDULE] Daily audit report scheduled for every day at 00:00 IST');
   }
 
   /**
@@ -109,7 +109,7 @@ class AuditReportScheduler {
     });
 
     this.jobs.set('cleanup', job);
-    console.log('📅 Log cleanup scheduled for every Sunday at 03:00 IST');
+    console.log('[SCHEDULE] Log cleanup scheduled for every Sunday at 03:00 IST');
   }
 
   /**
@@ -366,7 +366,7 @@ class AuditReportScheduler {
         }
       });
 
-      console.log(`✅ ${reportType} audit report sent to ${recipientEmails.length} recipients`);
+      console.log(`[SUCCESS] ${reportType} audit report sent to ${recipientEmails.length} recipients`);
       return { success: true, recipientCount: recipientEmails.length, logCount: logs.length };
 
     } catch (error) {
@@ -421,7 +421,7 @@ class AuditReportScheduler {
       // Set end to end of day (23:59:59.999)
       end.setHours(23, 59, 59, 999);
 
-      console.log(`📊 Generating on-demand report from ${start.toISOString()} to ${end.toISOString()}`);
+      console.log(`[REPORT] Generating on-demand report from ${start.toISOString()} to ${end.toISOString()}`);
 
       // Get audit data
       const logs = await prisma.auditLog.findMany({
@@ -450,7 +450,7 @@ class AuditReportScheduler {
         }
       });
 
-      console.log(`✅ Found ${logs.length} audit logs for date range`);
+      console.log(`[SUCCESS] Found ${logs.length} audit logs for date range`);
 
       // Get statistics
       const statistics = await auditService.getStatistics({
@@ -473,7 +473,7 @@ class AuditReportScheduler {
         statistics
       });
 
-      console.log(`📊 Excel report generated with ${logs.length} log entries`);
+      console.log(`[REPORT] Excel report generated with ${logs.length} log entries`);
 
       // If recipients provided, send email
       if (recipientEmails && recipientEmails.length > 0) {
@@ -488,7 +488,7 @@ class AuditReportScheduler {
           stats: statistics
         });
         
-        console.log(`✅ Email sent successfully with ${logs.length} logs for period ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`);
+        console.log(`[SUCCESS] Email sent successfully with ${logs.length} logs for period ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`);
       }
 
       return {

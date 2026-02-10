@@ -93,6 +93,9 @@ export interface SchoolAssignmentConfig {
   // Optional: Custom permission display
   showPermissions?: boolean;
   getPermissionLabel?: (key: string) => string;
+  
+  // Field name in the database for school assignments
+  assignmentFieldName: 'assignedSchoolIds' | 'assignedResearchSchoolIds' | 'assignedBookSchoolIds' | 'assignedConferenceSchoolIds';
 }
 
 // ============================================================================
@@ -114,6 +117,7 @@ export const DRD_MEMBER_CONFIG: SchoolAssignmentConfig = {
   },
   showStats: true,
   showPermissions: true,
+  assignmentFieldName: 'assignedSchoolIds',
 };
 
 export const DRD_RESEARCH_CONFIG: SchoolAssignmentConfig = {
@@ -123,13 +127,14 @@ export const DRD_RESEARCH_CONFIG: SchoolAssignmentConfig = {
   endpoints: {
     fetchMembers: '/permission-management/drd-members/with-schools',
     fetchSchoolsWithMembers: '/permission-management/schools/with-members',
-    saveAssignment: '/permission-management/drd-member/assign-schools',
+    saveAssignment: '/permission-management/research-member/assign-schools',
   },
   labels: {
     memberType: 'DRD Member',
     memberTypePlural: 'DRD Members',
   },
   showStats: true,
+  assignmentFieldName: 'assignedResearchSchoolIds',
 };
 
 export const DRD_BOOK_CONFIG: SchoolAssignmentConfig = {
@@ -139,13 +144,14 @@ export const DRD_BOOK_CONFIG: SchoolAssignmentConfig = {
   endpoints: {
     fetchMembers: '/permission-management/drd-members/with-schools',
     fetchSchoolsWithMembers: '/permission-management/schools/with-members',
-    saveAssignment: '/permission-management/drd-member/assign-schools',
+    saveAssignment: '/permission-management/book-member/assign-schools',
   },
   labels: {
     memberType: 'DRD Member',
     memberTypePlural: 'DRD Members',
   },
   showStats: true,
+  assignmentFieldName: 'assignedBookSchoolIds',
 };
 
 export const DRD_GRANT_CONFIG: SchoolAssignmentConfig = {
@@ -155,13 +161,14 @@ export const DRD_GRANT_CONFIG: SchoolAssignmentConfig = {
   endpoints: {
     fetchMembers: '/permission-management/drd-members/with-schools',
     fetchSchoolsWithMembers: '/permission-management/schools/with-members',
-    saveAssignment: '/permission-management/drd-member/assign-schools',
+    saveAssignment: '/permission-management/grant-member/assign-schools',
   },
   labels: {
     memberType: 'DRD Member',
     memberTypePlural: 'DRD Members',
   },
   showStats: true,
+  assignmentFieldName: 'assignedGrantSchoolIds',
 };
 
 export const DRD_CONFERENCE_CONFIG: SchoolAssignmentConfig = {
@@ -171,13 +178,14 @@ export const DRD_CONFERENCE_CONFIG: SchoolAssignmentConfig = {
   endpoints: {
     fetchMembers: '/permission-management/drd-members/with-schools',
     fetchSchoolsWithMembers: '/permission-management/schools/with-members',
-    saveAssignment: '/permission-management/drd-member/assign-schools',
+    saveAssignment: '/permission-management/conference-member/assign-schools',
   },
   labels: {
     memberType: 'DRD Member',
     memberTypePlural: 'DRD Members',
   },
   showStats: true,
+  assignmentFieldName: 'assignedConferenceSchoolIds',
 };
 
 // ============================================================================
@@ -272,7 +280,9 @@ export default function SchoolAssignmentManager({ config }: SchoolAssignmentMana
 
   const openEditModal = (member: AssignmentMember) => {
     setSelectedMember(member);
-    setEditedSchoolIds([...member.assignedSchoolIds]);
+    // Get the correct assignment field based on config
+    const assignedSchools = (member as any)[config.assignmentFieldName] || [];
+    setEditedSchoolIds([...assignedSchools]);
     setShowEditModal(true);
   };
 
@@ -520,9 +530,9 @@ export default function SchoolAssignmentManager({ config }: SchoolAssignmentMana
                     </td>
                   )}
                   <td className="px-6 py-4">
-                    {member.assignedSchoolIds.length > 0 ? (
+                    {((member as any)[config.assignmentFieldName] || []).length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {member.assignedSchoolIds.slice(0, 2).map((schoolId) => (
+                        {((member as any)[config.assignmentFieldName] || []).slice(0, 2).map((schoolId: string) => (
                           <span
                             key={schoolId}
                             className="px-2 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300"
@@ -530,9 +540,9 @@ export default function SchoolAssignmentManager({ config }: SchoolAssignmentMana
                             {getSchoolName(schoolId)}
                           </span>
                         ))}
-                        {member.assignedSchoolIds.length > 2 && (
+                        {((member as any)[config.assignmentFieldName] || []).length > 2 && (
                           <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                            +{member.assignedSchoolIds.length - 2} more
+                            +{((member as any)[config.assignmentFieldName] || []).length - 2} more
                           </span>
                         )}
                       </div>

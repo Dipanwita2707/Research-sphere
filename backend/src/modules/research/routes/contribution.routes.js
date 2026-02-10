@@ -44,6 +44,7 @@ const upload = multer({
 });
 
 // Helper middleware: Allow either research_review OR research_approve permission
+// Uses merged permissions from req.user (includes both direct and role-based permissions)
 const requireResearchAccess = async (req, res, next) => {
   try {
     const userId = req.user?.id;
@@ -54,42 +55,34 @@ const requireResearchAccess = async (req, res, next) => {
       });
     }
     
-    // Check if user has DRD permissions
-    const userDrdPermission = await prisma.centralDepartmentPermission.findFirst({
-      where: {
-        userId,
-        isActive: true,
-        centralDept: {
-          OR: [
-            { departmentCode: 'DRD' },
-            { shortName: 'DRD' }
-          ]
+    // Merge all DRD permissions from req.user (includes both direct and role-based)
+    let mergedPermissions = {};
+    
+    if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
+      req.user.centralDeptPermissions.forEach(deptPerm => {
+        if (deptPerm.permissions) {
+          // Merge all permissions (role-based are already included by auth middleware)
+          Object.assign(mergedPermissions, deptPerm.permissions);
         }
-      },
-      include: {
-        centralDept: true
-      }
-    });
-
-    if (!userDrdPermission) {
-      console.log(`Access denied for user ${userId} - No DRD permissions found`);
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied - No DRD permissions'
       });
     }
 
-    const permissions = userDrdPermission.permissions || {};
-    const hasReviewPerm = permissions.research_review === true || 
-                          permissions.book_review === true ||
-                          permissions.conference_review === true ||
-                          permissions.grant_review === true;
-    const hasApprovePerm = permissions.research_approve === true ||
-                           permissions.book_approve === true ||
-                           permissions.conference_approve === true ||
-                           permissions.grant_approve === true;
+    // Check for research-related permissions
+    const hasReviewPerm = mergedPermissions.research_review === true || 
+                          mergedPermissions.book_review === true ||
+                          mergedPermissions.conference_review === true ||
+                          mergedPermissions.grant_review === true;
+    const hasApprovePerm = mergedPermissions.research_approve === true ||
+                           mergedPermissions.book_approve === true ||
+                           mergedPermissions.conference_approve === true ||
+                           mergedPermissions.grant_approve === true;
 
-    console.log(`User ${userId} DRD permissions:`, { hasReviewPerm, hasApprovePerm, permissions });
+    console.log(`User ${userId} Research Access Check:`, { 
+      hasReviewPerm, 
+      hasApprovePerm, 
+      permissions: mergedPermissions,
+      source: 'merged from req.user (includes role-based)'
+    });
 
     if (!hasReviewPerm && !hasApprovePerm) {
       console.log(`Access denied for user ${userId} - No research permissions`);

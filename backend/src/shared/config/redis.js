@@ -47,7 +47,7 @@ const initRedis = async () => {
     redis = new Redis(redisConfig);
 
     redis.on('connect', () => {
-      console.log('✅ Redis connected successfully');
+      console.log('[SUCCESS] Redis connected successfully');
       isConnected = true;
     });
 

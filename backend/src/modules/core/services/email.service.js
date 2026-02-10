@@ -37,7 +37,7 @@ class EmailService {
 
       // Verify connection
       await this.transporter.verify();
-      console.log('✅ Email service initialized successfully');
+      console.log('[SUCCESS] Email service initialized successfully');
       this.initialized = true;
     } catch (error) {
       console.warn('⚠️ Email service initialization failed:', error.message);
@@ -196,7 +196,7 @@ This is an automated report from SGT Research Portal.
 </head>
 <body>
   <div class="header">
-    <h1>📊 ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Audit Report</h1>
+    <h1>[REPORT] ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Audit Report</h1>
     <p>${periodString}</p>
   </div>
   
@@ -274,7 +274,7 @@ This is an automated report from SGT Research Portal.
     </div>
 
     <div class="section">
-      <h3>👥 Most Active Users</h3>
+      <h3>[USERS] Most Active Users</h3>
       <table>
         <thead>
           <tr><th>User</th><th>Email</th><th>Actions</th></tr>

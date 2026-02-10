@@ -43,44 +43,49 @@ const getPendingDrdReviews = async (req, res) => {
     const { page = 1, limit = 10, iprType, schoolId, status } = req.query;
     const userId = req.user.id;
 
-    // Get user's DRD permissions to check assigned schools
-    let userDrdPermission;
+    // Use merged permissions from req.user (includes both direct and role-based permissions)
+    let mergedPermissions = {};
+    let assignedSchoolIds = [];
+    
+    // Merge all DRD permissions from req.user
+    if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
+      req.user.centralDeptPermissions.forEach(deptPerm => {
+        if (deptPerm.permissions) {
+          Object.assign(mergedPermissions, deptPerm.permissions);
+        }
+      });
+    }
+    
+    // Get school assignments from direct permission (school assignments are not role-based)
     try {
-      // First find the DRD department flexibly
       const drdDept = await prisma.centralDepartment.findFirst({
         where: {
           OR: [
             { departmentCode: 'DRD' },
-            { departmentCode: { contains: 'DRD', mode: 'insensitive' } },
-            { departmentName: { contains: 'DRD', mode: 'insensitive' } },
-            { shortName: 'DRD' },
-            { departmentName: { contains: 'Development', mode: 'insensitive' } },
-            { departmentName: { contains: 'Research', mode: 'insensitive' } },
+            { shortName: 'DRD' }
           ],
         },
       });
       
       if (drdDept) {
-        userDrdPermission = await prisma.centralDepartmentPermission.findFirst({
+        const directPermission = await prisma.centralDepartmentPermission.findFirst({
           where: {
             userId,
             isActive: true,
             centralDeptId: drdDept.id
           },
           select: {
-            permissions: true,
             assignedSchoolIds: true,
           }
         });
+        
+        assignedSchoolIds = (directPermission?.assignedSchoolIds || []).filter(id => id !== null && id !== undefined);
       }
     } catch (permError) {
-      console.log('Note: Error fetching DRD permissions:', permError.message);
-      userDrdPermission = null;
+      console.log('Note: Error fetching school assignments:', permError.message);
     }
 
-    const permissions = userDrdPermission?.permissions || {};
-    // Filter out null/undefined values from assignedSchoolIds to prevent Prisma errors
-    const assignedSchoolIds = (userDrdPermission?.assignedSchoolIds || []).filter(id => id !== null && id !== undefined);
+    const permissions = mergedPermissions;
     const isDrdHead = permissions.ipr_approve === true || permissions.drd_ipr_approve === true;
     const isDrdMember = permissions.ipr_review === true || permissions.ipr_recommend === true || 
                         permissions.drd_ipr_review === true || permissions.drd_ipr_recommend === true;
@@ -1348,7 +1353,7 @@ const creditIncentivesToInventors = async (application, userId) => {
           data: {
             userId: inventor.userId,
             type: 'incentive_credited',
-            title: 'Incentive Credited! 💰',
+            title: 'Incentive Credited! [PAYMENT]',
             message: `Congratulations! ₹${perInventorIncentive.toLocaleString()} and ${perInventorPoints} research points have been credited for your contribution to "${application.title}".`,
             referenceType: 'ipr_application',
             referenceId: application.id,
@@ -1557,7 +1562,7 @@ const addPublicationId = async (req, res) => {
         data: {
           userId: application.applicantUserId,
           type: 'ipr_published',
-          title: 'IPR Published & Incentives Credited! 🎉💰',
+          title: 'IPR Published & Incentives Credited! 🎉[PAYMENT]',
           message: `Congratulations! Your IPR "${application.title}" has been published. Publication ID: ${publicationId}. Incentives (₹${incentiveResult.perInventorIncentive.toLocaleString()} and ${incentiveResult.perInventorPoints} points) have been credited to all inventors.`,
           referenceType: 'ipr_application',
           referenceId: id,
@@ -1574,7 +1579,7 @@ const addPublicationId = async (req, res) => {
     await notifyContributors(
       id,
       'ipr_published',
-      'IPR Published & Incentives Credited! 🎉💰',
+      'IPR Published & Incentives Credited! 🎉[PAYMENT]',
       `The IPR "${application.title}" has been published. Publication ID: ${publicationId}. Your share: ₹${incentiveResult.perInventorIncentive.toLocaleString()} and ${incentiveResult.perInventorPoints} points.`,
       { 
         publicationId, 
@@ -1847,33 +1852,21 @@ const getStatusUpdates = async (req, res) => {
       }
     });
 
-    // If not applicant/inventor, check DRD permissions
+    // If not applicant/inventor, check DRD permissions from req.user (includes role-based)
     if (!iprApplication) {
-      const drdDept = await prisma.centralDepartment.findFirst({
-        where: {
-          OR: [
-            { departmentCode: 'DRD' },
-            { departmentCode: { contains: 'DRD', mode: 'insensitive' } },
-            { shortName: 'DRD' },
-          ],
-        },
-      });
-
-      if (drdDept) {
-        const userDrdPermission = await prisma.centralDepartmentPermission.findFirst({
-          where: {
-            userId,
-            centralDeptId: drdDept.id,
-            isActive: true,
-          }
+      let hasDrdPermission = false;
+      
+      if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
+        hasDrdPermission = req.user.centralDeptPermissions.some(deptPerm => {
+          return deptPerm.permissions && Object.keys(deptPerm.permissions).length > 0;
         });
+      }
 
-        if (!userDrdPermission) {
-          return res.status(403).json({
-            success: false,
-            message: 'You do not have permission to view updates for this application',
-          });
-        }
+      if (!hasDrdPermission) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have permission to view updates for this application',
+        });
       }
     }
 
@@ -1936,35 +1929,24 @@ const deleteStatusUpdate = async (req, res) => {
     // 1. User created the update
     // 2. Or user has DRD admin/head permissions
     if (statusUpdate.createdById !== userId) {
-      // Check DRD head permissions
-      const drdDept = await prisma.centralDepartment.findFirst({
-        where: {
-          OR: [
-            { departmentCode: 'DRD' },
-            { departmentCode: { contains: 'DRD', mode: 'insensitive' } },
-          ],
-        },
-      });
-
-      if (drdDept) {
-        const userDrdPermission = await prisma.centralDepartmentPermission.findFirst({
-          where: {
-            userId,
-            centralDeptId: drdDept.id,
-            isActive: true,
-          },
-          select: { permissions: true }
+      // Check DRD head permissions from req.user (includes role-based)
+      let mergedPermissions = {};
+      
+      if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
+        req.user.centralDeptPermissions.forEach(deptPerm => {
+          if (deptPerm.permissions) {
+            Object.assign(mergedPermissions, deptPerm.permissions);
+          }
         });
+      }
 
-        const permissions = userDrdPermission?.permissions || {};
-        const isDrdHead = permissions.ipr_approve === true || permissions.drd_ipr_approve === true;
+      const isDrdHead = mergedPermissions.ipr_approve === true || mergedPermissions.drd_ipr_approve === true;
 
-        if (!isDrdHead) {
-          return res.status(403).json({
-            success: false,
-            message: 'You can only delete your own status updates',
-          });
-        }
+      if (!isDrdHead) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only delete your own status updates',
+        });
       }
     }
 

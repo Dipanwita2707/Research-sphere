@@ -82,6 +82,7 @@ model UserLogin {
   grantInvestigators                  GrantInvestigator[]                  @relation("GrantInvestigators")
   grantApplicationReviews             GrantApplicationReview[]             @relation("GrantApplicationReviews")
   grantApplicationStatusChanges       GrantApplicationStatusHistory[]      @relation("GrantApplicationStatusChanges")
+  assignedRoleIds                     Json?                                @default("[]") @map("assigned_role_ids")
 
   @@map("user_login")
 }
@@ -96,6 +97,7 @@ model EmployeeDetails {
   photo                     String?                     @db.VarChar(64)
   empId                     String?                     @unique @map("emp_id") @db.VarChar(64)
   designation               String?                     @db.VarChar(128)
+  officerLevel              String?                     @map("officer_level") @db.VarChar(10)
   joinDate                  DateTime?                   @map("join_date") @db.Date
   isActive                  Boolean                     @default(true) @map("is_active")
   metadata                  Json                        @default("{}")
@@ -600,6 +602,35 @@ model CentralDepartment {
   primaryEmployees       EmployeeDetails[]             @relation("PrimaryCentralDepartment")
 
   @@map("central_department")
+}
+
+// ===========================================
+// Role-Based Permission Template System
+// Roles are named clusters of permissions that can be applied to users
+// ===========================================
+model Role {
+  id                            String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roleCode                      String           @unique @map("role_code") @db.VarChar(32)
+  name                          String           @unique @db.VarChar(128)
+  description                   String?
+  // SCHOOL = school department permissions, CENTRAL = central department permissions, BOTH = both types
+  departmentType                RoleDepartmentType @default(BOTH) @map("department_type")
+  // JSON object containing permission keys: { schoolDeptPermissions: {...}, centralDeptPermissions: {...} }
+  permissions                   Json             @default("{}")
+  // If false, users with this role don't require school/department assignment (for VC, Pro-VC, etc.)
+  requiresDepartmentAssignment  Boolean          @default(true) @map("requires_department_assignment")
+  isActive                      Boolean          @default(true) @map("is_active")
+  createdBy                     String?          @map("created_by") @db.Uuid
+  createdAt                     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                     DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("role")
+}
+
+enum RoleDepartmentType {
+  SCHOOL
+  CENTRAL
+  BOTH
 }
 
 model Program {

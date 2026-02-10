@@ -23,6 +23,7 @@ export { default as DepartmentManagement } from './DepartmentManagement';
 export { default as CentralDepartmentManagement } from './CentralDepartmentManagement';
 export { default as ProgramManagement } from './ProgramManagement';
 export { default as PermissionManagement } from './PermissionManagement';
+export { default as UserRoleManagement } from './UserRoleManagement';
 export { default as BulkUploadManagement } from './BulkUploadManagement';
 
 // Policy Management Components

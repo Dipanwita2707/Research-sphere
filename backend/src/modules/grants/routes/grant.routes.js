@@ -29,6 +29,7 @@ const upload = multer({
 });
 
 // Helper middleware: Allow either grant_review OR grant_approve permission (or fallback to research permissions)
+// Uses merged permissions from req.user (includes both direct and role-based permissions)
 const requireGrantAccess = async (req, res, next) => {
   try {
     const userId = req.user?.id;
@@ -39,37 +40,28 @@ const requireGrantAccess = async (req, res, next) => {
       });
     }
     
-    // Check if user has DRD permissions
-    const userDrdPermission = await prisma.centralDepartmentPermission.findFirst({
-      where: {
-        userId,
-        isActive: true,
-        centralDept: {
-          OR: [
-            { departmentCode: 'DRD' },
-            { shortName: 'DRD' }
-          ]
+    // Get DRD permissions from req.user (already merged by auth middleware)
+    let mergedPermissions = {};
+    
+    if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
+      req.user.centralDeptPermissions.forEach(deptPerm => {
+        if (deptPerm.permissions) {
+          // Merge all permissions (role-based are already included by auth middleware)
+          Object.assign(mergedPermissions, deptPerm.permissions);
         }
-      },
-      include: {
-        centralDept: true
-      }
-    });
-
-    if (!userDrdPermission) {
-      console.log(`Access denied for user ${userId} - No DRD permissions found`);
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied - No DRD permissions'
       });
     }
 
-    const permissions = userDrdPermission.permissions || {};
     // Check for grant-specific permissions OR research permissions (fallback)
-    const hasReviewPerm = permissions.grant_review === true || permissions.research_review === true;
-    const hasApprovePerm = permissions.grant_approve === true || permissions.research_approve === true;
+    const hasReviewPerm = mergedPermissions.grant_review === true || mergedPermissions.research_review === true;
+    const hasApprovePerm = mergedPermissions.grant_approve === true || mergedPermissions.research_approve === true;
 
-    console.log(`User ${userId} DRD grant permissions:`, { hasReviewPerm, hasApprovePerm, permissions });
+    console.log(`User ${userId} Grant Access Check:`, { 
+      hasReviewPerm, 
+      hasApprovePerm, 
+      permissions: mergedPermissions,
+      source: 'merged from req.user (includes role-based)'
+    });
 
     if (!hasReviewPerm && !hasApprovePerm) {
       console.log(`Access denied for user ${userId} - No grant review/approve permissions`);

@@ -79,6 +79,7 @@ export interface UserWithPermissions {
   uid: string;
   email?: string;
   role: string;
+  assignedRoleIds?: string[]; // Array of role IDs assigned to user
   employeeDetails?: {
     firstName: string;
     lastName?: string;
@@ -189,6 +190,14 @@ class PermissionManagementService {
     const response = await api.post<{ success: boolean; message: string }>(
       `${this.baseUrl}/central-department/revoke`,
       { userId, centralDeptId }
+    );
+    return response.data;
+  }
+
+  async assignRolesToUser(userId: string, roleIds: string[]) {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `${this.baseUrl}/assign-roles`,
+      { userId, roleIds }
     );
     return response.data;
   }

@@ -184,26 +184,12 @@ const seedDatabase = async () => {
         departmentCode: 'DRD',
         departmentName: 'Director of Research and Development',
         shortName: 'DRD',
-        departmentType: 'research',
+        departmentType: 'drd',
         isActive: true,
         headOfDepartmentId: admin.id
       }
     });
     console.log('✅ DRD Department created');
-
-    const iprDepartment = await prisma.centralDepartment.upsert({
-      where: { departmentCode: 'IPR' },
-      update: {},
-      create: {
-        departmentCode: 'IPR',
-        departmentName: 'Intellectual Property Rights Cell',
-        shortName: 'IPR Cell',
-        departmentType: 'research',
-        isActive: true,
-        headOfDepartmentId: admin.id
-      }
-    });
-    console.log('✅ IPR Department created');
 
     const registrarDepartment = await prisma.centralDepartment.upsert({
       where: { departmentCode: 'REGISTRAR' },
@@ -212,7 +198,7 @@ const seedDatabase = async () => {
         departmentCode: 'REGISTRAR',
         departmentName: 'Registrar Office',
         shortName: 'Registrar',
-        departmentType: 'administrative',
+        departmentType: 'registrar',
         isActive: true,
         headOfDepartmentId: admin.id
       }
@@ -226,7 +212,7 @@ const seedDatabase = async () => {
         departmentCode: 'ADMISSIONS',
         departmentName: 'Admissions Office',
         shortName: 'Admissions',
-        departmentType: 'administrative',
+        departmentType: 'admissions',
         isActive: true,
         headOfDepartmentId: admin.id
       }
@@ -240,7 +226,7 @@ const seedDatabase = async () => {
         departmentCode: 'HR',
         departmentName: 'Human Resources',
         shortName: 'HR',
-        departmentType: 'administrative',
+        departmentType: 'hr',
         isActive: true,
         headOfDepartmentId: admin.id
       }
@@ -254,7 +240,7 @@ const seedDatabase = async () => {
         departmentCode: 'FINANCE',
         departmentName: 'Finance Department',
         shortName: 'Finance',
-        departmentType: 'administrative',
+        departmentType: 'finance',
         isActive: true,
         headOfDepartmentId: admin.id
       }

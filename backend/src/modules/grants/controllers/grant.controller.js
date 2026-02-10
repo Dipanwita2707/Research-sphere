@@ -762,28 +762,49 @@ exports.getPendingGrantReviews = async (req, res) => {
   try {
     const userId = req.user?.id;
 
-    // Check if user has DRD permissions
-    const userDrdPermission = await prisma.centralDepartmentPermission.findFirst({
-      where: {
-        userId,
-        isActive: true,
-        centralDept: {
+    // Get DRD permissions from req.user (already merged by auth middleware)
+    let mergedPermissions = {};
+    let assignedGrantSchoolIds = [];
+    
+    // Merge all DRD permissions from req.user
+    if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
+      req.user.centralDeptPermissions.forEach(deptPerm => {
+        if (deptPerm.permissions) {
+          Object.assign(mergedPermissions, deptPerm.permissions);
+        }
+      });
+    }
+    
+    // Get school assignments from direct permission (school assignments are not role-based)
+    try {
+      const drdDept = await prisma.centralDepartment.findFirst({
+        where: {
           OR: [
             { departmentCode: 'DRD' },
             { shortName: 'DRD' }
           ]
         }
-      }
-    });
-
-    if (!userDrdPermission) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied - No DRD permissions'
       });
+      
+      if (drdDept) {
+        const directPermission = await prisma.centralDepartmentPermission.findFirst({
+          where: {
+            userId,
+            isActive: true,
+            centralDeptId: drdDept.id
+          },
+          select: {
+            assignedGrantSchoolIds: true,
+          }
+        });
+        
+        assignedGrantSchoolIds = directPermission?.assignedGrantSchoolIds || [];
+      }
+    } catch (permError) {
+      console.log('Error fetching grant school assignments:', permError);
     }
 
-    const permissions = userDrdPermission.permissions || {};
+    const permissions = mergedPermissions;
     const hasReviewPerm = permissions.research_review === true || permissions.grant_review === true;
     const hasApprovePerm = permissions.research_approve === true || permissions.grant_approve === true;
 
@@ -793,11 +814,6 @@ exports.getPendingGrantReviews = async (req, res) => {
         message: 'Access denied - No grant review permissions'
       });
     }
-
-    // Get assigned school IDs
-    const assignedSchoolIds = userDrdPermission.assignedSchoolIds || 
-                              userDrdPermission.assignedResearchSchoolIds || 
-                              [];
 
     // Define status filter based on user permissions
     let statusFilter;
@@ -816,8 +832,8 @@ exports.getPendingGrantReviews = async (req, res) => {
     };
 
     // Filter by assigned schools if not head
-    if (!hasApprovePerm && assignedSchoolIds.length > 0) {
-      whereClause.schoolId = { in: assignedSchoolIds };
+    if (!hasApprovePerm && assignedGrantSchoolIds.length > 0) {
+      whereClause.schoolId = { in: assignedGrantSchoolIds };
     }
 
     const grants = await prisma.grantApplication.findMany({

@@ -367,12 +367,12 @@ export default function NavigationHeader() {
       description: 'Academic resources and tools',
       children: [
         { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
-        { name: '� Event Management', href: 'https://sgt-event.vercel.app/student', description: 'Campus event management' },
-        { name: '�📖 Courses', href: '#', description: 'Course management (Coming Soon)' },
-        { name: '📅 Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
-        { name: '📝 Examinations', href: '#', description: 'Exam management (Coming Soon)' },
-        { name: '🏆 Results', href: '#', description: 'Academic results (Coming Soon)' },
-        { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
+       
+        { name: '�Courses', href: '#', description: 'Course management (Coming Soon)' },
+        { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
+        { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
+        { name: 'Results', href: '#', description: 'Academic results (Coming Soon)' },
+        { name: 'Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
       ],
     },
   ];
@@ -445,7 +445,7 @@ export default function NavigationHeader() {
           children: [
             { name: '👨‍🏫 Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
             { name: '👨‍🎓 Students', href: '/admin/students', description: 'Manage student records' },
-            { name: '🔐 Role Permissions', href: '/admin/permissions', description: 'Configure access rights' },
+            { name: '🛡️ User & Role Management', href: '/admin/roles', description: 'Assign permissions & create role templates' },
             { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
           ],
         },

@@ -7,6 +7,10 @@ import {
   PermissionDefinitions,
   Permission,
 } from '@/features/admin-management/services/permissionManagement.service';
+import {
+  roleManagementService,
+  Role,
+} from '@/features/admin-management/services/roleManagement.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
@@ -15,7 +19,7 @@ import {
   centralDepartmentService,
   CentralDepartment,
 } from '@/features/admin-management/services/centralDepartment.service';
-import { Shield, Building2, Briefcase, ChevronDown, ChevronUp, User, Users, Settings, CheckCircle2 } from 'lucide-react';
+import { Shield, Building2, Briefcase, ChevronDown, ChevronUp, User, Users, Settings, CheckCircle2, Layers } from 'lucide-react';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
 
 export default function PermissionManagement() {
@@ -25,6 +29,7 @@ export default function PermissionManagement() {
   const [schools, setSchools] = useState<School[]>([]);
   const [centralDepts, setCentralDepts] = useState<CentralDepartment[]>([]);
   const [permissionDefs, setPermissionDefs] = useState<PermissionDefinitions | null>(null);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   
   // New department-focused approach
@@ -37,6 +42,7 @@ export default function PermissionManagement() {
   // Form state
   const [selectedPermissions, setSelectedPermissions] = useState<Record<string, boolean>>({});
   const [isPrimary, setIsPrimary] = useState(false);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   
   // Monthly report scope state
   const [selectedMonthlyReportSchools, setSelectedMonthlyReportSchools] = useState<string[]>([]);
@@ -51,17 +57,19 @@ export default function PermissionManagement() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [usersRes, schoolsRes, centralDeptsRes, defsRes] = await Promise.all([
+      const [usersRes, schoolsRes, centralDeptsRes, defsRes, rolesRes] = await Promise.all([
         permissionManagementService.getAllUsersWithPermissions(),
         schoolService.getAllSchools({ isActive: true }),
         centralDepartmentService.getAllCentralDepartments({ isActive: true }),
         permissionManagementService.getPermissionDefinitions(),
+        roleManagementService.getAllRoles({ isActive: true }),
       ]);
 
       setUsers(usersRes.data);
       setSchools(schoolsRes.data);
       setCentralDepts(centralDeptsRes.data);
       setPermissionDefs(defsRes.data);
+      setRoles(rolesRes.data);
     } catch (error: unknown) {
       logger.error('Failed to fetch data:', error);
     } finally {
@@ -76,6 +84,7 @@ export default function PermissionManagement() {
     }
     
     setSelectedUser(user);
+    setSelectedRoleId(''); // Reset role selection
     
     // Load existing permissions for this user and department
     let existingPermissions: Record<string, boolean> = {};
@@ -105,6 +114,43 @@ export default function PermissionManagement() {
     setSelectedMonthlyReportSchools(existingMonthlyReportSchools);
     setSelectedMonthlyReportDepartments(existingMonthlyReportDepartments);
     setShowPermissionModal(true);
+  };
+
+  // Apply role template permissions
+  const applyRoleTemplate = (roleId: string) => {
+    if (!roleId) {
+      setSelectedRoleId('');
+      return;
+    }
+
+    const role = roles.find(r => r.id === roleId);
+    if (!role) {
+      toast({ type: 'error', message: 'Role not found' });
+      return;
+    }
+
+    setSelectedRoleId(roleId);
+
+    // Apply permissions based on department type
+    const rolePerms = role.permissions || {};
+    let permissionsToApply: Record<string, boolean> = {};
+
+    if (selectedDepartmentType === 'central' && rolePerms.centralDeptPermissions) {
+      permissionsToApply = { ...rolePerms.centralDeptPermissions };
+    } else if (selectedDepartmentType === 'school' && rolePerms.schoolDeptPermissions) {
+      permissionsToApply = { ...rolePerms.schoolDeptPermissions };
+    }
+
+    // Merge with existing permissions (role as base, can be modified)
+    setSelectedPermissions(prev => ({
+      ...prev,
+      ...permissionsToApply,
+    }));
+
+    toast({ 
+      type: 'success', 
+      message: `Applied "${role.name}" role template. You can now adjust individual permissions.` 
+    });
   };
 
   const handlePermissionToggle = (permKey: string) => {
@@ -580,6 +626,44 @@ export default function PermissionManagement() {
 
             <div className="p-6">
               <div className="space-y-6">
+                {/* Role Template Selection */}
+                {roles.length > 0 && (
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Layers className="w-5 h-5 text-indigo-600" />
+                      <h4 className="font-semibold text-indigo-900 dark:text-indigo-100">Apply Role Template</h4>
+                      <span className="text-xs text-indigo-600 dark:text-indigo-400">(Optional - Quick permission setup)</span>
+                    </div>
+                    <div className="flex gap-3 items-center">
+                      <select
+                        value={selectedRoleId}
+                        onChange={(e) => applyRoleTemplate(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="">-- Select a Role Template --</option>
+                        {roles
+                          .filter(role => {
+                            // Filter roles based on department type
+                            if (selectedDepartmentType === 'central') {
+                              return role.departmentType === 'CENTRAL' || role.departmentType === 'BOTH';
+                            }
+                            return role.departmentType === 'SCHOOL' || role.departmentType === 'BOTH';
+                          })
+                          .map(role => (
+                            <option key={role.id} value={role.id}>
+                              {role.name} {role.description ? `- ${role.description}` : ''}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    {selectedRoleId && (
+                      <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-2">
+                        ✓ Role template applied. You can modify individual permissions below.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"

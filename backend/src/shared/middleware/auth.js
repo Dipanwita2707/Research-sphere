@@ -32,7 +32,7 @@ const protect = async (req, res, next) => {
         cacheKey,
         async () => {
           // Get user from database with permissions
-          return await prisma.userLogin.findUnique({
+          const userData = await prisma.userLogin.findUnique({
             where: { id: decoded.id },
             select: {
               id: true,
@@ -40,6 +40,7 @@ const protect = async (req, res, next) => {
               email: true,
               role: true,
               status: true,
+              assignedRoleIds: true,
               centralDeptPermissions: {
                 where: { isActive: true },
                 select: {
@@ -64,6 +65,69 @@ const protect = async (req, res, next) => {
               }
             }
           });
+
+          if (!userData) return null;
+
+          // Get assigned roles with permissions
+          const roleIds = userData.assignedRoleIds || [];
+          let rolesWithPermissions = [];
+          
+          if (Array.isArray(roleIds) && roleIds.length > 0) {
+            rolesWithPermissions = await prisma.role.findMany({
+              where: {
+                id: { in: roleIds },
+                isActive: true,
+              },
+              select: {
+                id: true,
+                name: true,
+                permissions: true,
+                departmentType: true,
+              },
+            });
+          }
+
+          // Merge role-based permissions with direct permissions
+          const mergedCentralPerms = [...(userData.centralDeptPermissions || [])];
+          const mergedSchoolPerms = [...(userData.schoolDeptPermissions || [])];
+
+          // Process each role's permissions
+          rolesWithPermissions.forEach(role => {
+            const rolePerms = role.permissions || {};
+            
+            // Merge central department permissions from roles
+            if (rolePerms.centralDeptPermissions && Object.keys(rolePerms.centralDeptPermissions).length > 0) {
+              // Add as a virtual central department permission entry
+              mergedCentralPerms.push({
+                centralDeptId: `role-${role.id}`,
+                permissions: rolePerms.centralDeptPermissions,
+                isPrimary: false,
+                centralDept: {
+                  departmentCode: `ROLE-${role.name}`,
+                  departmentName: `From Role: ${role.name}`,
+                },
+                fromRole: true,
+                roleName: role.name,
+              });
+            }
+
+            // Merge school department permissions from roles
+            if (rolePerms.schoolDeptPermissions && Object.keys(rolePerms.schoolDeptPermissions).length > 0) {
+              mergedSchoolPerms.push({
+                departmentId: `role-${role.id}`,
+                permissions: rolePerms.schoolDeptPermissions,
+                isPrimary: false,
+                fromRole: true,
+                roleName: role.name,
+              });
+            }
+          });
+
+          return {
+            ...userData,
+            centralDeptPermissions: mergedCentralPerms,
+            schoolDeptPermissions: mergedSchoolPerms,
+          };
         },
         cache.CACHE_TTL.USER_SESSION
       );
