@@ -18,6 +18,7 @@ model UserLogin {
   profileImage                                      String?                              @map("profile_image") @db.VarChar(64)
   passwordHash                                      String                               @map("password_hash")
   role                                              UserRoleEnum
+  assignedRoleIds                                   Json?                                @default("[]") @map("assigned_role_ids")
   status                                            String                               @default("active") @db.VarChar(32)
   lastLoginAt                                       DateTime?                            @map("last_login_at") @db.Timestamptz(6)
   createdAt                                         DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
