@@ -29,6 +29,14 @@ class GatePassService {
   }
 
   /**
+   * Generate 6-digit verification code
+   */
+  generateVerificationCode() {
+    // Generate 6 random digits
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  /**
    * Generate QR Code for gate pass
    */
   async generateQRCode(passId) {
@@ -169,13 +177,17 @@ class GatePassService {
    */
   async createPass(data, createdById) {
     try {
-      // Validate required fields
-      if (!data.visitorName || !data.mobileNumber || !data.idProofType || !data.idProofNumber) {
-        throw new Error('Missing required visitor information');
+      // Validate required fields (simplified - ID proof is optional, will be checked by guard)
+      if (!data.visitorName || !data.mobileNumber) {
+        throw new Error('Visitor name and mobile number are required');
       }
       
       if (!data.visitDate || !data.expectedEntryTime || !data.expectedExitTime) {
         throw new Error('Missing required visit timing information');
+      }
+      
+      if (!data.purposeOfVisit) {
+        throw new Error('Purpose of visit is required');
       }
 
       const passId = await this.generatePassId();
@@ -234,17 +246,36 @@ class GatePassService {
       // Generate QR Code
       const qrCodeDataURL = await this.generateQRCode(passId);
       
+      // Generate 6-digit verification code
+      const verificationCode = this.generateVerificationCode();
+      
+      // Process stay details if needed
+      let checkInDate = null;
+      let checkOutDate = null;
+      if (data.stayRequired && data.checkInDate && data.checkOutDate) {
+        const checkInRaw = new Date(data.checkInDate);
+        const checkOutRaw = new Date(data.checkOutDate);
+        
+        checkInDate = new Date(checkInRaw.getTime() + istOffset);
+        checkInDate.setUTCHours(0, 0, 0, 0);
+        
+        checkOutDate = new Date(checkOutRaw.getTime() + istOffset);
+        checkOutDate.setUTCHours(0, 0, 0, 0);
+      }
+      
       // Create the pass
       const gatePass = await prisma.gatePass.create({
         data: {
           passId,
           qrCode: qrCodeDataURL,
+          verificationCode,
           // Visitor details
           visitorName: data.visitorName,
           mobileNumber: data.mobileNumber,
+          visitorRelation: data.visitorRelation || null,
           email: data.email || null,
-          idProofType: data.idProofType,
-          idProofNumber: data.idProofNumber,
+          idProofType: data.idProofType || null,
+          idProofNumber: data.idProofNumber || null,
           photoFilePath: data.photoFilePath || null,
           photo: data.photo || null,
           gender: data.gender || null,
@@ -253,12 +284,19 @@ class GatePassService {
           // Visit details
           purposeOfVisit: data.purposeOfVisit,
           purposeOther: data.purposeOther || null,
-          departmentToVisit: data.departmentToVisit,
+          departmentToVisit: data.departmentToVisit || null,
           personToMeetId: data.personToMeetId || null,
-          personToMeetName: personToMeetName,
+          personToMeetName: personToMeetName || null,
           visitDate: visitDate,
           expectedEntryTime: data.expectedEntryTime,
           expectedExitTime: data.expectedExitTime,
+          
+          // Stay details
+          stayRequired: data.stayRequired || false,
+          checkInDate: checkInDate,
+          checkOutDate: checkOutDate,
+          hostelName: data.hostelName || null,
+          roomNumber: data.roomNumber || null,
           
           // Vehicle details
           hasVehicle: data.hasVehicle || false,
@@ -313,6 +351,7 @@ class GatePassService {
       console.log('║           🎫 NEW GATE PASS CREATED                        ║');
       console.log('╠════════════════════════════════════════════════════════════╣');
       console.log(`║ Pass ID: ${passId.padEnd(42)}║`);
+      console.log(`║ Verification Code: ${verificationCode.padEnd(34)}║`);
       console.log(`║ Visitor: ${gatePass.visitorName.padEnd(42)}║`);
       console.log(`║ Mobile:  ${gatePass.mobileNumber.padEnd(42)}║`);
       console.log(`║ Visit Date: ${visitDate.toISOString().split('T')[0].padEnd(38)}║`);
@@ -322,7 +361,8 @@ class GatePassService {
       console.log('║ QR Code Data (Base64):                                    ║');
       console.log(`║ ${qrCodeDataURL.substring(0, 54)}...║`);
       console.log('║                                                            ║');
-      console.log('║ ✅ Guard can scan this QR code or search by Pass ID       ║');
+      console.log('║ ✅ Guard can scan QR code, enter verification code,      ║');
+      console.log('║    or search by Pass ID                                   ║');
       console.log('╚════════════════════════════════════════════════════════════╝\n');
 
       logger.info(`Gate pass created: ${passId}`);
@@ -335,6 +375,7 @@ class GatePassService {
 
   /**
    * Get all gate passes with filters
+   * Role-based access: Admin/Guard see all, others see only their own
    */
   async getAllPasses(filters = {}) {
     try {
@@ -346,10 +387,46 @@ class GatePassService {
         status,
         dateFilter,
         page = 1,
-        limit = 50
+        limit = 50,
+        userId
       } = filters;
 
+      // Check user role for filtering
+      let showAllPasses = false;
+      if (userId) {
+        const user = await prisma.userLogin.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            role: true,
+            employeeDetails: {
+              select: {
+                designation: true
+              }
+            }
+          }
+        });
+
+        if (user) {
+          const role = user.role?.toLowerCase() || '';
+          const designation = user.employeeDetails?.designation?.toLowerCase() || '';
+          
+          const isAdmin = role === 'admin';
+          const isGuard = designation.includes('guard') || designation.includes('security') || designation.includes('volunteer');
+          
+          // Admin and Guards see all passes
+          showAllPasses = isAdmin || isGuard;
+          
+          console.log(`[PASS FILTER] User: ${userId}, Role: ${role}, Designation: ${designation}, ShowAll: ${showAllPasses}`);
+        }
+      }
+
       const where = {};
+
+      // Filter by creator if not admin/guard
+      if (!showAllPasses && userId) {
+        where.createdById = userId;
+      }
 
       // Search filter
       if (search) {
@@ -581,7 +658,7 @@ class GatePassService {
   async allowEntry(passId, guardId, entryData) {
     try {
       const pass = await prisma.gatePass.findUnique({
-        where: { id: passId }
+        where: { passId }
       });
 
       if (!pass) {
@@ -592,8 +669,15 @@ class GatePassService {
         throw new Error('Pass is cancelled or denied');
       }
 
+      // If verification code is provided, validate it
+      if (entryData.verificationCode) {
+        if (pass.verificationCode !== entryData.verificationCode) {
+          throw new Error('Invalid verification code');
+        }
+      }
+
       const updatedPass = await prisma.gatePass.update({
-        where: { id: passId },
+        where: { passId },
         data: {
           status: 'checked_in',
           actualEntryTime: new Date(),
@@ -609,13 +693,14 @@ class GatePassService {
       // Create history
       await prisma.gatePassHistory.create({
         data: {
-          gatePassId: passId,
+          gatePassId: pass.id,
           action: 'checked_in',
           performedById: guardId,
           remarks: entryData.remarks || 'Entry allowed',
           metadata: {
             gate: entryData.gate,
-            entryTime: new Date().toISOString()
+            entryTime: new Date().toISOString(),
+            verificationMethod: entryData.verificationCode ? 'code' : 'qr'
           }
         }
       });

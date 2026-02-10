@@ -7,18 +7,15 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { gateEntryService, type GatePass } from '@/shared/services/gateEntry.service';
+import { useAuthStore } from '@/shared/auth/authStore';
 
 interface Pass {
   id: string;
   passId: string;
   visitorName: string;
   mobileNumber: string;
-  email: string;
-  idProofType: string;
-  idProofNumber: string;
+  visitorRelation?: string;
   purposeOfVisit: string;
-  departmentToVisit: string;
-  personToMeetName: string;
   visitDate: string;
   expectedEntryTime: string;
   expectedExitTime: string;
@@ -27,11 +24,30 @@ interface Pass {
   status: string;
   hasVehicle: boolean;
   vehicleNumber?: string;
-  numberOfPersons: number;
+  vehicleType?: string;
+  vehicleModel?: string;
+  stayRequired?: boolean;
+  checkInDate?: string;
+  checkOutDate?: string;
+  hostelName?: string;
+  roomNumber?: string;
   createdAt: string;
+  createdBy?: {
+    employeeDetails?: {
+      displayName?: string;
+    };
+    username?: string;
+  };
   creator?: {
     username: string;
   };
+  // Old fields (for backward compatibility - optional)
+  email?: string;
+  idProofType?: string;
+  idProofNumber?: string;
+  departmentToVisit?: string;
+  personToMeetName?: string;
+  numberOfPersons?: number;
 }
 
 const STATUS_CONFIG = {
@@ -45,6 +61,7 @@ const STATUS_CONFIG = {
 };
 
 export default function AllPassesPage() {
+  const { user } = useAuthStore();
   const [passes, setPasses] = useState<Pass[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -93,13 +110,13 @@ export default function AllPassesPage() {
   // Filter and search logic
   const filteredPasses = useMemo(() => {
     return passes.filter(pass => {
-      // Search filter
+      // Search filter - only search in fields we're actually collecting
       const searchMatch = 
         pass.passId.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pass.visitorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pass.mobileNumber.includes(searchTerm) ||
         (pass.vehicleNumber && pass.vehicleNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        pass.personToMeetName.toLowerCase().includes(searchTerm.toLowerCase());
+        (pass.visitorRelation && pass.visitorRelation.toLowerCase().includes(searchTerm.toLowerCase()));
 
       // Status filter
       // "Pending" shows all non-completed passes (active, checked_in, pending)
@@ -129,7 +146,8 @@ export default function AllPassesPage() {
   }, [passes, searchTerm, statusFilter, dateFilter]);
 
   const handleResendNotification = (pass: Pass) => {
-    alert(`📧 Notification resent to:\n\n✉️ ${pass.email || 'No email'}\n📱 ${pass.mobileNumber}\n\nPass ID: ${pass.passId}`);
+    const notificationMessage = `📧 Notification resent to:\n📱 ${pass.mobileNumber}${pass.email ? `\n📧 ${pass.email}` : ''}\n\nPass ID: ${pass.passId}`;
+    alert(notificationMessage);
   };
 
   const handleCancelPass = async (passId: string) => {
@@ -146,24 +164,24 @@ export default function AllPassesPage() {
   };
 
   const handleExport = () => {
-    // Prepare CSV data from filtered passes
-    const headers = ['Pass ID', 'Visitor Name', 'Mobile', 'Email', 'Purpose', 'Department', 'Person to Meet', 'Visit Date', 'Entry Time', 'Exit Time', 'Status', 'Vehicle Number', 'Persons'];
+    // Prepare CSV data from filtered passes - only simplified fields
+    const headers = ['Pass ID', 'Visitor Name', 'Mobile', 'Relation', 'Persons', 'Purpose', 'Visit Date', 'Entry Time', 'Exit Time', 'Status', 'Vehicle', 'Stay Required', 'Hostel'];
     const csvRows = [
       headers.join(','),
       ...filteredPasses.map(pass => [
         pass.passId,
         `"${pass.visitorName}"`,
         pass.mobileNumber,
-        pass.email || '',
+        pass.visitorRelation || '',
+        pass.numberOfPersons || 1,
         `"${pass.purposeOfVisit}"`,
-        `"${pass.departmentToVisit}"`,
-        `"${pass.personToMeetName}"`,
         pass.visitDate.split('T')[0],
         pass.expectedEntryTime,
         pass.expectedExitTime,
         pass.status,
         pass.vehicleNumber || '',
-        pass.numberOfPersons
+        pass.stayRequired ? 'Yes' : 'No',
+        pass.hostelName || ''
       ].join(','))
     ];
 
@@ -226,7 +244,22 @@ export default function AllPassesPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">📋 All Gate Passes</h1>
-              <p className="text-gray-600 mt-1">Manage and track all visitor entry passes</p>
+              <p className="text-gray-600 mt-1">
+                {(() => {
+                  const role = (user?.role?.name || '').toLowerCase();
+                  const designation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
+                  const isAdmin = role === 'admin';
+                  const isGuard = designation.includes('guard') || designation.includes('security') || designation.includes('volunteer');
+                  
+                  if (isAdmin) {
+                    return '👨‍💼 Admin View: Showing all gate passes';
+                  } else if (isGuard) {
+                    return '🛡️ Guard View: Showing all gate passes for verification';
+                  } else {
+                    return '📝 My Passes: Showing only passes created by you';
+                  }
+                })()}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               <button
@@ -282,7 +315,7 @@ export default function AllPassesPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Search by Pass ID, Name, Mobile, or Person to Meet..."
+                  placeholder="Search by Pass ID, Name, Mobile, Relation, or Vehicle..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -398,6 +431,16 @@ export default function AllPassesPage() {
                                 <Phone className="w-3 h-3" />
                                 {pass.mobileNumber}
                               </div>
+                              {pass.visitorRelation && (
+                                <div className="text-xs text-blue-600 mt-1">
+                                  {pass.visitorRelation}
+                                </div>
+                              )}
+                              {pass.numberOfPersons && pass.numberOfPersons > 1 && (
+                                <div className="text-xs text-green-600 mt-1 font-semibold">
+                                  👥 {pass.numberOfPersons} persons
+                                </div>
+                              )}
                               {pass.hasVehicle && (
                                 <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                                   <Car className="w-3 h-3" />
@@ -410,8 +453,11 @@ export default function AllPassesPage() {
                         <td className="px-4 py-4">
                           <div className="text-sm">
                             <div className="font-medium text-gray-900">{pass.purposeOfVisit}</div>
-                            <div className="text-xs text-gray-500">{pass.departmentToVisit}</div>
-                            <div className="text-xs text-gray-600 mt-1">To meet: {pass.personToMeetName}</div>
+                            {pass.stayRequired && (
+                              <div className="text-xs text-purple-600 mt-1">
+                                🏠 Multi-day stay: {pass.hostelName}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
@@ -512,9 +558,15 @@ export default function AllPassesPage() {
                     <dl className="space-y-2 text-sm">
                       <div><dt className="text-gray-600">Name:</dt><dd className="font-medium">{selectedPass.visitorName}</dd></div>
                       <div><dt className="text-gray-600">Mobile:</dt><dd className="font-medium">{selectedPass.mobileNumber}</dd></div>
-                      <div><dt className="text-gray-600">Email:</dt><dd className="font-medium">{selectedPass.email || 'N/A'}</dd></div>
-                      <div><dt className="text-gray-600">ID Proof:</dt><dd className="font-medium">{selectedPass.idProofType} - {selectedPass.idProofNumber}</dd></div>
-                      <div><dt className="text-gray-600">Persons:</dt><dd className="font-medium">{selectedPass.numberOfPersons}</dd></div>
+                      {selectedPass.email && (
+                        <div><dt className="text-gray-600">Email:</dt><dd className="font-medium">{selectedPass.email}</dd></div>
+                      )}
+                      {selectedPass.visitorRelation && (
+                        <div><dt className="text-gray-600">Relation:</dt><dd className="font-medium">{selectedPass.visitorRelation}</dd></div>
+                      )}
+                      {selectedPass.numberOfPersons && (
+                        <div><dt className="text-gray-600">Number of Persons:</dt><dd className="font-medium text-green-600">👥 {selectedPass.numberOfPersons}</dd></div>
+                      )}
                     </dl>
                   </div>
 
@@ -522,8 +574,6 @@ export default function AllPassesPage() {
                     <h5 className="font-semibold text-gray-900 mb-3">Visit Information</h5>
                     <dl className="space-y-2 text-sm">
                       <div><dt className="text-gray-600">Purpose:</dt><dd className="font-medium">{selectedPass.purposeOfVisit}</dd></div>
-                      <div><dt className="text-gray-600">Department:</dt><dd className="font-medium">{selectedPass.departmentToVisit}</dd></div>
-                      <div><dt className="text-gray-600">Person to Meet:</dt><dd className="font-medium">{selectedPass.personToMeetName}</dd></div>
                       <div><dt className="text-gray-600">Date:</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
                       <div><dt className="text-gray-600">Time:</dt><dd className="font-medium">{selectedPass.expectedEntryTime} - {selectedPass.expectedExitTime}</dd></div>
                     </dl>
@@ -533,7 +583,29 @@ export default function AllPassesPage() {
                     <div>
                       <h5 className="font-semibold text-gray-900 mb-3">Vehicle Information</h5>
                       <dl className="space-y-2 text-sm">
-                        <div><dt className="text-gray-600">Vehicle Number:</dt><dd className="font-medium">{selectedPass.vehicleNumber}</dd></div>
+                        <div><dt className="text-gray-600">Vehicle Number:</dt><dd className="font-medium">{selectedPass.vehicleNumber || 'N/A'}</dd></div>
+                        {selectedPass.vehicleType && (
+                          <div><dt className="text-gray-600">Vehicle Type:</dt><dd className="font-medium">{selectedPass.vehicleType}</dd></div>
+                        )}
+                        {selectedPass.vehicleModel && (
+                          <div><dt className="text-gray-600">Vehicle Model:</dt><dd className="font-medium">{selectedPass.vehicleModel}</dd></div>
+                        )}
+                      </dl>
+                    </div>
+                  )}
+
+                  {selectedPass.stayRequired && (
+                    <div>
+                      <h5 className="font-semibold text-gray-900 mb-3">Stay Information</h5>
+                      <dl className="space-y-2 text-sm">
+                        <div><dt className="text-gray-600">Check-in Date:</dt><dd className="font-medium">{selectedPass.checkInDate || selectedPass.visitDate}</dd></div>
+                        <div><dt className="text-gray-600">Check-out Date:</dt><dd className="font-medium">{selectedPass.checkOutDate || 'N/A'}</dd></div>
+                        {selectedPass.hostelName && (
+                          <div><dt className="text-gray-600">Hostel:</dt><dd className="font-medium">{selectedPass.hostelName}</dd></div>
+                        )}
+                        {selectedPass.roomNumber && (
+                          <div><dt className="text-gray-600">Room Number:</dt><dd className="font-medium">{selectedPass.roomNumber}</dd></div>
+                        )}
                       </dl>
                     </div>
                   )}
@@ -542,12 +614,45 @@ export default function AllPassesPage() {
                     <h5 className="font-semibold text-gray-900 mb-3">Entry/Exit Records</h5>
                     <dl className="space-y-2 text-sm">
                       <div><dt className="text-gray-600">Created At:</dt><dd className="font-medium">{new Date(selectedPass.createdAt).toLocaleString()}</dd></div>
-                      <div><dt className="text-gray-600">Created By:</dt><dd className="font-medium">{selectedPass.creator?.username || 'System'}</dd></div>
+                      <div><dt className="text-gray-600">Created By:</dt><dd className="font-medium">{selectedPass.createdBy?.employeeDetails?.displayName || selectedPass.creator?.username || 'Unknown'}</dd></div>
                       {selectedPass.actualEntryTime && (
-                        <div className="text-green-600"><dt>Entry Time:</dt><dd className="font-medium">{selectedPass.actualEntryTime}</dd></div>
+                        <div className="text-green-600">
+                          <dt>Entry Time:</dt>
+                          <dd className="font-medium">
+                            {new Date(selectedPass.actualEntryTime).toLocaleString('en-US', { 
+                              dateStyle: 'short', 
+                              timeStyle: 'short',
+                              hour12: true 
+                            })}
+                          </dd>
+                        </div>
                       )}
                       {selectedPass.actualExitTime && (
-                        <div className="text-gray-600"><dt>Exit Time:</dt><dd className="font-medium">{selectedPass.actualExitTime}</dd></div>
+                        <div className="text-gray-600">
+                          <dt>Exit Time:</dt>
+                          <dd className="font-medium">
+                            {new Date(selectedPass.actualExitTime).toLocaleString('en-US', { 
+                              dateStyle: 'short', 
+                              timeStyle: 'short',
+                              hour12: true 
+                            })}
+                          </dd>
+                        </div>
+                      )}
+                      {selectedPass.actualEntryTime && selectedPass.actualExitTime && (
+                        <div className="text-blue-600">
+                          <dt>Total Duration:</dt>
+                          <dd className="font-medium">
+                            {(() => {
+                              const entry = new Date(selectedPass.actualEntryTime);
+                              const exit = new Date(selectedPass.actualExitTime);
+                              const diffMs = exit.getTime() - entry.getTime();
+                              const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                              const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                              return `${diffHours}h ${diffMinutes}m`;
+                            })()}
+                          </dd>
+                        </div>
                       )}
                     </dl>
                   </div>

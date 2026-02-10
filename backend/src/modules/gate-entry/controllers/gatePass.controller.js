@@ -29,28 +29,43 @@ class GatePassController {
       console.log('User ID:', userId);
       console.log('Request Body:', JSON.stringify(passData, null, 2));
 
-      // Map frontend field names to backend schema
+      // Map frontend field names to backend schema (simplified form)
       const mappedData = {
+        // Required fields
         visitorName: passData.fullName,
         mobileNumber: passData.mobileNumber,
+        purposeOfVisit: passData.purposeOfVisit,
+        visitDate: passData.visitDate,
+        expectedEntryTime: passData.expectedEntryTime,
+        expectedExitTime: passData.expectedExitTime,
+        
+        // Optional fields - only include if provided
+        visitorRelation: passData.visitorRelation,
+        purposeOther: passData.purposeOther,
+        
+        // Vehicle details (optional)
+        hasVehicle: passData.bringingVehicle || false,
+        vehicleType: passData.vehicleType,
+        vehicleNumber: passData.vehicleNumber,
+        vehicleModel: passData.vehicleModel,
+        
+        // Stay details (optional for multi-day visits)
+        stayRequired: passData.stayRequired || false,
+        checkInDate: passData.checkInDate,
+        checkOutDate: passData.checkOutDate,
+        hostelName: passData.hostelName,
+        roomNumber: passData.roomNumber,
+        
+        // Legacy fields (for backward compatibility - optional)
         email: passData.email,
         idProofType: passData.idProofType,
         idProofNumber: passData.idProofNumber,
         photo: passData.photo,
         gender: passData.gender,
         age: passData.age,
-        purposeOfVisit: passData.purposeOfVisit,
-        purposeOther: passData.purposeOther,
         departmentToVisit: passData.departmentToVisit,
-        personToMeetId: passData.personToMeetId, // Employee's user login ID
-        visitDate: passData.visitDate,
-        expectedEntryTime: passData.expectedEntryTime,
-        expectedExitTime: passData.expectedExitTime,
-        hasVehicle: passData.bringingVehicle,
-        vehicleType: passData.vehicleType,
-        vehicleNumber: passData.vehicleNumber,
-        vehicleModel: passData.vehicleModel,
-        numberOfPersons: passData.numberOfPersons,
+        personToMeetId: passData.personToMeetId,
+        numberOfPersons: passData.numberOfPersons || 1,
         itemsCarrying: passData.itemsCarrying,
         specialInstructions: passData.specialInstructions
       };
@@ -76,15 +91,19 @@ class GatePassController {
   /**
    * Get all gate passes with filters  
    * GET /api/v1/gate-entry/passes
+   * Admin and Guards see all passes, others see only their own
    */
   async getAllPasses(req, res) {
     try {
+      const userId = req.user.id;
+      
       const filters = {
         search: req.query.search,
         status: req.query.status,
         dateFilter: req.query.dateFilter,
         page: parseInt(req.query.page) || 1,
-        limit: parseInt(req.query.limit) || 50
+        limit: parseInt(req.query.limit) || 50,
+        userId: userId  // Pass user ID for role-based filtering
       };
 
       const result = await gatePassService.getAllPasses(filters);
@@ -162,7 +181,8 @@ class GatePassController {
       const guardId = req.user.id;
       const entryData = {
         gate: req.body.gate,
-        remarks: req.body.remarks
+        remarks: req.body.remarks,
+        verificationCode: req.body.verificationCode // Optional verification code
       };
 
       const pass = await gatePassService.allowEntry(passId, guardId, entryData);

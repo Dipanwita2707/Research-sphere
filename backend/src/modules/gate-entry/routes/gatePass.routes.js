@@ -1,94 +1,79 @@
 const express = require('express');
 const router = express.Router();
 const gatePassController = require('../controllers/gatePass.controller');
-const employeeController = require('../controllers/employee.controller');
-const { protect } = require('../../../shared/middleware/auth');
+const { protect, checkGateEntryAccess } = require('../../../shared/middleware/auth');
 
 // All routes require authentication
 router.use(protect);
 
 /**
- * @route GET /api/v1/gate-entry/employees
- * @desc Get all active employees for dropdown
- * @access Private (Admin, Staff)
- */
-router.get('/employees', employeeController.getActiveEmployees);
-
-/**
- * @route GET /api/v1/gate-entry/departments
- * @desc Get all active departments for dropdown
- * @access Private (Admin, Staff)
- */
-router.get('/departments', employeeController.getActiveDepartments);
-
-/**
  * @route POST /api/v1/gate-entry/create-pass
  * @desc Create a new gate pass
- * @access Private (Admin, Staff)
+ * @access Private (Students can create, others have full access)
  */
-router.post('/create-pass', gatePassController.createPass);
+router.post('/create-pass', checkGateEntryAccess(), gatePassController.createPass);
 
 /**
  * @route GET /api/v1/gate-entry/passes
  * @desc Get all gate passes with filters
- * @access Private
+ * @access Private (Not Students)
  */
-router.get('/passes', gatePassController.getAllPasses);
+router.get('/passes', checkGateEntryAccess(), gatePassController.getAllPasses);
 
 /**
  * @route GET /api/v1/gate-entry/stats
  * @desc Get gate pass statistics
- * @access Private
+ * @access Private (Not Students)
  */
-router.get('/stats', gatePassController.getStats);
+router.get('/stats', checkGateEntryAccess(), gatePassController.getStats);
 
 /**
  * @route POST /api/v1/gate-entry/verify
  * @desc Verify/Search pass (for guards)
- * @access Private (Guards)
+ * @access Private (Admin, Guards only)
  */
-router.post('/verify', gatePassController.verifyPass);
+router.post('/verify', checkGateEntryAccess(true), gatePassController.verifyPass);
 
 /**
  * @route POST /api/v1/gate-entry/allow-entry/:passId
  * @desc Allow entry (guard action)
- * @access Private (Guards)
+ * @access Private (Admin, Guards only)
  */
-router.post('/allow-entry/:passId', gatePassController.allowEntry);
+router.post('/allow-entry/:passId', checkGateEntryAccess(true), gatePassController.allowEntry);
 
 /**
  * @route POST /api/v1/gate-entry/deny-entry/:passId
  * @desc Deny entry (guard action)
- * @access Private (Guards)
+ * @access Private (Admin, Guards only)
  */
-router.post('/deny-entry/:passId', gatePassController.denyEntry);
+router.post('/deny-entry/:passId', checkGateEntryAccess(true), gatePassController.denyEntry);
 
 /**
  * @route POST /api/v1/gate-entry/record-exit/:passId
  * @desc Record exit (guard action)
- * @access Private (Guards)
+ * @access Private (Admin, Guards only)
  */
-router.post('/record-exit/:passId', gatePassController.recordExit);
+router.post('/record-exit/:passId', checkGateEntryAccess(true), gatePassController.recordExit);
 
 /**
  * @route POST /api/v1/gate-entry/cancel/:passId
  * @desc Cancel a pass
- * @access Private
+ * @access Private (Not Students)
  */
-router.post('/cancel/:passId', gatePassController.cancelPass);
+router.post('/cancel/:passId', checkGateEntryAccess(), gatePassController.cancelPass);
 
 /**
  * @route GET /api/v1/gate-entry/check-in-history
  * @desc Get check-in history (for guards)
- * @access Private (Guards)
+ * @access Private (Admin, Guards only)
  */
-router.get('/check-in-history', gatePassController.getCheckInHistory);
+router.get('/check-in-history', checkGateEntryAccess(true), gatePassController.getCheckInHistory);
 
 /**
  * @route GET /api/v1/gate-entry/export-excel
  * @desc Export check-in history to Excel
- * @access Private (Guards, Admin)
+ * @access Private (Admin, Guards only)
  */
-router.get('/export-excel', gatePassController.exportToExcel);
+router.get('/export-excel', checkGateEntryAccess(true), gatePassController.exportToExcel);
 
 module.exports = router;

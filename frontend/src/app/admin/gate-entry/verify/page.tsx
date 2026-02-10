@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Search, CheckCircle, XCircle, User, Calendar, Clock, Car, Building, AlertCircle, Loader2, Camera } from 'lucide-react';
 import { gateEntryService } from '@/shared/services/gateEntry.service';
+import { useAuthStore } from '@/shared/auth/authStore';
+import { useRouter } from 'next/navigation';
 // @ts-ignore - html5-qrcode doesn't have type definitions
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import './qr-scanner.css';
@@ -33,9 +35,13 @@ interface Pass {
   status: string;
   specialInstructions?: string;
   itemsCarrying?: string;
+  verificationCode?: string;
 }
 
 export default function VerifyPassPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  
   const [activeTab, setActiveTab] = useState<'manual' | 'qr'>('manual');
   const [searchType, setSearchType] = useState<'passId' | 'mobile' | 'visitorName' | 'vehicleNumber'>('passId');
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,6 +52,27 @@ export default function VerifyPassPage() {
   const [scannerInitialized, setScannerInitialized] = useState(false);
   const scannerRef = useRef<Html5QrcodeScanner | null>(null);
   const qrReaderRef = useRef<HTMLDivElement>(null);
+  
+  // Verification modal states
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationMethod, setVerificationMethod] = useState<'qr' | 'code' | null>(null);
+  const [verificationCodeInput, setVerificationCodeInput] = useState('');
+  const verifyQrReaderRef = useRef<HTMLDivElement>(null);
+  const verifyScannerRef = useRef<Html5QrcodeScanner | null>(null);
+
+  // Page-level access control - Only Admin and Guard can verify passes
+  useEffect(() => {
+    if (!user) return;
+    
+    const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+    const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
+    const isGuard = userDesignation.includes('guard') || userDesignation.includes('security');
+    
+    // Redirect if not Admin or Guard
+    if (!isAdmin && !isGuard) {
+      router.push('/admin/gate-entry');
+    }
+  }, [user, router]);
 
   // Initialize QR Scanner when QR tab is active
   useEffect(() => {
@@ -229,13 +256,65 @@ export default function VerifyPassPage() {
 
   const handleAllowEntry = async () => {
     if (!pass) return;
+    // Show verification modal instead of directly allowing entry
+    setShowVerificationModal(true);
+    setVerificationMethod(null);
+    setVerificationCodeInput('');
+  };
+  
+  const handleVerificationMethodSelect = (method: 'qr' | 'code') => {
+    setVerificationMethod(method);
+    
+    if (method === 'qr') {
+      // Initialize QR scanner for verification
+      setTimeout(() => {
+        if (verifyScannerRef.current) {
+          verifyScannerRef.current.clear().catch(() => {});
+        }
+        
+        const scanner = new Html5QrcodeScanner(
+          'verify-qr-reader',
+          { 
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+            showTorchButtonIfSupported: true,
+          },
+          false
+        );
+
+        scanner.render(
+          (decodedText: string) => {
+            // Success - QR code matches pass
+            confirmAllowEntry();
+            scanner.clear().catch(() => {});
+          },
+          () => {}
+        );
+
+        verifyScannerRef.current = scanner;
+      }, 100);
+    }
+  };
+  
+  const confirmAllowEntry = async (code?: string) => {
+    if (!pass) return;
 
     try {
       setActionLoading(true);
       await gateEntryService.allowEntry(pass.passId, {
         gate: 'Main Gate',
-        remarks: 'Entry verified and allowed'
+        remarks: 'Entry verified and allowed',
+        verificationCode: code || undefined
       });
+      
+      // Close modal and cleanup
+      setShowVerificationModal(false);
+      setVerificationMethod(null);
+      if (verifyScannerRef.current) {
+        verifyScannerRef.current.clear().catch(() => {});
+        verifyScannerRef.current = null;
+      }
       
       // Refresh pass data
       const response = await gateEntryService.verifyPass(pass.passId, 'passId');
@@ -246,6 +325,20 @@ export default function VerifyPassPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+  
+  const handleCodeVerification = () => {
+    if (!verificationCodeInput.trim()) {
+      alert('Please enter verification code');
+      return;
+    }
+    
+    if (verificationCodeInput.trim() !== pass?.verificationCode) {
+      alert('❌ Invalid verification code. Please try again.');
+      return;
+    }
+    
+    confirmAllowEntry(verificationCodeInput);
   };
 
   const handleDenyEntry = async () => {
@@ -748,6 +841,196 @@ export default function VerifyPassPage() {
           </div>
         )}
       </div>
+      
+      {/* Verification Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  🔐 Verify Visitor Identity
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowVerificationModal(false);
+                    setVerificationMethod(null);
+                    if (verifyScannerRef.current) {
+                      verifyScannerRef.current.clear().catch(() => {});
+                      verifyScannerRef.current = null;
+                    }
+                  }}
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              <p className="text-blue-100 text-sm mt-1">Choose verification method</p>
+            </div>
+
+            <div className="p-6">
+              {!verificationMethod && (
+                <>
+                  <div className="mb-6">
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                      <div className="flex items-start">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h3 className="font-semibold text-yellow-900">Visitor Identity Verification Required</h3>
+                          <p className="text-sm text-yellow-700 mt-1">
+                            Before allowing entry, verify the visitor's identity using one of the methods below.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* QR Code Option */}
+                    <button
+                      onClick={() => handleVerificationMethodSelect('qr')}
+                      className="group relative bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-300 hover:border-blue-500 rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
+                    >
+                      <div className="text-center">
+                        <div className="bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                          <Camera className="w-8 h-8" />
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900 mb-2">Scan QR Code</h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Ask visitor to show QR code from their gate pass
+                        </p>
+                        <div className="bg-blue-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
+                          Open Camera
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Verification Code Option */}
+                    <button
+                      onClick={() => handleVerificationMethodSelect('code')}
+                      className="group relative bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 border-2 border-green-300 hover:border-green-500 rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
+                    >
+                      <div className="text-center">
+                        <div className="bg-green-600 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                          <span className="text-2xl font-bold">123</span>
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900 mb-2">Enter Code</h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Ask visitor for their 6-digit verification code
+                        </p>
+                        <div className="bg-green-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
+                          Enter Code
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* QR Scanner */}
+              {verificationMethod === 'qr' && (
+                <div>
+                  <div className="mb-4">
+                    <button
+                      onClick={() => {
+                        setVerificationMethod(null);
+                        if (verifyScannerRef.current) {
+                          verifyScannerRef.current.clear().catch(() => {});
+                          verifyScannerRef.current = null;
+                        }
+                      }}
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                    >
+                      ← Back to options
+                    </button>
+                  </div>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                      <Camera className="w-5 h-5" />
+                      Scan Visitor's QR Code
+                    </h3>
+                    <p className="text-sm text-blue-700">
+                      Ask the visitor to show their gate pass QR code. Position it within the camera frame.
+                    </p>
+                  </div>
+
+                  <div id="verify-qr-reader" ref={verifyQrReaderRef} className="mb-4"></div>
+                  
+                  {actionLoading && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+                        <p className="text-green-800 font-medium">Verifying and allowing entry...</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Code Entry */}
+              {verificationMethod === 'code' && (
+                <div>
+                  <div className="mb-4">
+                    <button
+                      onClick={() => setVerificationMethod(null)}
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                    >
+                      ← Back to options
+                    </button>
+                  </div>
+                  
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <h3 className="font-semibold text-green-900 mb-2">
+                      Enter 6-Digit Verification Code
+                    </h3>
+                    <p className="text-sm text-green-700">
+                      Ask the visitor to provide the 6-digit code they received with their gate pass.
+                    </p>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Verification Code
+                    </label>
+                    <input
+                      type="text"
+                      value={verificationCodeInput}
+                      onChange={(e) => setVerificationCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Enter 6-digit code"
+                      maxLength={6}
+                      className="w-full px-4 py-3 text-2xl font-bold text-center border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 tracking-widest"
+                      autoFocus
+                    />
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Code should be 6 digits (numbers only)
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleCodeVerification}
+                    disabled={actionLoading || verificationCodeInput.length !== 6}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg transition-all hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Verifying...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5" />
+                        Verify & Allow Entry
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

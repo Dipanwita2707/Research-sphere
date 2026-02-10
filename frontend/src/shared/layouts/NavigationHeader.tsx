@@ -92,6 +92,12 @@ export default function NavigationHeader() {
   const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
   const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
 
+  // Gate Entry Access Control based on designation
+  const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
+  const isGuard = userDesignation.includes('guard') || userDesignation.includes('security');
+  const hasFullGateEntryAccess = isAdmin || isGuard;
+  const showGateEntryModule = true; // All users including students can now create passes
+
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
   const hasDrdAccess = hasDrdPermissions(userPermissions) || isAdmin;
@@ -426,17 +432,40 @@ export default function NavigationHeader() {
   });
 
   // ============================================
-  // ADMINISTRATION - For system admins only
+  // ADMINISTRATION - Gate Entry module always inside Administration
+  // Admin & Guard: Full access (Create, All Passes, Verify Pass)
+  // Others (Faculty/Staff): Limited access (Create & All Passes only)
+  // Students: Pass Creation only
   // ============================================
-  if (isAdmin) {
-    menuItems.push({
-      name: 'Administration',
-      subItems: [
-        // Analytics & Reports
+  if (showGateEntryModule) {
+    const gateEntryChildren: SubMenuItem[] = [];
+    
+    // Everyone gets Create Pass
+    gateEntryChildren.push(
+      { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' }
+    );
+    
+    // Non-students get All Passes view
+    if (!isStudent) {
+      gateEntryChildren.push(
+        { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' }
+      );
+    }
+
+    // Admin and Guard get Verify Pass feature
+    if (hasFullGateEntryAccess) {
+      gateEntryChildren.push(
+        { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' }
+      );
+    }
+
+    const administrationSubItems: SubMenuItem[] = [];
+
+    // Only Admin gets other Administration features
+    if (isAdmin) {
+      administrationSubItems.push(
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
-        
-        // Organization Management
         {
           name: '🏛️ Organization Structure',
           description: 'Schools, Departments & Programs',
@@ -447,8 +476,6 @@ export default function NavigationHeader() {
             { name: '🏛️ Central Departments', href: '/admin/central-departments', description: 'Admin & support departments' },
           ],
         },
-        
-        // User Management
         {
           name: '👥 User Management',
           description: 'Employees, Students & Permissions',
@@ -458,19 +485,20 @@ export default function NavigationHeader() {
             { name: '🔐 Role Permissions', href: '/admin/permissions', description: 'Configure access rights' },
             { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
           ],
-        },
-        
-        // Gate Entry Management
-        {
-          name: '🚪 Gate Entry',
-          description: 'Manage campus gate entries',
-          children: [
-            { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' },
-            { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' },
-            { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' },
-          ],
-        },
-      ],
+        }
+      );
+    }
+
+    // Gate Entry - Always present for everyone (Admin, Guard, Others)
+    administrationSubItems.push({
+      name: '🚪 Gate Entry',
+      description: 'Manage campus gate entries',
+      children: gateEntryChildren,
+    });
+
+    menuItems.push({
+      name: 'Administration',
+      subItems: administrationSubItems,
     });
   }
 

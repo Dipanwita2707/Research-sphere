@@ -1,56 +1,42 @@
 import api from '@/shared/api/api';
 
-// Types for Gate Entry
-export interface Employee {
-  id: string;
-  employeeId: string;
-  userLoginId: string;
-  name: string;
-  empId: string;
-  designation: string;
-  department: string;
-  email: string;
-  phone: string;
-  role: string;
-}
-
-export interface Department {
-  id: string;
-  code: string;
-  name: string;
-  shortName: string;
-  type: string;
-  faculty: string | null;
-}
-
+// Types for Gate Entry (simplified form)
 export interface CreateGatePassData {
   // Visitor Personal Details
   fullName: string;
   mobileNumber: string;
-  email: string;
-  idProofType: string;
-  idProofNumber: string;
-  photo?: File | null;
-  gender: string;
-  age: number;
+  visitorRelation?: string;
   
   // Visit Details
   purposeOfVisit: string;
   purposeOther?: string;
-  departmentToVisit: string;
-  personToMeetId: string; // Changed from personToMeet to personToMeetId
   visitDate: string;
   expectedEntryTime: string;
   expectedExitTime: string;
   
   // Vehicle Details
-  bringingVehicle: boolean;
+  bringingVehicle?: boolean;
   vehicleType?: string;
   vehicleNumber?: string;
   vehicleModel?: string;
   
-  // Additional Information
-  numberOfPersons: number;
+  // Stay Details
+  stayRequired?: boolean;
+  checkInDate?: string;
+  checkOutDate?: string;
+  hostelName?: string;
+  roomNumber?: string;
+  
+  // Legacy fields (optional for backward compatibility)
+  email?: string;
+  idProofType?: string;
+  idProofNumber?: string;
+  photo?: File | null;
+  gender?: string;
+  age?: number;
+  departmentToVisit?: string;
+  personToMeetId?: string;
+  numberOfPersons?: number;
   specialInstructions?: string;
   itemsCarrying?: string;
 }
@@ -60,17 +46,18 @@ export interface GatePass {
   passId: string;
   visitorName: string;
   mobileNumber: string;
-  email: string;
-  idProofType: string;
-  idProofNumber: string;
+  visitorRelation?: string;
+  email?: string;
+  idProofType?: string;
+  idProofNumber?: string;
   photoPath?: string;
-  gender: string;
-  age: number;
+  gender?: string;
+  age?: number;
   purposeOfVisit: string;
   purposeOther?: string;
-  departmentToVisit: string;
+  departmentToVisit?: string;
   personToMeetId?: string;
-  personToMeetName: string;
+  personToMeetName?: string;
   visitDate: string;
   expectedEntryTime: string;
   expectedExitTime: string;
@@ -78,11 +65,17 @@ export interface GatePass {
   vehicleType?: string;
   vehicleNumber?: string;
   vehicleModel?: string;
-  numberOfPersons: number;
+  stayRequired?: boolean;
+  checkInDate?: string;
+  checkOutDate?: string;
+  hostelName?: string;
+  roomNumber?: string;
+  numberOfPersons?: number;
   specialInstructions?: string;
   itemsCarrying?: string;
   status: string;
   qrCode?: string;
+  verificationCode?: string;
   actualEntryTime?: string;
   actualExitTime?: string;
   entryGuardId?: string;
@@ -134,22 +127,6 @@ export interface VerifyPassResponse {
 }
 
 class GateEntryService {
-  /**
-   * Get all active employees for gate entry dropdown
-   */
-  async getActiveEmployees(): Promise<{ success: boolean; data: { employees: Employee[]; count: number } }> {
-    const response = await api.get('/gate-entry/employees');
-    return response.data;
-  }
-
-  /**
-   * Get all active departments for gate entry dropdown
-   */
-  async getActiveDepartments(): Promise<{ success: boolean; data: { departments: Department[]; count: number } }> {
-    const response = await api.get('/gate-entry/departments');
-    return response.data;
-  }
-
   /**
    * Create a new gate pass
    */
@@ -209,7 +186,7 @@ class GateEntryService {
   /**
    * Allow entry for a verified pass
    */
-  async allowEntry(passId: string, data: { gate?: string; remarks?: string }): Promise<{ success: boolean; pass: GatePass }> {
+  async allowEntry(passId: string, data: { gate?: string; remarks?: string; verificationCode?: string }): Promise<{ success: boolean; pass: GatePass }> {
     const response = await api.post<{ success: boolean; data: { pass: GatePass } }>(
       `/gate-entry/allow-entry/${passId}`,
       data
