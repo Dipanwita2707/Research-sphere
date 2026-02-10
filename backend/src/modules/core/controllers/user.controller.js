@@ -109,13 +109,58 @@ exports.searchUsersByPartialUid = async (req, res) => {
     
     console.log('Searching users with query:', query, 'role filter:', role);
 
-    if (!query || query.length < 3) {
+    if (!query || query.length < 2) {
       return res.status(400).json({
         success: false,
-        message: 'Search query must be at least 3 characters'
+        message: 'Search query must be at least 2 characters'
       });
     }
 
+    // If searching for students, search in studentDetails
+    if (role === 'student') {
+      console.log('🔍 Searching students with query:', query);
+      
+      const students = await prisma.studentDetails.findMany({
+        where: {
+          OR: [
+            { studentId: { contains: query, mode: 'insensitive' } },
+            { registrationNo: { contains: query, mode: 'insensitive' } },
+            { firstName: { contains: query, mode: 'insensitive' } },
+            { lastName: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+          ],
+          isActive: true,
+        },
+        take: 10,
+        include: {
+          program: {
+            select: {
+              programName: true,
+            },
+          },
+        },
+      });
+
+      console.log('📋 Found students:', students.length);
+
+      const suggestions = students.map(student => ({
+        uid: student.studentId,
+        id: student.id,
+        name: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+        role: 'student',
+        department: student.program?.programName || 'N/A',
+        designation: `Semester ${student.currentSemester}`,
+        email: student.email,
+        registrationNo: student.registrationNo,
+      }));
+
+      return res.status(200).json({
+        success: true,
+        data: suggestions,
+      });
+    }
+
+    // For non-student roles, search in userLogin
     const whereClause = {
       uid: {
         contains: query,

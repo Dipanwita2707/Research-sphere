@@ -373,11 +373,12 @@ export default function NavigationHeader() {
       description: 'Academic resources and tools',
       children: [
         { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
-        { name: '📖 Courses', href: '#', description: 'Course management (Coming Soon)' },
-        { name: '📅 Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
-        { name: '📝 Examinations', href: '#', description: 'Exam management (Coming Soon)' },
-        { name: '🏆 Results', href: '#', description: 'Academic results (Coming Soon)' },
-        { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
+       
+        { name: '�Courses', href: '#', description: 'Course management (Coming Soon)' },
+        { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
+        { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
+        { name: 'Results', href: '#', description: 'Academic results (Coming Soon)' },
+        { name: 'Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
       ],
     },
   ];
@@ -424,6 +425,24 @@ export default function NavigationHeader() {
     href: 'https://192.168.7.20:3000',
     description: 'RFID access system',
   });
+
+  // Add DSW (Division of Student Welfare) for Faculty, Staff, and Admin
+  if (isFaculty || isAdmin) {
+    navigationSubItems.push({
+      name: '🎓 Division of Student Welfare',
+      description: 'Student Clubs & Activities',
+      children: [
+        { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
+        { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
+        { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am involved in' },
+        ...(isFaculty ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
+        ...(isAdmin ? [
+          { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
+          { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
+        ] : []),
+      ],
+    });
+  }
 
   // Add Navigation menu
   menuItems.push({
@@ -482,7 +501,7 @@ export default function NavigationHeader() {
           children: [
             { name: '👨‍🏫 Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
             { name: '👨‍🎓 Students', href: '/admin/students', description: 'Manage student records' },
-            { name: '🔐 Role Permissions', href: '/admin/permissions', description: 'Configure access rights' },
+            { name: '🛡️ User & Role Management', href: '/admin/roles', description: 'Assign permissions & create role templates' },
             { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
           ],
         }

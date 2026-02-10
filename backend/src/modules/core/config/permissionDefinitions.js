@@ -56,14 +56,6 @@ const SCHOOL_DEPARTMENT_PERMISSIONS = {
     { key: 'approve_marks', label: 'Approve Marks', category: 'Examinations' },
     { key: 'generate_results', label: 'Generate Results', category: 'Examinations' },
   ],
-  
-  // Research
-  research: [
-    { key: 'view_research', label: 'View Research', category: 'Research' },
-    { key: 'add_research', label: 'Add Research', category: 'Research' },
-    { key: 'edit_research', label: 'Edit Research', category: 'Research' },
-    { key: 'approve_research', label: 'Approve Research', category: 'Research' },
-  ],
 };
 
 const CENTRAL_DEPARTMENT_PERMISSIONS = {

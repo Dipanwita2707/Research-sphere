@@ -75,6 +75,7 @@ export default function EmployeeManagement() {
     alternateNumber: '',
     personalEmail: '',
     designation: '',
+    officerLevel: '',
     employeeCategory: 'teaching',
     employeeType: 'permanent',
     dateOfJoining: '',
@@ -644,6 +645,28 @@ export default function EmployeeManagement() {
                       placeholder="Professor, Assistant Professor, etc."
                       className="w-full px-3 py-2 border rounded-md"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Officer Level
+                    </label>
+                    <select
+                      value={formData.officerLevel}
+                      onChange={(e) => setFormData({ ...formData, officerLevel: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-md"
+                    >
+                      <option value="">Select Officer Level</option>
+                      <option value="O1">O1</option>
+                      <option value="O2">O2</option>
+                      <option value="O3">O3</option>
+                      <option value="O4">O4</option>
+                      <option value="O5">O5</option>
+                      <option value="O6">O6</option>
+                      <option value="O7">O7</option>
+                      <option value="O8">O8</option>
+                      <option value="O9">O9</option>
+                      <option value="O10">O10</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

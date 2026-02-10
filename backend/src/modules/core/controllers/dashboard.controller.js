@@ -85,16 +85,19 @@ exports.getStaffDashboard = async (req, res) => {
     const { data: cachedData, fromCache } = await cache.getOrSet(
       cacheKey,
       async () => {
-        // OPTIMIZED: Parallel queries instead of deep includes
-        const [user, schoolDeptPerms, centralDeptPerms] = await Promise.all([
-          // Basic user info with employee details
-          prisma.userLogin.findUnique({
-            where: { id: userId },
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              employeeDetails: {
+        // Use merged permissions from req.user (includes role-based permissions)
+        // req.user already has centralDeptPermissions and schoolDeptPermissions merged with role-based perms
+        const schoolDeptPerms = req.user?.schoolDeptPermissions || [];
+        const centralDeptPerms = req.user?.centralDeptPermissions || [];
+        
+        // Fetch basic user info with employee details
+        const user = await prisma.userLogin.findUnique({
+          where: { id: userId },
+          select: {
+            id: true,
+            uid: true,
+            email: true,
+            employeeDetails: {
                 select: {
                   designation: true,
                   primaryDepartmentId: true,
@@ -112,32 +115,7 @@ exports.getStaffDashboard = async (req, res) => {
                 }
               }
             }
-          }),
-          // School department permissions
-          prisma.departmentPermission.findMany({
-            where: { userId, isActive: true },
-            select: {
-              departmentId: true,
-              permissions: true,
-              isPrimary: true,
-              department: {
-                select: { departmentName: true }
-              }
-            }
-          }),
-          // Central department permissions
-          prisma.centralDepartmentPermission.findMany({
-            where: { userId, isActive: true },
-            select: {
-              centralDeptId: true,
-              permissions: true,
-              isPrimary: true,
-              centralDept: {
-                select: { departmentName: true }
-              }
-            }
-          })
-        ]);
+        });
 
         if (!user) {
           return null;

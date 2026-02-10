@@ -26,8 +26,13 @@ exports.getPendingReviews = async (req, res) => {
       return exports.getAllPendingReviews(req, res);
     }
 
-    // Get user's DRD permissions and assigned schools
+    // Get user's DRD permissions from req.user (includes both direct and role-based permissions)
     let userDrdPermission = null;
+    let mergedPermissions = {};
+    let assignedResearchSchoolIds = [];
+    let assignedBookSchoolIds = [];
+    let assignedConferenceSchoolIds = [];
+    
     try {
       const drdDept = await prisma.centralDepartment.findFirst({
         where: {
@@ -40,6 +45,7 @@ exports.getPendingReviews = async (req, res) => {
       });
 
       if (drdDept) {
+        // First, get direct DRD permission for school assignments
         userDrdPermission = await prisma.centralDepartmentPermission.findFirst({
           where: {
             userId,
@@ -53,15 +59,31 @@ exports.getPendingReviews = async (req, res) => {
             assignedConferenceSchoolIds: true
           }
         });
+        
+        // Get school assignments from direct permission
+        assignedResearchSchoolIds = userDrdPermission?.assignedResearchSchoolIds || [];
+        assignedBookSchoolIds = userDrdPermission?.assignedBookSchoolIds || [];
+        assignedConferenceSchoolIds = userDrdPermission?.assignedConferenceSchoolIds || [];
+        
+        // Merge permissions from direct assignment
+        mergedPermissions = { ...(userDrdPermission?.permissions || {}) };
+        
+        // Merge permissions from roles (from req.user which was populated by auth middleware)
+        if (req.user?.centralDeptPermissions && Array.isArray(req.user.centralDeptPermissions)) {
+          req.user.centralDeptPermissions.forEach(deptPerm => {
+            if (deptPerm.permissions) {
+              // Merge role permissions - they should have precedence
+              Object.assign(mergedPermissions, deptPerm.permissions);
+            }
+          });
+        }
       }
     } catch (permError) {
       console.log('Note: Error fetching DRD permissions:', permError.message);
     }
 
-    const permissions = userDrdPermission?.permissions || {};
-    const assignedResearchSchoolIds = userDrdPermission?.assignedResearchSchoolIds || [];
-    const assignedBookSchoolIds = userDrdPermission?.assignedBookSchoolIds || [];
-    const assignedConferenceSchoolIds = userDrdPermission?.assignedConferenceSchoolIds || [];
+    // Use merged permissions (direct + role-based)
+    const permissions = mergedPermissions;
 
     // Check research/book/conference permissions
     const hasApprovePermission = permissions.research_approve === true || 

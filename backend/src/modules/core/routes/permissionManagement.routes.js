@@ -53,6 +53,9 @@ router.use(restrictTo('admin'));
 // Get all users with their permissions (admin panel)
 router.get('/users/all', permissionMgmt.getAllUsersWithPermissions);
 
+// Assign roles to user
+router.post('/assign-roles', permissionMgmt.assignRolesToUser);
+
 // Grant permissions
 router.post('/school-department/grant', permissionMgmt.grantSchoolDeptPermissions);
 router.post('/central-department/grant', permissionMgmt.grantCentralDeptPermissions);

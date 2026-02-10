@@ -12,7 +12,7 @@ const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('📊 Database connected');
+  console.log('[INFO] Database connected');
 });
 
 pool.on('error', (err) => {
@@ -23,7 +23,7 @@ pool.on('error', (err) => {
 const connectDB = async () => {
   try {
     const client = await pool.connect();
-    console.log('✅ PostgreSQL connected successfully');
+    console.log('[SUCCESS] PostgreSQL connected successfully');
     client.release();
     return true;
   } catch (error) {

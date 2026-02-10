@@ -42,6 +42,15 @@ exports.getUserAllPermissions = async (req, res) => {
       });
     }
 
+    // Get user with assigned roles
+    const userWithRoles = await prisma.userLogin.findUnique({
+      where: { id: userId },
+      select: {
+        assignedRoleIds: true
+      }
+    });
+
+    // Fetch direct permissions and employee details
     const [schoolDeptPerms, centralDeptPerms, employee] = await Promise.all([
       // School department permissions
       prisma.departmentPermission.findMany({
@@ -73,7 +82,7 @@ exports.getUserAllPermissions = async (req, res) => {
           },
         },
       }),
-      // Central department permissions
+      // Central department permissions (direct only)
       prisma.centralDepartmentPermission.findMany({
         where: { userId, isActive: true },
         include: {
@@ -120,11 +129,89 @@ exports.getUserAllPermissions = async (req, res) => {
       }),
     ]);
 
+    // Fetch role-based permissions
+    const roleIds = userWithRoles?.assignedRoleIds || [];
+    let rolesWithPermissions = [];
+    
+    if (Array.isArray(roleIds) && roleIds.length > 0) {
+      rolesWithPermissions = await prisma.role.findMany({
+        where: {
+          id: { in: roleIds },
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          roleCode: true,
+          departmentType: true,
+          permissions: true,
+        },
+      });
+    }
+
+    // Create virtual permission entries for role-based permissions
+    const mergedCentralDeptPerms = [...centralDeptPerms];
+    const mergedSchoolDeptPerms = [...schoolDeptPerms];
+
+    rolesWithPermissions.forEach(role => {
+      const rolePerms = role.permissions || {};
+      
+      // Add central department permissions from role
+      if (rolePerms.centralDeptPermissions && Object.keys(rolePerms.centralDeptPermissions).length > 0) {
+        mergedCentralDeptPerms.push({
+          id: `role-${role.id}`,
+          userId: userId,
+          centralDeptId: `role-${role.id}`,
+          permissions: rolePerms.centralDeptPermissions,
+          isPrimary: false,
+          isActive: true,
+          assignedAt: null,
+          assignedBy: null,
+          centralDept: {
+            id: `role-${role.id}`,
+            departmentCode: role.roleCode || `ROLE-${role.id}`,
+            departmentName: `From Role: ${role.name}`,
+            shortName: role.roleCode || role.name,
+            departmentType: role.departmentType || 'central_department',
+          },
+          assignedByUser: null,
+          fromRole: true,
+          roleName: role.name,
+          roleCode: role.roleCode,
+        });
+      }
+
+      // Add school department permissions from role
+      if (rolePerms.schoolDeptPermissions && Object.keys(rolePerms.schoolDeptPermissions).length > 0) {
+        mergedSchoolDeptPerms.push({
+          id: `role-${role.id}`,
+          userId: userId,
+          departmentId: `role-${role.id}`,
+          permissions: rolePerms.schoolDeptPermissions,
+          isPrimary: false,
+          isActive: true,
+          assignedAt: null,
+          assignedBy: null,
+          department: {
+            id: `role-${role.id}`,
+            departmentCode: role.roleCode || `ROLE-${role.id}`,
+            departmentName: `From Role: ${role.name}`,
+            shortName: role.roleCode || role.name,
+            faculty: null,
+          },
+          assignedByUser: null,
+          fromRole: true,
+          roleName: role.name,
+          roleCode: role.roleCode,
+        });
+      }
+    });
+
     res.json({
       success: true,
       data: {
-        schoolDepartments: schoolDeptPerms,
-        centralDepartments: centralDeptPerms,
+        schoolDepartments: mergedSchoolDeptPerms,
+        centralDepartments: mergedCentralDeptPerms,
         primaryDepartment: employee?.primaryDepartment || null,
         primaryCentralDepartment: employee?.primaryCentralDept || null,
       },
@@ -657,6 +744,7 @@ exports.getAllUsersWithPermissions = async (req, res) => {
         uid: true,
         email: true,
         role: true,
+        assignedRoleIds: true, // Add assigned role IDs
         employeeDetails: {
           select: {
             firstName: true,
@@ -911,19 +999,29 @@ exports.getDrdMembersWithSchools = async (req, res) => {
       });
     }
 
-    // Get all users with DRD permissions
-    const drdMembers = await prisma.centralDepartmentPermission.findMany({
+    // Get all users with DIRECT DRD permissions
+    const directDrdMembers = await prisma.centralDepartmentPermission.findMany({
       where: {
         centralDeptId: drdDept.id,
         isActive: true,
       },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        permissions: true,
+        assignedSchoolIds: true,
+        assignedResearchSchoolIds: true,
+        assignedBookSchoolIds: true,
+        assignedConferenceSchoolIds: true,
+        assignedGrantSchoolIds: true,
+        assignedAt: true,
         user: {
           select: {
             id: true,
             uid: true,
             email: true,
             role: true,
+            assignedRoleIds: true,
             employeeDetails: {
               select: {
                 firstName: true,
@@ -942,6 +1040,92 @@ exports.getDrdMembersWithSchools = async (req, res) => {
       },
     });
 
+    // Get all active roles with DRD permissions
+    const rolesWithDrdPerms = await prisma.role.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { departmentType: 'CENTRAL' },
+          { departmentType: 'BOTH' },
+        ],
+      },
+    });
+
+    // Filter roles that have any DRD permissions
+    const drdRoleIds = rolesWithDrdPerms
+      .filter(role => {
+        const centralPerms = role.permissions?.centralDeptPermissions || {};
+        return Object.keys(centralPerms).some(key => 
+          key.includes('ipr_') || key.includes('research_') || key.includes('book_') || 
+          key.includes('conference_') || key.includes('grant_')
+        );
+      })
+      .map(role => role.id);
+
+    // Get all users with roles that have DRD permissions
+    let usersWithDrdRoles = [];
+    
+    if (drdRoleIds.length > 0) {
+      // Fetch all users and filter in JavaScript since Prisma's JSON array queries can be tricky
+      const allUsers = await prisma.userLogin.findMany({
+        where: {
+          assignedRoleIds: {
+            not: prisma.JsonNull,
+          },
+        },
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          role: true,
+          assignedRoleIds: true,
+          employeeDetails: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+              designation: true,
+              primaryDepartment: {
+                select: {
+                  departmentName: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      
+      // Filter users who have at least one DRD role assigned
+      usersWithDrdRoles = allUsers.filter(user => {
+        const roleIds = user.assignedRoleIds || [];
+        if (!Array.isArray(roleIds)) return false;
+        return roleIds.some(roleId => drdRoleIds.includes(roleId));
+      });
+    }
+
+    // Combine both lists (direct permissions + role-based permissions)
+    const allDrdUsers = new Map();
+    
+    // Add direct permission users
+    directDrdMembers.forEach(member => {
+      allDrdUsers.set(member.userId, {
+        directPermission: member,
+        user: member.user,
+      });
+    });
+    
+    // Add role-based permission users
+    usersWithDrdRoles.forEach(user => {
+      if (!allDrdUsers.has(user.id)) {
+        allDrdUsers.set(user.id, {
+          directPermission: null,
+          user: user,
+        });
+      }
+    });
+
+    const drdMembers = Array.from(allDrdUsers.values());
+
     // Get all schools for reference
     const schools = await prisma.facultySchoolList.findMany({
       where: { isActive: true },
@@ -955,21 +1139,55 @@ exports.getDrdMembersWithSchools = async (req, res) => {
     });
 
     // Map DRD members with their assigned school names
-    const membersWithSchools = drdMembers.map((member) => {
-      const assignedSchoolIds = member.assignedSchoolIds || [];
+    const membersWithSchools = drdMembers.map((memberData) => {
+      const { directPermission, user } = memberData;
+      
+      // Get permissions from direct assignment (if exists)
+      const directPerms = directPermission?.permissions || {};
+      
+      // Get permissions from assigned roles
+      const userRoleIds = user.assignedRoleIds || [];
+      const rolePerms = {};
+      
+      if (Array.isArray(userRoleIds) && userRoleIds.length > 0) {
+        rolesWithDrdPerms.forEach(role => {
+          if (userRoleIds.includes(role.id)) {
+            const centralPerms = role.permissions?.centralDeptPermissions || {};
+            // Merge role permissions
+            Object.assign(rolePerms, centralPerms);
+          }
+        });
+      }
+      
+      // Merge direct and role permissions (direct permissions take precedence)
+      const mergedPermissions = { ...rolePerms, ...directPerms };
+      
+      // Get assigned school IDs from direct permission (if exists) for ALL modules
+      const assignedSchoolIds = directPermission?.assignedSchoolIds || [];
+      const assignedResearchSchoolIds = directPermission?.assignedResearchSchoolIds || [];
+      const assignedBookSchoolIds = directPermission?.assignedBookSchoolIds || [];
+      const assignedConferenceSchoolIds = directPermission?.assignedConferenceSchoolIds || [];
+      const assignedGrantSchoolIds = directPermission?.assignedGrantSchoolIds || [];
+      
+      // Get school objects for each type
       const assignedSchools = schools.filter((s) => assignedSchoolIds.includes(s.id));
-      const permissions = member.permissions || {};
 
       return {
-        id: member.id,
-        userId: member.userId,
-        user: member.user,
-        permissions,
-        isDrdHead: permissions.ipr_approve === true,
-        isDrdMember: permissions.ipr_review === true,
+        id: directPermission?.id || `role-based-${user.id}`,
+        userId: user.id,
+        user: user,
+        permissions: mergedPermissions,
+        isDrdHead: mergedPermissions.ipr_approve === true || mergedPermissions.research_approve === true,
+        isDrdMember: mergedPermissions.ipr_review === true || mergedPermissions.research_review === true,
+        // Include ALL school assignment fields
         assignedSchoolIds,
+        assignedResearchSchoolIds,
+        assignedBookSchoolIds,
+        assignedConferenceSchoolIds,
+        assignedGrantSchoolIds,
         assignedSchools,
-        assignedAt: member.assignedAt,
+        assignedAt: directPermission?.assignedAt || null,
+        fromRole: !directPermission, // Flag to indicate this user has DRD perms only from roles
       };
     });
 
@@ -2962,6 +3180,80 @@ exports.getMyAssignedGrantSchools = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch assigned grant schools',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Assign roles to a user
+ */
+exports.assignRolesToUser = async (req, res) => {
+  try {
+    const { userId, roleIds } = req.body;
+
+    if (!userId || !Array.isArray(roleIds)) {
+      return res.status(400).json({
+        success: false,
+        message: 'User ID and role IDs array are required',
+      });
+    }
+
+    // Check authorization - only admin can assign roles
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to assign roles',
+      });
+    }
+
+    // Verify all roles exist
+    const roles = await prisma.role.findMany({
+      where: { id: { in: roleIds } },
+    });
+
+    if (roles.length !== roleIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more invalid role IDs',
+      });
+    }
+
+    // Update user with assigned role IDs
+    const updatedUser = await prisma.userLogin.update({
+      where: { id: userId },
+      data: {
+        assignedRoleIds: roleIds,
+      },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        employeeDetails: { select: { displayName: true } }
+      }
+    });
+
+    // Log audit
+    await logPermissionChange(
+      updatedUser,
+      {
+        type: 'role_assignment',
+        roleIds,
+        roleNames: roles.map(r => r.name)
+      },
+      req.user.id,
+      req
+    );
+
+    res.json({
+      success: true,
+      message: 'Roles assigned successfully',
+    });
+  } catch (error) {
+    console.error('Assign roles error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to assign roles',
       error: error.message,
     });
   }

@@ -6,6 +6,7 @@ import { Calendar, MapPin, Users, Plus, Search, Filter, X, Loader2, Calendar as 
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventFilters } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { useAuthStore } from '@/shared/auth/authStore';
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   seminar: 'Seminar',

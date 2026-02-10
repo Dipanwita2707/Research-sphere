@@ -32,10 +32,15 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
   useEffect(() => {
     if (isInitialized && !isLoading && !isAuthenticated) {
-      logger.debug('ProtectedRoute - Not authenticated, redirecting to login');
+      logger.warn('ProtectedRoute - Not authenticated, redirecting to login', {
+        isInitialized,
+        isLoading,
+        isAuthenticated,
+        hasUser: !!user
+      });
       router.push('/login');
     }
-  }, [isAuthenticated, isLoading, isInitialized, router]);
+  }, [isAuthenticated, isLoading, isInitialized, router, user]);
 
   if (!isInitialized || isLoading) {
     return (

@@ -616,7 +616,7 @@ const updateTrackerStatus = async (req, res) => {
           reportedDate: reportedDate ? new Date(reportedDate) : new Date(),
           actualDate: actualDate ? new Date(actualDate) : null,
           notes: isMonthlyReportFlag 
-            ? `📝 Monthly Report: ${notes || 'Progress update'}` 
+            ? `[INFO] Monthly Report: ${notes || 'Progress update'}` 
             : notes,
           statusData: statusData || {},
           attachments: attachments || []

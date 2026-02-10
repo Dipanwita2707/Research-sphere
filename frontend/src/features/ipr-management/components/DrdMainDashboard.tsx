@@ -124,11 +124,17 @@ export default function DrdMainDashboard() {
       setLoading(true);
       const response = await permissionManagementService.getUserPermissions(user!.id);
       
-      // Extract DRD permissions
+      // Extract ALL permissions from centralDepartments (includes both direct and role-based)
       const drdPermissions: Record<string, boolean> = {};
       response.data.centralDepartments.forEach(dept => {
-        if (dept.centralDept.departmentCode === 'DRD') {
-          Object.assign(drdPermissions, dept.permissions);
+        const perms = dept.permissions || {};
+        // Merge all permissions - the backend already includes role-based permissions
+        if (typeof perms === 'object') {
+          Object.keys(perms).forEach(key => {
+            if (perms[key] === true) {
+              drdPermissions[key] = true;
+            }
+          });
         }
       });
       

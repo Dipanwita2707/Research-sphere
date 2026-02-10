@@ -25,6 +25,7 @@ const createEmployee = async (req, res) => {
       
       // Professional details
       designation,
+      officerLevel,
       employeeCategory, // 'teaching' or 'non_teaching'
       employeeType, // 'permanent', 'temporary', 'contract', etc.
       dateOfJoining,
@@ -110,6 +111,7 @@ const createEmployee = async (req, res) => {
             ? `${firstName} ${middleName} ${lastName}` 
             : `${firstName} ${lastName}`,
           designation,
+          officerLevel: officerLevel || null,
           email: email,
           phoneNumber: mobileNumber || null,
           joinDate: dateOfJoining ? new Date(dateOfJoining) : new Date(),
@@ -449,6 +451,7 @@ const updateEmployee = async (req, res) => {
     if (updates.firstName) employeeUpdates.firstName = updates.firstName;
     if (updates.lastName) employeeUpdates.lastName = updates.lastName;
     if (updates.designation !== undefined) employeeUpdates.designation = updates.designation || null;
+    if (updates.officerLevel !== undefined) employeeUpdates.officerLevel = updates.officerLevel || null;
     if (updates.email) employeeUpdates.email = updates.email;
     if (updates.mobileNumber) employeeUpdates.phoneNumber = updates.mobileNumber;
     if (updates.dateOfJoining) employeeUpdates.joinDate = new Date(updates.dateOfJoining);

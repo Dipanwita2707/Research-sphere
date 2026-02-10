@@ -352,6 +352,19 @@ export default function NavigationHeader() {
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
         
+        // DSW - Division of Student Welfare
+        {
+          name: '🎓 Division of Student Welfare',
+          description: 'Student Clubs & Activities',
+          children: [
+            { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
+            { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
+            { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am member of' },
+            { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
+            { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
+          ],
+        },
+        
         // Organization Management
         {
           name: '🏛️ Organization Structure',
