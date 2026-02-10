@@ -839,14 +839,36 @@ const approve = asyncHandler(async (req, res) => {
     console.error('❌ Failed to auto-create event:', error.message);
   }
 
+  // Auto-create club if this is a DSW club creation noting
+  let clubCreated = false;
+  let clubId = null;
+  try {
+    if (updated.category === 'administrative' && updated.subcategory === 'dsw_club_creation') {
+      const dswNotingService = require('../../dsw/services/notingIntegrationService');
+      const club = await dswNotingService.processApprovedClubCreationNoting(updated, userId);
+      clubCreated = true;
+      clubId = club.clubId;
+      console.log(`✅ Auto-created club ${club.clubId} for noting ${updated.notingId}`);
+    }
+  } catch (error) {
+    // Log error but don't fail the approval
+    console.error('❌ Failed to auto-create club:', error.message);
+  }
+
   let successMessage = 'Note approved successfully';
   if (eventCreated && eventId) {
     successMessage = `Note approved successfully. Event ${eventId} created in DRAFT status. The creator can now add details and publish it.`;
   }
+  if (clubCreated && clubId) {
+    successMessage = `Note approved successfully. Club ${clubId} has been created and is now ACTIVE.`;
+  }
+  if (eventCreated && clubCreated) {
+    successMessage = `Note approved successfully. Event ${eventId} and Club ${clubId} have been created.`;
+  }
 
   return ApiResponse.success(
     res,
-    { ...updated, eventCreated, eventId },
+    { ...updated, eventCreated, eventId, clubCreated, clubId },
     successMessage
   );
 });

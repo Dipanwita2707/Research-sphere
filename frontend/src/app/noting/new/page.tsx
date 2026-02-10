@@ -76,7 +76,7 @@ export default function NewNotePage() {
     points: [''],
     attachments: [] as any[],
   };
-  
+
   const [category, setCategory] = useState<'academic' | 'administrative'>(initial.category);
   const [subcategory, setSubcategory] = useState(initial.subcategory);
   const [description, setDescription] = useState(initial.description);
@@ -87,7 +87,7 @@ export default function NewNotePage() {
   const [amount, setAmount] = useState(initial.amount);
   const [points, setPoints] = useState<string[]>(initial.points);
   const [annexures, setAnnexures] = useState<AnnexureEntry[]>(initial.attachments.map((a: any) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription || '' })));
-  
+
   // Event-specific fields
   const [isEventNoting, setIsEventNoting] = useState(false);
   const [eventName, setEventName] = useState('');
@@ -95,7 +95,7 @@ export default function NewNotePage() {
   const [eventStartDate, setEventStartDate] = useState('');
   const [eventEndDate, setEventEndDate] = useState('');
   const [eventPaymentType, setEventPaymentType] = useState<'free' | 'paid'>('free');
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,9 +120,8 @@ export default function NewNotePage() {
     if (!config || draftLoaded) return;
 
     const loadDraftIntoForm = (note: Awaited<ReturnType<typeof notingService.getById>>) => {
-      // Track if this is a reverted note for button text
       setIsRevertedNote(note.status === 'reverted');
-      
+
       hydrateFromNote({
         category: note.category,
         subcategory: note.subcategory,
@@ -147,14 +146,13 @@ export default function NewNotePage() {
       setAmount(s.amount);
       setPoints(s.points.length ? s.points : ['']);
       setAnnexures(s.attachments.map((a) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription ?? '' })));
-      
-      // Load event fields if present
+
       if (note.eventName) setEventName(note.eventName);
       if (note.eventType) setEventType(note.eventType);
       if (note.eventStartDate) setEventStartDate(note.eventStartDate);
       if (note.eventEndDate) setEventEndDate(note.eventEndDate);
       if (note.eventPaymentType) setEventPaymentType(note.eventPaymentType);
-      
+
       setDraftLoaded(true);
     };
 
@@ -176,10 +174,7 @@ export default function NewNotePage() {
       return;
     }
 
-    // User wants a fresh new note - clear any persisted draft data from store
     clearDraft();
-    
-    // Reset all form fields to initial state
     const freshState = useNotingDraftStore.getState();
     setCategory(freshState.category);
     setSubcategory(freshState.subcategory || (config.categories[0]?.subcategories?.[0]?.value ?? ''));
@@ -198,19 +193,6 @@ export default function NewNotePage() {
     setEventPaymentType('free');
     setIsRevertedNote(false);
     setDraftLoaded(true);
-    
-    /* Commented out auto-load of existing drafts
-    notingService.list({ filter: 'mine', status: 'draft', limit: 1 })
-      .then(({ data }) => {
-        const draft = data?.[0];
-        if (!draft?.id) {
-          setDraftLoaded(true);
-          return;
-        }
-        return notingService.getById(draft.id).then(loadDraftIntoForm).catch(() => setDraftLoaded(true));
-      })
-      .catch(() => setDraftLoaded(true));
-    */
   }, [config, draftLoaded, draftIdFromUrl, hydrateFromNote, setDraftId, toast, clearDraft]);
 
   useEffect(() => {
@@ -223,18 +205,15 @@ export default function NewNotePage() {
     setSubcategory('');
   }, [category, config]);
 
-  // Detect event noting based on subcategory
   useEffect(() => {
     if (!subcategory || !config) {
       setIsEventNoting(false);
       return;
     }
-    // Check if subcategory includes event-related keywords
     const eventKeywords = ['event', 'workshop', 'seminar', 'conference', 'function', 'celebration'];
     const isEvent = eventKeywords.some(keyword => subcategory.toLowerCase().includes(keyword));
     setIsEventNoting(isEvent);
-    
-    // Clear event fields if not event noting
+
     if (!isEvent) {
       setEventName('');
       setEventType('');
@@ -268,18 +247,9 @@ export default function NewNotePage() {
     }, DEBOUNCE_SYNC_MS);
     return () => { syncTimeoutRef.current && clearTimeout(syncTimeoutRef.current); };
   }, [
-    draftLoaded,
-    category,
-    subcategory,
-    description,
-    approvalPeriod,
-    recurringFrequency,
-    policyCompliance,
-    amountRequired,
-    amount,
-    points,
-    annexures,
-    setForm,
+    draftLoaded, category, subcategory, description, approvalPeriod,
+    recurringFrequency, policyCompliance, amountRequired, amount,
+    points, annexures, setForm,
   ]);
 
   useEffect(() => {
@@ -302,8 +272,7 @@ export default function NewNotePage() {
           .filter((a) => a.filePath && !a.uploading)
           .map((a) => ({ filePath: a.filePath, fileName: a.fileName.trim() || a.filePath, fileDescription: a.fileDescription?.trim() || undefined })),
       };
-      
-      // Add event fields if this is an event noting with all required fields
+
       const eventPayload: any = {};
       if (isEventNoting && eventName && eventType && eventStartDate && eventEndDate && eventPaymentType) {
         eventPayload.eventName = eventName.trim();
@@ -312,7 +281,7 @@ export default function NewNotePage() {
         eventPayload.eventEndDate = eventEndDate;
         eventPayload.eventPaymentType = eventPaymentType;
       }
-      
+
       if (draftId) {
         const updatePayload: any = {
           description: payload.description,
@@ -323,53 +292,28 @@ export default function NewNotePage() {
           attachments: payload.attachments,
           ...eventPayload,
         };
-
-        // Only send recurringFrequency when relevant:
-        // - when recurring: send selected frequency (or omit if not selected yet)
-        // - when one_time: explicitly clear it
         if (payload.approvalPeriod === 'one_time') updatePayload.recurringFrequency = null;
         else if (payload.recurringFrequency) updatePayload.recurringFrequency = payload.recurringFrequency;
-
-        // Only send amount when it's a valid number; drafts may keep it empty.
         if (payload.amountRequired !== true) {
-          // controller will clear amount when amountRequired is false
+          // controller will clear amount
         } else if (payload.amount !== undefined && !Number.isNaN(payload.amount)) {
           updatePayload.amount = payload.amount;
         }
-
-        notingService
-          .updateDraft(draftId, updatePayload)
-          .catch(() => {});
+        notingService.updateDraft(draftId, updatePayload).catch(() => { });
       } else {
         notingService
           .create({ ...payload, ...eventPayload, submit: false })
           .then((res) => res.data?.id && setDraftId(res.data.id))
-          .catch(() => {});
+          .catch(() => { });
       }
       autosaveTimeoutRef.current = null;
     }, DEBOUNCE_AUTOSAVE_MS);
     return () => { autosaveTimeoutRef.current && clearTimeout(autosaveTimeoutRef.current); };
   }, [
-    draftLoaded,
-    config,
-    draftId,
-    category,
-    subcategory,
-    description,
-    approvalPeriod,
-    recurringFrequency,
-    policyCompliance,
-    amountRequired,
-    amount,
-    points,
-    annexures,
-    isEventNoting,
-    eventName,
-    eventType,
-    eventStartDate,
-    eventEndDate,
-    eventPaymentType,
-    setDraftId,
+    draftLoaded, config, draftId, category, subcategory, description,
+    approvalPeriod, recurringFrequency, policyCompliance, amountRequired,
+    amount, points, annexures, isEventNoting, eventName, eventType,
+    eventStartDate, eventEndDate, eventPaymentType, setDraftId,
   ]);
 
   const wordCount = description.trim() ? description.trim().split(/\s+/).length : 0;
@@ -477,8 +421,7 @@ export default function NewNotePage() {
         .map((a) => ({ filePath: a.filePath, fileName: a.fileName.trim() || a.filePath, fileDescription: a.fileDescription?.trim() || undefined })),
       submit: false,
     };
-    
-    // Add event fields if this is an event noting
+
     if (isEventNoting && eventName && eventType && eventStartDate && eventEndDate && eventPaymentType) {
       (basePayload as any).eventName = eventName.trim();
       (basePayload as any).eventType = eventType;
@@ -486,7 +429,7 @@ export default function NewNotePage() {
       (basePayload as any).eventEndDate = eventEndDate;
       (basePayload as any).eventPaymentType = eventPaymentType;
     }
-    
+
     return basePayload;
   }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, eventName, eventType, eventStartDate, eventEndDate, eventPaymentType]);
 
@@ -501,33 +444,14 @@ export default function NewNotePage() {
         toast({ type: 'error', message: `Description must be at most ${MAX_WORDS} words` });
         return;
       }
-      
-      // Event field validation
+
       if (isEventNoting) {
-        if (!eventName.trim()) {
-          toast({ type: 'error', message: 'Event name is required' });
-          return;
-        }
-        if (!eventType) {
-          toast({ type: 'error', message: 'Event type is required' });
-          return;
-        }
-        if (!eventStartDate) {
-          toast({ type: 'error', message: 'Event start date is required' });
-          return;
-        }
-        if (!eventEndDate) {
-          toast({ type: 'error', message: 'Event end date is required' });
-          return;
-        }
-        if (new Date(eventEndDate) < new Date(eventStartDate)) {
-          toast({ type: 'error', message: 'Event end date must be after start date' });
-          return;
-        }
-        if (!eventPaymentType) {
-          toast({ type: 'error', message: 'Event payment type is required' });
-          return;
-        }
+        if (!eventName.trim()) { toast({ type: 'error', message: 'Event name is required' }); return; }
+        if (!eventType) { toast({ type: 'error', message: 'Event type is required' }); return; }
+        if (!eventStartDate) { toast({ type: 'error', message: 'Event start date is required' }); return; }
+        if (!eventEndDate) { toast({ type: 'error', message: 'Event end date is required' }); return; }
+        if (new Date(eventEndDate) < new Date(eventStartDate)) { toast({ type: 'error', message: 'Event end date must be after start date' }); return; }
+        if (!eventPaymentType) { toast({ type: 'error', message: 'Event payment type is required' }); return; }
       }
     }
 
@@ -540,8 +464,7 @@ export default function NewNotePage() {
       points: payload.points,
       attachments: payload.attachments,
     };
-    
-    // Add event fields to update payload if present
+
     if (isEventNoting && eventName && eventType && eventStartDate && eventEndDate && eventPaymentType) {
       updatePayload.eventName = eventName.trim();
       updatePayload.eventType = eventType;
@@ -549,7 +472,7 @@ export default function NewNotePage() {
       updatePayload.eventEndDate = eventEndDate;
       updatePayload.eventPaymentType = eventPaymentType;
     }
-    
+
     if (payload.approvalPeriod === 'one_time') updatePayload.recurringFrequency = null;
     else if (payload.recurringFrequency) updatePayload.recurringFrequency = payload.recurringFrequency;
     if (payload.amountRequired === true) {
@@ -590,7 +513,7 @@ export default function NewNotePage() {
 
   const handleDiscardDraft = () => {
     if (draftId) {
-      notingService.deleteDraft(draftId).catch(() => {});
+      notingService.deleteDraft(draftId).catch(() => { });
     }
     clearDraft();
     const s = useNotingDraftStore.getState();
@@ -610,354 +533,298 @@ export default function NewNotePage() {
   if (loading || !config) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+        <Loader2 className="w-7 h-7 animate-spin text-sgt-600" />
       </div>
     );
   }
 
   const subcategories = config.categories.find((c) => c.value === category)?.subcategories ?? [];
 
+  // Label helper for sections
+  const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">{children}</h3>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-gray-50 dark:from-gray-900 dark:via-indigo-950/20 dark:to-gray-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-[1800px] mx-auto">
-        <Link href="/noting" className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors mb-6">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-6 px-4">
+      <div className="max-w-[850px] mx-auto">
+        {/* Navigation */}
+        <Link href="/noting" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 transition-colors mb-5">
           <ArrowLeft className="w-4 h-4" />
           Back to Noting
         </Link>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-indigo-900 dark:from-white dark:to-indigo-200 bg-clip-text text-transparent mb-2">
-            {draftIdFromUrl || draftId ? 'Edit Draft Note' : 'Create New Note'}
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {draftIdFromUrl || draftId ? 'Update your draft and submit when ready.' : 'Fill in the details below. All actions are logged and auditable.'}
-          </p>
-        </div>
+        {/* ===== A4 Document Sheet ===== */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
 
-        <div className="grid xl:grid-cols-12 gap-6">
-          {/* Main Form - Left Column */}
-          <div className="xl:col-span-8 space-y-6">
-            {/* Basic Information Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4">
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Basic Information
-                </h2>
+          {/* Document Header */}
+          <div className="border-b border-gray-200 dark:border-gray-700 px-8 py-5">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              {draftIdFromUrl || draftId ? 'Edit Draft Note' : 'Create New Note'}
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              {draftIdFromUrl || draftId ? 'Update your draft and submit when ready.' : 'Fill in the details below. All actions are logged and auditable.'}
+            </p>
+            {notingIdPreview && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sgt-50 dark:bg-sgt-900/20 border border-sgt-100 dark:border-sgt-800">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase">Note ID</span>
+                <span className="font-mono text-sm font-semibold text-sgt-700 dark:text-sgt-300">{notingIdPreview}</span>
               </div>
-              <div className="p-6 space-y-6">
-                {/* Category & Subcategory - Two Column Layout */}
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Category */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Category <span className="text-red-500">*</span>
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 transition-all hover:shadow-sm has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 dark:has-[:checked]:bg-indigo-900/20">
-                        <input type="radio" name="category" checked={category === 'academic'} onChange={() => setCategory('academic')} className="w-4 h-4 text-indigo-600" />
-                        <span className="text-sm font-medium">Academic</span>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-500 transition-all hover:shadow-sm has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 dark:has-[:checked]:bg-indigo-900/20">
-                        <input type="radio" name="category" checked={category === 'administrative'} onChange={() => setCategory('administrative')} className="w-4 h-4 text-indigo-600" />
-                        <span className="text-sm font-medium">Administrative</span>
-                      </label>
-                    </div>
-                  </div>
+            )}
+          </div>
 
-                  {/* Subcategory */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                      Subcategory <span className="text-red-500">*</span>
+          {/* Document Body */}
+          <div className="px-8 py-6 space-y-7">
+
+            {/* ===== Category & Subcategory ===== */}
+            <section>
+              <SectionLabel>Classification</SectionLabel>
+              <div className="grid md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <div className="space-y-2">
+                    <label className={`flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors ${category === 'academic' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="category" checked={category === 'academic'} onChange={() => setCategory('academic')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <span className="text-sm font-medium">Academic</span>
                     </label>
-                    <select
-                      value={subcategory}
-                      onChange={(e) => setSubcategory(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
-                    >
-                      <option value="">Select subcategory</option>
-                      {subcategories.map((s) => (
-                        <option key={s.value} value={s.value}>{s.label}</option>
-                      ))}
-                    </select>
+                    <label className={`flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors ${category === 'administrative' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="category" checked={category === 'administrative'} onChange={() => setCategory('administrative')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <span className="text-sm font-medium">Administrative</span>
+                    </label>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Subcategory <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={subcategory}
+                    onChange={(e) => setSubcategory(e.target.value)}
+                    className="w-full px-3 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                  >
+                    <option value="">Select subcategory</option>
+                    {subcategories.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </section>
 
-                {/* Noting ID Preview */}
-                {notingIdPreview && (
-                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg p-4 border border-indigo-200 dark:border-indigo-800">
-                    <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Generated Noting ID</p>
-                    <p className="font-mono text-lg font-semibold text-indigo-700 dark:text-indigo-300">
-                      {notingIdPreview}
-                    </p>
-                  </div>
+            {/* ===== Description ===== */}
+            <section>
+              <SectionLabel>Description</SectionLabel>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={8}
+                maxLength={3000}
+                className={`w-full px-4 py-3 text-sm border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 outline-none transition-colors ${overLimit ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 dark:border-gray-600 focus:border-sgt-500 focus:ring-sgt-500'
+                  }`}
+                placeholder="Describe your request in detail. Be clear and specific about what you need approval for..."
+              />
+              <div className="flex items-center justify-between mt-1.5">
+                <p className={`text-xs font-medium ${overLimit ? 'text-red-600' : 'text-gray-400'}`}>
+                  {wordCount} / {MAX_WORDS} words
+                </p>
+                {overLimit && (
+                  <span className="text-xs text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Exceeds word limit
+                  </span>
                 )}
               </div>
-            </div>
+            </section>
 
-            {/* Description Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-cyan-600 px-6 py-4">
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Description
-                </h2>
-              </div>
-              <div className="p-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Note Description <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={8}
-                  maxLength={3000}
-                  className={`w-full px-4 py-3 border-2 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 transition-all ${overLimit ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-200 dark:border-gray-600 focus:border-blue-500'}`}
-                  placeholder="Describe your request in detail. Be clear and specific about what you need approval for..."
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <p className={`text-sm font-medium ${overLimit ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}`}>
-                    {wordCount} / {MAX_WORDS} words
-                  </p>
-                  {overLimit && (
-                    <span className="text-xs text-red-600 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" />
-                      Exceeds word limit
+            {/* ===== Requirements / Points ===== */}
+            <section>
+              <SectionLabel>Requirements & Points</SectionLabel>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-1.5">
+                <GripVertical className="w-3.5 h-3.5" />
+                Add requirement points. Drag the handle to reorder.
+              </p>
+              <div className="space-y-2">
+                {points.map((p, i) => (
+                  <div
+                    key={i}
+                    draggable
+                    onDragStart={() => setPointDraggedIndex(i)}
+                    onDragOver={(e) => { e.preventDefault(); setPointDropTargetIndex(i); }}
+                    onDragLeave={() => setPointDropTargetIndex(null)}
+                    onDrop={(e) => { e.preventDefault(); if (pointDraggedIndex !== null) movePoint(pointDraggedIndex, i); }}
+                    onDragEnd={() => { setPointDraggedIndex(null); setPointDropTargetIndex(null); }}
+                    className={`flex gap-2 items-center p-2.5 rounded-md border transition-all ${pointDraggedIndex === i
+                        ? 'opacity-50 border-sgt-300 bg-sgt-50 dark:bg-sgt-900/10'
+                        : pointDropTargetIndex === i
+                          ? 'border-sgt-300 bg-sgt-50 dark:bg-sgt-900/10'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}
+                  >
+                    <span className="text-gray-300 cursor-grab active:cursor-grabbing hover:text-sgt-500 transition-colors" title="Drag to reorder">
+                      <GripVertical className="w-4 h-4" />
                     </span>
-                  )}
-                </div>
+                    <span className="flex items-center justify-center w-6 h-6 rounded bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0">
+                      {i + 1}
+                    </span>
+                    <input
+                      type="text"
+                      value={p}
+                      onChange={(e) => updatePoint(i, e.target.value)}
+                      className="flex-1 px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                      placeholder={`Requirement point ${i + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePoint(i)}
+                      className="p-1.5 text-gray-300 hover:text-red-500 rounded-md transition-colors shrink-0"
+                      title="Remove point"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            </div>
+              <button
+                type="button"
+                onClick={addPoint}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sgt-600 dark:text-sgt-400 hover:bg-sgt-50 dark:hover:bg-sgt-900/10 rounded-md transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add another point
+              </button>
+            </section>
 
-            {/* Requirements / Points Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-4">
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <List className="w-5 h-5" />
-                  Requirements & Points
-                </h2>
-              </div>
-              <div className="p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 flex items-center gap-2">
-                  <GripVertical className="w-4 h-4" />
-                  Add your requirement points. Drag the handle to reorder.
+            {/* ===== Attachments ===== */}
+            <section>
+              <SectionLabel>Attachments & Annexure</SectionLabel>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,.txt,.zip"
+                onChange={onFileSelect}
+                className="hidden"
+              />
+              <div
+                onDragOver={onFileDragOver}
+                onDragLeave={onFileDragLeave}
+                onDrop={onFileDrop}
+                className={`rounded-md border-2 border-dashed p-6 text-center transition-all ${fileDropActive
+                    ? 'border-sgt-400 bg-sgt-50 dark:bg-sgt-900/10'
+                    : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                  }`}
+              >
+                <Upload className={`w-6 h-6 mx-auto mb-2 ${fileDropActive ? 'text-sgt-500' : 'text-gray-300'}`} />
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  {fileDropActive ? 'Drop files here' : 'Drag and drop files here'}
                 </p>
-                <div className="space-y-3">
-                  {points.map((p, i) => (
+                <p className="text-xs text-gray-400 mb-3">PDF, Word, Excel, Images, ZIP</p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Choose files
+                </button>
+              </div>
+
+              {annexures.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <p className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Uploaded Files ({annexures.length})
+                  </p>
+                  {annexures.map((a, i) => (
                     <div
                       key={i}
-                      draggable
-                      onDragStart={() => setPointDraggedIndex(i)}
-                      onDragOver={(e) => { e.preventDefault(); setPointDropTargetIndex(i); }}
-                      onDragLeave={() => setPointDropTargetIndex(null)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        if (pointDraggedIndex !== null) movePoint(pointDraggedIndex, i);
-                      }}
-                      onDragEnd={() => { setPointDraggedIndex(null); setPointDropTargetIndex(null); }}
-                      className={`flex gap-3 items-center p-3 rounded-lg border-2 transition-all ${
-                        pointDraggedIndex === i 
-                          ? 'opacity-50 border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 shadow-lg' 
-                          : pointDropTargetIndex === i 
-                          ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 shadow-md' 
-                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                      }`}
+                      className="rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 p-3 space-y-2"
                     >
-                      <span className="flex items-center text-gray-400 dark:text-gray-500 cursor-grab active:cursor-grabbing hover:text-indigo-500 transition-colors" title="Drag to reorder">
-                        <GripVertical className="w-5 h-5" />
-                      </span>
-                      <span className="flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-sm font-semibold text-indigo-700 dark:text-indigo-300 shrink-0">
-                        {i + 1}
-                      </span>
-                      <input
-                        type="text"
-                        value={p}
-                        onChange={(e) => updatePoint(i, e.target.value)}
-                        className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                        placeholder={`Requirement point ${i + 1}`}
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => removePoint(i)} 
-                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0" 
-                        title="Remove point"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                          <div className="p-1.5 bg-white dark:bg-gray-800 rounded border border-gray-100 dark:border-gray-600">
+                            <FileText className="w-4 h-4 text-gray-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                              {a.uploading ? 'Uploading...' : (a.fileName || 'Unnamed file')}
+                            </p>
+                            {a.uploading && (
+                              <p className="text-xs text-gray-400">Please wait...</p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeAnnexure(i)}
+                          className="p-1.5 text-gray-300 hover:text-red-500 rounded-md transition-colors shrink-0"
+                          title="Remove file"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {!a.uploading && a.filePath && (
+                        <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-400 mb-1">Display Name</label>
+                            <input
+                              type="text"
+                              value={a.fileName}
+                              onChange={(e) => updateAnnexure(i, { fileName: e.target.value })}
+                              className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                              placeholder="File name"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-medium text-gray-400 mb-1">Description / Purpose</label>
+                            <textarea
+                              value={a.fileDescription}
+                              onChange={(e) => updateAnnexure(i, { fileDescription: e.target.value })}
+                              rows={2}
+                              className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                              placeholder="What is this file for?"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
-                <button 
-                  type="button" 
-                  onClick={addPoint} 
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add another point
-                </button>
-              </div>
-            </div>
+              )}
+            </section>
 
-            {/* Attachments Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="bg-gradient-to-r from-orange-500 to-red-600 px-6 py-4">
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Paperclip className="w-5 h-5" />
-                  Attachments & Annexure
-                </h2>
-              </div>
-              <div className="p-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Upload supporting documents. Accepted formats: PDF, Word, Excel, Images, Text, ZIP
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,.txt,.zip"
-                  onChange={onFileSelect}
-                  className="hidden"
-                />
-                <div
-                  onDragOver={onFileDragOver}
-                  onDragLeave={onFileDragLeave}
-                  onDrop={onFileDrop}
-                  className={`rounded-xl border-2 border-dashed p-8 text-center transition-all ${
-                    fileDropActive 
-                      ? 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 scale-[1.02]' 
-                      : 'border-gray-300 dark:border-gray-600 hover:border-orange-400 dark:hover:border-orange-500 hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                  }`}
-                >
-                  <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 transition-all ${
-                    fileDropActive 
-                      ? 'bg-orange-100 dark:bg-orange-900/40' 
-                      : 'bg-gray-100 dark:bg-gray-700'
-                  }`}>
-                    <Upload className={`w-8 h-8 transition-colors ${
-                      fileDropActive 
-                        ? 'text-orange-500' 
-                        : 'text-gray-400 dark:text-gray-500'
-                    }`} />
-                  </div>
-                  <p className="text-base font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {fileDropActive ? 'Drop files here' : 'Drag and drop files here'}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">or</p>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-medium rounded-lg hover:from-orange-600 hover:to-red-700 transition-all shadow-sm hover:shadow-md"
-                  >
-                    <Upload className="w-5 h-5" />
-                    Choose files
-                  </button>
-                </div>
-                
-                {annexures.length > 0 && (
-                  <div className="mt-6 space-y-3">
-                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Uploaded Files ({annexures.length})
-                    </p>
-                    {annexures.map((a, i) => (
-                      <div
-                        key={i}
-                        className="rounded-lg border-2 border-gray-200 dark:border-gray-600 bg-gradient-to-r from-gray-50 to-white dark:from-gray-700/50 dark:to-gray-800/50 p-4 space-y-3 hover:border-orange-300 dark:hover:border-orange-600 transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                              <FileText className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                {a.uploading ? 'Uploading...' : (a.fileName || 'Unnamed file')}
-                              </p>
-                              {a.uploading && (
-                                <p className="text-xs text-gray-500 dark:text-gray-400">Please wait...</p>
-                              )}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeAnnexure(i)}
-                            className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
-                            title="Remove file"
-                          >
-                            <Trash2 className="w-5 h-5" />
-                          </button>
-                        </div>
-                        {!a.uploading && a.filePath && (
-                          <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Display Name</label>
-                              <input
-                                type="text"
-                                value={a.fileName}
-                                onChange={(e) => updateAnnexure(i, { fileName: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                                placeholder="File name"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Description / Purpose</label>
-                              <textarea
-                                value={a.fileDescription}
-                                onChange={(e) => updateAnnexure(i, { fileDescription: e.target.value })}
-                                rows={2}
-                                className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                                placeholder="What is this file for?"
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Event Details Section - Conditional */}
+            {/* ===== Event Details (Conditional) ===== */}
             {isEventNoting && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-6 py-4">
-                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Calendar className="w-5 h-5" />
-                    Event Details
-                    <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">Required for Approval</span>
-                  </h2>
-                </div>
-                <div className="p-6 space-y-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    ⚠️ <strong>Note:</strong> Event name, type, dates, and payment type will be <strong>locked</strong> after approval and cannot be changed.
-                  </p>
-
-                  {/* Event Name */}
+              <section>
+                <SectionLabel>Event Details</SectionLabel>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                  Event name, type, dates, and payment type will be <strong>locked</strong> after approval and cannot be changed.
+                </p>
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                       Event Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={eventName}
                       onChange={(e) => setEventName(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                       placeholder="Enter event name"
-                      required
                     />
                   </div>
-
-                  {/* Event Type */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                       Event Type <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={eventType}
                       onChange={(e) => setEventType(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
-                      required
+                      className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                     >
                       <option value="">Select event type</option>
                       <option value="workshop">Workshop</option>
@@ -972,23 +839,20 @@ export default function NewNotePage() {
                       <option value="other">Other</option>
                     </select>
                   </div>
-
-                  {/* Date Range */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Start Date <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="date"
                         value={eventStartDate}
                         onChange={(e) => setEventStartDate(e.target.value)}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
-                        required
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         End Date <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -996,230 +860,188 @@ export default function NewNotePage() {
                         value={eventEndDate}
                         onChange={(e) => setEventEndDate(e.target.value)}
                         min={eventStartDate}
-                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all"
-                        required
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                       />
                     </div>
                   </div>
-
-                  {/* Payment Type */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                       Payment Type <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="eventPaymentType"
-                          value="free"
-                          checked={eventPaymentType === 'free'}
-                          onChange={(e) => setEventPaymentType(e.target.value as 'free' | 'paid')}
-                          className="w-4 h-4 text-teal-600 focus:ring-teal-500"
-                        />
+                        <input type="radio" name="eventPaymentType" value="free" checked={eventPaymentType === 'free'} onChange={(e) => setEventPaymentType(e.target.value as 'free' | 'paid')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Free</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="eventPaymentType"
-                          value="paid"
-                          checked={eventPaymentType === 'paid'}
-                          onChange={(e) => setEventPaymentType(e.target.value as 'free' | 'paid')}
-                          className="w-4 h-4 text-teal-600 focus:ring-teal-500"
-                        />
+                        <input type="radio" name="eventPaymentType" value="paid" checked={eventPaymentType === 'paid'} onChange={(e) => setEventPaymentType(e.target.value as 'free' | 'paid')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Paid</span>
                       </label>
                     </div>
                   </div>
                 </div>
-              </div>
+              </section>
             )}
-          </div>
 
-          {/* Right Sidebar - Additional Details */}
-          <div className="xl:col-span-4 space-y-6">
-            {/* Approval Period Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="bg-gradient-to-r from-violet-500 to-purple-600 px-5 py-3">
-                <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Approval Period
-                </h3>
-              </div>
-              <div className="p-5 space-y-3">
-                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-violet-400 dark:hover:border-violet-500 transition-all has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-900/20">
-                  <input type="radio" name="period" checked={approvalPeriod === 'one_time'} onChange={() => setApprovalPeriod('one_time')} className="w-4 h-4 text-violet-600" />
-                  <span className="text-sm font-medium">One-time</span>
-                </label>
-                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-violet-400 dark:hover:border-violet-500 transition-all has-[:checked]:border-violet-500 has-[:checked]:bg-violet-50 dark:has-[:checked]:bg-violet-900/20">
-                  <input type="radio" name="period" checked={approvalPeriod === 'recurring'} onChange={() => setApprovalPeriod('recurring')} className="w-4 h-4 text-violet-600" />
-                  <span className="text-sm font-medium">Recurring</span>
-                </label>
-                {approvalPeriod === 'recurring' && (
-                  <div className="pt-2">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Frequency</label>
-                    <select
-                      value={recurringFrequency}
-                      onChange={(e) => setRecurringFrequency(e.target.value)}
-                      className="w-full px-3 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all"
-                    >
-                      <option value="">Select frequency</option>
-                      {config.recurringFrequencyOptions.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+            {/* ===== Additional Details ===== */}
+            <section>
+              <SectionLabel>Additional Details</SectionLabel>
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+                {/* Approval Period */}
+                <div className="p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period</label>
+                  <div className="flex gap-3">
+                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${approvalPeriod === 'one_time' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="period" checked={approvalPeriod === 'one_time'} onChange={() => setApprovalPeriod('one_time')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <span className="text-sm font-medium">One-time</span>
+                    </label>
+                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${approvalPeriod === 'recurring' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="period" checked={approvalPeriod === 'recurring'} onChange={() => setApprovalPeriod('recurring')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <span className="text-sm font-medium">Recurring</span>
+                    </label>
                   </div>
-                )}
-              </div>
-            </div>
-
-            {/* Policy Compliance Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="bg-gradient-to-r from-teal-500 to-green-600 px-5 py-3">
-                <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4" />
-                  Policy Compliance
-                </h3>
-              </div>
-              <div className="p-5 space-y-3">
-                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-teal-400 dark:hover:border-teal-500 transition-all has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50 dark:has-[:checked]:bg-teal-900/20">
-                  <input
-                    type="radio"
-                    name="policyCompliance"
-                    checked={policyCompliance === 'yes'}
-                    onChange={() => setPolicyCompliance('yes')}
-                    className="w-4 h-4 text-teal-600"
-                  />
-                  <span className="text-sm font-medium">Yes, complies with policy</span>
-                </label>
-                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-teal-400 dark:hover:border-teal-500 transition-all has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50 dark:has-[:checked]:bg-teal-900/20">
-                  <input
-                    type="radio"
-                    name="policyCompliance"
-                    checked={policyCompliance === 'no'}
-                    onChange={() => setPolicyCompliance('no')}
-                    className="w-4 h-4 text-teal-600"
-                  />
-                  <span className="text-sm font-medium">No, does not comply</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Budget / Amount Card */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-500 to-yellow-600 px-5 py-3">
-                <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                  <IndianRupee className="w-4 h-4" />
-                  Budget / Amount
-                </h3>
-              </div>
-              <div className="p-5 space-y-3">
-                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-amber-400 dark:hover:border-amber-500 transition-all has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-900/20">
-                  <input type="radio" name="amountReq" checked={!amountRequired} onChange={() => setAmountRequired(false)} className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm font-medium">No amount required</span>
-                </label>
-                <label className="flex items-center gap-3 p-3 border-2 border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-amber-400 dark:hover:border-amber-500 transition-all has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 dark:has-[:checked]:bg-amber-900/20">
-                  <input type="radio" name="amountReq" checked={amountRequired} onChange={() => setAmountRequired(true)} className="w-4 h-4 text-amber-600" />
-                  <span className="text-sm font-medium">Amount required</span>
-                </label>
-                {amountRequired && (
-                  <div className="pt-2">
-                    <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Amount (INR)</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-semibold">₹</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all"
-                        placeholder="Enter amount"
-                      />
+                  {approvalPeriod === 'recurring' && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Frequency</label>
+                      <select
+                        value={recurringFrequency}
+                        onChange={(e) => setRecurringFrequency(e.target.value)}
+                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                      >
+                        <option value="">Select frequency</option>
+                        {config.recurringFrequencyOptions.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                     </div>
-                  </div>
-                )}
-              </div>
-            </div>
+                  )}
+                </div>
 
-            {/* Created By Card */}
+                {/* Policy Compliance */}
+                <div className="p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Policy Compliance</label>
+                  <div className="flex gap-3">
+                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${policyCompliance === 'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="policyCompliance" checked={policyCompliance === 'yes'} onChange={() => setPolicyCompliance('yes')} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+                      <span className="text-sm font-medium">Yes, complies</span>
+                    </label>
+                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${policyCompliance === 'no' ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="policyCompliance" checked={policyCompliance === 'no'} onChange={() => setPolicyCompliance('no')} className="w-4 h-4 text-red-600 focus:ring-red-500" />
+                      <span className="text-sm font-medium">No</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Budget / Amount */}
+                <div className="p-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Budget / Amount</label>
+                  <div className="flex gap-3">
+                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${!amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="amountReq" checked={!amountRequired} onChange={() => setAmountRequired(false)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <span className="text-sm font-medium">No amount</span>
+                    </label>
+                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      }`}>
+                      <input type="radio" name="amountReq" checked={amountRequired} onChange={() => setAmountRequired(true)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <span className="text-sm font-medium">Amount required</span>
+                    </label>
+                  </div>
+                  {amountRequired && (
+                    <div className="mt-3">
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Amount (INR)</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">₹</span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={amount}
+                          onChange={(e) => setAmount(e.target.value)}
+                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                          placeholder="Enter amount"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* ===== Creator Info ===== */}
             {creatorInfo && (
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-500 to-cyan-600 px-5 py-3">
-                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                    <User className="w-4 h-4" />
-                    Created By
-                  </h3>
-                </div>
-                <div className="p-5 space-y-2.5 text-sm">
-                  <div className="flex items-start gap-2">
-                    <span className="text-gray-500 dark:text-gray-400 font-medium min-w-[80px]">Name:</span>
-                    <span className="text-gray-900 dark:text-white font-medium">{creatorInfo.name}</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-gray-500 dark:text-gray-400 font-medium min-w-[80px]">ID:</span>
-                    <span className="text-gray-900 dark:text-white">{creatorInfo.employeeIdOrStudentId ?? '—'}</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-gray-500 dark:text-gray-400 font-medium min-w-[80px]">Role:</span>
-                    <span className="text-gray-900 dark:text-white">{creatorInfo.role}</span>
-                  </div>
-                  {creatorInfo.department && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-500 dark:text-gray-400 font-medium min-w-[80px]">Department:</span>
-                      <span className="text-gray-900 dark:text-white">{creatorInfo.department}</span>
+              <section>
+                <SectionLabel>Created By</SectionLabel>
+                <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md border border-gray-100 dark:border-gray-700 p-3">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    <div className="flex gap-2">
+                      <span className="text-gray-400 font-medium min-w-[70px]">Name:</span>
+                      <span className="text-gray-900 dark:text-white font-medium">{creatorInfo.name}</span>
                     </div>
-                  )}
-                  {creatorInfo.school && (
-                    <div className="flex items-start gap-2">
-                      <span className="text-gray-500 dark:text-gray-400 font-medium min-w-[80px]">School:</span>
-                      <span className="text-gray-900 dark:text-white">{creatorInfo.school}</span>
+                    <div className="flex gap-2">
+                      <span className="text-gray-400 font-medium min-w-[70px]">ID:</span>
+                      <span className="text-gray-900 dark:text-white">{creatorInfo.employeeIdOrStudentId ?? '—'}</span>
                     </div>
-                  )}
+                    <div className="flex gap-2">
+                      <span className="text-gray-400 font-medium min-w-[70px]">Role:</span>
+                      <span className="text-gray-900 dark:text-white">{creatorInfo.role}</span>
+                    </div>
+                    {creatorInfo.department && (
+                      <div className="flex gap-2">
+                        <span className="text-gray-400 font-medium min-w-[70px]">Dept:</span>
+                        <span className="text-gray-900 dark:text-white">{creatorInfo.department}</span>
+                      </div>
+                    )}
+                    {creatorInfo.school && (
+                      <div className="flex gap-2">
+                        <span className="text-gray-400 font-medium min-w-[70px]">School:</span>
+                        <span className="text-gray-900 dark:text-white">{creatorInfo.school}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </section>
             )}
           </div>
-        </div>
 
-        {/* Action Buttons - Full Width at Bottom */}
-        <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => handleSubmit(false)}
-              disabled={submitting || !description.trim() || overLimit}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-            >
-              {submitting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5" />
-              )}
-              {isRevertedNote ? 'Send for Reapproval' : 'Send for Approval'}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSubmit(true)}
-              disabled={submitting}
-              className="px-6 py-3 border-2 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
-            >
-              {submitting && <Loader2 className="w-5 h-5 animate-spin" />}
-              <Save className="w-5 h-5" />
-              Save as Draft
-            </button>
-            {(draftId || category || subcategory || description.trim() || points.some((p) => p.trim())) && (
+          {/* Document Footer — Action Buttons */}
+          <div className="border-t border-gray-200 dark:border-gray-700 px-8 py-4 bg-gray-50 dark:bg-gray-900/20">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={handleDiscardDraft}
-                disabled={submitting}
-                className="ml-auto px-6 py-3 text-red-600 dark:text-red-400 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all"
+                onClick={() => handleSubmit(false)}
+                disabled={submitting || !description.trim() || overLimit}
+                className="px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
               >
-                <Trash2 className="w-5 h-5" />
-                Discard Draft
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                {isRevertedNote ? 'Send for Reapproval' : 'Send for Approval'}
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => handleSubmit(true)}
+                disabled={submitting}
+                className="px-5 py-2.5 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+              >
+                {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                <Save className="w-4 h-4" />
+                Save as Draft
+              </button>
+              {(draftId || category || subcategory || description.trim() || points.some((p) => p.trim())) && (
+                <button
+                  type="button"
+                  onClick={handleDiscardDraft}
+                  disabled={submitting}
+                  className="ml-auto px-4 py-2.5 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/10 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Discard Draft
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -34,6 +34,7 @@ const grantsModule = require('../../grants');
 const iprModule = require('../../ipr');
 const financeModule = require('../../finance');
 const notingModule = require('../../noting');
+const dswModule = require('../../dsw');
 const eventManagementModule = require('../../event-management/routes/event.routes');
 
 // ============================================
@@ -64,6 +65,7 @@ router.use('/grants', grantsModule);
 router.use('/ipr', iprModule);
 router.use('/finance', financeModule);
 router.use('/noting', notingModule);
+router.use('/dsw', dswModule);
 router.use('/events', eventManagementModule);
 
 // ============================================

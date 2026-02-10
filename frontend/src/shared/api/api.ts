@@ -113,6 +113,16 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Log 401/403 errors prominently in development
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      logger.error(`[API] ${error.response.status} - ${config.url}`, {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        message: (error.response.data as any)?.message,
+        url: config.url
+      });
+    }
+
     // Initialize retry count
     config._retryCount = config._retryCount || 0;
 

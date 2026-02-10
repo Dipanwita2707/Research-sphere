@@ -419,6 +419,24 @@ export default function NavigationHeader() {
     description: 'RFID access system',
   });
 
+  // Add DSW (Division of Student Welfare) for Faculty, Staff, and Admin
+  if (isFaculty || isAdmin) {
+    navigationSubItems.push({
+      name: '🎓 Division of Student Welfare',
+      description: 'Student Clubs & Activities',
+      children: [
+        { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
+        { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
+        { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am involved in' },
+        ...(isFaculty ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
+        ...(isAdmin ? [
+          { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
+          { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
+        ] : []),
+      ],
+    });
+  }
+
   // Add Navigation menu
   menuItems.push({
     name: 'UMS Navigation',
