@@ -41,7 +41,7 @@ CREATE TABLE "Event" (
     "registrationEndDate" TIMESTAMP(3),
     "status" "EventStatus" NOT NULL DEFAULT 'draft',
     "publishedAt" TIMESTAMP(3),
-    "createdById" UUID NOT NULL,
+    "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -53,7 +53,7 @@ CREATE TABLE "EventRegistration" (
     "id" TEXT NOT NULL,
     "registrationId" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
-    "userId" UUID NOT NULL,
+    "userId" TEXT NOT NULL,
     "status" "RegistrationStatus" NOT NULL DEFAULT 'pending',
     "qrCode" TEXT NOT NULL,
     "paymentStatus" "PaymentStatus",
@@ -71,7 +71,7 @@ CREATE TABLE "EventRegistration" (
 CREATE TABLE "EventVolunteer" (
     "id" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
-    "userId" UUID NOT NULL,
+    "userId" TEXT NOT NULL,
     "role" TEXT,
     "canScanQr" BOOLEAN NOT NULL DEFAULT false,
     "assignedGate" TEXT,

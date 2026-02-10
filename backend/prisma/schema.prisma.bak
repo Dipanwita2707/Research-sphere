@@ -10,6 +10,81 @@ datasource db {
 }
 
 model UserLogin {
+<<<<<<< HEAD
+  id                                  String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  uid                                 String                               @unique @db.VarChar(32)
+  email                               String?                              @unique @db.Citext
+  phone                               String?                              @db.VarChar(20)
+  profileImageFilePath                String?                              @map("profile_image_file_path")
+  profileImage                        String?                              @map("profile_image") @db.VarChar(64)
+  passwordHash                        String                               @map("password_hash")
+  role                                UserRoleEnum
+  status                              String                               @default("active") @db.VarChar(32)
+  lastLoginAt                         DateTime?                            @map("last_login_at") @db.Timestamptz(6)
+  createdAt                           DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                           DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  auditLogs                           AuditLog[]
+  cardsIssued                         Card[]                               @relation("IssuedBy")
+  headOfCentralDepts                  CentralDepartment[]                  @relation("HeadOfCentralDepartment")
+  assignedCentralDeptPerms            CentralDepartmentPermission[]        @relation("AssignedCentralDeptPermissions")
+  centralDeptPermissions              CentralDepartmentPermission[]        @relation("UserCentralDeptPermissions")
+  changesHistory                      ChangeHistory[]
+  headOfDepartments                   Department[]                         @relation("HeadOfDepartment")
+  assignedSchoolDeptPerms             DepartmentPermission[]               @relation("AssignedDepartmentPermissions")
+  schoolDeptPermissions               DepartmentPermission[]               @relation("UserDepartmentPermissions")
+  documentChangeReviews               DocumentChange[]                     @relation("DocumentChangeReviewer")
+  employeeDetails                     EmployeeDetails?
+  headOfFaculties                     FacultySchoolList[]                  @relation("HeadOfFaculty")
+  approvedIPRs                        IPR[]                                @relation("IPRApprover")
+  createdIPRs                         IPR[]                                @relation("IPRCreator")
+  iprApplications                     IprApplication[]                     @relation("IprApplications")
+  iprCollaborativeSessions            IprCollaborativeSession[]            @relation("IprCollaborativeSessions")
+  iprContributions                    IprContributor[]                     @relation("IprContributors")
+  uploadedIPRDocuments                IPRDocument[]                        @relation("IPRDocumentUploader")
+  iprEditSuggestions                  IprEditSuggestion[]                  @relation("IprEditSuggestions")
+  iprFinanceReviews                   IprFinance[]                         @relation("IprFinanceReviews")
+  iprReviews                          IprReview[]                          @relation("IprReviews")
+  iprStatusChanges                    IprStatusHistory[]                   @relation("IprStatusChanges")
+  iprStatusUpdates                    IprStatusUpdate[]                    @relation("IprStatusUpdates")
+  createdIncentivePolicies            IncentivePolicy[]                    @relation("IncentivePolicyCreatedBy")
+  updatedIncentivePolicies            IncentivePolicy[]                    @relation("IncentivePolicyUpdatedBy")
+  userSettings                        UserSettings?                        @relation("UserSettings")
+  notifications                       Notification[]                       @relation("UserNotifications")
+  parentLogin                         ParentDetails?                       @relation("ParentLogin")
+  programCoordinators                 Program[]                            @relation("ProgramCoordinator")
+  reissueRequestsApproved             ReissueRequest[]                     @relation("ApprovedBy")
+  reissueRequestsMade                 ReissueRequest[]                     @relation("RequestedBy")
+  researchContributions               ResearchContribution[]               @relation("ResearchContributions")
+  researchContributionAuthorship      ResearchContributionAuthor[]         @relation("ResearchContributionAuthors")
+  researchContributionEditSuggestions ResearchContributionEditSuggestion[] @relation("ResearchContributionEditSuggestions")
+  researchContributionReviews         ResearchContributionReview[]         @relation("ResearchContributionReviews")
+  researchContributionStatusChanges   ResearchContributionStatusHistory[]  @relation("ResearchContributionStatusChanges")
+  grantApplicationEditSuggestions     GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
+  createdResearchPolicies             ResearchIncentivePolicy[]            @relation("ResearchPolicyCreatedBy")
+  updatedResearchPolicies             ResearchIncentivePolicy[]            @relation("ResearchPolicyUpdatedBy")
+  createdBookPolicies                 BookIncentivePolicy[]                @relation("BookPolicyCreatedBy")
+  updatedBookPolicies                 BookIncentivePolicy[]                @relation("BookPolicyUpdatedBy")
+  createdBookChapterPolicies          BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
+  updatedBookChapterPolicies          BookChapterIncentivePolicy[]         @relation("BookChapterPolicyUpdatedBy")
+  createdConferencePolicies           ConferenceIncentivePolicy[]          @relation("ConferencePolicyCreatedBy")
+  updatedConferencePolicies           ConferenceIncentivePolicy[]          @relation("ConferencePolicyUpdatedBy")
+  createdGrantPolicies                GrantIncentivePolicy[]               @relation("GrantPolicyCreatedBy")
+  updatedGrantPolicies                GrantIncentivePolicy[]               @relation("GrantPolicyUpdatedBy")
+  researchPapers                      ResearchPaper[]                      @relation("ResearchPapers")
+  researchPaperReviews                ResearchPaperReview[]                @relation("ResearchPaperReviews")
+  researchPaperStatusChanges          ResearchPaperStatusHistory[]         @relation("ResearchPaperStatusChanges")
+  researchProgressTrackers            ResearchProgressTracker[]            @relation("ResearchProgressTrackers")
+  classTeachers                       Section[]                            @relation("ClassTeacher")
+  approvedStudents                    StudentDetails[]                     @relation("DataApprovedBy")
+  studentLogin                        StudentDetails?                      @relation("StudentLogin")
+  assignedDepartmentPermissions       UserDepartmentPermission[]           @relation("AssignedBy")
+  departmentPermissions               UserDepartmentPermission[]
+  grantApplications                   GrantApplication[]                   @relation("GrantApplications")
+  grantInvestigators                  GrantInvestigator[]                  @relation("GrantInvestigators")
+  grantApplicationReviews             GrantApplicationReview[]             @relation("GrantApplicationReviews")
+  grantApplicationStatusChanges       GrantApplicationStatusHistory[]      @relation("GrantApplicationStatusChanges")
+  assignedRoleIds                     Json?                                @default("[]") @map("assigned_role_ids")
+=======
   id                                                String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   uid                                               String                               @unique @db.VarChar(32)
   email                                             String?                              @unique @db.Citext
@@ -96,6 +171,7 @@ model UserLogin {
   assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
   departmentPermissions                             UserDepartmentPermission[]
   userSettings                                      UserSettings?                        @relation("UserSettings")
+>>>>>>> 9b857847c7ed76344b6f9ab89284a20f787fa615
 
   @@map("user_login")
 }

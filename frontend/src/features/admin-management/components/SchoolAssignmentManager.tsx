@@ -168,7 +168,7 @@ export const DRD_GRANT_CONFIG: SchoolAssignmentConfig = {
     memberTypePlural: 'DRD Members',
   },
   showStats: true,
-  assignmentFieldName: 'assignedGrantSchoolIds',
+  assignmentFieldName: 'assignedResearchSchoolIds',
 };
 
 export const DRD_CONFERENCE_CONFIG: SchoolAssignmentConfig = {

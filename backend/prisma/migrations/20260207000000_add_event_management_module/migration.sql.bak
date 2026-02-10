@@ -27,7 +27,7 @@ ALTER TABLE "note" ADD COLUMN "eventPaymentType" "EventPaymentType";
 CREATE TABLE "Event" (
     "id" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
-    "notingId" UUID NOT NULL,
+    "notingId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "eventType" "EventType" NOT NULL,
     "description" TEXT,
@@ -41,7 +41,7 @@ CREATE TABLE "Event" (
     "registrationEndDate" TIMESTAMP(3),
     "status" "EventStatus" NOT NULL DEFAULT 'draft',
     "publishedAt" TIMESTAMP(3),
-    "createdById" UUID NOT NULL,
+    "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -53,7 +53,7 @@ CREATE TABLE "EventRegistration" (
     "id" TEXT NOT NULL,
     "registrationId" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
-    "userId" UUID NOT NULL,
+    "userId" TEXT NOT NULL,
     "status" "RegistrationStatus" NOT NULL DEFAULT 'pending',
     "qrCode" TEXT NOT NULL,
     "paymentStatus" "PaymentStatus",
@@ -71,7 +71,7 @@ CREATE TABLE "EventRegistration" (
 CREATE TABLE "EventVolunteer" (
     "id" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
-    "userId" UUID NOT NULL,
+    "userId" TEXT NOT NULL,
     "role" TEXT,
     "canScanQr" BOOLEAN NOT NULL DEFAULT false,
     "assignedGate" TEXT,
@@ -95,7 +95,7 @@ CREATE TABLE "EventEntry" (
 );
 
 -- CreateIndex: Note event fields
-CREATE INDEX "Note_eventName_idx" ON "note"("eventName");
+CREATE INDEX "Note_eventName_idx" ON "Note"("eventName");
 
 -- CreateIndex: Event
 CREATE UNIQUE INDEX "Event_eventId_key" ON "Event"("eventId");
