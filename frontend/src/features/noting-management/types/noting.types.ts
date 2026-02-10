@@ -1,7 +1,7 @@
 export type NoteCategory = 'academic' | 'administrative';
 
 export type NoteSubcategoryAcademic = 'events' | 'curriculum' | 'student_related' | 'exam';
-export type NoteSubcategoryAdmin = 'infrastructure' | 'accounts_purchase' | 'non_academic_resources';
+export type NoteSubcategoryAdmin = 'infrastructure' | 'accounts_purchase' | 'non_academic_resources' | 'dsw_club_creation';
 export type NoteSubcategory = NoteSubcategoryAcademic | NoteSubcategoryAdmin;
 
 export type NoteStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'reverted';

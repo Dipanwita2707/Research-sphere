@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const bcrypt = require('bcryptjs');
 const config = require('../config/app.config');
+const { seedDefaultCategories } = require('../../modules/dsw/services/categoryService');
 
 const seedDatabase = async () => {
   try {
@@ -383,6 +384,11 @@ const seedDatabase = async () => {
       }
     });
     console.log('✅ Permissions granted to faculty');
+
+    // Seed DSW club categories
+    console.log('\n📚 Seeding DSW club categories...');
+    await seedDefaultCategories();
+    console.log('✅ DSW club categories seeded');
 
     console.log('\n🎉 Database seeding completed successfully!');
     console.log('\n📝 Test Credentials:');

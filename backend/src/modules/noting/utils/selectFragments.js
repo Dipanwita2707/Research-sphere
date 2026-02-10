@@ -120,7 +120,7 @@ function getFullNoteInclude() {
 }
 
 /**
- * Note include for list view
+ * Note include for list view (optimized - minimal history data)
  */
 function getListNoteInclude() {
   return {
@@ -132,8 +132,15 @@ function getListNoteInclude() {
     },
     history: {
       select: {
-        id: true,
-        performedById: true, // Need this to check if any approver acted
+        performedById: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20, // Limit history to last 20 actions for list view
+    },
+    _count: {
+      select: {
+        attachments: true,
       },
     },
   };

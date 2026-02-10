@@ -72,8 +72,14 @@ export const useAuthStore = create<AuthState>()(
           const user = await authService.getCurrentUser();
           logger.debug('AuthStore - user fetched from server:', user);
           set({ user, isAuthenticated: true, isLoading: false });
-        } catch (error) {
+        } catch (error: any) {
           logger.error('AuthStore - checkAuth error:', error);
+          logger.error('AuthStore - Error details:', {
+            message: error.message,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data
+          });
           set({ user: null, token: null, isAuthenticated: false, isLoading: false });
         }
       },

@@ -96,6 +96,15 @@ model UserLogin {
   assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
   departmentPermissions                             UserDepartmentPermission[]
   userSettings                                      UserSettings?                        @relation("UserSettings")
+  clubsAsFacultyFacilitator                         Club[]                               @relation("ClubFacultyFacilitator")
+  clubsAsViceChairperson                            Club[]                               @relation("ClubViceChairperson")
+  clubMemberships                                   ClubMember[]                         @relation("ClubMemberStudent")
+  clubMembersAdded                                  ClubMember[]                         @relation("ClubMemberAddedBy")
+  clubMembersRemoved                                ClubMember[]                         @relation("ClubMemberRemovedBy")
+  clubChangeRequestsInitiated                       ClubChangeRequest[]                  @relation("ClubChangeRequestedBy")
+  clubChangeRequestsApproved                        ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
+  clubChangeRequestsRejected                        ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
+  clubAuditLogs                                     ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
 
   @@map("user_login")
 }
@@ -1838,12 +1847,30 @@ model Note {
   eventStartDate      DateTime?
   eventEndDate        DateTime?
   eventPaymentType    EventPaymentType?
+  clubName            String?                     @map("club_name") @db.VarChar(256)
+  clubCategoryId      String?                     @map("club_category_id") @db.Uuid
+  clubPurpose         String?                     @map("club_purpose") @db.Text
+  clubAcademicSession String?                     @map("club_academic_session") @db.VarChar(64)
+  clubTargetStudentGroup ClubTargetGroupEnum?     @map("club_target_student_group")
+  clubMeetingFrequency   ClubMeetingFrequencyEnum? @map("club_meeting_frequency")
+  clubFundingRequired    Boolean?                 @map("club_funding_required")
+  clubEstimatedFundingAmount Decimal?             @map("club_estimated_funding_amount") @db.Decimal(12, 2)
+  clubVisibility         ClubVisibilityEnum?      @map("club_visibility")
+  clubExpectedActivityTypes String[]              @default([]) @map("club_expected_activity_types")
+  clubInfrastructureRequirements String[]         @default([]) @map("club_infrastructure_requirements")
+  clubEstimatedAnnualActivityCount Int?           @map("club_estimated_annual_activity_count")
+  clubExpectedStudentStrength Int?                @map("club_expected_student_strength")
+  clubFacultyFacilitatorId String?                @map("club_faculty_facilitator_id") @db.Uuid
+  clubViceChairpersonId    String?                @map("club_vice_chairperson_id") @db.Uuid
+  clubInitialMembers       String[]               @default([]) @map("club_initial_members")
   Event               Event?
   createdBy           UserLogin                   @relation("NoteCreatedBy", fields: [createdById], references: [id])
   currentHolder       UserLogin?                  @relation("NoteCurrentHolder", fields: [currentHolderId], references: [id])
   attachments         NoteAttachment[]
   history             NoteHistory[]
   points              NotePoint[]
+  clubCreation        Club?                       @relation("ClubCreationNoting")
+  clubChangeRequest   ClubChangeRequest?          @relation("ClubChangeRequestNoting")
 
   @@index([status])
   @@index([category, subcategory])
@@ -1853,6 +1880,7 @@ model Note {
   @@index([status, createdById], map: "note_status_createdById_idx")
   @@index([status, currentHolderId], map: "note_status_currentHolderId_idx")
   @@index([updatedAt], map: "note_updatedAt_idx")
+  @@index([status, updatedAt], map: "note_status_updatedAt_idx")
   @@index([eventName])
   @@map("note")
 }
@@ -1882,6 +1910,7 @@ model NoteHistory {
   @@index([action])
   @@index([noteId, createdAt], map: "note_history_noteId_createdAt_idx")
   @@index([performedById], map: "note_history_performedById_idx")
+  @@index([performedById, createdAt], map: "note_history_performedById_createdAt_idx")
   @@map("note_history")
 }
 
@@ -2539,3 +2568,220 @@ enum RegistrationStatus {
   cancelled
   waitlisted
 }
+
+// ============================================
+// DSW (Dean of Students' Welfare) System
+// ============================================
+
+model ClubCategory {
+  id          String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String          @db.VarChar(128)
+  description String?
+  icon        String?         @db.VarChar(64) // Emoji icon for main categories
+  parentId    String?         @map("parent_id") @db.Uuid // NULL for main categories, UUID for sub-categories
+  isActive    Boolean         @default(true) @map("is_active")
+  sortOrder   Int             @default(0) @map("sort_order")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  // Relations
+  parent      ClubCategory?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ClubCategory[]  @relation("CategoryHierarchy")
+  clubs       Club[]
+
+  @@unique([name, parentId]) // Unique within parent (allows same name for different parents)
+  @@index([parentId])
+  @@index([isActive])
+  @@map("club_category")
+}
+
+model Club {
+  id                           String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId                       String                    @unique @map("club_id") @db.VarChar(64)
+  name                         String                    @unique @db.VarChar(256)
+  categoryId                   String                    @map("category_id") @db.Uuid
+  purpose                      String                    @db.Text
+  academicSession              String                    @map("academic_session") @db.VarChar(64)
+  facultyFacilitatorId         String                    @map("faculty_facilitator_id") @db.Uuid
+  viceChairpersonId            String                    @map("vice_chairperson_id") @db.Uuid
+  targetStudentGroup           ClubTargetGroupEnum       @map("target_student_group")
+  expectedActivityTypes        String[]                  @map("expected_activity_types")
+  codeOfConductAccepted        Boolean                   @map("code_of_conduct_accepted")
+  antiDiscriminationAccepted   Boolean                   @map("anti_discrimination_accepted")
+  meetingFrequency             ClubMeetingFrequencyEnum  @map("meeting_frequency")
+  estimatedAnnualActivityCount Int                       @map("estimated_annual_activity_count")
+  infrastructureRequirements   String[]                  @map("infrastructure_requirements")
+  fundingRequired              Boolean                   @map("funding_required")
+  estimatedFundingAmount       Decimal?                  @map("estimated_funding_amount") @db.Decimal(12, 2)
+  visibility                   ClubVisibilityEnum
+  allowInternalCollaboration   Boolean                   @default(true) @map("allow_internal_collaboration")
+  allowExternalCollaboration   Boolean                   @default(false) @map("allow_external_collaboration")
+  proposedEmail                String?                   @map("proposed_email") @db.VarChar(256)
+  socialMediaHandles           Json?                     @map("social_media_handles")
+  expectedStudentStrength      Int?                      @map("expected_student_strength")
+  status                       ClubStatusEnum            @default(draft)
+  lifecycleState               ClubLifecycleStateEnum    @default(draft) @map("lifecycle_state")
+  notingId                     String?                   @unique @map("noting_id") @db.Uuid
+  approvedAt                   DateTime?                 @map("approved_at") @db.Timestamptz(6)
+  createdAt                    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata                     Json                      @default("{}")
+  category                     ClubCategory              @relation(fields: [categoryId], references: [id])
+  facultyFacilitator           UserLogin                 @relation("ClubFacultyFacilitator", fields: [facultyFacilitatorId], references: [id])
+  viceChairperson              UserLogin                 @relation("ClubViceChairperson", fields: [viceChairpersonId], references: [id])
+  noting                       Note?                     @relation("ClubCreationNoting", fields: [notingId], references: [id])
+  members                      ClubMember[]
+  auditLogs                    ClubAuditLog[]
+  changeRequests               ClubChangeRequest[]
+
+  @@index([status])
+  @@index([lifecycleState])
+  @@index([categoryId])
+  @@index([facultyFacilitatorId])
+  @@index([viceChairpersonId])
+  @@index([academicSession])
+  @@index([createdAt])
+  @@map("club")
+}
+
+model ClubMember {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId    String   @map("club_id") @db.Uuid
+  studentId String   @map("student_id") @db.Uuid
+  joinedAt  DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
+  isActive  Boolean  @default(true) @map("is_active")
+  addedById String   @map("added_by_id") @db.Uuid
+  removedAt DateTime? @map("removed_at") @db.Timestamptz(6)
+  removedById String? @map("removed_by_id") @db.Uuid
+  metadata  Json     @default("{}")
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  student   UserLogin @relation("ClubMemberStudent", fields: [studentId], references: [id])
+  addedBy   UserLogin @relation("ClubMemberAddedBy", fields: [addedById], references: [id])
+  removedBy UserLogin? @relation("ClubMemberRemovedBy", fields: [removedById], references: [id])
+
+  @@unique([clubId, studentId])
+  @@index([clubId])
+  @@index([studentId])
+  @@index([isActive])
+  @@map("club_member")
+}
+
+model ClubChangeRequest {
+  id                 String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId             String                         @map("club_id") @db.Uuid
+  notingId           String                         @unique @map("noting_id") @db.Uuid
+  changeType         ClubChangeTypeEnum             @map("change_type")
+  requestedChanges   Json                           @map("requested_changes")
+  justification      String                         @db.Text
+  status             ClubChangeRequestStatusEnum    @default(pending)
+  requestedById      String                         @map("requested_by_id") @db.Uuid
+  approvedById       String?                        @map("approved_by_id") @db.Uuid
+  rejectedById       String?                        @map("rejected_by_id") @db.Uuid
+  approvedAt         DateTime?                      @map("approved_at") @db.Timestamptz(6)
+  rejectedAt         DateTime?                      @map("rejected_at") @db.Timestamptz(6)
+  rejectionReason    String?                        @map("rejection_reason")
+  createdAt          DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  club               Club                           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  noting             Note                           @relation("ClubChangeRequestNoting", fields: [notingId], references: [id])
+  requestedBy        UserLogin                      @relation("ClubChangeRequestedBy", fields: [requestedById], references: [id])
+  approvedBy         UserLogin?                     @relation("ClubChangeApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy         UserLogin?                     @relation("ClubChangeRejectedBy", fields: [rejectedById], references: [id])
+
+  @@index([clubId])
+  @@index([status])
+  @@index([changeType])
+  @@index([createdAt])
+  @@map("club_change_request")
+}
+
+model ClubAuditLog {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId        String   @map("club_id") @db.Uuid
+  action        String   @db.VarChar(128)
+  performedById String   @map("performed_by_id") @db.Uuid
+  previousState Json?    @map("previous_state")
+  newState      Json?    @map("new_state")
+  changes       Json?
+  source        String   @default("dsw_ui") @db.VarChar(64)
+  ipAddress     String?  @map("ip_address") @db.VarChar(64)
+  userAgent     String?  @map("user_agent") @db.VarChar(512)
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  club          Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  performedBy   UserLogin @relation("ClubAuditLogPerformedBy", fields: [performedById], references: [id])
+
+  @@index([clubId])
+  @@index([action])
+  @@index([performedById])
+  @@index([createdAt])
+  @@map("club_audit_log")
+}
+
+enum ClubStatusEnum {
+  draft
+  pending_approval
+  approved
+  active
+  suspended
+  archived
+
+  @@map("club_status_enum")
+}
+
+enum ClubLifecycleStateEnum {
+  draft
+  under_approval
+  approved
+  active
+  suspended
+  archived
+
+  @@map("club_lifecycle_state_enum")
+}
+
+enum ClubTargetGroupEnum {
+  all
+  ug
+  pg
+  phd
+
+  @@map("club_target_group_enum")
+}
+
+enum ClubVisibilityEnum {
+  public
+  restricted
+
+  @@map("club_visibility_enum")
+}
+
+enum ClubMeetingFrequencyEnum {
+  weekly
+  monthly
+  event_based
+
+  @@map("club_meeting_frequency_enum")
+}
+
+enum ClubChangeTypeEnum {
+  name_change
+  category_change
+  purpose_change
+  facilitator_change
+  vice_chairperson_change
+  governance_change
+  operational_change
+  other
+
+  @@map("club_change_type_enum")
+}
+
+enum ClubChangeRequestStatusEnum {
+  pending
+  approved
+  rejected
+
+  @@map("club_change_request_status_enum")
+}
+

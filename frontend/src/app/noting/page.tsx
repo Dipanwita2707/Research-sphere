@@ -10,18 +10,18 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter } from 'next/navigation';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800', icon: FileText },
-  pending: { label: 'In Review', color: 'bg-amber-100 text-amber-800', icon: Clock },
-  approved: { label: 'Approved', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  rejected: { label: 'Rejected', color: 'bg-red-100 text-red-800', icon: XCircle },
-  reverted: { label: 'Reverted', color: 'bg-orange-100 text-orange-800', icon: RotateCcw },
+  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-600 border border-gray-200', icon: FileText },
+  pending: { label: 'In Review', color: 'bg-amber-50 text-amber-700 border border-amber-200', icon: Clock },
+  approved: { label: 'Approved', color: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: CheckCircle },
+  rejected: { label: 'Rejected', color: 'bg-red-50 text-red-700 border border-red-200', icon: XCircle },
+  reverted: { label: 'Reverted', color: 'bg-orange-50 text-orange-700 border border-orange-200', icon: RotateCcw },
 };
 
 const MY_ACTION_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  approved: { label: 'Approved by you', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200', icon: CheckCircle },
-  rejected: { label: 'Rejected by you', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200', icon: XCircle },
-  forwarded: { label: 'Forwarded by you', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200', icon: Send },
-  reverted: { label: 'Reverted by you', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200', icon: RotateCcw },
+  approved: { label: 'Approved by you', color: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: CheckCircle },
+  rejected: { label: 'Rejected by you', color: 'bg-red-50 text-red-700 border border-red-200', icon: XCircle },
+  forwarded: { label: 'Forwarded by you', color: 'bg-blue-50 text-blue-700 border border-blue-200', icon: Send },
+  reverted: { label: 'Reverted by you', color: 'bg-orange-50 text-orange-700 border border-orange-200', icon: RotateCcw },
 };
 
 function getDisplayName(note: Note): string {
@@ -151,136 +151,76 @@ export default function NotingListPage() {
     return () => { cancelled = true; };
   }, [filter, page, search, status, category, startDate, endDate]);
 
+  const TABS = [
+    { key: 'mine' as const, label: 'My Notes', desc: 'Notes created by you', icon: Send, count: counts.mine },
+    { key: 'pending' as const, label: 'Pending for Me', desc: 'Awaiting your review', icon: Inbox, count: counts.pending },
+    { key: 'handled' as const, label: 'Handled by Me', desc: 'Actions you\'ve taken', icon: History, count: counts.handled },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-indigo-50/30 to-gray-50 dark:from-gray-900 dark:via-indigo-950/20 dark:to-gray-900 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-[1400px] mx-auto">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-indigo-900 dark:from-white dark:to-indigo-200 bg-clip-text text-transparent mb-2">
+            <h1 className="text-2xl font-bold text-sgt-700 dark:text-white">
               Noting & Approval System
             </h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Create, track, and manage approval requests efficiently
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              Create, track, and manage approval requests
             </p>
           </div>
           <Link
             href="/noting/new"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             Create New Note
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-6">
-          <button
-            onClick={() => setFilter('mine')}
-            className={`relative overflow-hidden rounded-md p-2.5 text-left transition-all duration-200 ${
-              filter === 'mine' 
-                ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg scale-[1.02]' 
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className={`p-1.5 rounded-md ${
-                filter === 'mine' 
-                  ? 'bg-white/20' 
-                  : 'bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30'
-              }`}>
-                <Send className={`w-4 h-4 ${filter === 'mine' ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
-              </div>
-              {counts.mine > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  filter === 'mine' 
-                    ? 'bg-white text-indigo-600' 
-                    : 'bg-indigo-600 text-white'
-                }`}>
-                  {counts.mine}
-                </span>
-              )}
-            </div>
-            <h3 className="text-sm font-bold mb-0.5 leading-tight">My Notes</h3>
-            <p className={`text-[11px] leading-tight ${filter === 'mine' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
-              Notes created by you
-            </p>
-          </button>
-
-          <button
-            onClick={() => setFilter('pending')}
-            className={`relative overflow-hidden rounded-md p-2.5 text-left transition-all duration-200 ${
-              filter === 'pending' 
-                ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg scale-[1.02]' 
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-700 hover:shadow-md'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className={`p-1.5 rounded-md ${
-                filter === 'pending' 
-                  ? 'bg-white/20' 
-                  : 'bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30'
-              }`}>
-                <Inbox className={`w-4 h-4 ${filter === 'pending' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
-              </div>
-              {counts.pending > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  filter === 'pending' 
-                    ? 'bg-white text-amber-600' 
-                    : 'bg-amber-600 text-white'
-                }`}>
-                  {counts.pending}
-                </span>
-              )}
-            </div>
-            <h3 className="text-sm font-bold mb-0.5 leading-tight">Pending for Me</h3>
-            <p className={`text-[11px] leading-tight ${filter === 'pending' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
-              Awaiting your review
-            </p>
-          </button>
-
-          <button
-            onClick={() => setFilter('handled')}
-            className={`relative overflow-hidden rounded-md p-2.5 text-left transition-all duration-200 ${
-              filter === 'handled' 
-                ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg scale-[1.02]' 
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 hover:shadow-md'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className={`p-1.5 rounded-md ${
-                filter === 'handled' 
-                  ? 'bg-white/20' 
-                  : 'bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30'
-              }`}>
-                <History className={`w-4 h-4 ${filter === 'handled' ? 'text-white' : 'text-green-600 dark:text-green-400'}`} />
-              </div>
-              {counts.handled > 0 && (
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                  filter === 'handled' 
-                    ? 'bg-white text-green-600' 
-                    : 'bg-green-600 text-white'
-                }`}>
-                  {counts.handled}
-                </span>
-              )}
-            </div>
-            <h3 className="text-sm font-bold mb-0.5 leading-tight">Handled by Me</h3>
-            <p className={`text-[11px] leading-tight ${filter === 'handled' ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
-              Actions you've taken
-            </p>
-          </button>
+        {/* Tab Filters */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700 mb-5">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setFilter(tab.key)}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                  isActive
+                    ? 'border-sgt-600 text-sgt-700 dark:text-sgt-300'
+                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+                {tab.count > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                    isActive
+                      ? 'bg-sgt-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                  }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Search and Filters */}
-        <div className="mb-6 bg-white dark:bg-gray-800 rounded-xl shadow border border-gray-200 dark:border-gray-700 p-4">
-          <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+        <div className="mb-5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <form onSubmit={handleSearch} className="flex gap-2">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search by Note ID or description..."
-                className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-9 pr-9 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
               />
               {searchInput && (
                 <button
@@ -288,37 +228,39 @@ export default function NotingListPage() {
                   onClick={() => { setSearchInput(''); setSearch(''); }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
             <button
               type="submit"
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex items-center gap-2"
+              className="px-4 py-2 bg-sgt-600 text-white text-sm rounded-lg hover:bg-sgt-700 font-medium flex items-center gap-1.5 transition-colors"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-3.5 h-3.5" />
               Search
             </button>
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 font-medium flex items-center gap-2 ${showFilters ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+              className={`px-4 py-2 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                showFilters
+                  ? 'bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 border-sgt-300'
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
             >
-              <Filter className="w-4 h-4" />
+              <Filter className="w-3.5 h-3.5" />
               Filters
             </button>
           </form>
 
           {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Status
-                </label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Status</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                 >
                   <option value="">All Statuses</option>
                   <option value="draft">Draft</option>
@@ -328,15 +270,12 @@ export default function NotingListPage() {
                   <option value="reverted">Reverted</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Category
-                </label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label>
                 <select
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                 >
                   <option value="">All Categories</option>
                   <option value="academic">Academic</option>
@@ -344,36 +283,29 @@ export default function NotingListPage() {
                   <option value="hrm">HRM</option>
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Start Date
-                </label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start Date</label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  End Date
-                </label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End Date</label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                 />
               </div>
-
               <div className="md:col-span-2 lg:col-span-4 flex justify-end">
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium"
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-medium"
                 >
                   Clear all filters
                 </button>
@@ -382,42 +314,43 @@ export default function NotingListPage() {
           )}
         </div>
 
+        {/* Content */}
         {loading ? (
-          <div className="flex justify-center py-16">
+          <div className="flex justify-center py-20">
             <div className="text-center">
-              <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
-              <p className="text-gray-500 dark:text-gray-400">Loading notes...</p>
+              <Loader2 className="w-8 h-8 animate-spin text-sgt-600 mx-auto mb-3" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading notes...</p>
             </div>
           </div>
         ) : notes.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-12">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12">
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center">
-                <FileText className="w-10 h-10 text-indigo-600 dark:text-indigo-400" />
+              <div className="w-14 h-14 mx-auto mb-4 bg-sgt-50 dark:bg-sgt-900/20 rounded-full flex items-center justify-center">
+                <FileText className="w-7 h-7 text-sgt-600 dark:text-sgt-400" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">
                 {filter === 'mine' && 'No Notes Created Yet'}
                 {filter === 'pending' && 'No Pending Approvals'}
                 {filter === 'handled' && 'No Handled Notes'}
               </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
-                {filter === 'mine' && 'Start by creating your first approval request. Click the button below to get started.'}
-                {filter === 'pending' && 'You have no notes waiting for your review. When notes are assigned to you, they will appear here.'}
-                {filter === 'handled' && 'Notes you have approved, rejected, forwarded, or reverted will appear here.'}
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 max-w-sm mx-auto">
+                {filter === 'mine' && 'Start by creating your first approval request.'}
+                {filter === 'pending' && 'No notes waiting for your review right now.'}
+                {filter === 'handled' && 'Notes you have acted upon will appear here.'}
               </p>
               {filter === 'mine' && (
                 <Link 
                   href="/noting/new" 
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md hover:shadow-lg"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm"
                 >
-                  <Plus className="w-5 h-5" />
+                  <Plus className="w-4 h-4" />
                   Create Your First Note
                 </Link>
               )}
             </div>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="space-y-3">
             {notes.map((note) => {
               const statusConf = STATUS_CONFIG[note.status] || STATUS_CONFIG.draft;
               const StatusIcon = statusConf.icon;
@@ -431,90 +364,90 @@ export default function NotingListPage() {
                 <Link
                   key={note.id}
                   href={note.status === 'draft' || note.status === 'reverted' ? `/noting/new?draft=${note.id}` : `/noting/${note.id}`}
-                  className="group"
+                  className="group block"
                 >
-                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border-2 border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-md transition-all duration-200">
-                    {/* Header Section */}
-                    <div className="p-5 border-b border-gray-100 dark:border-gray-700/50">
+                  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-sgt-300 dark:hover:border-sgt-700 hover:shadow-sm transition-all duration-150">
+                    <div className="px-5 py-4">
                       <div className="flex items-start justify-between gap-4">
-                        {/* Left: Note ID and Title */}
+                        {/* Left side */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 rounded-lg">
-                              <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-mono text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-0.5">
-                                {note.notingId}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {new Date(note.createdAt).toLocaleDateString('en-US', { 
-                                  year: 'numeric', 
-                                  month: 'short', 
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </p>
-                            </div>
+                          <div className="flex items-center gap-2.5 mb-1.5">
+                            <span className="font-mono text-xs font-semibold text-sgt-600 dark:text-sgt-400">
+                              {note.notingId}
+                            </span>
+                            <span className="text-gray-300 dark:text-gray-600">•</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(note.createdAt).toLocaleDateString('en-US', { 
+                                year: 'numeric', month: 'short', day: 'numeric'
+                              })}
+                            </span>
                           </div>
-                          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                            {note.category.charAt(0).toUpperCase() + note.category.slice(1)} / {note.subcategory}
+                          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-sgt-700 dark:group-hover:text-sgt-400 transition-colors capitalize">
+                            {note.category} / {note.subcategory}
                           </h3>
                           {note.description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
                               {note.description}
                             </p>
                           )}
+                          {/* Footer info */}
+                          <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-500 dark:text-gray-400">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-5 h-5 rounded-full bg-sgt-100 dark:bg-sgt-900/30 flex items-center justify-center text-sgt-700 dark:text-sgt-400 text-[10px] font-bold">
+                                {getDisplayName(note).charAt(0).toUpperCase()}
+                              </span>
+                              {getDisplayName(note)}
+                            </span>
+                            {filter !== 'handled' && note.currentHolder && (
+                              <span className="flex items-center gap-1">
+                                <Send className="w-3 h-3" />
+                                With {note.currentHolder.employeeDetails?.displayName || note.currentHolder.uid}
+                              </span>
+                            )}
+                            {note.history && note.history.length > 0 && (
+                              <span className="flex items-center gap-1">
+                                <History className="w-3 h-3" />
+                                {note.history.length} {note.history.length === 1 ? 'action' : 'actions'}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Right: Status Badge and Actions */}
+                        {/* Right side — Status + Actions */}
                         <div className="flex flex-col items-end gap-2 shrink-0">
                           {filter === 'handled' && note.myAction ? (
-                            <div className="flex flex-col items-end gap-2">
+                            <div className="flex flex-col items-end gap-1.5">
                               {(() => {
                                 const actionConf = MY_ACTION_CONFIG[note.myAction.action] || MY_ACTION_CONFIG.forwarded;
                                 const ActionIcon = actionConf.icon;
                                 return (
-                                  <span 
-                                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold shadow-sm ${actionConf.color}`}
-                                    title={`Action taken on ${new Date(note.myAction.performedAt).toLocaleString()}`}
-                                  >
-                                    <ActionIcon className="w-4 h-4" />
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium ${actionConf.color}`}>
+                                    <ActionIcon className="w-3 h-3" />
                                     {actionConf.label}
                                   </span>
                                 );
                               })()}
-                              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                                {new Date(note.myAction.performedAt).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
-                              {/* Also show current status for handled notes */}
-                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${statusConf.color}`}>
-                                <StatusIcon className="w-3.5 h-3.5" />
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${statusConf.color}`}>
+                                <StatusIcon className="w-3 h-3" />
                                 {statusConf.label}
                               </span>
                             </div>
                           ) : (
-                            <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold shadow-sm ${statusConf.color}`}>
-                              <StatusIcon className="w-4 h-4" />
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium ${statusConf.color}`}>
+                              <StatusIcon className="w-3 h-3" />
                               {statusConf.label}
                             </span>
                           )}
                           
-                          <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
+                          <div className="flex items-center gap-0.5" onClick={(e) => e.preventDefault()}>
                             {canEditOrDelete && note.status !== 'approved' && note.status !== 'rejected' && (
                               <Link
                                 href={`/noting/new?draft=${note.id}`}
                                 onClick={(e) => e.stopPropagation()}
-                                className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                                className="p-1.5 text-gray-400 hover:text-sgt-600 hover:bg-sgt-50 dark:hover:bg-sgt-900/20 rounded-md transition-colors"
                                 title="Edit note"
                               >
-                                <Pencil className="w-4 h-4" />
+                                <Pencil className="w-3.5 h-3.5" />
                               </Link>
                             )}
                             {canEditOrDelete && (
@@ -522,49 +455,14 @@ export default function NotingListPage() {
                                 type="button"
                                 onClick={(e) => handleDeleteDraft(e, note)}
                                 disabled={isDeleting}
-                                className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title={approverActions.length > 0 ? "Cannot delete after approver action" : "Delete note"}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors disabled:opacity-50"
+                                title="Delete note"
                               >
-                                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                               </button>
                             )}
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Footer Section */}
-                    <div className="px-5 py-3 bg-gray-50 dark:bg-gray-900/30">
-                      <div className="flex items-center justify-between gap-4 text-xs">
-                        {/* Creator Info */}
-                        <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-white font-semibold text-xs">
-                            {getDisplayName(note).charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-medium">
-                            {getDisplayName(note)}
-                          </span>
-                        </div>
-
-                        {/* Current Holder (for pending/in-review notes) */}
-                        {filter !== 'handled' && note.currentHolder && (
-                          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                            <Send className="w-3.5 h-3.5" />
-                            <span className="font-medium">
-                              With {note.currentHolder.employeeDetails?.displayName || note.currentHolder.uid}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* History count */}
-                        {note.history && note.history.length > 0 && (
-                          <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                            <History className="w-3.5 h-3.5" />
-                            <span className="font-medium">
-                              {note.history.length} {note.history.length === 1 ? 'action' : 'actions'}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -576,20 +474,20 @@ export default function NotingListPage() {
         
         {/* Pagination */}
         {pagination.totalPages > 0 && (
-          <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-6 py-4">
+          <div className="mt-5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Showing <span className="text-gray-900 dark:text-white font-semibold">{((pagination.page - 1) * PAGE_SIZE) + 1}</span> to <span className="text-gray-900 dark:text-white font-semibold">{Math.min(pagination.page * PAGE_SIZE, pagination.total)}</span> of <span className="text-gray-900 dark:text-white font-semibold">{pagination.total}</span> results
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Showing <span className="font-medium text-gray-700 dark:text-gray-200">{((pagination.page - 1) * PAGE_SIZE) + 1}</span> to <span className="font-medium text-gray-700 dark:text-gray-200">{Math.min(pagination.page * PAGE_SIZE, pagination.total)}</span> of <span className="font-medium text-gray-700 dark:text-gray-200">{pagination.total}</span>
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={pagination.page <= 1 || loading}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4" />
-                  Previous
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Prev
                 </button>
                 <div className="hidden sm:flex items-center gap-1">
                   {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
@@ -603,17 +501,16 @@ export default function NotingListPage() {
                     } else {
                       pageNum = pagination.page - 2 + i;
                     }
-                    
                     return (
                       <button
                         key={i}
                         type="button"
                         onClick={() => setPage(pageNum)}
                         disabled={loading}
-                        className={`w-10 h-10 rounded-lg text-sm font-semibold transition-all ${
+                        className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${
                           pagination.page === pageNum
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'bg-sgt-600 text-white'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                       >
                         {pageNum}
@@ -625,10 +522,10 @@ export default function NotingListPage() {
                   type="button"
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={pagination.page >= pagination.totalPages || loading}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-400 dark:hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

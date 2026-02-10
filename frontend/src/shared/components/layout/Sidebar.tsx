@@ -154,6 +154,20 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
     { name: 'Settings', href: '/settings', icon: Settings }
   );
   
+  // Administrative section - DSW and other administrative modules
+  items.push({
+    name: 'Administrative',
+    href: '/dsw',
+    icon: ClipboardCheck,
+    subItems: [
+      { name: 'DSW Dashboard', href: '/dsw', icon: LayoutDashboard },
+      { name: 'All Clubs', href: '/dsw/clubs', icon: Users },
+      { name: 'My Clubs', href: '/dsw/my-clubs', icon: UserCheck },
+      { name: 'Club Categories', href: '/dsw/categories', icon: Building },
+      { name: 'Club Statistics', href: '/dsw/statistics', icon: BarChart3 },
+    ]
+  });
+  
   // Admin section - Only for admins
   if (isAdmin) {
     items.push({ 
@@ -213,7 +227,7 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR']); // Admin and Research & IPR expanded by default
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Administrative']); // Admin, Research & IPR, and Administrative expanded by default
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
 
   useEffect(() => {

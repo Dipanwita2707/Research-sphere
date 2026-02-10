@@ -19,6 +19,7 @@ const CATEGORIES = {
       infrastructure: { label: 'Infrastructure', idCode: 'INFRA' },
       accounts_purchase: { label: 'Accounts & Purchase', idCode: 'ACCOUNTS' },
       non_academic_resources: { label: 'Non-Academic / Resources', idCode: 'RESOURCES' },
+      dsw_club_creation: { label: 'DSW - Club Creation', idCode: 'DSWCLUB' },
     },
   },
 };
@@ -112,6 +113,9 @@ function getFlowDefinition(category, subcategory, creatorRole, noteContext = {})
         return ['ACCOUNTS_HEAD', 'PURCHASE_HEAD', 'HIGHER_AUTHORITY'];
       case 'non_academic_resources':
         return ['HR_HEAD', 'HIGHER_AUTHORITY'];
+      case 'dsw_club_creation':
+        // Club Creation: Faculty → HOD → Dean → DSW Team (any member can approve) → Higher Authority
+        return ['HOD', 'DEAN', 'DSW', 'HIGHER_AUTHORITY'];
       default:
         return ['DEAN', 'HIGHER_AUTHORITY'];
     }
