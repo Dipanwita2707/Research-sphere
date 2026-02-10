@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter, usePathname } from 'next/navigation';
@@ -367,12 +367,20 @@ export default function NavigationHeader() {
       description: 'Academic resources and tools',
       children: [
         { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
+<<<<<<< HEAD
        
         { name: '�Courses', href: '#', description: 'Course management (Coming Soon)' },
         { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
         { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
         { name: 'Results', href: '#', description: 'Academic results (Coming Soon)' },
         { name: 'Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
+=======
+        { name: '📖 Courses', href: '#', description: 'Course management (Coming Soon)' },
+        { name: '📅 Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
+        { name: '📝 Examinations', href: '#', description: 'Exam management (Coming Soon)' },
+        { name: '🏆 Results', href: '#', description: 'Academic results (Coming Soon)' },
+        { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
+>>>>>>> 9b857847c7ed76344b6f9ab89284a20f787fa615
       ],
     },
   ];
@@ -393,12 +401,23 @@ export default function NavigationHeader() {
     description: 'Student admissions portal',
   });
 
-  // Add Noting approval with Event Management
+  // Add Noting approval - Only for Faculty, Staff, and Admin (NOT for students)
+  if (!isStudent) {
+    navigationSubItems.push({
+      name: '📋 Noting & Approval',
+      href: '/noting',
+      description: 'Create and track approval notes',
+    });
+  }
+
+  // Add Event Management
   navigationSubItems.push({
-    name: '📝 Noting approval',
-    description: 'Event management and approvals',
+    name: '📅 Event Management',
+    description: 'Discover, organize, and attend university events',
     children: [
-      { name: '📅 Event Management', href: 'https://sgt-event.vercel.app/student', description: 'Campus event management' },
+      { name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' },
+      { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' },
+      { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
     ],
   });
 

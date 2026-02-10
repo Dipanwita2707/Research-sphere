@@ -207,6 +207,21 @@ const createEmployee = async (req, res) => {
     });
   } catch (error) {
     console.error('Create employee error:', error);
+    // Unique constraint (e.g. duplicate uid/email) → return 400 with clear message
+    if (error.code === 'P2002') {
+      const target = error.meta?.target;
+      const field = Array.isArray(target) ? target[0] : target;
+      const message = field === 'uid'
+        ? 'A user with this UID already exists'
+        : field === 'email'
+          ? 'A user with this email already exists'
+          : 'A record with this value already exists';
+      return res.status(400).json({
+        success: false,
+        message,
+        error: 'DUPLICATE_' + (field ? String(field).toUpperCase() : 'RECORD'),
+      });
+    }
     res.status(500).json({
       success: false,
       message: 'Failed to create employee',
@@ -218,7 +233,7 @@ const createEmployee = async (req, res) => {
 // Get all employees with filters
 const getAllEmployees = async (req, res) => {
   try {
-    const { role, schoolId, departmentId, employeeCategory, search, page = 1, limit = 50 } = req.query;
+    const { role, schoolId, departmentId, employeeCategory, designation, search, page = 1, limit = 50 } = req.query;
 
     const where = {
       role: {
@@ -234,6 +249,9 @@ const getAllEmployees = async (req, res) => {
     if (schoolId) employeeWhere.schoolId = schoolId;
     if (departmentId) employeeWhere.departmentId = departmentId;
     if (employeeCategory) employeeWhere.employeeCategory = employeeCategory;
+    if (designation && String(designation).trim()) {
+      employeeWhere.designation = { equals: String(designation).trim(), mode: 'insensitive' };
+    }
 
     if (search) {
       where.OR = [
@@ -579,10 +597,83 @@ const toggleEmployeeStatus = async (req, res) => {
   }
 };
 
+/** Get distinct designation values for filter dropdowns */
+const getDesignations = async (req, res) => {
+  try {
+    const rows = await prisma.employeeDetails.findMany({
+      where: { designation: { not: null } },
+      select: { designation: true },
+      distinct: ['designation'],
+      orderBy: { designation: 'asc' },
+    });
+    const list = rows.map((r) => r.designation).filter(Boolean);
+    res.json({ success: true, data: list });
+  } catch (error) {
+    console.error('Get designations error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch designations',
+      error: error.message,
+    });
+  }
+};
+
+/** Delete employee (UserLogin + EmployeeDetails). Fails if user is referenced as HOD, coordinator, etc. */
+const deleteEmployee = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.userLogin.findUnique({
+      where: { id },
+      include: { employeeDetails: true },
+    });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found',
+      });
+    }
+    if (!['faculty', 'staff'].includes(user.role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Only faculty or staff employees can be deleted via this endpoint',
+      });
+    }
+    await prisma.$transaction(async (tx) => {
+      if (user.employeeDetails?.id) {
+        await tx.employeeDetails.delete({
+          where: { id: user.employeeDetails.id },
+        });
+      }
+      await tx.userLogin.delete({
+        where: { id },
+      });
+    });
+    res.json({
+      success: true,
+      message: 'Employee deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete employee error:', error);
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete: employee is referenced elsewhere (e.g. as head of department, coordinator, or in permissions). Deactivate the employee instead.',
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete employee',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createEmployee,
   getAllEmployees,
   getEmployeeById,
   updateEmployee,
   toggleEmployeeStatus,
+  getDesignations,
+  deleteEmployee,
 };

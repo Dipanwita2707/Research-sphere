@@ -34,6 +34,8 @@ const researchModule = require('../../research');
 const grantsModule = require('../../grants');
 const iprModule = require('../../ipr');
 const financeModule = require('../../finance');
+const notingModule = require('../../noting');
+const eventManagementModule = require('../../event-management/routes/event.routes');
 
 // ============================================
 // MOUNT CORE ROUTES
@@ -63,6 +65,8 @@ router.use('/research', researchModule);
 router.use('/grants', grantsModule);
 router.use('/ipr', iprModule);
 router.use('/finance', financeModule);
+router.use('/noting', notingModule);
+router.use('/events', eventManagementModule);
 
 // ============================================
 // BACKWARD COMPATIBILITY ROUTES

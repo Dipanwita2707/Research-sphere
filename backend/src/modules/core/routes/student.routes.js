@@ -12,6 +12,9 @@ router.get('/programs', studentController.getPrograms);
 // Get sections by program
 router.get('/programs/:programId/sections', studentController.getSectionsByProgram);
 
+// Get faculty (mentors) by program — for Assign Mentor dropdown
+router.get('/programs/:programId/faculty', studentController.getFacultyByProgram);
+
 // Create new student
 router.post('/', studentController.createStudent);
 

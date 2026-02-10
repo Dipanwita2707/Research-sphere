@@ -5,6 +5,7 @@ import { logger } from '@/shared/utils/logger';
 
 interface AuthState {
   user: User | null;
+  token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   setUser: (user: User | null) => void;
@@ -12,12 +13,14 @@ interface AuthState {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  getToken: () => string | null;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
+      token: null,
       isAuthenticated: false,
       isLoading: false,
 
@@ -26,16 +29,19 @@ export const useAuthStore = create<AuthState>()(
         set({ user, isAuthenticated: !!user, isLoading: false });
       },
 
+      getToken: () => get().token ?? null,
+
       login: async (username, password) => {
         logger.debug('AuthStore - login started');
         try {
           const response = await authService.login({ username, password });
           logger.debug('AuthStore - login response:', response);
-          set({ user: response.user, isAuthenticated: true, isLoading: false });
+          const token = (response as { token?: string }).token ?? null;
+          set({ user: response.user, token, isAuthenticated: true, isLoading: false });
           logger.debug('AuthStore - state after login:', get());
         } catch (error) {
           logger.error('AuthStore - login error:', error);
-          set({ user: null, isAuthenticated: false, isLoading: false });
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
           throw error;
         }
       },
@@ -45,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           await authService.logout();
         } finally {
-          set({ user: null, isAuthenticated: false, isLoading: false });
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
         }
       },
 
@@ -68,7 +74,7 @@ export const useAuthStore = create<AuthState>()(
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error) {
           logger.error('AuthStore - checkAuth error:', error);
-          set({ user: null, isAuthenticated: false, isLoading: false });
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
         }
       },
 
@@ -81,13 +87,13 @@ export const useAuthStore = create<AuthState>()(
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error) {
           logger.error('AuthStore - refreshUser error:', error);
-          set({ user: null, isAuthenticated: false, isLoading: false });
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
         }
       },
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+      partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
     }
   )
 );

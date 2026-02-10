@@ -1,48 +1,171 @@
-const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
+/**
+ * Global Error Handling Middleware
+ * Catches all errors and formats them consistently
+ * Handles Prisma-specific errors and converts them to appropriate HTTP responses
+ */
 
-  // Default error
-  let statusCode = err.statusCode || 500;
-  let message = err.message || 'Internal Server Error';
+const { AppError } = require('../utils/AppError');
 
-  // JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    statusCode = 401;
-    message = 'Invalid token';
-  }
-  
-  if (err.name === 'TokenExpiredError') {
-    statusCode = 401;
-    message = 'Token expired';
-  }
-
-  // Validation errors
-  if (err.name === 'ValidationError') {
-    statusCode = 400;
-    message = Object.values(err.errors).map(e => e.message).join(', ');
+/**
+ * Handle Prisma-specific errors
+ */
+function handlePrismaError(err) {
+  // P2002: Unique constraint violation
+  if (err.code === 'P2002') {
+    const field = err.meta?.target?.[0] || 'field';
+    return new AppError(`Duplicate value for ${field}`, 409, true);
   }
 
-  // PostgreSQL errors
+  // P2025: Record not found
+  if (err.code === 'P2025') {
+    return new AppError('Record not found', 404, true);
+  }
+
+  // P2003: Foreign key constraint violation
+  if (err.code === 'P2003') {
+    return new AppError('Related record not found', 400, true);
+  }
+
+  // P2014: Invalid relation
+  if (err.code === 'P2014') {
+    return new AppError('Invalid relationship between records', 400, true);
+  }
+
+  // P2011: Null constraint violation
+  if (err.code === 'P2011') {
+    const field = err.meta?.column || 'field';
+    return new AppError(`${field} is required`, 400, true);
+  }
+
+  return err;
+}
+
+/**
+ * Handle PostgreSQL errors
+ */
+function handlePostgresError(err) {
   if (err.code === '23505') { // Unique violation
-    statusCode = 409;
-    message = 'Resource already exists';
+    return new AppError('Resource already exists', 409, true);
   }
   
   if (err.code === '23503') { // Foreign key violation
-    statusCode = 400;
-    message = 'Referenced resource does not exist';
+    return new AppError('Referenced resource does not exist', 400, true);
   }
   
   if (err.code === '23502') { // Not null violation
-    statusCode = 400;
-    message = 'Required field is missing';
+    return new AppError('Required field is missing', 400, true);
   }
 
-  res.status(statusCode).json({
-    success: false,
-    message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  return err;
+}
+
+/**
+ * Handle JWT errors
+ */
+function handleJWTError(err) {
+  if (err.name === 'JsonWebTokenError') {
+    return new AppError('Invalid token', 401, true);
+  }
+  
+  if (err.name === 'TokenExpiredError') {
+    return new AppError('Token expired', 401, true);
+  }
+
+  return err;
+}
+
+/**
+ * Development error response - includes full details
+ */
+function sendErrorDev(err, req, res) {
+  console.error('ERROR 💥', {
+    message: err.message,
+    stack: err.stack,
+    error: err,
   });
+
+  res.status(err.statusCode || 500).json({
+    success: false,
+    status: err.status,
+    message: err.message,
+    error: err,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+  });
+}
+
+/**
+ * Production error response - sanitized
+ */
+function sendErrorProd(err, req, res) {
+  // Operational, trusted error: send message to client
+  if (err.isOperational) {
+    res.status(err.statusCode).json({
+      success: false,
+      status: err.status,
+      message: err.message,
+    });
+  } else {
+    // Programming or unknown error: don't leak error details
+    console.error('ERROR 💥', err);
+
+    res.status(500).json({
+      success: false,
+      status: 'error',
+      message: 'Something went wrong',
+    });
+  }
+}
+
+/**
+ * Global error handler middleware
+ * Must be defined after all other middleware and routes
+ */
+const errorHandler = (err, req, res, next) => {
+  err.statusCode = err.statusCode || 500;
+  err.status = err.status || 'error';
+  err.isOperational = err.isOperational !== undefined ? err.isOperational : false;
+
+  // Handle Prisma errors
+  if (err.code && err.code.startsWith('P')) {
+    err = handlePrismaError(err);
+  }
+
+  // Handle PostgreSQL errors
+  if (err.code && err.code.startsWith('23')) {
+    err = handlePostgresError(err);
+  }
+
+  // Handle JWT errors
+  if (err.name && (err.name.includes('JsonWebToken') || err.name.includes('TokenExpired'))) {
+    err = handleJWTError(err);
+  }
+
+  // Handle Validation errors
+  if (err.name === 'ValidationError') {
+    const message = Object.values(err.errors || {}).map(e => e.message).join(', ');
+    err = new AppError(message || 'Validation failed', 400, true);
+  }
+
+  // Log error for monitoring
+  if (err.statusCode >= 500) {
+    console.error('Server Error:', {
+      message: err.message,
+      stack: err.stack,
+      path: req.path,
+      method: req.method,
+      user: req.user?.id,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  // Send appropriate response based on environment
+  if (process.env.NODE_ENV === 'development') {
+    sendErrorDev(err, req, res);
+  } else {
+    sendErrorProd(err, req, res);
+  }
 };
 
 module.exports = errorHandler;
