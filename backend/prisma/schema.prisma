@@ -1944,17 +1944,17 @@ model gate_pass {
   visitor_name                                       String                   @db.VarChar(255)
   mobile_number                                      String                   @db.VarChar(20)
   email                                              String?                  @db.VarChar(255)
-  id_proof_type                                      id_proof_type_enum
-  id_proof_number                                    String                   @db.VarChar(100)
+  id_proof_type                                      id_proof_type_enum?
+  id_proof_number                                    String?                  @db.VarChar(100)
   photo_file_path                                    String?
   photo                                              String?                  @db.VarChar(64)
   gender                                             gender_enum?
   age                                                Int?
   purpose_of_visit                                   visit_purpose_enum
   purpose_other                                      String?                  @db.VarChar(255)
-  department_to_visit                                String                   @db.VarChar(255)
+  department_to_visit                                String?                  @db.VarChar(255)
   person_to_meet_id                                  String?                  @db.Uuid
-  person_to_meet_name                                String                   @db.VarChar(255)
+  person_to_meet_name                                String?                  @db.VarChar(255)
   visit_date                                         DateTime                 @db.Date
   expected_entry_time                                String                   @db.VarChar(10)
   expected_exit_time                                 String                   @db.VarChar(10)
@@ -1965,6 +1965,9 @@ model gate_pass {
   number_of_persons                                  Int                      @default(1)
   items_carrying                                     String?
   special_instructions                               String?
+  stay_required                                      Boolean?                 @default(false)
+  verification_code                                  String?                  @db.VarChar(10)
+  visitor_relation                                   String?                  @db.VarChar(100)
   status                                             gate_pass_status_enum    @default(active)
   qr_code                                            String?
   actual_entry_time                                  DateTime?                @db.Timestamptz(6)
@@ -2024,30 +2027,62 @@ model gate_pass_notification {
 }
 
 model Event {
-  id                    String              @id
-  eventId               String              @unique
-  notingId              String              @unique @db.Uuid
-  name                  String
-  eventType             EventType
-  description           String?
-  startDate             DateTime
-  endDate               DateTime
-  paymentType           EventPaymentType
-  venue                 String?
-  maxCapacity           Int?
-  registrationFee       Float?
-  registrationStartDate DateTime?
-  registrationEndDate   DateTime?
-  status                EventStatus         @default(draft)
-  publishedAt           DateTime?
-  createdById           String              @db.Uuid
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime
-  user_login            UserLogin           @relation(fields: [createdById], references: [id])
-  note                  Note                @relation(fields: [notingId], references: [id])
-  EventEntry            EventEntry[]
-  EventRegistration     EventRegistration[]
-  EventVolunteer        EventVolunteer[]
+  id                         String              @id
+  eventId                    String              @unique
+  notingId                   String              @unique @db.Uuid
+  name                       String
+  eventType                  EventType
+  description                String?
+  longDescription            String?
+  startDate                  DateTime
+  endDate                    DateTime
+  paymentType                EventPaymentType
+  venue                      String?
+  maxCapacity                Int?
+  registrationFee            Float?
+  registrationStartDate      DateTime?
+  registrationEndDate        DateTime?
+  status                     EventStatus         @default(draft)
+  publishedAt                DateTime?
+  
+  // Event Branding
+  bannerImageUrl             String?
+  logoImageUrl               String?
+  
+  // Opportunity Mode & Participation
+  opportunityMode            OpportunityMode?    @default(online)
+  participationType          ParticipationType?  @default(individual)
+  minTeamSize                Int?
+  maxTeamSize                Int?
+  interCollegeAllowed        Boolean?            @default(false)
+  interSpecializationAllowed Boolean?            @default(false)
+  
+  // Contact Details
+  contactPersonName          String?
+  contactEmail               String?
+  contactMobile              String?
+  alternateContact           String?
+  websiteUrl                 String?
+  socialMediaLinks           Json?
+  
+  // Additional Information
+  eligibilityCriteria        String?
+  rulesAndGuidelines         String?
+  prizeDetails               String?
+  certificateAvailable       Boolean?            @default(false)
+  faqs                       Json?
+  
+  // Metadata
+  createdById                String              @db.Uuid
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime
+  
+  // Relations
+  user_login                 UserLogin           @relation(fields: [createdById], references: [id])
+  note                       Note                @relation(fields: [notingId], references: [id])
+  EventEntry                 EventEntry[]
+  EventRegistration          EventRegistration[]
+  EventVolunteer             EventVolunteer[]
 
   @@index([createdById])
   @@index([eventId])
@@ -2055,6 +2090,8 @@ model Event {
   @@index([notingId])
   @@index([startDate])
   @@index([status])
+  @@index([opportunityMode])
+  @@index([participationType])
 }
 
 model EventEntry {
@@ -2522,6 +2559,7 @@ enum visit_purpose_enum {
   maintenance
   event
   interview
+  personal
   other
 }
 
@@ -2554,6 +2592,17 @@ enum EventType {
   hackathon
   webinar
   other
+}
+
+enum OpportunityMode {
+  online
+  offline
+  hybrid
+}
+
+enum ParticipationType {
+  individual
+  team
 }
 
 enum PaymentStatus {

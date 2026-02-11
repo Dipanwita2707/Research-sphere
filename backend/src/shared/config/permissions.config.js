@@ -133,6 +133,11 @@ const MONTHLY_REPORT_PERMISSIONS = {
   }
 };
 
+
+
+
+
+
 // Flat list of all permission keys for validation
 const ALL_IPR_PERMISSION_KEYS = Object.values(IPR_PERMISSIONS)
   .flatMap(category => Object.keys(category.permissions));

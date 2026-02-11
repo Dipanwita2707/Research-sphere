@@ -277,6 +277,44 @@ const getEventVolunteers = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, volunteers, 'Volunteers fetched successfully');
 });
 
+/**
+ * Get my volunteer assignments (events where user is a volunteer)
+ * 
+ * @route GET /api/events/volunteers/my
+ * @access Protected
+ */
+const getMyVolunteerAssignments = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  
+  const assignments = await eventService.getMyVolunteerAssignments(userId);
+  
+  return ApiResponse.success(res, assignments, 'Volunteer assignments fetched successfully');
+});
+
+/**
+ * Get my volunteer activity (scan history)
+ * 
+ * @route GET /api/events/volunteers/my/activity
+ * @access Protected
+ */
+const getMyVolunteerActivity = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { page, limit, eventId, search, startDate, endDate } = req.query;
+  
+  const filters = {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 30,
+    eventId,
+    search,
+    startDate,
+    endDate,
+  };
+  
+  const result = await eventService.getMyVolunteerActivity(userId, filters);
+  
+  return ApiResponse.success(res, result, 'Volunteer activity fetched successfully');
+});
+
 module.exports = {
   listEvents,
   getEvent,
@@ -289,4 +327,6 @@ module.exports = {
   scanQRCode,
   getEventRegistrations,
   getEventVolunteers,
+  getMyVolunteerAssignments,
+  getMyVolunteerActivity,
 };

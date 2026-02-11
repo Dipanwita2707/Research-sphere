@@ -22,6 +22,10 @@ export type EventStatus =
   | 'completed'
   | 'cancelled';
 
+export type OpportunityMode = 'online' | 'offline' | 'hybrid';
+
+export type ParticipationType = 'individual' | 'team';
+
 export type RegistrationStatus = 
   | 'pending'
   | 'confirmed'
@@ -41,6 +45,7 @@ export interface Event {
   name: string;
   eventType: EventType;
   description?: string;
+  longDescription?: string;
   startDate: string;
   endDate: string;
   paymentType: EventPaymentType;
@@ -53,6 +58,34 @@ export interface Event {
   registrationStartDate?: string;
   registrationEndDate?: string;
   publishedAt?: string;
+  
+  // Event Branding
+  bannerImageUrl?: string;
+  logoImageUrl?: string;
+  
+  // Opportunity Mode & Participation
+  opportunityMode?: OpportunityMode;
+  participationType?: ParticipationType;
+  minTeamSize?: number;
+  maxTeamSize?: number;
+  interCollegeAllowed?: boolean;
+  interSpecializationAllowed?: boolean;
+  
+  // Contact Details
+  contactPersonName?: string;
+  contactEmail?: string;
+  contactMobile?: string;
+  alternateContact?: string;
+  websiteUrl?: string;
+  socialMediaLinks?: Record<string, string>;
+  
+  // Additional Information
+  eligibilityCriteria?: string;
+  rulesAndGuidelines?: string;
+  prizeDetails?: string;
+  certificateAvailable?: boolean;
+  faqs?: Array<{ question: string; answer: string }>;
+  
   createdAt: string;
   updatedAt: string;
   createdBy?: {
@@ -139,21 +172,65 @@ export interface EventStatistics {
   totalEntries: number;
   totalExits: number;
   currentlyInside: number;
+  volunteerCount: number;
   totalRevenue?: number;
   revenueCollected?: number;
   registrationsByDate: Array<{
     date: string;
     count: number;
   }>;
+  recentRegistrations?: Array<{
+    id: string;
+    registrationId: string;
+    status: RegistrationStatus;
+    paymentStatus?: PaymentStatus;
+    amountPaid?: number;
+    hasEntered: boolean;
+    registeredAt: string;
+    user?: {
+      id: string;
+      uid: string;
+      email?: string;
+      name: string;
+    };
+  }>;
 }
 
 export interface EventFormData {
   description?: string;
+  longDescription?: string;
   venue?: string;
   maxCapacity?: number;
   registrationFee?: number;
   registrationStartDate?: string;
   registrationEndDate?: string;
+  
+  // Event Branding
+  bannerImageUrl?: string;
+  logoImageUrl?: string;
+  
+  // Opportunity Mode & Participation
+  opportunityMode?: OpportunityMode;
+  participationType?: ParticipationType;
+  minTeamSize?: number;
+  maxTeamSize?: number;
+  interCollegeAllowed?: boolean;
+  interSpecializationAllowed?: boolean;
+  
+  // Contact Details
+  contactPersonName?: string;
+  contactEmail?: string;
+  contactMobile?: string;
+  alternateContact?: string;
+  websiteUrl?: string;
+  socialMediaLinks?: Record<string, string>;
+  
+  // Additional Information
+  eligibilityCriteria?: string;
+  rulesAndGuidelines?: string;
+  prizeDetails?: string;
+  certificateAvailable?: boolean;
+  faqs?: Array<{ question: string; answer: string }>;
 }
 
 export interface VolunteerFormData {

@@ -36,6 +36,15 @@ function getDisplayName(note: Note): string {
 
 const PAGE_SIZE = 20;
 
+// Helper to strip HTML tags for preview
+const stripHtml = (html: string) => {
+  if (!html) return '';
+  if (typeof window === 'undefined') return html.replace(/<[^>]*>/g, '');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+};
+
 export default function NotingListPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -387,7 +396,7 @@ export default function NotingListPage() {
                           </h3>
                           {note.description && (
                             <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                              {note.description}
+                              {stripHtml(note.description)}
                             </p>
                           )}
                           {/* Footer info */}

@@ -213,6 +213,7 @@ const formatEventResponse = (event) => {
     name: event.name,
     eventType: event.eventType,
     description: event.description,
+    longDescription: event.longDescription,
     startDate: event.startDate,
     endDate: event.endDate,
     paymentType: event.paymentType,
@@ -225,6 +226,31 @@ const formatEventResponse = (event) => {
     registrationStartDate: event.registrationStartDate,
     registrationEndDate: event.registrationEndDate,
     publishedAt: event.publishedAt,
+    // Event Branding
+    bannerImageUrl: event.bannerImageUrl,
+    logoImageUrl: event.logoImageUrl,
+    // Opportunity Mode & Participation
+    opportunityMode: event.opportunityMode,
+    participationType: event.participationType,
+    minTeamSize: event.minTeamSize,
+    maxTeamSize: event.maxTeamSize,
+    interCollegeAllowed: event.interCollegeAllowed,
+    interSpecializationAllowed: event.interSpecializationAllowed,
+    // Contact Details
+    contactPersonName: event.contactPersonName,
+    contactEmail: event.contactEmail,
+    contactMobile: event.contactMobile,
+    alternateContact: event.alternateContact,
+    websiteUrl: event.websiteUrl,
+    socialMediaLinks: event.socialMediaLinks,
+    // Additional Information
+    eligibilityCriteria: event.eligibilityCriteria,
+    rulesAndGuidelines: event.rulesAndGuidelines,
+    prizeDetails: event.prizeDetails,
+    certificateAvailable: event.certificateAvailable,
+    faqs: event.faqs,
+    // Metadata
+    notingId: event.notingId,
     createdAt: event.createdAt,
     updatedAt: event.updatedAt,
     createdBy: event.user_login ? {

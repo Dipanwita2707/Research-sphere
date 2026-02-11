@@ -38,6 +38,18 @@ router.get(
   eventController.getMyRegistrations
 );
 
+// Get my volunteer assignments
+router.get(
+  '/volunteers/my',
+  eventController.getMyVolunteerAssignments
+);
+
+// Get my volunteer activity (scan history)
+router.get(
+  '/volunteers/my/activity',
+  eventController.getMyVolunteerActivity
+);
+
 // Get event by ID
 router.get(
   '/:id',

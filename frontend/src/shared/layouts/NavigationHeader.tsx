@@ -410,6 +410,7 @@ export default function NavigationHeader() {
       { name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' },
       { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' },
       { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
+      { name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' },
     ],
   });
 

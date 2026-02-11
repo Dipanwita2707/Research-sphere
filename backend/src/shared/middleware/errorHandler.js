@@ -84,12 +84,15 @@ function sendErrorDev(err, req, res) {
     error: err,
   });
 
+  // Even in dev, sanitize Prisma internal details from the response
+  const sanitizedMessage = (err.message && err.message.includes('prisma'))
+    ? 'A database query error occurred. Check server logs for details.'
+    : err.message;
+
   res.status(err.statusCode || 500).json({
     success: false,
     status: err.status,
-    message: err.message,
-    error: err,
-    stack: err.stack,
+    message: sanitizedMessage,
     path: req.path,
     method: req.method,
   });
@@ -130,6 +133,12 @@ const errorHandler = (err, req, res, next) => {
   // Handle Prisma errors
   if (err.code && err.code.startsWith('P')) {
     err = handlePrismaError(err);
+  }
+
+  // Handle Prisma validation errors (invalid queries, unknown fields, etc.)
+  if (err.name === 'PrismaClientValidationError' || err.name === 'PrismaClientKnownRequestError') {
+    console.error('Prisma Validation Error:', err.message);
+    err = new AppError('A database query error occurred. Please try again or contact support.', 500, true);
   }
 
   // Handle PostgreSQL errors

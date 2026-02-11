@@ -221,9 +221,9 @@ export default function EventsPage() {
                 <Link
                   key={event.id}
                   href={`/events/${event.id}`}
-                  className="block bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-shadow overflow-hidden"
+                  className="block bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <div className="p-6">
+                  <div className="p-5 pt-4">
                     {/* Status Badge */}
                     <div className="flex items-center justify-between mb-3">
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_CONFIG[event.status]?.color}`}>

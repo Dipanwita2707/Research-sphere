@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, Users, Loader2, Edit, TrendingUp, CheckCircle, AlertCircle, Eye, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Users, Loader2, Edit, TrendingUp, CheckCircle, AlertCircle, Eye, Trash2, QrCode, UserPlus, Settings, BarChart3 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventFilters } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
@@ -106,7 +106,7 @@ export default function MyCreatedEventsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Draft Events</p>
@@ -119,7 +119,7 @@ export default function MyCreatedEventsPage() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Published Events</p>
@@ -132,7 +132,7 @@ export default function MyCreatedEventsPage() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Registrations</p>
@@ -231,7 +231,7 @@ export default function MyCreatedEventsPage() {
                 return (
                   <div
                     key={event.id}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow p-6"
+                    className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-6"
                   >
                     <div className="flex items-start justify-between">
                       {/* Event Info */}
@@ -321,7 +321,7 @@ export default function MyCreatedEventsPage() {
                       <div className="flex flex-col gap-2 ml-4">
                         <Link
                           href={`/events/${event.id}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors"
                         >
                           <Eye className="h-4 w-4" />
                           View
@@ -330,21 +330,44 @@ export default function MyCreatedEventsPage() {
                         {event.status === 'draft' && (
                           <Link
                             href={`/events/${event.id}/manage`}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors border border-blue-200 dark:border-blue-800"
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-sgt-600 dark:text-sgt-400 bg-sgt-50 dark:bg-sgt-900/20 hover:bg-sgt-100 dark:hover:bg-sgt-900/30 rounded-lg transition-colors border border-sgt-200 dark:border-sgt-800"
                           >
                             <Edit className="h-4 w-4" />
                             Complete & Publish
                           </Link>
                         )}
 
-                        {event.status === 'published' && (
-                          <Link
-                            href={`/events/${event.id}?tab=statistics`}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
-                          >
-                            <TrendingUp className="h-4 w-4" />
-                            Statistics
-                          </Link>
+                        {event.status !== 'draft' && (
+                          <>
+                            <Link
+                              href={`/events/${event.id}/manage`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                            >
+                              <Settings className="h-4 w-4" />
+                              Manage
+                            </Link>
+                            <Link
+                              href={`/events/${event.id}/statistics`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                            >
+                              <BarChart3 className="h-4 w-4" />
+                              Statistics
+                            </Link>
+                            <Link
+                              href={`/events/${event.id}/volunteers`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                            >
+                              <UserPlus className="h-4 w-4" />
+                              Volunteers
+                            </Link>
+                            <Link
+                              href={`/events/${event.id}/scan`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                            >
+                              <QrCode className="h-4 w-4" />
+                              QR Scan
+                            </Link>
+                          </>
                         )}
                       </div>
                     </div>

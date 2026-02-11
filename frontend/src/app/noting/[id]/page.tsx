@@ -404,9 +404,10 @@ export default function NoteDetailPage() {
             {/* Description */}
             <section>
               <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Description</h3>
-              <div className="bg-gray-50 dark:bg-gray-900/20 px-4 py-3 rounded-md border border-gray-100 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
-                {note.description}
-              </div>
+              <div 
+                className="noting-rich-content bg-gray-50 dark:bg-gray-900/20 px-4 py-3 rounded-md border border-gray-100 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 [&>ol]:!list-decimal [&>ol]:!ml-6 [&>ol]:!pl-4 [&>ul]:!list-disc [&>ul]:!ml-6 [&>ul]:!pl-4 [&_ol]:!list-decimal [&_ol]:!ml-6 [&_ol]:!pl-4 [&_ul]:!list-disc [&_ul]:!ml-6 [&_ul]:!pl-4 [&_li]:!mb-1 [&_p]:!mb-2 [&_p]:!block [&_h1]:!text-2xl [&_h1]:!font-bold [&_h1]:!my-3 [&_h2]:!text-xl [&_h2]:!font-semibold [&_h2]:!my-2 [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!my-2 [&_blockquote]:!border-l-4 [&_blockquote]:!border-sgt-500 [&_blockquote]:!pl-4 [&_blockquote]:!italic [&_blockquote]:!my-2"
+                dangerouslySetInnerHTML={{ __html: note.description || '' }}
+              />
             </section>
 
             {/* Event Details */}

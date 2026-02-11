@@ -186,4 +186,32 @@ export const eventService = {
   async cancelRegistration(registrationId: string): Promise<void> {
     await api.delete(`${BASE_URL}/registrations/${registrationId}`);
   },
+
+  /**
+   * Get my volunteer assignments (events where user is a volunteer)
+   */
+  async getMyVolunteerAssignments(): Promise<any[]> {
+    const response = await api.get(`${BASE_URL}/volunteers/my`);
+    return response.data.data;
+  },
+
+  /**
+   * Get my volunteer activity (scan history)
+   */
+  async getMyVolunteerActivity(
+    page: number = 1,
+    limit: number = 30,
+    filters: { eventId?: string; search?: string; startDate?: string; endDate?: string } = {}
+  ): Promise<{ entries: any[]; pagination: any }> {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (filters.eventId) params.append('eventId', filters.eventId);
+    if (filters.search) params.append('search', filters.search);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    
+    const response = await api.get(`${BASE_URL}/volunteers/my/activity?${params.toString()}`);
+    return response.data.data;
+  },
 };

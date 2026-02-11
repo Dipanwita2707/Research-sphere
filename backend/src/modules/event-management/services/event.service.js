@@ -184,15 +184,23 @@ const updateEvent = async (eventId, userId, updateData) => {
       throw new ValidationError('Registration end date must be after start date');
     }
     
-    // Ensure registration dates are within event dates
-    if (startDate && startDate < event.startDate) {
-      throw new ValidationError('Registration start date must be after event start date');
+    // Ensure registration dates are before event start (registration opens before the event)
+    if (startDate && startDate > event.startDate) {
+      throw new ValidationError('Registration start date must be before the event starts');
     }
-    if (endDate && endDate > event.endDate) {
-      throw new ValidationError('Registration end date must be before event end date');
+    if (endDate && endDate > event.startDate) {
+      throw new ValidationError('Registration end date must be before the event starts');
     }
   }
   
+  // Convert date strings to proper ISO DateTime for Prisma
+  if (updateData.registrationStartDate) {
+    updateData.registrationStartDate = new Date(updateData.registrationStartDate);
+  }
+  if (updateData.registrationEndDate) {
+    updateData.registrationEndDate = new Date(updateData.registrationEndDate);
+  }
+
   // Update event
   const updatedEvent = await prisma.event.update({
     where: { id: eventId },
@@ -682,7 +690,7 @@ const scanQRCode = async (eventId, qrCode, entryType, volunteerId, scanData) => 
 };
 
 /**
- * Get event statistics
+ * Get event statistics (comprehensive)
  */
 const getEventStatistics = async (eventId, userId) => {
   const event = await getEventById(prisma, eventId);
@@ -695,9 +703,16 @@ const getEventStatistics = async (eventId, userId) => {
   const [
     totalRegistrations,
     confirmedRegistrations,
+    pendingRegistrations,
+    cancelledRegistrations,
+    waitlistedRegistrations,
     attendedCount,
     volunteerCount,
-    entryLogs,
+    totalEntries,
+    totalExits,
+    revenueAgg,
+    registrations,
+    recentRegistrations,
   ] = await Promise.all([
     prisma.eventRegistration.count({
       where: { eventId },
@@ -706,23 +721,295 @@ const getEventStatistics = async (eventId, userId) => {
       where: { eventId, status: REGISTRATION_STATUS.CONFIRMED },
     }),
     prisma.eventRegistration.count({
+      where: { eventId, status: REGISTRATION_STATUS.PENDING },
+    }),
+    prisma.eventRegistration.count({
+      where: { eventId, status: REGISTRATION_STATUS.CANCELLED },
+    }),
+    prisma.eventRegistration.count({
+      where: { eventId, status: REGISTRATION_STATUS.WAITLISTED },
+    }),
+    prisma.eventRegistration.count({
       where: { eventId, hasEntered: true },
     }),
     prisma.eventVolunteer.count({
       where: { eventId },
     }),
     prisma.eventEntry.count({
+      where: { eventId, entryType: 'entry' },
+    }),
+    prisma.eventEntry.count({
+      where: { eventId, entryType: 'exit' },
+    }),
+    prisma.eventRegistration.aggregate({
+      where: { eventId, paymentStatus: PAYMENT_STATUS.COMPLETED },
+      _sum: { amountPaid: true },
+    }),
+    // Get all registrations for date grouping
+    prisma.eventRegistration.findMany({
       where: { eventId },
+      select: { registeredAt: true },
+      orderBy: { registeredAt: 'asc' },
+    }),
+    // Recent registrations with user info
+    prisma.eventRegistration.findMany({
+      where: { eventId },
+      include: {
+        user_login: {
+          select: {
+            id: true,
+            uid: true,
+            email: true,
+            employeeDetails: {
+              select: {
+                firstName: true,
+                lastName: true,
+                displayName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { registeredAt: 'desc' },
+      take: 50,
     }),
   ]);
-  
+
+  // Group registrations by date for trend chart
+  const dateMap = {};
+  registrations.forEach((reg) => {
+    const date = new Date(reg.registeredAt).toISOString().split('T')[0];
+    dateMap[date] = (dateMap[date] || 0) + 1;
+  });
+  const registrationsByDate = Object.entries(dateMap).map(([date, count]) => ({
+    date,
+    count,
+  }));
+
+  const currentlyInside = totalEntries - totalExits;
+  const totalRevenue = revenueAgg._sum.amountPaid || 0;
+
   return {
     totalRegistrations,
     confirmedRegistrations,
-    attendedCount,
+    pendingRegistrations,
+    cancelledRegistrations,
+    waitlistedRegistrations,
+    totalAttended: attendedCount,
+    totalEntries,
+    totalExits,
+    currentlyInside: currentlyInside > 0 ? currentlyInside : 0,
     volunteerCount,
-    entryLogs,
-    attendanceRate: confirmedRegistrations > 0 ? (attendedCount / confirmedRegistrations) * 100 : 0,
+    totalRevenue,
+    revenueCollected: totalRevenue,
+    registrationsByDate,
+    recentRegistrations: recentRegistrations.map((r) => ({
+      id: r.id,
+      registrationId: r.registrationId,
+      status: r.status,
+      paymentStatus: r.paymentStatus,
+      amountPaid: r.amountPaid,
+      hasEntered: r.hasEntered,
+      registeredAt: r.registeredAt,
+      user: r.user_login ? {
+        id: r.user_login.id,
+        uid: r.user_login.uid,
+        email: r.user_login.email,
+        name: r.user_login.employeeDetails?.displayName ||
+              `${r.user_login.employeeDetails?.firstName || ''} ${r.user_login.employeeDetails?.lastName || ''}`.trim() ||
+              r.user_login.uid,
+      } : null,
+    })),
+  };
+};
+
+/**
+ * Get events where the current user is assigned as a volunteer
+ */
+const getMyVolunteerAssignments = async (userId) => {
+  const assignments = await prisma.eventVolunteer.findMany({
+    where: { userId },
+    include: {
+      Event: {
+        select: {
+          id: true,
+          eventId: true,
+          name: true,
+          eventType: true,
+          description: true,
+          startDate: true,
+          endDate: true,
+          venue: true,
+          status: true,
+          bannerImageUrl: true,
+          maxCapacity: true,
+          _count: {
+            select: { EventRegistration: true },
+          },
+        },
+      },
+    },
+    orderBy: { assignedAt: 'desc' },
+  });
+
+  return assignments.map((a) => ({
+    id: a.id,
+    eventId: a.eventId,
+    role: a.role,
+    canScanQr: a.canScanQr,
+    assignedGate: a.assignedGate,
+    assignedAt: a.assignedAt,
+    event: a.Event
+      ? {
+          id: a.Event.id,
+          eventId: a.Event.eventId,
+          name: a.Event.name,
+          eventType: a.Event.eventType,
+          description: a.Event.description,
+          startDate: a.Event.startDate,
+          endDate: a.Event.endDate,
+          venue: a.Event.venue,
+          status: a.Event.status,
+          bannerImageUrl: a.Event.bannerImageUrl,
+          currentRegistrations: a.Event._count?.EventRegistration || 0,
+          maxCapacity: a.Event.maxCapacity,
+        }
+      : null,
+  }));
+};
+
+/**
+ * Get volunteer scan activity history for the current user
+ */
+const getMyVolunteerActivity = async (userId, filters = {}) => {
+  const { page = 1, limit = 30, eventId, search, startDate, endDate } = filters;
+
+  // First get volunteer IDs for this user
+  const volunteerRecords = await prisma.eventVolunteer.findMany({
+    where: { userId },
+    select: { id: true, eventId: true },
+  });
+
+  if (volunteerRecords.length === 0) {
+    return { entries: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+  }
+
+  const volunteerIds = volunteerRecords.map((v) => v.id);
+  const volunteerEventIds = volunteerRecords.map((v) => v.eventId);
+
+  const where = {
+    volunteerId: { in: volunteerIds },
+  };
+
+  if (eventId) {
+    where.eventId = eventId;
+  }
+
+  if (startDate || endDate) {
+    where.scannedAt = {};
+    if (startDate) where.scannedAt.gte = new Date(startDate);
+    if (endDate) where.scannedAt.lte = new Date(endDate);
+  }
+
+  const [entries, total] = await Promise.all([
+    prisma.eventEntry.findMany({
+      where,
+      include: {
+        EventRegistration: {
+          include: {
+            user_login: {
+              select: {
+                id: true,
+                uid: true,
+                email: true,
+                employeeDetails: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    displayName: true,
+                  },
+                },
+                studentLogin: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    displayName: true,
+                    registrationNo: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        Event: {
+          select: {
+            id: true,
+            eventId: true,
+            name: true,
+            eventType: true,
+            venue: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+      },
+      orderBy: { scannedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.eventEntry.count({ where }),
+  ]);
+
+  // Format entries with user names
+  const formattedEntries = entries.map((e) => {
+    const userLogin = e.EventRegistration?.user_login;
+    const empDetails = userLogin?.employeeDetails;
+    const studentDetails = userLogin?.studentLogin;
+    const userName =
+      empDetails?.displayName ||
+      `${empDetails?.firstName || ''} ${empDetails?.lastName || ''}`.trim() ||
+      studentDetails?.displayName ||
+      `${studentDetails?.firstName || ''} ${studentDetails?.lastName || ''}`.trim() ||
+      userLogin?.uid ||
+      'Unknown';
+
+    return {
+      id: e.id,
+      eventId: e.eventId,
+      registrationId: e.registrationId,
+      entryType: e.entryType,
+      scannedAt: e.scannedAt,
+      gateLocation: e.gateLocation,
+      remarks: e.remarks,
+      event: e.Event
+        ? {
+            id: e.Event.id,
+            eventId: e.Event.eventId,
+            name: e.Event.name,
+            eventType: e.Event.eventType,
+            venue: e.Event.venue,
+            startDate: e.Event.startDate,
+            endDate: e.Event.endDate,
+          }
+        : null,
+      participant: {
+        id: userLogin?.id || null,
+        uid: userLogin?.uid || null,
+        email: userLogin?.email || null,
+        name: userName,
+        registrationNo: studentDetails?.registrationNo || null,
+      },
+    };
+  });
+
+  return {
+    entries: formattedEntries,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
   };
 };
 
@@ -737,4 +1024,6 @@ module.exports = {
   assignVolunteer,
   scanQRCode,
   getEventStatistics,
+  getMyVolunteerAssignments,
+  getMyVolunteerActivity,
 };

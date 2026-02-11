@@ -1,14 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { ArrowLeft, Loader2, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCircle, IndianRupee, User, Send, Save, Paperclip, AlertCircle, List, Calendar } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { NoteConfig, CreatorInfo, CreateNotePayload } from '@/features/noting-management/types/noting.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useNotingDraftStore } from '@/features/noting-management/stores/notingDraftStore';
 import { useAuthStore } from '@/shared/auth/authStore';
+import 'react-quill/dist/quill.snow.css';
+
+// Dynamically import ReactQuill to avoid SSR issues
+const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
 export interface AnnexureEntry {
   _id?: string;
@@ -58,10 +63,12 @@ export default function NewNotePage() {
   const [config, setConfig] = useState<NoteConfig | null>(null);
   const [creatorInfo, setCreatorInfo] = useState<CreatorInfo | null>(null);
   const [notingIdPreview, setNotingIdPreview] = useState<string>('');
+  const [notingYearAndSequence, setNotingYearAndSequence] = useState<{ year: string; sequence: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [isRevertedNote, setIsRevertedNote] = useState(false);
+  const [isEditingExistingDraft, setIsEditingExistingDraft] = useState(!!draftIdFromUrl);
 
   // Initialize with empty values for new notes, or from store if editing a draft
   const initial = draftIdFromUrl ? getInitialFromStore() : {
@@ -99,6 +106,7 @@ export default function NewNotePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isAutosavingRef = useRef(false);
   const [fileDropActive, setFileDropActive] = useState(false);
   const [pointDraggedIndex, setPointDraggedIndex] = useState<number | null>(null);
   const [pointDropTargetIndex, setPointDropTargetIndex] = useState<number | null>(null);
@@ -115,6 +123,15 @@ export default function NewNotePage() {
       .catch(() => toast({ type: 'error', message: 'Failed to load form config' }))
       .finally(() => setLoading(false));
   }, [toast]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isAutosavingRef.current = false;
+      if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+      if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!config || draftLoaded) return;
@@ -152,6 +169,18 @@ export default function NewNotePage() {
       if (note.eventStartDate) setEventStartDate(note.eventStartDate);
       if (note.eventEndDate) setEventEndDate(note.eventEndDate);
       if (note.eventPaymentType) setEventPaymentType(note.eventPaymentType);
+
+      // Extract year and sequence from the existing draft's noting ID
+      if (note.notingId) {
+        setNotingIdPreview(note.notingId);
+        // Extract year and sequence from format like: SGTU/ACAD/EVENT/2026/12345
+        const parts = note.notingId.split('/');
+        if (parts.length >= 2) {
+          const year = parts[parts.length - 2];
+          const sequence = parts[parts.length - 1];
+          setNotingYearAndSequence({ year, sequence });
+        }
+      }
 
       setDraftLoaded(true);
     };
@@ -192,13 +221,37 @@ export default function NewNotePage() {
     setEventEndDate('');
     setEventPaymentType('free');
     setIsRevertedNote(false);
+    setNotingIdPreview('');
+    setNotingYearAndSequence(null);
     setDraftLoaded(true);
   }, [config, draftLoaded, draftIdFromUrl, hydrateFromNote, setDraftId, toast, clearDraft]);
 
   useEffect(() => {
     if (!category || !subcategory) return;
-    notingService.previewNotingId(category, subcategory).then((r) => setNotingIdPreview(r.notingId));
-  }, [category, subcategory]);
+    
+    // If we already have year and sequence, rebuild the ID with new category/subcategory
+    if (notingYearAndSequence) {
+      const categoryPart = category === 'academic' ? 'ACAD' : 'ADMIN';
+      const subcategoryPart = subcategory.toUpperCase().replace(/_/g, '-');
+      const newId = `SGTU/${categoryPart}/${subcategoryPart}/${notingYearAndSequence.year}/${notingYearAndSequence.sequence}`;
+      setNotingIdPreview(newId);
+      return;
+    }
+    
+    // For new notes without year/sequence yet, generate preview once
+    if (!draftIdFromUrl && !notingIdPreview) {
+      notingService.previewNotingId(category, subcategory).then((r) => {
+        setNotingIdPreview(r.notingId);
+        // Extract and store year and sequence
+        const parts = r.notingId.split('/');
+        if (parts.length >= 2) {
+          const year = parts[parts.length - 2];
+          const sequence = parts[parts.length - 1];
+          setNotingYearAndSequence({ year, sequence });
+        }
+      });
+    }
+  }, [category, subcategory, draftIdFromUrl, notingIdPreview, notingYearAndSequence]);
 
   useEffect(() => {
     if (!config) return;
@@ -256,8 +309,15 @@ export default function NewNotePage() {
     if (!draftLoaded || !config) return;
     const hasMinimum = category && subcategory;
     if (!hasMinimum) return;
+    
+    // Prevent multiple autosaves from running simultaneously
+    if (isAutosavingRef.current) return;
+    
     autosaveTimeoutRef.current && clearTimeout(autosaveTimeoutRef.current);
     autosaveTimeoutRef.current = setTimeout(() => {
+      // Double check to prevent race condition
+      if (isAutosavingRef.current) return;
+      
       const payload = {
         category,
         subcategory,
@@ -299,12 +359,21 @@ export default function NewNotePage() {
         } else if (payload.amount !== undefined && !Number.isNaN(payload.amount)) {
           updatePayload.amount = payload.amount;
         }
-        notingService.updateDraft(draftId, updatePayload).catch(() => { });
+        isAutosavingRef.current = true;
+        notingService.updateDraft(draftId, updatePayload)
+          .catch(() => { })
+          .finally(() => { isAutosavingRef.current = false; });
       } else {
+        isAutosavingRef.current = true;
         notingService
           .create({ ...payload, ...eventPayload, submit: false })
-          .then((res) => res.data?.id && setDraftId(res.data.id))
-          .catch(() => { });
+          .then((res) => {
+            if (res.data?.id) {
+              setDraftId(res.data.id);
+            }
+          })
+          .catch(() => { })
+          .finally(() => { isAutosavingRef.current = false; });
       }
       autosaveTimeoutRef.current = null;
     }, DEBOUNCE_AUTOSAVE_MS);
@@ -316,7 +385,16 @@ export default function NewNotePage() {
     eventStartDate, eventEndDate, eventPaymentType, setDraftId,
   ]);
 
-  const wordCount = description.trim() ? description.trim().split(/\s+/).length : 0;
+  // Strip HTML tags and count words for the rich text editor
+  const getPlainTextFromHtml = (html: string) => {
+    if (!html) return '';
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return temp.textContent || temp.innerText || '';
+  };
+  
+  const plainTextDescription = typeof window !== 'undefined' ? getPlainTextFromHtml(description) : description.replace(/<[^>]*>/g, '');
+  const wordCount = plainTextDescription.trim() ? plainTextDescription.trim().split(/\s+/).length : 0;
   const overLimit = wordCount > MAX_WORDS;
 
   const addPoint = () => setPoints((p) => [...p, '']);
@@ -481,6 +559,7 @@ export default function NewNotePage() {
 
     setSubmitting(true);
     const onSuccess = (message: string, id: string) => {
+      isAutosavingRef.current = false;
       clearDraft();
       toast({ type: 'success', message });
       router.push(asDraft ? '/noting' : `/noting/${id}`);
@@ -515,6 +594,7 @@ export default function NewNotePage() {
     if (draftId) {
       notingService.deleteDraft(draftId).catch(() => { });
     }
+    isAutosavingRef.current = false;
     clearDraft();
     const s = useNotingDraftStore.getState();
     setCategory(s.category);
@@ -527,6 +607,8 @@ export default function NewNotePage() {
     setAmount(s.amount);
     setPoints(s.points.length ? s.points : ['']);
     setAnnexures(s.attachments.map((a) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription ?? '' })));
+    setNotingIdPreview('');
+    setNotingYearAndSequence(null);
     toast({ type: 'success', message: 'Draft discarded' });
   };
 
@@ -560,10 +642,10 @@ export default function NewNotePage() {
           {/* Document Header */}
           <div className="border-b border-gray-200 dark:border-gray-700 px-8 py-5">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {draftIdFromUrl || draftId ? 'Edit Draft Note' : 'Create New Note'}
+              {isEditingExistingDraft ? 'Edit Draft Note' : 'Create New Note'}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              {draftIdFromUrl || draftId ? 'Update your draft and submit when ready.' : 'Fill in the details below. All actions are logged and auditable.'}
+              {isEditingExistingDraft ? 'Update your draft and submit when ready.' : 'Fill in the details below. All actions are logged and auditable.'}
             </p>
             {notingIdPreview && (
               <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sgt-50 dark:bg-sgt-900/20 border border-sgt-100 dark:border-sgt-800">
@@ -618,15 +700,26 @@ export default function NewNotePage() {
             {/* ===== Description ===== */}
             <section>
               <SectionLabel>Description</SectionLabel>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={8}
-                maxLength={3000}
-                className={`w-full px-4 py-3 text-sm border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 outline-none transition-colors ${overLimit ? 'border-red-400 focus:border-red-400 focus:ring-red-400' : 'border-gray-200 dark:border-gray-600 focus:border-sgt-500 focus:ring-sgt-500'
-                  }`}
-                placeholder="Describe your request in detail. Be clear and specific about what you need approval for..."
-              />
+              <div className={`noting-description-editor border rounded-md bg-white dark:bg-gray-700 transition-colors ${overLimit ? 'border-red-400' : 'border-gray-200 dark:border-gray-600 focus-within:border-sgt-500'}`}>
+                <ReactQuill
+                  theme="snow"
+                  value={description}
+                  onChange={setDescription}
+                  placeholder="Describe your request in detail. Be clear and specific about what you need approval for..."
+                  modules={{
+                    toolbar: [
+                      [{ 'header': [1, 2, 3, false] }],
+                      ['bold', 'italic', 'underline', 'strike'],
+                      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                      [{ 'indent': '-1'}, { 'indent': '+1' }],
+                      ['blockquote'],
+                      ['clean']
+                    ]
+                  }}
+                  formats={['header', 'bold', 'italic', 'underline', 'strike', 'list', 'bullet', 'indent', 'blockquote']}
+                  className="noting-quill-editor"
+                />
+              </div>
               <div className="flex items-center justify-between mt-1.5">
                 <p className={`text-xs font-medium ${overLimit ? 'text-red-600' : 'text-gray-400'}`}>
                   {wordCount} / {MAX_WORDS} words
@@ -886,88 +979,89 @@ export default function NewNotePage() {
             {/* ===== Additional Details ===== */}
             <section>
               <SectionLabel>Additional Details</SectionLabel>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-                {/* Approval Period */}
-                <div className="p-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period</label>
-                  <div className="flex gap-3">
-                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${approvalPeriod === 'one_time' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                      }`}>
-                      <input type="radio" name="period" checked={approvalPeriod === 'one_time'} onChange={() => setApprovalPeriod('one_time')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                      <span className="text-sm font-medium">One-time</span>
-                    </label>
-                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${approvalPeriod === 'recurring' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                      }`}>
-                      <input type="radio" name="period" checked={approvalPeriod === 'recurring'} onChange={() => setApprovalPeriod('recurring')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                      <span className="text-sm font-medium">Recurring</span>
-                    </label>
-                  </div>
-                  {approvalPeriod === 'recurring' && (
-                    <div className="mt-3">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Frequency</label>
-                      <select
-                        value={recurringFrequency}
-                        onChange={(e) => setRecurringFrequency(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                      >
-                        <option value="">Select frequency</option>
-                        {config.recurringFrequencyOptions.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
+              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                {/* Approval Period & Policy Compliance - Side by Side */}
+                <div className="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
+                  {/* Approval Period */}
+                  <div className="bg-white dark:bg-gray-800 p-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period</label>
+                    <div className="flex flex-col gap-2">
+                      <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${approvalPeriod === 'one_time' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        }`}>
+                        <input type="radio" name="period" checked={approvalPeriod === 'one_time'} onChange={() => setApprovalPeriod('one_time')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                        <span className="text-sm font-medium">One-time</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${approvalPeriod === 'recurring' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                          }`}>
+                          <input type="radio" name="period" checked={approvalPeriod === 'recurring'} onChange={() => setApprovalPeriod('recurring')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                          <span className="text-sm font-medium">Recurring</span>
+                        </label>
+                        {approvalPeriod === 'recurring' && (
+                          <select
+                            value={recurringFrequency}
+                            onChange={(e) => setRecurringFrequency(e.target.value)}
+                            className="flex-1 px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                          >
+                            <option value="">Select frequency</option>
+                            {config.recurringFrequencyOptions.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Policy Compliance */}
-                <div className="p-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Policy Compliance</label>
-                  <div className="flex gap-3">
-                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${policyCompliance === 'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                      }`}>
-                      <input type="radio" name="policyCompliance" checked={policyCompliance === 'yes'} onChange={() => setPolicyCompliance('yes')} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
-                      <span className="text-sm font-medium">Yes, complies</span>
-                    </label>
-                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${policyCompliance === 'no' ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                      }`}>
-                      <input type="radio" name="policyCompliance" checked={policyCompliance === 'no'} onChange={() => setPolicyCompliance('no')} className="w-4 h-4 text-red-600 focus:ring-red-500" />
-                      <span className="text-sm font-medium">No</span>
-                    </label>
+                  {/* Policy Compliance */}
+                  <div className="bg-white dark:bg-gray-800 p-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Policy Compliance</label>
+                    <div className="flex flex-col gap-2">
+                      <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        }`}>
+                        <input type="radio" name="policyCompliance" checked={policyCompliance === 'yes'} onChange={() => setPolicyCompliance('yes')} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+                        <span className="text-sm font-medium">Yes, complies</span>
+                      </label>
+                      <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'no' ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        }`}>
+                        <input type="radio" name="policyCompliance" checked={policyCompliance === 'no'} onChange={() => setPolicyCompliance('no')} className="w-4 h-4 text-red-600 focus:ring-red-500" />
+                        <span className="text-sm font-medium">No</span>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
                 {/* Budget / Amount */}
-                <div className="p-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Budget / Amount</label>
-                  <div className="flex gap-3">
-                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${!amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                      }`}>
-                      <input type="radio" name="amountReq" checked={!amountRequired} onChange={() => setAmountRequired(false)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                      <span className="text-sm font-medium">No amount</span>
-                    </label>
-                    <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
-                      }`}>
-                      <input type="radio" name="amountReq" checked={amountRequired} onChange={() => setAmountRequired(true)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                      <span className="text-sm font-medium">Amount required</span>
-                    </label>
-                  </div>
-                  {amountRequired && (
-                    <div className="mt-3">
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Amount (INR)</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">₹</span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                          placeholder="Enter amount"
-                        />
-                      </div>
+                <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">Budget / Amount</label>
+                    <div className="flex gap-3 flex-1 items-center">
+                      <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${!amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        }`}>
+                        <input type="radio" name="amountReq" checked={!amountRequired} onChange={() => setAmountRequired(false)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                        <span className="text-sm font-medium">No amount</span>
+                      </label>
+                      <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                        }`}>
+                        <input type="radio" name="amountReq" checked={amountRequired} onChange={() => setAmountRequired(true)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                        <span className="text-sm font-medium">Amount required</span>
+                      </label>
+                      {amountRequired && (
+                        <div className="relative flex-1 shrink-0 w-40">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">₹</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                            placeholder="Enter amount"
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </section>
