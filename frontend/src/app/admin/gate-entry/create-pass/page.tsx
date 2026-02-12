@@ -469,19 +469,32 @@ export default function CreatePassPage() {
                         const [entryHours, entryMinutes] = formData.expectedEntryTime.split(':').map(Number);
                         const [exitHours, exitMinutes] = formData.expectedExitTime.split(':').map(Number);
                         
-                        const entryTotalMinutes = entryHours * 60 + entryMinutes;
-                        const exitTotalMinutes = exitHours * 60 + exitMinutes;
+                        // Create full date-time objects for accurate calculation
+                        const startDateTime = new Date(formData.visitDate);
+                        startDateTime.setHours(entryHours, entryMinutes, 0, 0);
                         
-                        let diffMinutes = exitTotalMinutes - entryTotalMinutes;
+                        const endDateTime = new Date(formData.visitEndDate);
+                        endDateTime.setHours(exitHours, exitMinutes, 0, 0);
                         
-                        // Handle overnight stays (exit time is next day)
+                        // Calculate difference in milliseconds
+                        const diffMs = endDateTime.getTime() - startDateTime.getTime();
+                        
+                        // Convert to minutes
+                        let diffMinutes = Math.floor(diffMs / (1000 * 60));
+                        
+                        // Ensure non-negative
                         if (diffMinutes < 0) {
-                          diffMinutes += 24 * 60; // Add 24 hours
+                          diffMinutes = 0;
                         }
                         
-                        const hours = Math.floor(diffMinutes / 60);
-                        const minutes = diffMinutes % 60;
+                        const days = Math.floor(diffMinutes / (24 * 60));
+                        const remainingMinutes = diffMinutes % (24 * 60);
+                        const hours = Math.floor(remainingMinutes / 60);
+                        const minutes = remainingMinutes % 60;
                         
+                        if (days > 0) {
+                          return `${days}d ${hours}h ${minutes}m`;
+                        }
                         return `${hours}h ${minutes}m`;
                       })()}
                     </p>
