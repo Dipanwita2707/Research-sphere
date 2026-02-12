@@ -200,6 +200,7 @@ export default function EmployeeManagement() {
         alternateNumber: '',
         personalEmail: '',
         designation: '',
+        officerLevel: '',
         employeeCategory: 'teaching',
         employeeType: 'permanent',
         dateOfJoining: '',
