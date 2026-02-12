@@ -173,6 +173,7 @@ export default function EmployeeManagement() {
         alternateNumber: '',
         personalEmail: '',
         designation: employee.employeeDetails.designation || '',
+        officerLevel: '',
         employeeCategory: employee.employeeDetails.employeeCategory,
         employeeType: employee.employeeDetails.employeeType,
         dateOfJoining: employee.employeeDetails.dateOfJoining,
