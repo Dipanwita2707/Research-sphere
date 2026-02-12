@@ -23,7 +23,7 @@ export default function CategoriesPage() {
       setLoading(true);
       const response = await categoryAPI.getCategories();
       if (response.success) {
-        setCategories(response.data);
+        setCategories(response.data || []);
       }
     } catch (err: any) {
       console.error('Error fetching categories:', err);
