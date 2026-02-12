@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Phone, Clock, Car, FileText, CheckCircle, Loader2, AlertCircle, Hotel } from 'lucide-react';
 import { gateEntryService } from '@/shared/services/gateEntry.service';
+import { useToast } from '@/shared/ui-components/Toast';
 
 interface SimplePassFormData {
   visitorName: string;
@@ -40,6 +41,7 @@ const VEHICLE_TYPES = [
 
 export default function CreatePassPage() {
   const router = useRouter();
+  const { showSuccessModal } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -178,8 +180,15 @@ export default function CreatePassPage() {
       const response = await gateEntryService.createPass(passData);
       const pass = response.data.pass;
       
-      const successMessage = `✅ Pass Created Successfully!\n\nPass ID: ${pass.passId}\nVerification Code: ${pass.verificationCode}\n\n📱 WhatsApp notification sent to ${formData.mobileNumber}${formData.email ? `\n📧 Email sent to ${formData.email}` : ''}\n\nShare this code with your visitor.`;
-      alert(successMessage);
+      // Show beautiful success modal
+      showSuccessModal({
+        title: 'Pass Created Successfully!',
+        message: 'Share this code with your visitor for entry verification.',
+        passId: pass.passId,
+        verificationCode: pass.verificationCode,
+        mobile: formData.mobileNumber,
+        email: formData.email || undefined,
+      });
       
       // Reset form
       setFormData({
@@ -210,17 +219,18 @@ export default function CreatePassPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-3 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-t-2xl shadow-lg p-6 border-b-4 border-blue-600">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <User className="w-8 h-8 text-blue-600" />
+        {/* Header Card - LPU Style */}
+        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6 mb-4">
+          <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 md:gap-3">
+            <User className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
             Create Visitor Pass
           </h1>
-          <p className="text-gray-600 mt-2">Fill in visitor details to generate entry pass</p>
+          <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">Fill in visitor details to generate entry pass</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-b-2xl shadow-lg p-6 md:p-8">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
             <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
               <div className="flex items-center gap-2">
@@ -230,16 +240,16 @@ export default function CreatePassPage() {
             </div>
           )}
 
-          {/* Visitor Information */}
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
-              <User className="w-5 h-5 text-blue-600" />
+          {/* Visitor Information Card - LPU Style */}
+          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+              <User className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               Visitor Information
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                   Visitor Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -247,14 +257,14 @@ export default function CreatePassPage() {
                   name="visitorName"
                   value={formData.visitorName}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter full name"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                   Mobile Number <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -262,7 +272,7 @@ export default function CreatePassPage() {
                   name="mobileNumber"
                   value={formData.mobileNumber}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="10-digit number"
                   maxLength={10}
                   pattern="[0-9]{10}"
@@ -272,7 +282,7 @@ export default function CreatePassPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                   Email Address
                 </label>
                 <input
@@ -280,14 +290,14 @@ export default function CreatePassPage() {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="visitor@example.com"
                 />
                 <p className="text-xs text-gray-500 mt-1">📧 QR code & pass details will be sent via email</p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                   Relation
                 </label>
                 <input
@@ -295,13 +305,13 @@ export default function CreatePassPage() {
                   name="visitorRelation"
                   value={formData.visitorRelation}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="e.g., Friend, Family, Vendor"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                   Number of Persons <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -311,7 +321,7 @@ export default function CreatePassPage() {
                   onChange={handleChange}
                   min="1"
                   max="50"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="How many people"
                   required
                 />
@@ -320,16 +330,16 @@ export default function CreatePassPage() {
             </div>
           </div>
 
-          {/* Visit Details */}
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
-              <FileText className="w-5 h-5 text-blue-600" />
+          {/* Visit Details Card - LPU Style */}
+          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+              <FileText className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               Visit Details
             </h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                   Purpose of Visit <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -484,10 +494,10 @@ export default function CreatePassPage() {
             </div>
           </div>
 
-          {/* Vehicle Details */}
-          <div className="mb-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 border-b pb-2">
-              <Car className="w-5 h-5 text-blue-600" />
+          {/* Vehicle Details Card - LPU Style */}
+          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+              <Car className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
               Vehicle Information (Optional)
             </h2>
             
@@ -500,21 +510,21 @@ export default function CreatePassPage() {
                   onChange={handleChange}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm font-medium text-gray-700">Visitor will bring a vehicle</span>
+                <span className="text-xs md:text-sm font-medium text-gray-700">Visitor will bring a vehicle</span>
               </label>
             </div>
 
             {formData.hasVehicle && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                     Vehicle Type <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="vehicleType"
                     value={formData.vehicleType}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   >
                     <option value="">Select Type</option>
@@ -525,7 +535,7 @@ export default function CreatePassPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                     Vehicle Number <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -542,25 +552,25 @@ export default function CreatePassPage() {
             )}
           </div>
 
-          {/* Stay Details - Only shows for multi-day visits */}
+          {/* Stay Details Card - LPU Style - Only shows for multi-day visits */}
           {isMultiDay && (
-            <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-xl p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2 border-b border-blue-300 pb-2">
-                <Hotel className="w-5 h-5 text-blue-600" />
+            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
+              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
+                <Hotel className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                 Accommodation Details
               </h2>
               
-              <div className="mb-4 bg-white border-l-4 border-blue-500 p-4 rounded">
-                <p className="text-sm text-blue-900">
+              <div className="mb-4 bg-blue-50 border-l-4 border-blue-500 p-3 md:p-4 rounded">
+                <p className="text-xs md:text-sm text-blue-900">
                   <strong>ℹ️ Multi-day visit detected:</strong> {formData.visitDate} to {formData.visitEndDate}
                   <br />
                   Accommodation details are required.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                     Hostel Name / Apartment Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -568,14 +578,14 @@ export default function CreatePassPage() {
                     name="hostelName"
                     value={formData.hostelName}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter hostel/apartment name"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
                     Room Number (optional)
                   </label>
                   <input
@@ -583,7 +593,7 @@ export default function CreatePassPage() {
                     name="roomNumber"
                     value={formData.roomNumber}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g., A-101"
                   />
                 </div>
@@ -591,33 +601,35 @@ export default function CreatePassPage() {
             </div>
           )}
 
-          {/* Submit Buttons */}
-          <div className="flex justify-end gap-4 pt-6 border-t">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="px-6 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition"
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+          {/* Submit Buttons Card */}
+          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row justify-end gap-3 md:gap-4">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="px-4 md:px-6 py-2 md:py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-sm md:text-base"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 md:px-8 py-2 md:py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm md:text-base"
+              >
+                {loading ? (
+                  <>
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
                   Creating Pass...
                 </>
               ) : (
                 <>
-                  <CheckCircle className="w-5 h-5" />
+                  <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
                   Create Pass
                 </>
               )}
             </button>
+            </div>
           </div>
         </form>
       </div>

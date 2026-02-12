@@ -2,50 +2,23 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Search, CheckCircle, XCircle, User, Calendar, Clock, Car, Building, AlertCircle, Loader2, Camera } from 'lucide-react';
-import { gateEntryService } from '@/shared/services/gateEntry.service';
+import { gateEntryService, GatePass } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/shared/ui-components/Toast';
 // @ts-ignore - html5-qrcode doesn't have type definitions
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import './qr-scanner.css';
 
-interface Pass {
-  id: string;
-  passId: string;
-  visitorName: string;
-  mobileNumber: string;
-  email: string;
-  idProofType: string;
-  idProofNumber: string;
-  gender: string;
-  age: number;
-  purposeOfVisit: string;
-  departmentToVisit: string;
-  personToMeetName: string;
-  visitDate: string;
-  expectedEntryTime: string;
-  expectedExitTime: string;
-  actualEntryTime?: string;
-  actualExitTime?: string;
-  hasVehicle: boolean;
-  vehicleType?: string;
-  vehicleNumber?: string;
-  vehicleModel?: string;
-  numberOfPersons: number;
-  status: string;
-  specialInstructions?: string;
-  itemsCarrying?: string;
-  verificationCode?: string;
-}
-
 export default function VerifyPassPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+  const toast = useToast();
   
   const [activeTab, setActiveTab] = useState<'manual' | 'qr'>('manual');
   const [searchType, setSearchType] = useState<'passId' | 'mobile' | 'visitorName' | 'vehicleNumber'>('passId');
   const [searchTerm, setSearchTerm] = useState('');
-  const [pass, setPass] = useState<Pass | null>(null);
+  const [pass, setPass] = useState<GatePass | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -133,9 +106,16 @@ export default function VerifyPassPage() {
       const response = await gateEntryService.verifyPass(passId, 'passId');
       const passData = response.pass;
       
+      if (!passData) {
+        setError('Pass not found');
+        setPass(null);
+        setActiveTab('manual');
+        return;
+      }
+      
       // Validate time window
       const now = new Date();
-      const visitDate = new Date(passData.visitDate);
+      const visitDate = new Date(passData.visitDate || now);
       const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const passDate = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
       
@@ -143,7 +123,7 @@ export default function VerifyPassPage() {
       if (passDate.getTime() !== todayDate.getTime()) {
         setError(
           `❌ Invalid Visit Date\n\n` +
-          `This pass is scheduled for: ${passData.visitDate.split('T')[0]}\n` +
+          `This pass is scheduled for: ${(passData.visitDate || '').split('T')[0]}\n` +
           `Today's date: ${now.toISOString().split('T')[0]}\n\n` +
           `Pass can only be used on the scheduled visit date.`
         );
@@ -152,9 +132,11 @@ export default function VerifyPassPage() {
         return;
       }
       
-      // Parse expected entry and exit times
-      const [entryHour, entryMin] = passData.expectedEntryTime.split(':').map(Number);
-      const [exitHour, exitMin] = passData.expectedExitTime.split(':').map(Number);
+      // Parse expected entry and exit times (with null safety)
+      const entryTimeParts = (passData.expectedEntryTime || '00:00').split(':').map(Number);
+      const exitTimeParts = (passData.expectedExitTime || '23:59').split(':').map(Number);
+      const [entryHour, entryMin] = entryTimeParts;
+      const [exitHour, exitMin] = exitTimeParts;
       
       const expectedEntry = new Date(now);
       expectedEntry.setHours(entryHour, entryMin, 0, 0);
@@ -206,24 +188,32 @@ export default function VerifyPassPage() {
       const response = await gateEntryService.verifyPass(searchTerm, searchType);
       const passData = response.pass;
       
+      if (!passData) {
+        setError('No pass found matching your search criteria');
+        setPass(null);
+        return;
+      }
+      
       // Validate time window
       const now = new Date();
-      const visitDate = new Date(passData.visitDate);
+      const visitDate = new Date(passData.visitDate || now);
       const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const passDate = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
       
       // Check if today is the visit date
       if (passDate.getTime() !== todayDate.getTime()) {
         setError(
-          `❌ Invalid Visit Date - This pass is scheduled for: ${passData.visitDate.split('T')[0]}. Today: ${now.toISOString().split('T')[0]}. Pass can only be used on the scheduled visit date.`
+          `❌ Invalid Visit Date - This pass is scheduled for: ${(passData.visitDate || '').split('T')[0]}. Today: ${now.toISOString().split('T')[0]}. Pass can only be used on the scheduled visit date.`
         );
         setPass(null);
         return;
       }
       
-      // Parse expected entry and exit times
-      const [entryHour, entryMin] = passData.expectedEntryTime.split(':').map(Number);
-      const [exitHour, exitMin] = passData.expectedExitTime.split(':').map(Number);
+      // Parse expected entry and exit times (with null safety)
+      const entryTimeParts = (passData.expectedEntryTime || '00:00').split(':').map(Number);
+      const exitTimeParts = (passData.expectedExitTime || '23:59').split(':').map(Number);
+      const [entryHour, entryMin] = entryTimeParts;
+      const [exitHour, exitMin] = exitTimeParts;
       
       const expectedEntry = new Date(now);
       expectedEntry.setHours(entryHour, entryMin, 0, 0);
@@ -319,9 +309,9 @@ export default function VerifyPassPage() {
       // Refresh pass data
       const response = await gateEntryService.verifyPass(pass.passId, 'passId');
       setPass(response.pass);
-      alert('✅ Entry Allowed Successfully!\n\nVisitor has been checked in.');
+      toast.success('Visitor has been checked in successfully!', 'Entry Allowed');
     } catch (err: any) {
-      alert('❌ Error: ' + (err.response?.data?.message || 'Failed to allow entry'));
+      toast.error(err.response?.data?.message || 'Failed to allow entry', 'Error');
     } finally {
       setActionLoading(false);
     }
@@ -329,12 +319,12 @@ export default function VerifyPassPage() {
   
   const handleCodeVerification = () => {
     if (!verificationCodeInput.trim()) {
-      alert('Please enter verification code');
+      toast.warning('Please enter the verification code', 'Verification Required');
       return;
     }
     
     if (verificationCodeInput.trim() !== pass?.verificationCode) {
-      alert('❌ Invalid verification code. Please try again.');
+      toast.error('Invalid verification code. Please try again.', 'Verification Failed');
       return;
     }
     
@@ -354,9 +344,9 @@ export default function VerifyPassPage() {
       // Refresh pass data
       const response = await gateEntryService.verifyPass(pass.passId, 'passId');
       setPass(response.pass);
-      alert('🚫 Entry Denied\n\nPass has been marked as denied.');
+      toast.info('Pass has been marked as denied', 'Entry Denied');
     } catch (err: any) {
-      alert('❌ Error: ' + (err.response?.data?.message || 'Failed to deny entry'));
+      toast.error(err.response?.data?.message || 'Failed to deny entry', 'Error');
     } finally {
       setActionLoading(false);
     }
@@ -375,9 +365,9 @@ export default function VerifyPassPage() {
       // Refresh pass data
       const response = await gateEntryService.verifyPass(pass.passId, 'passId');
       setPass(response.pass);
-      alert('✅ Exit Recorded Successfully!\n\nVisitor has been checked out.');
+      toast.success('Visitor has been checked out successfully!', 'Exit Recorded');
     } catch (err: any) {
-      alert('❌ Error: ' + (err.response?.data?.message || 'Failed to record exit'));
+      toast.error(err.response?.data?.message || 'Failed to record exit', 'Error');
     } finally {
       setActionLoading(false);
     }
@@ -412,18 +402,18 @@ export default function VerifyPassPage() {
   const canDenyEntry = pass && ['active'].includes(pass.status);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-3 md:p-6">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-4 md:mb-8">
+        <div className="mb-4 md:mb-6">
           <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
             🔍 Pass Verification
           </h1>
           <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">Guard interface for visitor pass verification and entry management</p>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow mb-4 md:mb-6">
+        {/* Tabs Card - LPU Style */}
+        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] mb-4 md:mb-6">
           <div className="border-b border-gray-200">
             <div className="flex">
               <button
@@ -599,9 +589,9 @@ export default function VerifyPassPage() {
           )}
         </div>
 
-        {/* Pass Details Section */}
+        {/* Pass Details Section - LPU Style */}
         {pass && (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] overflow-hidden">
             {/* Status Header */}
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-3 md:px-6 py-3 md:py-4">
               <div className="flex items-center justify-between">
@@ -616,8 +606,8 @@ export default function VerifyPassPage() {
             </div>
 
             <div className="p-3 md:p-6">
-              {/* Time Validation Success Notice */}
-              <div className="mb-4 md:mb-6 p-3 md:p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+              {/* Time Validation Success Notice - LPU Style */}
+              <div className="mb-4 md:mb-6 bg-white rounded-lg border border-blue-600 shadow-[0_2px_8px_rgba(21,101,192,0.1)] p-3 md:p-4">
                 <div className="flex items-start gap-2 md:gap-3">
                   <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
@@ -629,88 +619,112 @@ export default function VerifyPassPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:gap-6">
-                {/* Visitor Information */}
-                <div className="space-y-3 md:space-y-4">
-                  <h3 className="font-semibold text-sm md:text-base text-gray-900 flex items-center gap-2 pb-2 border-b">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                {/* Visitor Information Card - LPU Style */}
+                <div className="bg-white rounded-lg border border-blue-600 shadow-[0_2px_8px_rgba(21,101,192,0.1)] p-4">
+                  <h3 className="font-semibold text-sm md:text-base text-gray-900 flex items-center gap-2 pb-2 mb-3 border-b">
                     <User className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                     Visitor Information
                   </h3>
                   <div className="space-y-2 md:space-y-3">
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Name</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.visitorName}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Mobile</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.mobileNumber}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Email</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900 break-all">{pass.email || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">ID Proof</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.idProofType}: {pass.idProofNumber}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Gender / Age</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.gender} / {pass.age} years</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Number of Persons</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.numberOfPersons}</p>
-                    </div>
+                    {pass.visitorName && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Name</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.visitorName}</p>
+                      </div>
+                    )}
+                    {pass.mobileNumber && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Mobile</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.mobileNumber}</p>
+                      </div>
+                    )}
+                    {pass.email && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Email</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900 break-all">{pass.email}</p>
+                      </div>
+                    )}
+                    {pass.idProofType && pass.idProofNumber && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">ID Proof</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.idProofType}: {pass.idProofNumber}</p>
+                      </div>
+                    )}
+                    {(pass.gender || pass.age) && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Gender / Age</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">
+                          {pass.gender || '-'} / {pass.age ? `${pass.age} years` : '-'}
+                        </p>
+                      </div>
+                    )}
+                    {pass.numberOfPersons && pass.numberOfPersons > 0 && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Number of Persons</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.numberOfPersons}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Visit Information */}
-                <div className="space-y-3 md:space-y-4">
-                  <h3 className="font-semibold text-sm md:text-base text-gray-900 flex items-center gap-2 pb-2 border-b">
+                {/* Visit Information Card - LPU Style */}
+                <div className="bg-white rounded-lg border border-blue-600 shadow-[0_2px_8px_rgba(21,101,192,0.1)] p-4">
+                  <h3 className="font-semibold text-sm md:text-base text-gray-900 flex items-center gap-2 pb-2 mb-3 border-b">
                     <Building className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                     Visit Information
                   </h3>
                   <div className="space-y-2 md:space-y-3">
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Purpose</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.purposeOfVisit}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Department</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.departmentToVisit}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600">Person to Meet</p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.personToMeetName}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 md:w-4 md:h-4" />
-                        Visit Date
-                      </p>
-                      <p className="font-medium text-sm md:text-base text-gray-900">{pass.visitDate.split('T')[0]}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs md:text-sm text-gray-600 flex items-center gap-1">
-                        <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                        Time Slot
-                      </p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.expectedEntryTime} - {pass.expectedExitTime}</p>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                          <CheckCircle className="w-3 h-3" />
-                          Valid Time
-                        </span>
+                    {pass.purposeOfVisit && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Purpose</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.purposeOfVisit === 'other' && pass.purposeOther ? pass.purposeOther : pass.purposeOfVisit}</p>
                       </div>
-                    </div>
+                    )}
+                    {pass.departmentToVisit && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Department</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.departmentToVisit}</p>
+                      </div>
+                    )}
+                    {pass.personToMeetName && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">Person to Meet</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.personToMeetName}</p>
+                      </div>
+                    )}
+                    {pass.visitDate && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 md:w-4 md:h-4" />
+                          Visit Date
+                        </p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.visitDate.split('T')[0]}</p>
+                      </div>
+                    )}
+                    {(pass.expectedEntryTime || pass.expectedExitTime) && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600 flex items-center gap-1">
+                          <Clock className="w-3 h-3 md:w-4 md:h-4" />
+                          Time Slot
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-medium text-sm md:text-base text-gray-900">{pass.expectedEntryTime || '-'} - {pass.expectedExitTime || '-'}</p>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                            <CheckCircle className="w-3 h-3" />
+                            Valid Time
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Vehicle Information */}
+              {/* Vehicle Information Card - LPU Style */}
               {pass.hasVehicle && (
-                <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t">
-                  <h3 className="font-semibold text-sm md:text-base text-gray-900 flex items-center gap-2 pb-2 mb-3 md:mb-4">
+                <div className="mt-4 md:mt-6 bg-white rounded-lg border border-blue-600 shadow-[0_2px_8px_rgba(21,101,192,0.1)] p-4">
+                  <h3 className="font-semibold text-sm md:text-base text-gray-900 flex items-center gap-2 pb-2 mb-3 md:mb-4 border-b">
                     <Car className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
                     Vehicle Information
                   </h3>
@@ -879,7 +893,7 @@ export default function VerifyPassPage() {
                         <div>
                           <h3 className="font-semibold text-yellow-900">Visitor Identity Verification Required</h3>
                           <p className="text-sm text-yellow-700 mt-1">
-                            Before allowing entry, verify the visitor's identity using one of the methods below.
+                            Before allowing entry, verify the visitor&apos;s identity using one of the methods below.
                           </p>
                         </div>
                       </div>
@@ -949,7 +963,7 @@ export default function VerifyPassPage() {
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                     <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
                       <Camera className="w-5 h-5" />
-                      Scan Visitor's QR Code
+                      Scan Visitor&apos;s QR Code
                     </h3>
                     <p className="text-sm text-blue-700">
                       Ask the visitor to show their gate pass QR code. Position it within the camera frame.

@@ -32,42 +32,42 @@ class GatePassController {
       // Map frontend field names to backend schema (simplified form)
       const mappedData = {
         // Required fields
-        visitorName: passData.fullName,
-        mobileNumber: passData.mobileNumber,
-        purposeOfVisit: passData.purposeOfVisit,
-        visitDate: passData.visitDate,
-        expectedEntryTime: passData.expectedEntryTime,
-        expectedExitTime: passData.expectedExitTime,
+        visitor_name: passData.fullName,
+        mobile_number: passData.mobileNumber,
+        purpose_of_visit: passData.purposeOfVisit,
+        visit_date: passData.visitDate,
+        expected_entry_time: passData.expectedEntryTime,
+        expected_exit_time: passData.expectedExitTime,
         
         // Optional fields - only include if provided
-        visitorRelation: passData.visitorRelation,
-        purposeOther: passData.purposeOther,
+        visitor_relation: passData.visitorRelation,
+        purpose_other: passData.purposeOther,
         
         // Vehicle details (optional)
-        hasVehicle: passData.bringingVehicle || false,
-        vehicleType: passData.vehicleType,
-        vehicleNumber: passData.vehicleNumber,
-        vehicleModel: passData.vehicleModel,
+        has_vehicle: passData.bringingVehicle || false,
+        vehicle_type: passData.vehicleType,
+        vehicle_number: passData.vehicleNumber,
+        vehicle_model: passData.vehicleModel,
         
         // Stay details (optional for multi-day visits)
-        stayRequired: passData.stayRequired || false,
-        checkInDate: passData.checkInDate,
-        checkOutDate: passData.checkOutDate,
-        hostelName: passData.hostelName,
-        roomNumber: passData.roomNumber,
+        stay_required: passData.stayRequired || false,
+        check_in_date: passData.checkInDate,
+        check_out_date: passData.checkOutDate,
+        hostel_name: passData.hostelName,
+        room_number: passData.roomNumber,
         
         // Legacy fields (for backward compatibility - optional)
         email: passData.email,
-        idProofType: passData.idProofType,
-        idProofNumber: passData.idProofNumber,
+        id_proof_type: passData.idProofType,
+        id_proof_number: passData.idProofNumber,
         photo: passData.photo,
         gender: passData.gender,
         age: passData.age,
-        departmentToVisit: passData.departmentToVisit,
-        personToMeetId: passData.personToMeetId,
-        numberOfPersons: passData.numberOfPersons || 1,
-        itemsCarrying: passData.itemsCarrying,
-        specialInstructions: passData.specialInstructions
+        department_to_visit: passData.departmentToVisit,
+        person_to_meet_id: passData.personToMeetId,
+        number_of_persons: passData.numberOfPersons || 1,
+        items_carrying: passData.itemsCarrying,
+        special_instructions: passData.specialInstructions
       };
 
       console.log('Mapped Data:', JSON.stringify(mappedData, null, 2));
@@ -122,10 +122,12 @@ class GatePassController {
   /**
    * Get pass statistics
    * GET /api/v1/gate-entry/stats
+   * Admin and Guards see all stats, others see only their own
    */
   async getStats(req, res) {
     try {
-      const stats = await gatePassService.getPassStats();
+      const userId = req.user.id;
+      const stats = await gatePassService.getPassStats(userId);
 
       return res.status(200).json(
         formatResponse(true, 'Statistics fetched successfully', stats)
@@ -173,7 +175,7 @@ class GatePassController {
 
   /**
    * Allow entry (guard action)
-   * POST /api/v1/gate-entry/allow-entry/:passId
+   * POST /api/v1/gate-entry/allow-entry/:pass_id
    */
   async allowEntry(req, res) {
     try {
@@ -182,7 +184,7 @@ class GatePassController {
       const entryData = {
         gate: req.body.gate,
         remarks: req.body.remarks,
-        verificationCode: req.body.verificationCode // Optional verification code
+        verification_code: req.body.verificationCode // Optional verification code
       };
 
       const pass = await gatePassService.allowEntry(passId, guardId, entryData);
@@ -200,7 +202,7 @@ class GatePassController {
 
   /**
    * Deny entry (guard action)
-   * POST /api/v1/gate-entry/deny-entry/:passId
+   * POST /api/v1/gate-entry/deny-entry/:pass_id
    */
   async denyEntry(req, res) {
     try {
@@ -229,7 +231,7 @@ class GatePassController {
 
   /**
    * Record exit (guard action)
-   * POST /api/v1/gate-entry/record-exit/:passId
+   * POST /api/v1/gate-entry/record-exit/:pass_id
    */
   async recordExit(req, res) {
     try {
@@ -255,7 +257,7 @@ class GatePassController {
 
   /**
    * Cancel pass
-   * POST /api/v1/gate-entry/cancel/:passId
+   * POST /api/v1/gate-entry/cancel/:pass_id
    */
   async cancelPass(req, res) {
     try {

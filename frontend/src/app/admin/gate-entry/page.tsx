@@ -8,6 +8,7 @@ import {
 import Link from 'next/link';
 import { gateEntryService, type GatePass } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
+import { useToast } from '@/shared/ui-components/Toast';
 
 interface Pass {
   id: string;
@@ -16,6 +17,7 @@ interface Pass {
   mobileNumber: string;
   visitorRelation?: string;
   purposeOfVisit: string;
+  purposeOther?: string;
   visitDate: string;
   expectedEntryTime: string;
   expectedExitTime: string;
@@ -62,6 +64,7 @@ const STATUS_CONFIG = {
 
 export default function AllPassesPage() {
   const { user } = useAuthStore();
+  const toast = useToast();
   const [passes, setPasses] = useState<Pass[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -110,13 +113,14 @@ export default function AllPassesPage() {
   // Filter and search logic
   const filteredPasses = useMemo(() => {
     return passes.filter(pass => {
-      // Search filter - only search in fields we're actually collecting
+      // Search filter - only search in fields we're actually collecting (with null safety)
+      const searchLower = searchTerm.toLowerCase();
       const searchMatch = 
-        pass.passId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pass.visitorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pass.mobileNumber.includes(searchTerm) ||
-        (pass.vehicleNumber && pass.vehicleNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (pass.visitorRelation && pass.visitorRelation.toLowerCase().includes(searchTerm.toLowerCase()));
+        (pass.passId?.toLowerCase() || '').includes(searchLower) ||
+        (pass.visitorName?.toLowerCase() || '').includes(searchLower) ||
+        (pass.mobileNumber || '').includes(searchTerm) ||
+        (pass.vehicleNumber?.toLowerCase() || '').includes(searchLower) ||
+        (pass.visitorRelation?.toLowerCase() || '').includes(searchLower);
 
       // Status filter
       // "Pending" shows all non-completed passes (active, checked_in, pending)
@@ -132,7 +136,7 @@ export default function AllPassesPage() {
       // Date filter
       let dateMatch = true;
       const today = new Date().toISOString().split('T')[0];
-      const passDate = pass.visitDate.split('T')[0]; // Extract date part from ISO string
+      const passDate = (pass.visitDate || '').split('T')[0]; // Extract date part from ISO string
       if (dateFilter === 'today') {
         dateMatch = passDate === today;
       } else if (dateFilter === 'upcoming') {
@@ -146,19 +150,18 @@ export default function AllPassesPage() {
   }, [passes, searchTerm, statusFilter, dateFilter]);
 
   const handleResendNotification = (pass: Pass) => {
-    const notificationMessage = `📧 Notification resent to:\n📱 ${pass.mobileNumber}${pass.email ? `\n📧 ${pass.email}` : ''}\n\nPass ID: ${pass.passId}`;
-    alert(notificationMessage);
+    toast.success(`Notification resent to ${pass.mobileNumber}${pass.email ? ` and ${pass.email}` : ''}`, 'Notification Sent');
   };
 
   const handleCancelPass = async (passId: string) => {
     if (confirm('Are you sure you want to cancel this pass?')) {
       try {
         await gateEntryService.cancelPass(passId, 'Cancelled by admin');
-        alert('✅ Pass cancelled successfully');
+        toast.success('Pass has been cancelled successfully', 'Pass Cancelled');
         fetchPasses(); // Refresh the list
         fetchStats(); // Refresh stats
       } catch (err: any) {
-        alert('❌ Error: ' + (err.response?.data?.message || 'Failed to cancel pass'));
+        toast.error(err.response?.data?.message || 'Failed to cancel pass', 'Error');
       }
     }
   };
@@ -237,14 +240,14 @@ export default function AllPassesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-3 md:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-4 md:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">📋 All Gate Passes</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-xl md:text-3xl font-bold text-gray-900">📋 All Gate Passes</h1>
+              <p className="text-xs md:text-sm text-gray-600 mt-1">
                 {(() => {
                   const role = (user?.role?.name || '').toLowerCase();
                   const designation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
@@ -261,54 +264,54 @@ export default function AllPassesPage() {
                 })()}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => {
                   fetchPasses();
                   fetchStats();
                 }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+                className="px-3 md:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
               >
                 <RefreshCw className="w-4 h-4" />
-                Refresh
+                <span className="hidden sm:inline">Refresh</span>
               </button>
               <Link
                 href="/admin/gate-entry/create-pass"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
               >
-                ➕ Create New Pass
+                ➕ <span className="hidden sm:inline">Create New Pass</span><span className="sm:hidden">New</span>
               </Link>
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600">Total Passes</div>
-              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+          {/* Stats Cards - LPU Style with thin border all sides */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 mb-6">
+            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
+              <div className="text-xs md:text-sm text-gray-600">Total Passes</div>
+              <div className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600">Active Today</div>
-              <div className="text-2xl font-bold text-blue-600">{stats.active}</div>
+            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
+              <div className="text-xs md:text-sm text-gray-600">Active Today</div>
+              <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.active}</div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600">Pending</div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
+              <div className="text-xs md:text-sm text-gray-600">Pending</div>
+              <div className="text-xl md:text-2xl font-bold text-yellow-600">{stats.pending}</div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600">Completed</div>
-              <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
+              <div className="text-xs md:text-sm text-gray-600">Completed</div>
+              <div className="text-xl md:text-2xl font-bold text-green-600">{stats.completed}</div>
             </div>
-            <div className="bg-white rounded-lg shadow p-4">
-              <div className="text-sm text-gray-600">Expired</div>
-              <div className="text-2xl font-bold text-red-600">{stats.expired}</div>
+            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
+              <div className="text-xs md:text-sm text-gray-600">Expired</div>
+              <div className="text-xl md:text-2xl font-bold text-red-600">{stats.expired}</div>
             </div>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Filters Card - LPU Style */}
+        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 mb-4 md:mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {/* Search */}
             <div className="md:col-span-2">
               <div className="relative">
@@ -356,14 +359,14 @@ export default function AllPassesPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-            <div className="text-sm text-gray-600">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-200 gap-2">
+            <div className="text-xs md:text-sm text-gray-600">
               Showing <span className="font-semibold">{filteredPasses.length}</span> of{' '}
               <span className="font-semibold">{passes.length}</span> passes
             </div>
             <button
               onClick={handleExport}
-              className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              className="px-3 md:px-4 py-2 text-xs md:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Export to CSV
@@ -371,8 +374,8 @@ export default function AllPassesPage() {
           </div>
         </div>
 
-        {/* Passes Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        {/* Passes Table - LPU Style Card */}
+        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -452,7 +455,7 @@ export default function AllPassesPage() {
                         </td>
                         <td className="px-4 py-4">
                           <div className="text-sm">
-                            <div className="font-medium text-gray-900">{pass.purposeOfVisit}</div>
+                            <div className="font-medium text-gray-900">{pass.purposeOfVisit === 'other' && pass.purposeOther ? pass.purposeOther : pass.purposeOfVisit}</div>
                             {pass.stayRequired && (
                               <div className="text-xs text-purple-600 mt-1">
                                 🏠 Multi-day stay: {pass.hostelName}
@@ -556,15 +559,19 @@ export default function AllPassesPage() {
                   <div>
                     <h5 className="font-semibold text-gray-900 mb-3">Visitor Information</h5>
                     <dl className="space-y-2 text-sm">
-                      <div><dt className="text-gray-600">Name:</dt><dd className="font-medium">{selectedPass.visitorName}</dd></div>
-                      <div><dt className="text-gray-600">Mobile:</dt><dd className="font-medium">{selectedPass.mobileNumber}</dd></div>
+                      {selectedPass.visitorName && (
+                        <div><dt className="text-gray-600">Name:</dt><dd className="font-medium">{selectedPass.visitorName}</dd></div>
+                      )}
+                      {selectedPass.mobileNumber && (
+                        <div><dt className="text-gray-600">Mobile:</dt><dd className="font-medium">{selectedPass.mobileNumber}</dd></div>
+                      )}
                       {selectedPass.email && (
                         <div><dt className="text-gray-600">Email:</dt><dd className="font-medium">{selectedPass.email}</dd></div>
                       )}
                       {selectedPass.visitorRelation && (
                         <div><dt className="text-gray-600">Relation:</dt><dd className="font-medium">{selectedPass.visitorRelation}</dd></div>
                       )}
-                      {selectedPass.numberOfPersons && (
+                      {selectedPass.numberOfPersons && selectedPass.numberOfPersons > 0 && (
                         <div><dt className="text-gray-600">Number of Persons:</dt><dd className="font-medium text-green-600">👥 {selectedPass.numberOfPersons}</dd></div>
                       )}
                     </dl>
@@ -573,9 +580,15 @@ export default function AllPassesPage() {
                   <div>
                     <h5 className="font-semibold text-gray-900 mb-3">Visit Information</h5>
                     <dl className="space-y-2 text-sm">
-                      <div><dt className="text-gray-600">Purpose:</dt><dd className="font-medium">{selectedPass.purposeOfVisit}</dd></div>
-                      <div><dt className="text-gray-600">Date:</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
-                      <div><dt className="text-gray-600">Time:</dt><dd className="font-medium">{selectedPass.expectedEntryTime} - {selectedPass.expectedExitTime}</dd></div>
+                      {selectedPass.purposeOfVisit && (
+                        <div><dt className="text-gray-600">Purpose:</dt><dd className="font-medium">{selectedPass.purposeOfVisit === 'other' && selectedPass.purposeOther ? selectedPass.purposeOther : selectedPass.purposeOfVisit}</dd></div>
+                      )}
+                      {selectedPass.visitDate && (
+                        <div><dt className="text-gray-600">Date:</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
+                      )}
+                      {(selectedPass.expectedEntryTime || selectedPass.expectedExitTime) && (
+                        <div><dt className="text-gray-600">Time:</dt><dd className="font-medium">{selectedPass.expectedEntryTime || '-'} - {selectedPass.expectedExitTime || '-'}</dd></div>
+                      )}
                     </dl>
                   </div>
 
@@ -614,7 +627,7 @@ export default function AllPassesPage() {
                     <h5 className="font-semibold text-gray-900 mb-3">Entry/Exit Records</h5>
                     <dl className="space-y-2 text-sm">
                       <div><dt className="text-gray-600">Created At:</dt><dd className="font-medium">{new Date(selectedPass.createdAt).toLocaleString()}</dd></div>
-                      <div><dt className="text-gray-600">Created By:</dt><dd className="font-medium">{selectedPass.createdBy?.employeeDetails?.displayName || selectedPass.creator?.username || 'Unknown'}</dd></div>
+                      <div><dt className="text-gray-600">Created By:</dt><dd className="font-medium">{selectedPass.creator?.username || 'Unknown'}</dd></div>
                       {selectedPass.actualEntryTime && (
                         <div className="text-green-600">
                           <dt>Entry Time:</dt>

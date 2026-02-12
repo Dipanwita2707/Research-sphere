@@ -126,6 +126,65 @@ export interface VerifyPassResponse {
   message: string;
 }
 
+// Helper function to convert snake_case keys to camelCase
+function snakeToCamel(str: string): string {
+  return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+// Transform object keys from snake_case to camelCase
+function transformPass(pass: any): GatePass {
+  // Extract creator info from the relation
+  const creatorData = pass.user_login_gate_pass_created_by_idTouser_login;
+  const creatorName = creatorData?.employeeDetails?.displayName || creatorData?.uid || 'Unknown';
+  
+  return {
+    id: pass.id,
+    passId: pass.pass_id,
+    visitorName: pass.visitor_name,
+    mobileNumber: pass.mobile_number,
+    visitorRelation: pass.visitor_relation,
+    email: pass.email,
+    idProofType: pass.id_proof_type,
+    idProofNumber: pass.id_proof_number,
+    photoPath: pass.photo_file_path,
+    gender: pass.gender,
+    age: pass.age,
+    purposeOfVisit: pass.purpose_of_visit,
+    purposeOther: pass.purpose_other,
+    departmentToVisit: pass.department_to_visit,
+    personToMeetId: pass.person_to_meet_id,
+    personToMeetName: pass.person_to_meet_name,
+    visitDate: pass.visit_date,
+    expectedEntryTime: pass.expected_entry_time,
+    expectedExitTime: pass.expected_exit_time,
+    hasVehicle: pass.has_vehicle,
+    vehicleType: pass.vehicle_type,
+    vehicleNumber: pass.vehicle_number,
+    vehicleModel: pass.vehicle_model,
+    stayRequired: pass.stay_required,
+    checkInDate: pass.check_in_date,
+    checkOutDate: pass.check_out_date,
+    hostelName: pass.hostel_name,
+    roomNumber: pass.room_number,
+    numberOfPersons: pass.number_of_persons,
+    specialInstructions: pass.special_instructions,
+    itemsCarrying: pass.items_carrying,
+    status: pass.status,
+    qrCode: pass.qr_code,
+    verificationCode: pass.verification_code,
+    actualEntryTime: pass.actual_entry_time,
+    actualExitTime: pass.actual_exit_time,
+    entryGuardId: pass.entry_guard_id,
+    exitGuardId: pass.exit_guard_id,
+    createdAt: pass.created_at,
+    updatedAt: pass.updated_at,
+    creator: creatorData ? {
+      id: creatorData.id,
+      username: creatorName,
+    } : undefined,
+  };
+}
+
 class GateEntryService {
   /**
    * Create a new gate pass
@@ -135,11 +194,20 @@ class GateEntryService {
     // Remove photo from data as it can't be sent as JSON
     const { photo, ...jsonData } = data;
     
-    const response = await api.post<GatePassCreateResponse>(
+    const response = await api.post<any>(
       '/gate-entry/create-pass',
       jsonData
     );
-    return response.data;
+    
+    // Transform snake_case to camelCase
+    const rawPass = response.data?.data?.pass;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      data: {
+        pass: rawPass ? transformPass(rawPass) : null
+      }
+    } as GatePassCreateResponse;
   }
 
   /**
@@ -152,10 +220,21 @@ class GateEntryService {
     page?: number;
     limit?: number;
   }): Promise<GatePassListResponse> {
-    const response = await api.get<GatePassListResponse>('/gate-entry/passes', {
+    const response = await api.get<any>('/gate-entry/passes', {
       params,
     });
-    return response.data;
+    
+    // Transform snake_case to camelCase for all passes
+    const rawPasses = response.data?.data?.passes || [];
+    const transformedPasses = rawPasses.map((pass: any) => transformPass(pass));
+    
+    return {
+      success: response.data.success,
+      data: {
+        passes: transformedPasses,
+        pagination: response.data?.data?.pagination || { page: 1, limit: 50, total: 0, totalPages: 0 }
+      }
+    } as GatePassListResponse;
   }
 
   /**
@@ -171,60 +250,65 @@ class GateEntryService {
   /**
    * Verify a gate pass (by ID, mobile, name, or vehicle number)
    */
-  async verifyPass(searchTerm: string, searchType: 'passId' | 'mobile' | 'visitorName' | 'vehicleNumber'): Promise<{ success: boolean; pass: GatePass }> {
+  async verifyPass(searchTerm: string, searchType: 'passId' | 'mobile' | 'visitorName' | 'vehicleNumber'): Promise<{ success: boolean; pass: GatePass | null }> {
     // Map frontend searchType to backend format
-    const backendSearchType = searchType === 'visitorName' ? 'name' : searchType === 'vehicleNumber' ? 'vehicle' : searchType;
+    const backendSearchType = searchType === 'visitorName' ? 'name' : searchType === 'vehicleNumber' ? 'vehicle' : searchType === 'passId' ? 'pass_id' : searchType;
     
-    const response = await api.post<{ success: boolean; data: { pass: GatePass } }>(
+    const response = await api.post<any>(
       '/gate-entry/verify',
       { searchTerm, searchType: backendSearchType }
     );
     
-    return { success: response.data.success, pass: response.data.data.pass };
+    const rawPass = response.data?.data?.pass;
+    return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null };
   }
 
   /**
    * Allow entry for a verified pass
    */
   async allowEntry(passId: string, data: { gate?: string; remarks?: string; verificationCode?: string }): Promise<{ success: boolean; pass: GatePass }> {
-    const response = await api.post<{ success: boolean; data: { pass: GatePass } }>(
+    const response = await api.post<any>(
       `/gate-entry/allow-entry/${passId}`,
       data
     );
-    return { success: response.data.success, pass: response.data.data.pass };
+    const rawPass = response.data?.data?.pass;
+    return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null as any };
   }
 
   /**
    * Deny entry for a pass
    */
   async denyEntry(passId: string, denialReason: string): Promise<{ success: boolean; pass: GatePass }> {
-    const response = await api.post<{ success: boolean; data: { pass: GatePass } }>(
+    const response = await api.post<any>(
       `/gate-entry/deny-entry/${passId}`,
       { denialReason }
     );
-    return { success: response.data.success, pass: response.data.data.pass };
+    const rawPass = response.data?.data?.pass;
+    return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null as any };
   }
 
   /**
    * Record exit for a pass
    */
   async recordExit(passId: string, data: { gate?: string; remarks?: string }): Promise<{ success: boolean; pass: GatePass }> {
-    const response = await api.post<{ success: boolean; data: { pass: GatePass } }>(
+    const response = await api.post<any>(
       `/gate-entry/record-exit/${passId}`,
       data
     );
-    return { success: response.data.success, pass: response.data.data.pass };
+    const rawPass = response.data?.data?.pass;
+    return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null as any };
   }
 
   /**
    * Cancel a gate pass
    */
   async cancelPass(passId: string, reason: string): Promise<{ success: boolean; pass: GatePass }> {
-    const response = await api.post<{ success: boolean; data: { pass: GatePass } }>(
+    const response = await api.post<any>(
       `/gate-entry/cancel/${passId}`,
       { reason }
     );
-    return { success: response.data.success, pass: response.data.data.pass };
+    const rawPass = response.data?.data?.pass;
+    return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null as any };
   }
 }
 

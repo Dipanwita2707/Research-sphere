@@ -44,11 +44,11 @@ model UserLogin {
   documentChangeReviews                             DocumentChange[]                     @relation("DocumentChangeReviewer")
   employeeDetails                                   EmployeeDetails?
   headOfFaculties                                   FacultySchoolList[]                  @relation("HeadOfFaculty")
-  gatePassesCreated                                 GatePass[]                           @relation("GatePassCreator")
-  gatePassesAsHost                                  GatePass[]                           @relation("GatePassHost")
-  gatePassesAsEntryGuard                            GatePass[]                           @relation("GatePassEntryGuard")
-  gatePassesAsExitGuard                             GatePass[]                           @relation("GatePassExitGuard")
-  gatePassHistoryPerformed                          GatePassHistory[]                    @relation("GatePassHistoryPerformer")
+  gate_pass_gate_pass_created_by_idTouser_login     gate_pass[]                          @relation("gate_pass_created_by_idTouser_login")
+  gate_pass_gate_pass_entry_guard_idTouser_login    gate_pass[]                          @relation("gate_pass_entry_guard_idTouser_login")
+  gate_pass_gate_pass_exit_guard_idTouser_login     gate_pass[]                          @relation("gate_pass_exit_guard_idTouser_login")
+  gate_pass_gate_pass_person_to_meet_idTouser_login gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
+  gate_pass_history                                 gate_pass_history[]
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
   grantApplicationReviews                           GrantApplicationReview[]             @relation("GrantApplicationReviews")
@@ -97,12 +97,7 @@ model UserLogin {
   assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
   departmentPermissions                             UserDepartmentPermission[]
   userSettings                                      UserSettings?                        @relation("UserSettings")
-
-  @@map("user_login")
-}
-
-model EmployeeDetails {
-  id                        String                clubsAsFacultyFacilitator                         Club[]                               @relation("ClubFacultyFacilitator")
+  clubsAsFacultyFacilitator                         Club[]                               @relation("ClubFacultyFacilitator")
   clubsAsViceChairperson                            Club[]                               @relation("ClubViceChairperson")
   clubMemberships                                   ClubMember[]                         @relation("ClubMemberStudent")
   clubMembersAdded                                  ClubMember[]                         @relation("ClubMemberAddedBy")
@@ -1943,6 +1938,94 @@ model NotingAuthority {
   @@map("noting_authority")
 }
 
+model gate_pass {
+  id                                                 String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  pass_id                                            String                   @unique @db.VarChar(64)
+  visitor_name                                       String                   @db.VarChar(255)
+  mobile_number                                      String                   @db.VarChar(20)
+  email                                              String?                  @db.VarChar(255)
+  visitor_relation                                   String?                  @db.VarChar(100)
+  verification_code                                  String?                  @db.VarChar(10)
+  id_proof_type                                      id_proof_type_enum?
+  id_proof_number                                    String?                  @db.VarChar(100)
+  photo_file_path                                    String?
+  photo                                              String?                  @db.VarChar(64)
+  gender                                             gender_enum?
+  age                                                Int?
+  purpose_of_visit                                   visit_purpose_enum
+  purpose_other                                      String?                  @db.VarChar(255)
+  department_to_visit                                String?                  @db.VarChar(255)
+  person_to_meet_id                                  String?                  @db.Uuid
+  person_to_meet_name                                String?                  @db.VarChar(255)
+  visit_date                                         DateTime                 @db.Date
+  expected_entry_time                                String                   @db.VarChar(10)
+  expected_exit_time                                 String                   @db.VarChar(10)
+  stay_required                                      Boolean                  @default(false)
+  has_vehicle                                        Boolean                  @default(false)
+  vehicle_type                                       vehicle_type_enum?
+  vehicle_number                                     String?                  @db.VarChar(50)
+  vehicle_model                                      String?                  @db.VarChar(100)
+  number_of_persons                                  Int                      @default(1)
+  items_carrying                                     String?
+  special_instructions                               String?
+  status                                             gate_pass_status_enum    @default(active)
+  qr_code                                            String?
+  actual_entry_time                                  DateTime?                @db.Timestamptz(6)
+  actual_exit_time                                   DateTime?                @db.Timestamptz(6)
+  entry_gate                                         String?                  @db.VarChar(100)
+  exit_gate                                          String?                  @db.VarChar(100)
+  entry_guard_id                                     String?                  @db.Uuid
+  exit_guard_id                                      String?                  @db.Uuid
+  entry_remarks                                      String?
+  exit_remarks                                       String?
+  denial_reason                                      String?
+  created_by_id                                      String                   @db.Uuid
+  created_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
+  user_login_gate_pass_created_by_idTouser_login     UserLogin                @relation("gate_pass_created_by_idTouser_login", fields: [created_by_id], references: [id])
+  user_login_gate_pass_entry_guard_idTouser_login    UserLogin?               @relation("gate_pass_entry_guard_idTouser_login", fields: [entry_guard_id], references: [id])
+  user_login_gate_pass_exit_guard_idTouser_login     UserLogin?               @relation("gate_pass_exit_guard_idTouser_login", fields: [exit_guard_id], references: [id])
+  user_login_gate_pass_person_to_meet_idTouser_login UserLogin?               @relation("gate_pass_person_to_meet_idTouser_login", fields: [person_to_meet_id], references: [id])
+  gate_pass_history                                  gate_pass_history[]
+  gate_pass_notification                             gate_pass_notification[]
+
+  @@index([created_by_id])
+  @@index([mobile_number])
+  @@index([pass_id])
+  @@index([status])
+  @@index([visit_date])
+}
+
+model gate_pass_history {
+  id              String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  gate_pass_id    String                @db.Uuid
+  action          gate_pass_action_enum
+  performed_by_id String                @db.Uuid
+  remarks         String?
+  metadata        Json?
+  created_at      DateTime              @default(now()) @db.Timestamptz(6)
+  gate_pass       gate_pass             @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  user_login      UserLogin             @relation(fields: [performed_by_id], references: [id])
+
+  @@index([gate_pass_id])
+}
+
+model gate_pass_notification {
+  id                String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  gate_pass_id      String                      @db.Uuid
+  recipient_type    notification_recipient_enum
+  recipient_id      String?                     @db.Uuid
+  recipient_email   String?                     @db.VarChar(255)
+  recipient_phone   String?                     @db.VarChar(20)
+  notification_type notification_type_enum
+  status            notification_status_enum    @default(pending)
+  sent_at           DateTime?                   @db.Timestamptz(6)
+  created_at        DateTime                    @default(now()) @db.Timestamptz(6)
+  gate_pass         gate_pass                   @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+
+  @@index([gate_pass_id])
+}
+
 model Event {
   id                    String              @id
   eventId               String              @unique
@@ -2437,8 +2520,8 @@ enum vehicle_type_enum {
 }
 
 enum visit_purpose_enum {
-  meeting
   personal
+  meeting
   delivery
   maintenance
   event
@@ -2489,129 +2572,6 @@ enum RegistrationStatus {
   confirmed
   cancelled
   waitlisted
-}
-
-
-// ============================================
-// GATE ENTRY MODULE
-// ============================================
-
-model GatePass {
-  id                    String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  passId                String             @unique @map("pass_id") @db.VarChar(64)
-  
-  // Visitor Personal Details
-  visitorName           String             @map("visitor_name") @db.VarChar(255)
-  mobileNumber          String             @map("mobile_number") @db.VarChar(20)
-  visitorRelation       String?            @map("visitor_relation") @db.VarChar(100)
-  email                 String?            @db.VarChar(255)
-  idProofType           id_proof_type_enum? @map("id_proof_type")
-  idProofNumber         String?            @map("id_proof_number") @db.VarChar(100)
-  photoFilePath         String?            @map("photo_file_path")
-  photo                 String?            @db.VarChar(64)
-  gender                gender_enum?
-  age                   Int?
-  
-  // Visit Details
-  purposeOfVisit        visit_purpose_enum @map("purpose_of_visit")
-  purposeOther          String?            @map("purpose_other") @db.VarChar(255)
-  departmentToVisit     String?            @map("department_to_visit") @db.VarChar(255)
-  personToMeetId        String?            @map("person_to_meet_id") @db.Uuid
-  personToMeet          UserLogin?         @relation("GatePassHost", fields: [personToMeetId], references: [id], onDelete: SetNull)
-  personToMeetName      String?            @map("person_to_meet_name") @db.VarChar(255)
-  visitDate             DateTime           @map("visit_date") @db.Date
-  expectedEntryTime     String             @map("expected_entry_time") @db.VarChar(10)
-  expectedExitTime      String             @map("expected_exit_time") @db.VarChar(10)
-  
-  // Stay Details (for multi-day visits)
-  stayRequired          Boolean            @default(false) @map("stay_required")
-  checkInDate           DateTime?          @map("check_in_date") @db.Date
-  checkOutDate          DateTime?          @map("check_out_date") @db.Date
-  hostelName            String?            @map("hostel_name") @db.VarChar(255)
-  roomNumber            String?            @map("room_number") @db.VarChar(50)
-  
-  // Vehicle Details
-  hasVehicle            Boolean            @default(false) @map("has_vehicle")
-  vehicleType           vehicle_typvehicle_type")
-  vehicleNumber         String?            @map("vehicle_number") @db.VarChar(50)
-  vehicleModel          String?            @map("vehicle_model") @db.VarChar(100)
-  
-  // Additional Information
-  numberOfPersons       Int                @default(1) @map("number_of_persons")
-  itemsCarrying         String?            @map("items_carrying")
-  specialInstructions   String?            @map("special_instructions")
-  
-  // Pass Status & Tracking
-  status                gate_pass_status_enum @default(active)
-  qrCode                String?            @map("qr_code")
-  verificationCode      String?            @map("verification_code") @db.VarChar(10)
-  
-  // Entry/Exit Records
-  actualEntryTime       DateTime?          @map("actual_entry_time") @db.Timestamptz(6)
-  actualExitTime        DateTime?          @map("actual_exit_time") @db.Timestamptz(6)
-  entryGate             String?            @map("entry_gate") @db.VarChar(100)
-  exitGate              String?            @map("exit_gate") @db.VarChar(100)
-  entryGuardId          String?            @map("entry_guard_id") @db.Uuid
-  entryGuard            UserLogin?         @relation("GatePassEntryGuard", fields: [entryGuardId], references: [id], onDelete: SetNull)
-  exitGuardId           String?            @map("exit_guard_id") @db.Uuid
-  exitGuard             UserLogin?         @relation("GatePassExitGuard", fields: [exitGuardId], references: [id], onDelete: SetNull)
-  entryRemarks          String?            @map("entry_remarks")
-  exitRemarks           String?            @map("exit_remarks")
-  denialReason          String?            @map("denial_reason")
-  
-  // Metadata
-  createdById           String             @map("created_by_id") @db.Uuid
-  createdBy             UserLogin          @relation("GatePassCreator", fields: [createdById], references: [id])
-  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  
-  // Relations
-  history               GatePassHistory[]
-  notifications         GatePassNotification[]
-  
-  @@index([passId])
-  @@index([mobileNumber])
-  @@index([visitDate])
-  @@index([status])
-  @@index([createdById])
-  @@map("gate_pass")
-}
-
-model GatePassHistory {
-  id              String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  gatePassId      String             @map("gate_pass_id") @db.Uuid
-  gatePass        GatePass           @relation(fields: [gatePassId], references: [id], onDelete: Cascade)
-  
-  action          gate_pass_action_enum
-  performedById   String             @map("performed_by_id") @db.Uuid
-  performedBy     UserLogin          @relation("GatePassHistoryPerformer", fields: [performedById], references: [id])
-  remarks         String?
-  metadata        Json?
-  
-  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  
-  @@index([gatePassId])
-  @@map("gate_pass_history")
-}
-
-model GatePassNotification {
-  id              String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  gatePassId      String                      @map("gate_pass_id") @db.Uuid
-  gatePass        GatePass                    @relation(fields: [gatePassId], references: [id], onDelete: Cascade)
-  
-  recipientType   notification_recipient_enum @map("recipient_type")
-  recipientId     String?                     @map("recipient_id") @db.Uuid
-  recipientEmail  String?                     @map("recipient_email") @db.VarChar(255)
-  recipientPhone  String?                     @map("recipient_phone") @db.VarChar(20)
-  
-  notificationType notification_type_enum     @map("notification_type")
-  status          notification_status_enum    @default(pending)
-  sentAt          DateTime?                   @map("sent_at") @db.Timestamptz(6)
-  
-  createdAt       DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  
-  @@index([gatePassId])
-  @@map("gate_pass_notification")
 }
 
 // ============================================
@@ -2829,5 +2789,3 @@ enum ClubChangeRequestStatusEnum {
 
   @@map("club_change_request_status_enum")
 }
-
-
