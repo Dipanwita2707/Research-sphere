@@ -340,25 +340,18 @@ export default function MyCreatedEventsPage() {
                         {event.status !== 'draft' && (
                           <>
                             <Link
+                              href={`/events/${event.id}/management`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors shadow-sm"
+                            >
+                              <BarChart3 className="h-4 w-4" />
+                              Event Management
+                            </Link>
+                            <Link
                               href={`/events/${event.id}/manage`}
                               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
                             >
                               <Settings className="h-4 w-4" />
-                              Manage
-                            </Link>
-                            <Link
-                              href={`/events/${event.id}/statistics`}
-                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
-                            >
-                              <BarChart3 className="h-4 w-4" />
-                              Statistics
-                            </Link>
-                            <Link
-                              href={`/events/${event.id}/volunteers`}
-                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
-                            >
-                              <UserPlus className="h-4 w-4" />
-                              Volunteers
+                              Event Update
                             </Link>
                             <Link
                               href={`/events/${event.id}/scan`}

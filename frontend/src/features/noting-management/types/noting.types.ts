@@ -57,7 +57,6 @@ export interface Note {
   status: NoteStatus;
   createdById: string;
   currentHolderId?: string | null;
-  currentFlowIndex?: number | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: {
@@ -81,23 +80,11 @@ export interface Note {
     uid: string;
     employeeDetails?: { displayName?: string; firstName?: string; lastName?: string };
   } | null;
-  /** Set when pending at a DSW/Central Team step (central department); any member can approve. */
-  currentStep?: NoteCurrentStep | null;
   points?: NotePoint[];
   history?: NoteHistoryEntry[];
   attachments?: { id: string; fileName: string; filePath: string; fileDescription?: string | null }[];
   /** Present when listing with filter=handled: action you took and when */
   myAction?: { action: 'approved' | 'rejected' | 'forwarded' | 'reverted'; performedAt: string };
-}
-
-/** When the note is at a DSW or Central Team step (central department), any member can act. */
-export interface NoteCurrentStep {
-  authorityType: string;
-  isCentralDepartment: true;
-  centralDepartmentId?: string | null;
-  centralDepartmentName?: string | null;
-  centralDepartmentCode?: string | null;
-  members: { id: string; displayName: string }[];
 }
 
 export interface NoteHistoryEntry {

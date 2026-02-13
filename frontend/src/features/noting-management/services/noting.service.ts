@@ -67,6 +67,15 @@ export const notingService = {
   forward: (id: string, payload: { remarks: string; automated?: boolean; nextHolderId?: string }) =>
     api.post(`${BASE}/${id}/forward`, payload).then((res) => res.data),
 
+  autoForward: (id: string, remarks?: string) =>
+    api.post(`${BASE}/${id}/auto-forward`, { remarks: remarks || 'Auto-forwarded to reporting manager' }).then((res) => res.data),
+
+  searchEmployees: (q: string) =>
+    api.get(`${BASE}/search-employees`, { params: { q } }).then((res) => res.data.data as { id: string; uid: string; role: string; displayName: string; empId: string; department: string; school: string }[]),
+
+  getMyManager: () =>
+    api.get(`${BASE}/my-manager`).then((res) => res.data.data as { id: string; uid: string; displayName: string; empId: string; department: string; school: string } | null),
+
   getForwardPrograms: (departmentId: string) =>
     api.get(`${BASE}/forward-options/programs`, { params: { departmentId } }).then((res) => res.data.data as { id: string; programName: string; programCode?: string }[]),
 
