@@ -133,10 +133,193 @@ const MONTHLY_REPORT_PERMISSIONS = {
   }
 };
 
+// ===========================================
+// DSW (Dean of Student Welfare) Permissions
+// Centralized club and student activity management
+// ===========================================
+const DSW_PERMISSIONS = {
+  DSW_CLUB: {
+    category: 'DSW Club Management',
+    permissions: {
+      dsw_create_club_noting: {
+        key: 'dsw_create_club_noting',
+        label: 'Create Club Noting',
+        description: 'Can initiate club creation notings (Faculty have this by default)'
+      },
+      dsw_view_club: {
+        key: 'dsw_view_club',
+        label: 'View Clubs',
+        description: 'Can view club details and member lists'
+      },
+      dsw_view_all_clubs: {
+        key: 'dsw_view_all_clubs',
+        label: 'View All Clubs',
+        description: 'Can view all clubs across the institution (Admin/DSW Office)'
+      },
+      dsw_manage_members: {
+        key: 'dsw_manage_members',
+        label: 'Manage Club Members',
+        description: 'Can add/remove club members (Vice Chairperson, Faculty Facilitator)'
+      },
+      dsw_approve_club: {
+        key: 'dsw_approve_club',
+        label: 'Approve Club Creation',
+        description: 'Can approve or reject club creation requests (DSW Office)'
+      },
+      dsw_suspend_club: {
+        key: 'dsw_suspend_club',
+        label: 'Suspend/Archive Club',
+        description: 'Can suspend or archive clubs (DSW Office, Admin)'
+      },
+      dsw_request_club_change: {
+        key: 'dsw_request_club_change',
+        label: 'Request Club Changes',
+        description: 'Can request modifications to club details via noting'
+      },
+      dsw_approve_club_change: {
+        key: 'dsw_approve_club_change',
+        label: 'Approve Club Changes',
+        description: 'Can approve club modification requests (Admin, DSW Office)'
+      },
+      dsw_view_audit_logs: {
+        key: 'dsw_view_audit_logs',
+        label: 'View DSW Audit Logs',
+        description: 'Can view club audit and change history (Admin, DSW Office)'
+      }
+    }
+  }
+};
 
+// ===========================================
+// Noting System Permissions
+// Document approval workflow management
+// ===========================================
+const NOTING_PERMISSIONS = {
+  NOTING_CORE: {
+    category: 'Noting Permissions',
+    permissions: {
+      noting_create: {
+        key: 'noting_create',
+        label: 'Create Noting',
+        description: 'Can initiate new notings for approval workflows'
+      },
+      noting_view_own: {
+        key: 'noting_view_own',
+        label: 'View Own Notings',
+        description: 'Can view notings created by self'
+      },
+      noting_view_department: {
+        key: 'noting_view_department',
+        label: 'View Department Notings',
+        description: 'Can view all notings within assigned department'
+      },
+      noting_view_all: {
+        key: 'noting_view_all',
+        label: 'View All Notings',
+        description: 'Can view all notings across institution (Admin, Registrar)'
+      },
+      noting_approve: {
+        key: 'noting_approve',
+        label: 'Approve Notings',
+        description: 'Can approve/reject notings at assigned approval level'
+      },
+      noting_forward: {
+        key: 'noting_forward',
+        label: 'Forward Notings',
+        description: 'Can forward notings to next approval level'
+      },
+      noting_return: {
+        key: 'noting_return',
+        label: 'Return Notings',
+        description: 'Can return notings to previous level with comments'
+      },
+      noting_add_comment: {
+        key: 'noting_add_comment',
+        label: 'Add Noting Comments',
+        description: 'Can add comments/observations to notings'
+      }
+    }
+  }
+};
 
+// ===========================================
+// Event Management Permissions
+// Campus event creation and management
+// ===========================================
+const EVENT_PERMISSIONS = {
+  EVENT_CORE: {
+    category: 'Event Management',
+    permissions: {
+      event_create: {
+        key: 'event_create',
+        label: 'Create Events',
+        description: 'Can create new events (requires approved noting)'
+      },
+      event_manage_own: {
+        key: 'event_manage_own',
+        label: 'Manage Own Events',
+        description: 'Can edit/update events created by self'
+      },
+      event_manage_all: {
+        key: 'event_manage_all',
+        label: 'Manage All Events',
+        description: 'Can edit/update any event (Admin, DSW Office)'
+      },
+      event_publish: {
+        key: 'event_publish',
+        label: 'Publish Events',
+        description: 'Can publish events to make them visible to students'
+      },
+      event_cancel: {
+        key: 'event_cancel',
+        label: 'Cancel Events',
+        description: 'Can cancel scheduled events'
+      },
+      event_view_all: {
+        key: 'event_view_all',
+        label: 'View All Events',
+        description: 'Can view all events including unpublished (Admin)'
+      },
+      event_manage_attendance: {
+        key: 'event_manage_attendance',
+        label: 'Manage Event Attendance',
+        description: 'Can mark attendance and manage check-ins'
+      },
+      event_assign_volunteers: {
+        key: 'event_assign_volunteers',
+        label: 'Assign Event Volunteers',
+        description: 'Can assign volunteers for event management'
+      },
+      event_view_reports: {
+        key: 'event_view_reports',
+        label: 'View Event Reports',
+        description: 'Can view event analytics and attendance reports'
+      }
+    }
+  }
+};
 
-
+// ===========================================
+// Reporting Structure Permissions
+// Organizational hierarchy and reporting relationships
+// ===========================================
+const REPORTING_STRUCTURE_PERMISSIONS = {
+  REPORTING_CORE: {
+    category: 'Reporting Structure',
+    permissions: {
+      manage_reporting_structure: {
+        key: 'manage_reporting_structure',
+        label: 'Manage Reporting Structure',
+        description: 'Can assign and modify reporting relationships (who reports to whom)'
+      },
+      view_reporting_structure: {
+        key: 'view_reporting_structure',
+        label: 'View Reporting Structure',
+        description: 'Can view full organizational reporting hierarchy tree'
+      }
+    }
+  }
+};
 
 // Flat list of all permission keys for validation
 const ALL_IPR_PERMISSION_KEYS = Object.values(IPR_PERMISSIONS)
@@ -154,7 +337,29 @@ const ALL_CONFERENCE_PERMISSION_KEYS = Object.values(CONFERENCE_PERMISSIONS)
 const ALL_MONTHLY_REPORT_PERMISSION_KEYS = Object.values(MONTHLY_REPORT_PERMISSIONS)
   .flatMap(category => Object.keys(category.permissions));
 
-const ALL_PERMISSION_KEYS = [...ALL_IPR_PERMISSION_KEYS, ...ALL_RESEARCH_PERMISSION_KEYS, ...ALL_BOOK_PERMISSION_KEYS, ...ALL_CONFERENCE_PERMISSION_KEYS, ...ALL_MONTHLY_REPORT_PERMISSION_KEYS];
+const ALL_DSW_PERMISSION_KEYS = Object.values(DSW_PERMISSIONS)
+  .flatMap(category => Object.keys(category.permissions));
+
+const ALL_NOTING_PERMISSION_KEYS = Object.values(NOTING_PERMISSIONS)
+  .flatMap(category => Object.keys(category.permissions));
+
+const ALL_EVENT_PERMISSION_KEYS = Object.values(EVENT_PERMISSIONS)
+  .flatMap(category => Object.keys(category.permissions));
+
+const ALL_REPORTING_STRUCTURE_PERMISSION_KEYS = Object.values(REPORTING_STRUCTURE_PERMISSIONS)
+  .flatMap(category => Object.keys(category.permissions));
+
+const ALL_PERMISSION_KEYS = [
+  ...ALL_IPR_PERMISSION_KEYS,
+  ...ALL_RESEARCH_PERMISSION_KEYS,
+  ...ALL_BOOK_PERMISSION_KEYS,
+  ...ALL_CONFERENCE_PERMISSION_KEYS,
+  ...ALL_MONTHLY_REPORT_PERMISSION_KEYS,
+  ...ALL_DSW_PERMISSION_KEYS,
+  ...ALL_NOTING_PERMISSION_KEYS,
+  ...ALL_EVENT_PERMISSION_KEYS,
+  ...ALL_REPORTING_STRUCTURE_PERMISSION_KEYS
+];
 
 // Get all permissions as flat array for API response
 const getPermissionsForUI = () => {
@@ -187,8 +392,42 @@ const getPermissionsForUI = () => {
     category: group.category,
     permissions: Object.values(group.permissions)
   }));
+
+  const dswPerms = Object.entries(DSW_PERMISSIONS).map(([groupKey, group]) => ({
+    groupKey,
+    category: group.category,
+    permissions: Object.values(group.permissions)
+  }));
+
+  const notingPerms = Object.entries(NOTING_PERMISSIONS).map(([groupKey, group]) => ({
+    groupKey,
+    category: group.category,
+    permissions: Object.values(group.permissions)
+  }));
+
+  const eventPerms = Object.entries(EVENT_PERMISSIONS).map(([groupKey, group]) => ({
+    groupKey,
+    category: group.category,
+    permissions: Object.values(group.permissions)
+  }));
+
+  const reportingStructurePerms = Object.entries(REPORTING_STRUCTURE_PERMISSIONS).map(([groupKey, group]) => ({
+    groupKey,
+    category: group.category,
+    permissions: Object.values(group.permissions)
+  }));
   
-  return [...iprPerms, ...researchPerms, ...bookPerms, ...conferencePerms, ...monthlyReportPerms];
+  return [
+    ...iprPerms,
+    ...researchPerms,
+    ...bookPerms,
+    ...conferencePerms,
+    ...monthlyReportPerms,
+    ...dswPerms,
+    ...notingPerms,
+    ...eventPerms,
+    ...reportingStructurePerms
+  ];
 };
 
 // Validate permission keys
@@ -201,25 +440,79 @@ const isValidPermission = (key) => ALL_PERMISSION_KEYS.includes(key);
 const getDefaultPermissions = (role) => {
   const defaults = {
     student: {
+      // DRD Permissions
       ipr_file_new: true,         // Students can file IPR by default
       research_file_new: true,    // Students can file Research by default
       book_file_new: true,        // Students can file Book/Chapter by default
-      conference_file_new: true   // Students can file Conference by default
+      conference_file_new: true,  // Students can file Conference by default
+      // DSW Permissions
+      dsw_view_club: true,        // Students can view clubs
+      // Event Permissions
+      event_manage_own: true      // Students can manage events they create (via club)
     },
     faculty: {
+      // DRD Permissions
       ipr_file_new: true,         // Faculty can file IPR by default
       research_file_new: true,    // Faculty can file Research by default
       book_file_new: true,        // Faculty can file Book/Chapter by default
-      conference_file_new: true   // Faculty can file Conference by default
+      conference_file_new: true,  // Faculty can file Conference by default
+      // DSW Permissions
+      dsw_create_club_noting: true, // Faculty can initiate club creation
+      dsw_view_club: true,        // Faculty can view clubs
+      dsw_request_club_change: true, // Faculty facilitators can request changes
+      // Noting Permissions - NO DEFAULT! Admin must explicitly grant
+      // noting_create: false - Removed: Admin must assign explicitly
+      noting_view_own: true,      // Faculty can view their own notings
+      noting_add_comment: true,   // Faculty can add comments
+      // Event Permissions
+      event_create: true,         // Faculty can create events (via noting)
+      event_manage_own: true,     // Faculty can manage their own events
+      event_publish: true,        // Faculty can publish their events
+      event_assign_volunteers: true // Faculty can assign volunteers
     },
     staff: {
-      // Staff do NOT get any IPR/Research/Book/Conference permissions by default
+      // DSW Permissions - view only
+      dsw_view_club: true,        // Staff can view clubs
+      // Noting Permissions - view only by default
+      noting_view_own: true       // Staff can view notings they're involved in
+      // Staff do NOT get filing/creation permissions by default
       // They need explicit permission from admin checkbox
     },
     admin: {
-      // Admin is IT head - manages users/permissions/analytics
-      // Does NOT get IPR/Research/Book/Conference operational permissions by default
-      // Can assign permissions to others, but cannot file/review/approve
+      // DSW Permissions
+      dsw_view_club: true,
+      dsw_view_all_clubs: true,
+      dsw_approve_club: true,
+      dsw_suspend_club: true,
+      dsw_approve_club_change: true,
+      dsw_view_audit_logs: true,
+      // Noting Permissions
+      noting_view_all: true,
+      noting_approve: true,
+      noting_forward: true,
+      noting_return: true,
+      // Event Permissions
+      event_view_all: true,
+      event_manage_all: true,
+      event_view_reports: true
+      // Admin does NOT get IPR/Research filing permissions by default
+      // Admin manages users/permissions/analytics, NOT IPR operations
+    },
+    superadmin: {
+      // Superadmin gets all permissions by default
+      dsw_view_club: true,
+      dsw_view_all_clubs: true,
+      dsw_approve_club: true,
+      dsw_suspend_club: true,
+      dsw_approve_club_change: true,
+      dsw_view_audit_logs: true,
+      noting_view_all: true,
+      noting_approve: true,
+      noting_forward: true,
+      noting_return: true,
+      event_view_all: true,
+      event_manage_all: true,
+      event_view_reports: true
     }
   };
 
@@ -299,23 +592,170 @@ const ROUTE_PERMISSION_MAP = {
   
   // Monthly Report Routes
   'GET /api/v1/progress-tracker/monthly-reports': ['monthly_report_view'],
-  'GET /api/v1/progress-tracker/all': ['monthly_report_view']
+  'GET /api/v1/progress-tracker/all': ['monthly_report_view'],
+  
+  // ===========================================
+  // DSW Club Routes
+  // ===========================================
+  'POST /api/v1/dsw/clubs/noting': ['dsw_create_club_noting'],
+  'GET /api/v1/dsw/clubs': ['dsw_view_club'],
+  'GET /api/v1/dsw/clubs/all': ['dsw_view_all_clubs'],
+  'GET /api/v1/dsw/clubs/:id': ['dsw_view_club'],
+  'POST /api/v1/dsw/clubs/:id/members': ['dsw_manage_members'],
+  'DELETE /api/v1/dsw/clubs/:id/members/:memberId': ['dsw_manage_members'],
+  'POST /api/v1/dsw/clubs/:id/approve': ['dsw_approve_club'],
+  'POST /api/v1/dsw/clubs/:id/suspend': ['dsw_suspend_club'],
+  'POST /api/v1/dsw/clubs/:id/change-request': ['dsw_request_club_change'],
+  'POST /api/v1/dsw/clubs/:id/approve-change': ['dsw_approve_club_change'],
+  'GET /api/v1/dsw/audit-logs': ['dsw_view_audit_logs'],
+  
+  // ===========================================
+  // Noting Routes
+  // ===========================================
+  'POST /api/v1/noting/create': ['noting_create'],
+  'GET /api/v1/noting/my-notings': ['noting_view_own'],
+  'GET /api/v1/noting/department': ['noting_view_department'],
+  'GET /api/v1/noting/all': ['noting_view_all'],
+  'POST /api/v1/noting/:id/approve': ['noting_approve'],
+  'POST /api/v1/noting/:id/forward': ['noting_forward'],
+  'POST /api/v1/noting/:id/return': ['noting_return'],
+  'POST /api/v1/noting/:id/comment': ['noting_add_comment'],
+  
+  // ===========================================
+  // Event Management Routes
+  // ===========================================
+  'POST /api/v1/events/create': ['event_create'],
+  'GET /api/v1/events/all': ['event_view_all'],
+  'PUT /api/v1/events/:id': ['event_manage_own', 'event_manage_all'],
+  'POST /api/v1/events/:id/publish': ['event_publish'],
+  'POST /api/v1/events/:id/cancel': ['event_cancel'],
+  'POST /api/v1/events/:id/attendance': ['event_manage_attendance'],
+  'POST /api/v1/events/:id/volunteers': ['event_assign_volunteers'],
+  'GET /api/v1/events/reports': ['event_view_reports']
 };
 
+/**
+ * Check if a user has a specific permission
+ * Checks role-based defaults, direct department permissions, AND assigned role permissions
+ * 
+ * @param {Object} user - User object with role, schoolDeptPermissions, centralDeptPermissions, assignedRoleIds
+ * @param {string} permissionKey - Permission key to check (e.g., 'noting_approve')
+ * @returns {boolean} True if user has the permission
+ */
+function hasPermission(user, permissionKey) {
+  if (!user || !permissionKey) {
+    return false;
+  }
+
+  // Special case: DEAN role has all permissions
+  if (user.role === 'dean' || user.roleCode === 'DEAN') {
+    return true;
+  }
+
+  // Check direct department permissions (array of {permissions: {...}} objects from Prisma)
+  if (Array.isArray(user.schoolDeptPermissions)) {
+    for (const perm of user.schoolDeptPermissions) {
+      if (perm?.permissions?.[permissionKey] === true) {
+        return true;
+      }
+    }
+  }
+
+  if (Array.isArray(user.centralDeptPermissions)) {
+    for (const perm of user.centralDeptPermissions) {
+      if (perm?.permissions?.[permissionKey] === true) {
+        return true;
+      }
+    }
+  }
+
+  // Check role-based default permissions
+  const defaultPermissions = getDefaultPermissions(user.role);
+  if (Array.isArray(defaultPermissions) && defaultPermissions.includes(permissionKey)) {
+    return true;
+  }
+
+  // _resolvedRolePermissions is set by hasPermissionAsync after resolving assignedRoleIds
+  if (user._resolvedRolePermissions?.[permissionKey] === true) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Async version of hasPermission that resolves assignedRoleIds from DB
+ * Use this when you have a user object with assignedRoleIds but haven't resolved roles yet
+ * 
+ * @param {Object} user - User object with assignedRoleIds
+ * @param {string} permissionKey - Permission key to check
+ * @returns {Promise<boolean>}
+ */
+async function hasPermissionAsync(user, permissionKey) {
+  // First check sync permissions
+  if (hasPermission(user, permissionKey)) {
+    return true;
+  }
+
+  // If user has assignedRoleIds, resolve them from DB
+  const roleIds = user.assignedRoleIds || [];
+  if (Array.isArray(roleIds) && roleIds.length > 0) {
+    const prisma = require('./database');
+    const roles = await prisma.role.findMany({
+      where: {
+        id: { in: roleIds },
+        isActive: true,
+      },
+      select: {
+        permissions: true,
+      },
+    });
+
+    for (const role of roles) {
+      const perms = role.permissions || {};
+      // Check central dept permissions from role
+      if (perms.centralDeptPermissions?.[permissionKey] === true) {
+        return true;
+      }
+      // Check school dept permissions from role
+      if (perms.schoolDeptPermissions?.[permissionKey] === true) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 module.exports = {
+  // Permission Category Objects
   IPR_PERMISSIONS,
   RESEARCH_PERMISSIONS,
   BOOK_PERMISSIONS,
   CONFERENCE_PERMISSIONS,
   MONTHLY_REPORT_PERMISSIONS,
+  DSW_PERMISSIONS,
+  NOTING_PERMISSIONS,
+  EVENT_PERMISSIONS,
+  REPORTING_STRUCTURE_PERMISSIONS,
+  
+  // Permission Key Arrays
   ALL_PERMISSION_KEYS,
   ALL_IPR_PERMISSION_KEYS,
   ALL_RESEARCH_PERMISSION_KEYS,
   ALL_BOOK_PERMISSION_KEYS,
   ALL_CONFERENCE_PERMISSION_KEYS,
   ALL_MONTHLY_REPORT_PERMISSION_KEYS,
+  ALL_DSW_PERMISSION_KEYS,
+  ALL_NOTING_PERMISSION_KEYS,
+  ALL_EVENT_PERMISSION_KEYS,
+  ALL_REPORTING_STRUCTURE_PERMISSION_KEYS,
+  
+  // Utility Functions
   getPermissionsForUI,
   isValidPermission,
   getDefaultPermissions,
+  hasPermission,
+  hasPermissionAsync,
   ROUTE_PERMISSION_MAP
 };

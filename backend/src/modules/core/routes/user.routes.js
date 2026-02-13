@@ -3,9 +3,9 @@ const router = express.Router();
 const { protect, restrictTo } = require('../../../shared/middleware/auth');
 const userController = require('../controllers/user.controller');
 
-// Get all users (admin only - for permission management)
+// Get all users (admin/superadmin - for permission management)
 // TODO: Transfer to HR module when implemented
-router.get('/', protect, restrictTo('admin'), userController.getAllUsers);
+router.get('/', protect, restrictTo('admin', 'superadmin'), userController.getAllUsers);
 
 // Test route to check if routing works
 router.get('/test', (req, res) => {

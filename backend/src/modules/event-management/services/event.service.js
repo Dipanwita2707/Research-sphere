@@ -132,6 +132,44 @@ const getEventDetails = async (eventId, userId) => {
         },
       },
     },
+    EventCustomField: {
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        id: true,
+        fieldName: true,
+        fieldLabel: true,
+        fieldType: true,
+        isRequired: true,
+        placeholder: true,
+        helpText: true,
+        options: true,
+        sortOrder: true,
+      },
+    },
+    EventPrize: {
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { position: 'asc' }],
+      select: {
+        id: true,
+        position: true,
+        rank: true,
+        title: true,
+        description: true,
+        prizeType: true,
+        prizeAmount: true,
+        additionalPerks: true,
+        sortOrder: true,
+      },
+    },
+  });
+  
+  // Get current registrations count (only confirmed/completed registrations)
+  const currentRegistrations = await prisma.eventRegistration.count({
+    where: {
+      eventId: event.id,
+      status: 'confirmed',
+    },
   });
   
   // Check if the current user has registered for this event
@@ -149,6 +187,9 @@ const getEventDetails = async (eventId, userId) => {
       registeredAt: true,
     },
   });
+  
+  // Add current registrations count
+  event.currentRegistrations = currentRegistrations;
   
   // Add user registration to event object
   event.userRegistration = userRegistration;
@@ -241,9 +282,10 @@ const publishEvent = async (eventId, userId) => {
     throw new ForbiddenError('Only the event creator can publish the event');
   }
   
-  // Verify event is in draft status
-  if (event.status !== EVENT_STATUS.DRAFT) {
-    throw new ValidationError('Only draft events can be published');
+  // Allow publishing/republishing for draft and already published events
+  // (published events can be republished after editing)
+  if (event.status !== EVENT_STATUS.DRAFT && event.status !== EVENT_STATUS.PUBLISHED) {
+    throw new ValidationError('Only draft or published events can be (re)published');
   }
   
   // Validate event has all required details
@@ -255,13 +297,20 @@ const publishEvent = async (eventId, userId) => {
     throw new ValidationError('Event must have registration dates before publishing');
   }
   
-  // Update event status
+  // Update event status and published timestamp
+  const updateData = {
+    status: EVENT_STATUS.PUBLISHED,
+  };
+  
+  // Only set publishedAt on first publish (not on republish)
+  if (event.status !== EVENT_STATUS.PUBLISHED) {
+    updateData.publishedAt = new Date();
+  }
+  
+  // Update event
   const publishedEvent = await prisma.event.update({
     where: { id: eventId },
-    data: {
-      status: EVENT_STATUS.PUBLISHED,
-      publishedAt: new Date(),
-    },
+    data: updateData,
     include: {
       user_login: {
         select: {
@@ -382,11 +431,6 @@ const listEvents = async (filters, pagination, userId) => {
             status: true,
           },
         },
-        _count: {
-          select: {
-            EventRegistration: true,
-          },
-        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -397,8 +441,24 @@ const listEvents = async (filters, pagination, userId) => {
     prisma.event.count({ where }),
   ]);
   
+  // Add currentRegistrations count to each event (only confirmed/completed registrations)
+  const eventsWithCount = await Promise.all(
+    events.map(async (event) => {
+      const currentRegistrations = await prisma.eventRegistration.count({
+        where: {
+          eventId: event.id,
+          status: 'confirmed',
+        },
+      });
+      return {
+        ...event,
+        currentRegistrations,
+      };
+    })
+  );
+  
   return {
-    events,
+    events: eventsWithCount,
     pagination: {
       page,
       limit,

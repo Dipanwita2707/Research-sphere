@@ -41,8 +41,15 @@ exports.getAllUsers = async (req, res) => {
           select: {
             firstName: true,
             lastName: true,
+            displayName: true,
             designation: true,
-            empId: true
+            empId: true,
+            primaryDepartment: {
+              select: { departmentName: true }
+            },
+            primarySchool: {
+              select: { facultyName: true }
+            }
           }
         }
       },

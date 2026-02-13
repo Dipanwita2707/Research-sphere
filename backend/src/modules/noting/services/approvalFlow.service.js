@@ -1,307 +1,244 @@
 /**
- * Resolve next approver for a note based on category, subcategory, creator context, and current step.
- * Uses: HOD (department/school + designation fallback), Dean (school + designation fallback),
- * noting_authority for COE, DAA, Accounts, etc., and existing Central Departments (see /admin/central-departments)
- * for DSW and Central Team — members are users with CentralDepartmentPermission for that department; any one can approve/reject/forward.
+ * Approval Flow Service - Reporting Structure Based Workflow
  * 
- * NOTE: Students are NO LONGER allowed in noting system. All flows are Faculty/Staff/Admin only.
+ * All noting approvals work through the Reporting Structure system:
+ * 1. User creates noting → System finds user's manager from ReportingStructure
+ * 2. If manager has required permission → Auto-forward to manager
+ * 3. If not → User manually selects approver from reporting chain
+ * 4. Manager can Approve/Reject/Forward up the chain
+ * 5. DEAN role can override and forward anywhere
  */
 const prisma = require('../../../shared/config/database');
-const {
-  getFlowDefinition,
-  HOD_DESIGNATION_MATCH,
-  DEAN_DESIGNATION_MATCH,
-  isCentralDepartmentRole,
-  CENTRAL_DEPARTMENT_ROLE_TO_DEPT_CODE,
-} = require('../config/noting.config');
-
-const roleKeyMap = {
-  DSW: 'DSW',
-  COE: 'COE',
-  DAA: 'DAA',
-  ACCOUNTS_HEAD: 'ACCOUNTS_HEAD',
-  PURCHASE_HEAD: 'PURCHASE_HEAD',
-  HR_HEAD: 'HR_HEAD',
-  CONSTRUCTION_TEAM_HEAD: 'CONSTRUCTION_TEAM_HEAD',
-  HIGHER_AUTHORITY: 'HIGHER_AUTHORITY',
-  CENTRAL_TEAM: 'CENTRAL_TEAM',
-};
+const reportingService = require('../../core/services/reportingStructure.service');
+const { hasPermission, hasPermissionAsync } = require('../../../shared/config/permissions.config');
 
 /**
- * Get creator's context: departmentId, schoolId (facultyId), role.
- * Students are blocked from noting, so this only handles Faculty/Staff/Admin.
- */
-async function getCreatorContext(createdById) {
-  const user = await prisma.userLogin.findUnique({
-    where: { id: createdById },
-    select: {
-      id: true,
-      role: true,
-      employeeDetails: {
-        select: {
-          primaryDepartmentId: true,
-          primarySchoolId: true,
-        },
-      },
-    },
-  });
-  if (!user) return null;
-
-  let departmentId = null;
-  let schoolId = null;
-
-  if (user.employeeDetails) {
-    departmentId = user.employeeDetails.primaryDepartmentId;
-    schoolId = user.employeeDetails.primarySchoolId;
-    if (!schoolId && departmentId) {
-      const dept = await prisma.department.findUnique({
-        where: { id: departmentId },
-        select: { facultyId: true },
-      });
-      schoolId = dept?.facultyId ?? null;
-    }
-  }
-
-  return {
-    role: user.role,
-    departmentId,
-    schoolId,
-  };
-}
-
-/**
- * Get all user IDs for an authority role. DSW and CENTRAL_TEAM are resolved from existing Central Departments
- * (CentralDepartment + CentralDepartmentPermission at /admin/central-departments). Other roles use noting_authority.
- */
-async function getAuthorityMemberIds(roleKey) {
-  const deptCode = CENTRAL_DEPARTMENT_ROLE_TO_DEPT_CODE[roleKey];
-  if (deptCode) {
-    const centralDept = await prisma.centralDepartment.findFirst({
-      where: { departmentCode: deptCode, isActive: true },
-      select: { id: true },
-    });
-    if (!centralDept) return [];
-    const perms = await prisma.centralDepartmentPermission.findMany({
-      where: { centralDeptId: centralDept.id, isActive: true },
-      select: { userId: true },
-    });
-    return perms.map((p) => p.userId);
-  }
-  const rows = await prisma.notingAuthority.findMany({
-    where: { roleKey },
-    select: { userId: true },
-  });
-  return rows.map((r) => r.userId);
-}
-
-/**
- * Resolve userId for a given authority type in the flow (single user; for non-central roles or first member).
- */
-async function resolveAuthorityUserId(authorityType, creatorContext) {
-  const ids = await resolveAuthorityUserIds(authorityType, creatorContext);
-  return ids.length ? ids[0] : null;
-}
-
-/**
- * Resolve user IDs for a given authority type. For central department roles (DSW, CENTRAL_TEAM) returns all members; otherwise single user or empty.
- * MENTOR authority type has been removed - students are not allowed in noting system.
- */
-async function resolveAuthorityUserIds(authorityType, creatorContext) {
-  if (authorityType === 'HOD' && creatorContext.departmentId) {
-    const dept = await prisma.department.findUnique({
-      where: { id: creatorContext.departmentId },
-      select: { headOfDepartmentId: true },
-    });
-    if (dept?.headOfDepartmentId) return [dept.headOfDepartmentId];
-    const hodByDesignation = await prisma.userLogin.findFirst({
-      where: {
-        role: { in: ['faculty', 'staff'] },
-        employeeDetails: {
-          is: {
-            AND: [
-              { primaryDepartmentId: creatorContext.departmentId },
-              { OR: HOD_DESIGNATION_MATCH.map((d) => ({ designation: { equals: d, mode: 'insensitive' } })) },
-            ],
-          },
-        },
-      },
-      select: { id: true },
-    });
-    if (hodByDesignation) return [hodByDesignation.id];
-    return [];
-  }
-  if (authorityType === 'DEAN' && creatorContext.schoolId) {
-    const school = await prisma.facultySchoolList.findUnique({
-      where: { id: creatorContext.schoolId },
-      select: { headOfFacultyId: true },
-    });
-    if (school?.headOfFacultyId) return [school.headOfFacultyId];
-    const deanByDesignation = await prisma.userLogin.findFirst({
-      where: {
-        role: { in: ['faculty', 'staff'] },
-        employeeDetails: {
-          is: {
-            AND: [
-              { primarySchoolId: creatorContext.schoolId },
-              { OR: DEAN_DESIGNATION_MATCH.map((d) => ({ designation: { equals: d, mode: 'insensitive' } })) },
-            ],
-          },
-        },
-      },
-      select: { id: true },
-    });
-    if (deanByDesignation) return [deanByDesignation.id];
-    return [];
-  }
-
-  const roleKey = roleKeyMap[authorityType];
-  if (!roleKey) return [];
-
-  if (isCentralDepartmentRole(authorityType)) {
-    return getAuthorityMemberIds(roleKey);
-  }
-
-  const auth = await prisma.notingAuthority.findFirst({
-    where: { roleKey },
-    select: { userId: true },
-  });
-  return auth?.userId ? [auth.userId] : [];
-}
-
-/**
- * Get the full flow as steps: each step has order, authorityType, and userIds (one or many for central department).
- * noteContext: { amountRequired } e.g. for Infrastructure.
- * Returns array of { order, authorityType, userIds }.
- * NOTE: Students are blocked from noting, so creatorRole is always 'faculty'.
- */
-async function getFullFlowSteps(category, subcategory, createdById, noteContext = {}) {
-  const creatorContext = await getCreatorContext(createdById);
-  if (!creatorContext) return [];
-
-  // All creators are faculty/staff/admin (students are blocked)
-  const flow = getFlowDefinition(category, subcategory, 'faculty', noteContext);
-  const result = [];
-
-  for (let i = 0; i < flow.length; i++) {
-    const authorityType = flow[i];
-    const userIds = await resolveAuthorityUserIds(authorityType, creatorContext);
-    if (userIds.length) result.push({ order: i + 1, authorityType, userIds });
-  }
-  return result;
-}
-
-/**
- * Get the ordered list of approver user IDs for the full flow (for this note).
- * For central department steps, returns one row per member with same order/authorityType (for backward compat and UI).
- */
-async function getFullFlowUserIds(category, subcategory, createdById, noteContext = {}) {
-  const steps = await getFullFlowSteps(category, subcategory, createdById, noteContext);
-  const result = [];
-  for (const step of steps) {
-    for (const userId of step.userIds) {
-      result.push({ order: step.order, authorityType: step.authorityType, userId });
-    }
-  }
-  return result;
-}
-
-/**
- * Get next step info after current flow index. Used when advancing after approve/forward.
- * Returns { nextHolderId, nextFlowIndex, isGroupStep, authorityType }.
- */
-async function getNextStepInfo(category, subcategory, createdById, flowIndex, noteContext = {}) {
-  const steps = await getFullFlowSteps(category, subcategory, createdById, noteContext);
-  const nextStep = steps[flowIndex];
-  if (!nextStep) return { nextHolderId: null, nextFlowIndex: null, isGroupStep: false, authorityType: null };
-
-  const isGroupStep = isCentralDepartmentRole(nextStep.authorityType) && nextStep.userIds.length > 0;
-  const nextHolderId = isGroupStep ? null : (nextStep.userIds[0] || null);
-  return {
-    nextHolderId,
-    nextFlowIndex: flowIndex,
-    isGroupStep,
-    authorityType: nextStep.authorityType,
-  };
-}
-
-/**
- * Check if the given user is allowed to act at the given flow step (either as single holder or as member of central department step).
- */
-async function canUserActAtStep(userId, category, subcategory, createdById, flowIndex, noteContext = {}) {
-  const steps = await getFullFlowSteps(category, subcategory, createdById, noteContext);
-  const step = steps[flowIndex];
-  if (!step) return false;
-  return step.userIds.includes(userId);
-}
-
-/**
- * Batch check if user can act on multiple notes at their current flow steps
- * Optimized to avoid N+1 queries
+ * Determine next approver based on reporting hierarchy + permissions
  * 
- * @param {string} userId - User ID to check authorization for
- * @param {Array} notes - Array of note objects with category, subcategory, createdById, currentFlowIndex, amountRequired
- * @returns {Promise<Map>} Map of noteId => boolean (can act)
+ * @param {Object} note - The note object
+ * @param {string} modulePermissionKey - e.g., 'event_approve', 'dsw_approve_noting'
+ * @returns {Promise<Object>} { canAutoForward, nextApproverId, reason, managerInfo }
  */
-async function canUserActAtStepBatch(userId, notes) {
-  const results = new Map();
-
-  // Group notes by flow key to minimize flow calculations
-  const noteGroups = new Map();
-
-  for (const note of notes) {
-    const flowKey = `${note.category}:${note.subcategory}:${note.createdById}:${note.currentFlowIndex}:${note.amountRequired}`;
-
-    if (!noteGroups.has(flowKey)) {
-      noteGroups.set(flowKey, []);
+async function determineNextApproverByReporting(note, modulePermissionKey) {
+  try {
+    const creator = await prisma.userLogin.findUnique({
+      where: { id: note.createdById },
+      include: {
+        employeeDetails: true
+      }
+    });
+    
+    if (!creator) {
+      return {
+        canAutoForward: false,
+        nextApproverId: null,
+        reason: 'Creator not found'
+      };
     }
-    noteGroups.get(flowKey).push(note);
-  }
-
-  // Process each unique group once
-  for (const [flowKey, groupNotes] of noteGroups) {
-    const sampleNote = groupNotes[0];
-    const noteContext = { amountRequired: sampleNote.amountRequired === true };
-
-    const canAct = await canUserActAtStep(
-      userId,
-      sampleNote.category,
-      sampleNote.subcategory,
-      sampleNote.createdById,
-      sampleNote.currentFlowIndex,
-      noteContext
-    );
-
-    // Apply result to all notes in this group
-    for (const note of groupNotes) {
-      results.set(note.id, canAct);
+    
+    // Get immediate manager
+    const manager = await reportingService.getDirectManager(creator.id);
+    
+    if (!manager) {
+      return {
+        canAutoForward: false,
+        nextApproverId: null,
+        reason: 'No reporting manager assigned. Please contact admin to configure reporting structure.'
+      };
     }
+    
+    // Check if manager has permission for this module (async to resolve role-based permissions)
+    const managerHasPermission = await hasPermissionAsync(manager, modulePermissionKey);
+    
+    if (!managerHasPermission) {
+      return {
+        canAutoForward: false,
+        nextApproverId: manager.id,
+        reason: `Manager ${manager.name || manager.email} does not have ${modulePermissionKey} permission. Manual forwarding required.`,
+        managerInfo: {
+          id: manager.id,
+          name: manager.name,
+          email: manager.email
+        }
+      };
+    }
+    
+    // Auto-forward allowed
+    return {
+      canAutoForward: true,
+      nextApproverId: manager.id,
+      reason: 'Auto-forwarded to direct reporting manager',
+      managerInfo: {
+        id: manager.id,
+        name: manager.name,
+        email: manager.email,
+        roleCode: manager.roleCode
+      }
+    };
+  } catch (error) {
+    console.error('Error in determineNextApproverByReporting:', error);
+    return {
+      canAutoForward: false,
+      nextApproverId: null,
+      reason: 'Error determining next approver: ' + error.message
+    };
   }
-
-  return results;
 }
 
 /**
- * Get the next holder (userId) after submission or after current holder approves/forwards.
- * flowIndex: 0-based index in the flow we're at (0 = first approver).
- * For group steps returns null (caller should set currentHolderId = null, currentFlowIndex = flowIndex).
+ * Check if user can override workflow routing based on role code
+ * DEAN role code has override authority
+ * 
+ * @param {Object} user - User object with role
+ * @returns {boolean}
  */
-async function getNextHolderId(category, subcategory, createdById, flowIndex, noteContext = {}) {
-  const steps = await getFullFlowSteps(category, subcategory, createdById, noteContext);
-  const next = steps[flowIndex];
-  if (!next) return null;
-  if (isCentralDepartmentRole(next.authorityType) && next.userIds.length > 0) return null;
-  return next.userIds[0] ?? null;
+function canOverrideWorkflowRouting(user) {
+  // DEAN role code has override authority
+  if (user.role?.roleCode === 'DEAN') {
+    return true;
+  }
+  
+  // Future: Add more override roles here if needed
+  // if (user.role?.roleCode === 'REGISTRAR') return true;
+  // if (user.role?.roleCode === 'VC') return true;
+  
+  return false;
+}
+
+/**
+ * Get eligible forward targets for a user
+ * Regular users can only forward up reporting chain
+ * DEAN and override roles can forward to anyone with permission
+ * 
+ * @param {string} userId - Current holder of note
+ * @param {Object} note - Note object
+ * @param {string} modulePermissionKey - Required permission key
+ * @returns {Promise<Array>} List of users who can receive forward
+ */
+async function getEligibleForwardTargets(userId, note, modulePermissionKey) {
+  const currentUser = await prisma.userLogin.findUnique({
+    where: { id: userId },
+    include: { 
+      role: true,
+      employeeDetails: true
+    }
+  });
+  
+  if (!currentUser) {
+    return [];
+  }
+  
+  // If user has override authority (DEAN), they can forward to anyone with permission
+  if (canOverrideWorkflowRouting(currentUser)) {
+    // Return all users with appropriate permission
+    const allEligible = await prisma.userLogin.findMany({
+      where: {
+        status: 'active',
+        id: { not: userId }, // Exclude self
+      },
+      include: {
+        employeeDetails: true,
+        role: true,
+        schoolDeptPermissions: true,
+        centralDeptPermissions: true
+      }
+    });
+    
+    // Filter by permission (async to resolve role-based permissions)
+    const results = await Promise.all(
+      allEligible.map(async (user) => ({
+        user,
+        hasPerm: await hasPermissionAsync(user, modulePermissionKey)
+      }))
+    );
+    return results.filter(r => r.hasPerm).map(r => r.user);
+  }
+  
+  // Regular users can only forward up reporting chain
+  const reportingChain = await reportingService.getReportingChain(userId);
+  
+  // Filter chain by permission (async to resolve role-based permissions)
+  const chainResults = await Promise.all(
+    reportingChain.map(async (manager) => ({
+      manager,
+      hasPerm: await hasPermissionAsync(manager, modulePermissionKey)
+    }))
+  );
+  return chainResults.filter(r => r.hasPerm).map(r => r.manager);
+}
+
+/**
+ * Get module permission key based on note category/subcategory
+ * Maps note types to their corresponding permission keys
+ * 
+ * @param {Object} note - Note object with category/subcategory
+ * @returns {string} Permission key
+ */
+function getModulePermissionKey(note) {
+  // Map note categories to permission keys
+  const permissionMap = {
+    'dsw_club_creation': 'dsw_approve_noting',
+    'dsw_club_change': 'dsw_approve_noting',
+    'events': 'event_approve',
+    'curriculum': 'noting_approve',
+    'exam': 'noting_approve',
+    'infrastructure': 'noting_approve',
+    'accounts_purchase': 'noting_approve',
+    'student_related': 'noting_approve',
+    'miscellaneous': 'noting_approve',
+    'non_academic_resources': 'noting_approve',
+  };
+  
+  return permissionMap[note.subcategory] || 'noting_approve';
+}
+
+/**
+ * Validate if user can forward to specified target
+ * Checks reporting chain or override authority
+ * 
+ * @param {string} userId - Current holder
+ * @param {string} targetUserId - Proposed forward target
+ * @param {Object} note - Note object
+ * @returns {Promise<Object>} { allowed, reason }
+ */
+async function validateForwardTarget(userId, targetUserId, note) {
+  const currentUser = await prisma.userLogin.findUnique({
+    where: { id: userId },
+    include: { role: true }
+  });
+  
+  if (!currentUser) {
+    return { allowed: false, reason: 'Your user account was not found. Please log out and log back in.' };
+  }
+  
+  // Check override authority
+  if (canOverrideWorkflowRouting(currentUser)) {
+    return { 
+      allowed: true, 
+      reason: 'Forward allowed with override authority (' + currentUser.role.roleCode + ')' 
+    };
+  }
+  
+  // Check if target is in reporting chain
+  const modulePermissionKey = getModulePermissionKey(note);
+  const eligibleTargets = await getEligibleForwardTargets(userId, note, modulePermissionKey);
+  
+  const isEligible = eligibleTargets.some(t => t.id === targetUserId);
+  
+  if (isEligible) {
+    return { allowed: true, reason: 'Forward target is in reporting chain with required permission' };
+  }
+  
+  return { 
+    allowed: false, 
+    reason: `You can only forward to people above you in your reporting hierarchy who have approval permission. The selected person is either not in your reporting chain or does not have the required "${modulePermissionKey}" permission. Contact Admin if you need to forward to someone outside your hierarchy.`
+  };
 }
 
 module.exports = {
-  getCreatorContext,
-  getAuthorityMemberIds,
-  getFullFlowUserIds,
-  getFullFlowSteps,
-  getNextHolderId,
-  getNextStepInfo,
-  canUserActAtStep,
-  canUserActAtStepBatch,
-  resolveAuthorityUserId,
-  resolveAuthorityUserIds,
+  determineNextApproverByReporting,
+  canOverrideWorkflowRouting,
+  getEligibleForwardTargets,
+  getModulePermissionKey,
+  validateForwardTarget,
 };

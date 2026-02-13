@@ -128,7 +128,30 @@ const DSWRoles = {
   DSW_SUPER_ADMIN: 'superadmin',
 };
 
-// DSW Permissions - organized by action
+/**
+ * @deprecated DSWPermissions is deprecated. 
+ * Use centralized permissions from backend/src/shared/config/permissions.config.js instead.
+ * 
+ * Migration mapping:
+ * - CREATE_CLUB_NOTING    → dsw_create_club_noting
+ * - VIEW_CLUB             → dsw_view_club
+ * - VIEW_ALL_CLUBS        → dsw_view_all_clubs
+ * - VIEW_OWN_CLUBS        → dsw_view_club (context-based)
+ * - ADD_MEMBER            → dsw_manage_members
+ * - REMOVE_MEMBER         → dsw_manage_members
+ * - REQUEST_CLUB_CHANGE   → dsw_request_club_change
+ * - APPROVE_CLUB_CHANGE   → dsw_approve_club_change
+ * - VIEW_AUDIT_LOGS       → dsw_view_audit_logs
+ * - VIEW_CHANGE_REQUESTS  → dsw_view_audit_logs
+ * 
+ * New centralized permissions support:
+ * - Role-based default permissions (faculty gets dsw_create_club_noting by default)
+ * - Explicit permission assignment via centralDeptPermissions
+ * - Granular control through admin UI
+ * 
+ * @see backend/src/shared/config/permissions.config.js - DSW_PERMISSIONS
+ * @see backend/src/modules/dsw/middleware/rbac.js - hasPermission() now uses centralized config
+ */
 const DSWPermissions = {
   // Club Creation
   CREATE_CLUB_NOTING: ['faculty'],

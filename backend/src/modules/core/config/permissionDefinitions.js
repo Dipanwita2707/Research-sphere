@@ -206,6 +206,54 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
     { key: 'verify_documents', label: 'Verify Documents', category: 'Registrar' },
     { key: 'manage_records', label: 'Manage Records', category: 'Registrar' },
   ],
+  
+  // DSW (Dean Student Welfare) - Club and Student Activities Management
+  dsw: [
+    // Club Management
+    { key: 'dsw_view_clubs', label: 'View All Clubs', category: 'Club Management', description: 'Can view all clubs across the university' },
+    { key: 'dsw_create_club', label: 'Create Club', category: 'Club Management', description: 'Can create new clubs' },
+    { key: 'dsw_edit_club', label: 'Edit Club', category: 'Club Management', description: 'Can edit club details' },
+    { key: 'dsw_delete_club', label: 'Delete Club', category: 'Club Management', description: 'Can delete clubs' },
+    { key: 'dsw_manage_members', label: 'Manage Club Members', category: 'Club Management', description: 'Can add/remove club members and assign roles' },
+    { key: 'dsw_approve_club', label: 'Approve Club Creation', category: 'Club Approval', description: 'Can approve new club creation requests' },
+    // Noting Flow
+    { key: 'dsw_create_noting', label: 'Create Club Noting', category: 'Noting Flow', description: 'Can initiate noting workflow for clubs' },
+    { key: 'dsw_approve_noting', label: 'Approve/Forward Noting', category: 'Noting Flow', description: 'Can approve or forward noting requests' },
+    // Administration
+    { key: 'dsw_admin', label: 'DSW Administration', category: 'Administration', description: 'Full DSW administrative access' },
+  ],
+  
+  // Noting System - Document Approval Workflow
+  noting: [
+    // Core Noting Actions
+    { key: 'noting_create', label: 'Create Noting', category: 'Core Actions', description: 'Can initiate new noting/approval requests' },
+    { key: 'noting_view_own', label: 'View Own Notings', category: 'Core Actions', description: 'Can view notings created by self' },
+    { key: 'noting_view_pending', label: 'View Pending Notings', category: 'Core Actions', description: 'Can view notings pending their action' },
+    { key: 'noting_view_all', label: 'View All Notings', category: 'Core Actions', description: 'Can view all notings in the system' },
+    // Approval Actions
+    { key: 'noting_approve', label: 'Approve Noting', category: 'Approval Actions', description: 'Can approve noting requests' },
+    { key: 'noting_forward', label: 'Forward Noting', category: 'Approval Actions', description: 'Can forward noting to next approver' },
+    { key: 'noting_reject', label: 'Reject Noting', category: 'Approval Actions', description: 'Can reject noting requests' },
+    // Administration
+    { key: 'noting_admin', label: 'Noting Administration', category: 'Administration', description: 'Full noting system administrative access' },
+  ],
+  
+  // Events - University Event Management
+  events: [
+    // Event Creation & Management
+    { key: 'event_create', label: 'Create Events', category: 'Event Management', description: 'Can create new events' },
+    { key: 'event_edit_own', label: 'Edit Own Events', category: 'Event Management', description: 'Can edit events created by self' },
+    { key: 'event_edit_all', label: 'Edit All Events', category: 'Event Management', description: 'Can edit any event' },
+    { key: 'event_delete', label: 'Delete Events', category: 'Event Management', description: 'Can delete events' },
+    { key: 'event_view_all', label: 'View All Events', category: 'Event Management', description: 'Can view all events including drafts' },
+    // Approval & Publishing
+    { key: 'event_approve', label: 'Approve Events', category: 'Event Approval', description: 'Can approve event requests' },
+    { key: 'event_publish', label: 'Publish Events', category: 'Event Approval', description: 'Can publish events to make them visible' },
+    // Registration & Attendance
+    { key: 'event_manage_registrations', label: 'Manage Registrations', category: 'Registrations', description: 'Can manage event registrations' },
+    // Administration
+    { key: 'event_admin', label: 'Event Administration', category: 'Administration', description: 'Full event system administrative access' },
+  ],
 };
 
 /**

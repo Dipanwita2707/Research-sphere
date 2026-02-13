@@ -103,6 +103,11 @@ const canRegisterForEvent = async (prisma, event, userId) => {
     throw new ValidationError(ERRORS.EVENT_NOT_PUBLISHED);
   }
   
+  // Check if event is team-based
+  if (event.participationType === 'team') {
+    throw new ValidationError('This is a team-based event. You must create or join a team to participate.');
+  }
+  
   // Check registration dates
   const now = new Date();
   if (event.registrationStartDate && now < event.registrationStartDate) {
@@ -249,6 +254,27 @@ const formatEventResponse = (event) => {
     prizeDetails: event.prizeDetails,
     certificateAvailable: event.certificateAvailable,
     faqs: event.faqs,
+    // Advanced Registration Settings
+    autoApproveRegistration: event.autoApproveRegistration,
+    maxTeamLimit: event.maxTeamLimit,
+    teamRegistrationDeadline: event.teamRegistrationDeadline,
+    allowEditAfterSubmission: event.allowEditAfterSubmission,
+    requireFormSubmission: event.requireFormSubmission,
+    lookingForTeammatesEnabled: event.lookingForTeammatesEnabled,
+    allowCrossInstituteTeams: event.allowCrossInstituteTeams,
+    allowTeamEditAfterSubmission: event.allowTeamEditAfterSubmission,
+    autoApproveTeams: event.autoApproveTeams,
+    registrationCap: event.registrationCap,
+    showParticipantsPublicly: event.showParticipantsPublicly,
+    allowWithdrawRegistration: event.allowWithdrawRegistration,
+    lockTeamAfterDeadline: event.lockTeamAfterDeadline,
+    allowPublicTeamListing: event.allowPublicTeamListing,
+    allowJoinRequests: event.allowJoinRequests,
+    allowInviteSystem: event.allowInviteSystem,
+    prizesEnabled: event.prizesEnabled,
+    // Dynamic data (included when queried)
+    customFields: event.EventCustomField || [],
+    prizes: event.EventPrize || [],
     // Metadata
     notingId: event.notingId,
     createdAt: event.createdAt,
@@ -273,6 +299,7 @@ const formatEventResponse = (event) => {
 module.exports = {
   generateEventId,
   generateRegistrationId,
+  generateQRCode,
   getEventById,
   canRegisterForEvent,
   isEventVolunteer,

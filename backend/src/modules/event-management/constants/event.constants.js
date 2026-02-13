@@ -30,10 +30,13 @@ const PAYMENT_TYPE = {
 };
 
 const REGISTRATION_STATUS = {
+  DRAFT: 'draft',
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
   WAITLISTED: 'waitlisted',
+  REJECTED: 'rejected',
+  INCOMPLETE_TEAM: 'incomplete_team',
 };
 
 const PAYMENT_STATUS = {
