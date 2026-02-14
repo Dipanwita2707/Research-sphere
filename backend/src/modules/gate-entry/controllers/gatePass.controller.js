@@ -36,7 +36,8 @@ class GatePassController {
         mobile_number: passData.mobileNumber,
         purpose_of_visit: passData.purposeOfVisit,
         visit_date: passData.visitDate,
-        expected_entry_time: passData.expectedEntryTime,
+        visit_end_date: passData.visitEndDate || passData.checkOutDate || null,
+        entry_time: passData.entryTime || passData.expectedEntryTime,
         expected_exit_time: passData.expectedExitTime,
         
         // Optional fields - only include if provided
@@ -51,10 +52,6 @@ class GatePassController {
         
         // Stay details (optional for multi-day visits)
         stay_required: passData.stayRequired || false,
-        check_in_date: passData.checkInDate,
-        check_out_date: passData.checkOutDate,
-        hostel_name: passData.hostelName,
-        room_number: passData.roomNumber,
         
         // Legacy fields (for backward compatibility - optional)
         email: passData.email,
@@ -326,6 +323,217 @@ class GatePassController {
       logger.error('Export to Excel error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to export to Excel', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Extend pass (modify entry time and date)
+   * POST /api/v1/gate-entry/extend-pass/:passId
+   */
+  async extendPass(req, res) {
+    try {
+      const { passId } = req.params;
+      const { newEntryTime, newVisitDate } = req.body;
+
+      if (!newEntryTime || !newVisitDate) {
+        return res.status(400).json(
+          formatResponse(false, 'New entry time and visit date are required')
+        );
+      }
+
+      const pass = await gatePassService.extendPass(passId, newEntryTime, newVisitDate);
+
+      return res.status(200).json(
+        formatResponse(true, 'Pass extended successfully. New QR code generated and will activate 5 hours before entry.', { pass })
+      );
+    } catch (error) {
+      logger.error('Extend pass error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to extend pass', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Record checkout using checkout QR code
+   * POST /api/v1/gate-entry/checkout/:passId
+   */
+  async recordCheckout(req, res) {
+    try {
+      const { passId } = req.params;
+      const guardId = req.user.id;
+      const exitData = {
+        gate: req.body.gate,
+        remarks: req.body.remarks
+      };
+
+      const pass = await gatePassService.recordCheckout(passId, guardId, exitData);
+
+      return res.status(200).json(
+        formatResponse(true, 'Checkout recorded successfully', { pass })
+      );
+    } catch (error) {
+      logger.error('Record checkout error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to record checkout', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Get available hostels
+   * GET /api/v1/gate-entry/hostels/available?checkIn=2026-02-20&checkOut=2026-02-22
+   */
+  async getAvailableHostels(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { checkIn, checkOut } = req.query;
+
+      if (!checkIn || !checkOut) {
+        return res.status(400).json(
+          formatResponse(false, 'Check-in and check-out dates are required')
+        );
+      }
+
+      const hostels = await hostelBookingService.getAvailableHostels(
+        new Date(checkIn),
+        new Date(checkOut)
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Available hostels fetched successfully', { hostels })
+      );
+    } catch (error) {
+      logger.error('Get available hostels error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to fetch available hostels', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Get available rooms for a hostel
+   * GET /api/v1/gate-entry/hostels/:hostelId/rooms?checkIn=2026-02-20&checkOut=2026-02-22
+   */
+  async getHostelRooms(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { hostelId } = req.params;
+      const { checkIn, checkOut } = req.query;
+
+      if (!checkIn || !checkOut) {
+        return res.status(400).json(
+          formatResponse(false, 'Check-in and check-out dates are required')
+        );
+      }
+
+      const rooms = await hostelBookingService.getRoomsByHostel(
+        hostelId,
+        new Date(checkIn),
+        new Date(checkOut)
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Available rooms fetched successfully', { rooms })
+      );
+    } catch (error) {
+      logger.error('Get hostel rooms error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to fetch rooms', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Create hostel booking
+   * POST /api/v1/gate-entry/bookings/create
+   */
+  async createBooking(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const userId = req.user.id;
+      const bookingData = {
+        passId: req.body.passId,
+        hostelId: req.body.hostelId,
+        roomId: req.body.roomId,
+        checkInDate: new Date(req.body.checkInDate),
+        checkOutDate: new Date(req.body.checkOutDate),
+        guestCount: req.body.guestCount,
+        createdById: userId
+      };
+
+      const booking = await hostelBookingService.createBooking(bookingData);
+
+      return res.status(201).json(
+        formatResponse(true, 'Hostel booking created successfully. Please complete payment.', { booking })
+      );
+    } catch (error) {
+      logger.error('Create booking error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to create booking', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Confirm payment for hostel booking
+   * POST /api/v1/gate-entry/bookings/:bookingId/confirm-payment
+   */
+  async confirmPayment(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { paymentReference } = req.body;
+      const verifiedByUserId = req.user.id;
+
+      if (!paymentReference) {
+        return res.status(400).json(
+          formatResponse(false, 'Payment reference is required')
+        );
+      }
+
+      const booking = await hostelBookingService.confirmPayment(
+        bookingId,
+        paymentReference,
+        verifiedByUserId
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Payment confirmed successfully', { booking })
+      );
+    } catch (error) {
+      logger.error('Confirm payment error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to confirm payment', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Get booking details for a pass
+   * GET /api/v1/gate-entry/bookings/:passId
+   */
+  async getBookingByPass(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { passId } = req.params;
+
+      const booking = await hostelBookingService.getBookingByPass(passId);
+
+      if (!booking) {
+        return res.status(404).json(
+          formatResponse(false, 'No booking found for this pass')
+        );
+      }
+
+      return res.status(200).json(
+        formatResponse(true, 'Booking fetched successfully', { booking })
+      );
+    } catch (error) {
+      logger.error('Get booking error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to fetch booking', null, error.message)
       );
     }
   }

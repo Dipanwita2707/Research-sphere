@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Phone, Clock, Car, FileText, CheckCircle, Loader2, AlertCircle, Hotel } from 'lucide-react';
 import { gateEntryService } from '@/shared/services/gateEntry.service';
 import { useToast } from '@/shared/ui-components/Toast';
+import HostelBookingFlow from '../components/HostelBookingFlow';
 
 interface SimplePassFormData {
   visitorName: string;
@@ -16,14 +17,15 @@ interface SimplePassFormData {
   purposeOther: string;
   visitDate: string;
   visitEndDate: string;
-  expectedEntryTime: string;
-  expectedExitTime: string;
+  entryTime: string;
   hasVehicle: boolean;
   vehicleType: string;
   vehicleNumber: string;
-  hostelName: string;
-  roomNumber: string;
+  vehicleModel: string;
 }
+
+type AccommodationType = 'university' | 'external' | 'none' | null;
+type HostelBookingChoice = 'already_booked' | 'not_booked' | null;
 
 const PURPOSE_OPTIONS = [
   { value: 'meeting', label: 'Meeting' },
@@ -44,6 +46,16 @@ export default function CreatePassPage() {
   const { showSuccessModal } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [isStudentLocked, setIsStudentLocked] = useState(false);
+  const [showHostelBooking, setShowHostelBooking] = useState(false);
+  const [createdPassId, setCreatedPassId] = useState<string | null>(null);
+  const [accommodationType, setAccommodationType] = useState<AccommodationType>(null);
+  
+  // New accommodation flow states
+  const [hostelBookingChoice, setHostelBookingChoice] = useState<HostelBookingChoice>(null);
+  const [wantToBook, setWantToBook] = useState<boolean | null>(null);
+  const [existingBookingDetails, setExistingBookingDetails] = useState<{hostelName: string; roomNumber: string} | null>(null);
   
   const [formData, setFormData] = useState<SimplePassFormData>({
     visitorName: '',
@@ -55,17 +67,31 @@ export default function CreatePassPage() {
     purposeOther: '',
     visitDate: new Date().toISOString().split('T')[0],
     visitEndDate: new Date().toISOString().split('T')[0],
-    expectedEntryTime: '',
-    expectedExitTime: '',
+    entryTime: '',
     hasVehicle: false,
     vehicleType: '',
     vehicleNumber: '',
-    hostelName: '',
-    roomNumber: '',
+    vehicleModel: '',
   });
 
-  // Auto-detect multi-day visit
-  const isMultiDay = formData.visitDate && formData.visitEndDate && formData.visitDate !== formData.visitEndDate;
+  // Auto-detect multi-day visit (overnight stay - end date is different from start date)
+  const isMultiDay = (() => {
+    if (!formData.visitDate || !formData.visitEndDate) return false;
+    const start = new Date(formData.visitDate);
+    const end = new Date(formData.visitEndDate);
+    const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 1; // 1+ nights stay requires accommodation
+  })();
+
+  // Check user role on mount - students can only create passes for parents
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    setUserRole(role);
+    if (role?.toLowerCase() === 'student') {
+      setIsStudentLocked(true);
+      setFormData(prev => ({ ...prev, visitorRelation: 'Parent' }));
+    }
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -127,8 +153,8 @@ export default function CreatePassPage() {
       return false;
     }
     
-    if (!formData.expectedEntryTime || !formData.expectedExitTime) {
-      setError('Entry and exit times are required');
+    if (!formData.entryTime) {
+      setError('Entry time is required');
       return false;
     }
     
@@ -137,9 +163,27 @@ export default function CreatePassPage() {
       return false;
     }
     
-    if (isMultiDay && !formData.hostelName.trim()) {
-      setError('Hostel/Apartment name is required for multi-day stays');
+    if (formData.hasVehicle && !formData.vehicleModel.trim()) {
+      setError('Vehicle model is required when bringing vehicle');
       return false;
+    }
+    
+    // Multi-day accommodation validation
+    if (isMultiDay) {
+      if (hostelBookingChoice === null) {
+        setError('Please indicate if you have an existing hostel booking');
+        return false;
+      }
+      if (hostelBookingChoice === 'not_booked' && wantToBook === null) {
+        setError('Please indicate if you want to book accommodation');
+        return false;
+      }
+      // Set accommodationType based on new flow for backward compatibility  
+      if (hostelBookingChoice === 'already_booked' || (hostelBookingChoice === 'not_booked' && wantToBook === false)) {
+        // External or skip - no university booking needed
+      } else if (hostelBookingChoice === 'not_booked' && wantToBook === true) {
+        // Want to book - will show booking flow
+      }
     }
     
     return true;
@@ -152,6 +196,11 @@ export default function CreatePassPage() {
       return;
     }
     
+    // Submit pass directly (hostel booking is created separately after pass creation)
+    await submitPass();
+  };
+
+  const submitPass = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -165,50 +214,42 @@ export default function CreatePassPage() {
         purposeOfVisit: formData.purposeOfVisit,
         purposeOther: formData.purposeOther,
         visitDate: formData.visitDate,
-        expectedEntryTime: formData.expectedEntryTime,
-        expectedExitTime: formData.expectedExitTime,
+        visitEndDate: isMultiDay ? formData.visitEndDate : undefined,
+        entryTime: formData.entryTime,
         bringingVehicle: formData.hasVehicle,
-        vehicleType: formData.vehicleType,
-        vehicleNumber: formData.vehicleNumber,
-        stayRequired: isMultiDay,
+        vehicleType: formData.hasVehicle ? formData.vehicleType : undefined,
+        vehicleNumber: formData.hasVehicle ? formData.vehicleNumber : undefined,
+        vehicleModel: formData.hasVehicle ? formData.vehicleModel : undefined,
+        stayRequired: isMultiDay ? true : false,
         checkInDate: isMultiDay ? formData.visitDate : undefined,
         checkOutDate: isMultiDay ? formData.visitEndDate : undefined,
-        hostelName: isMultiDay ? formData.hostelName : undefined,
-        roomNumber: isMultiDay ? formData.roomNumber : undefined,
       };
       
       const response = await gateEntryService.createPass(passData);
       const pass = response.data.pass;
       
+      // If multi-day with university hostel, show booking flow
+      if (isMultiDay && accommodationType === 'university') {
+        setCreatedPassId(pass.passId);
+        setShowHostelBooking(true);
+      }
+      
       // Show beautiful success modal
       showSuccessModal({
         title: 'Pass Created Successfully!',
-        message: 'Share this code with your visitor for entry verification.',
+        message: isMultiDay && accommodationType === 'university' 
+          ? 'Now book accommodation for the visitor.' 
+          : 'Share this code with your visitor for entry verification.',
         passId: pass.passId,
         verificationCode: pass.verificationCode,
         mobile: formData.mobileNumber,
         email: formData.email || undefined,
       });
       
-      // Reset form
-      setFormData({
-        visitorName: '',
-        mobileNumber: '',
-        email: '',
-        visitorRelation: '',
-        numberOfPersons: 1,
-        purposeOfVisit: '',
-        purposeOther: '',
-        visitDate: new Date().toISOString().split('T')[0],
-        visitEndDate: new Date().toISOString().split('T')[0],
-        expectedEntryTime: '',
-        expectedExitTime: '',
-        hasVehicle: false,
-        vehicleType: '',
-        vehicleNumber: '',
-        hostelName: '',
-        roomNumber: '',
-      });
+      // Reset form only if NOT showing hostel booking (so user sees the flow)
+      if (!(isMultiDay && accommodationType === 'university')) {
+        resetForm();
+      }
       
     } catch (err: any) {
       console.error('Create pass error:', err);
@@ -216,6 +257,30 @@ export default function CreatePassPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      visitorName: '',
+      mobileNumber: '',
+      email: '',
+      visitorRelation: isStudentLocked ? 'Parent' : '',
+      numberOfPersons: 1,
+      purposeOfVisit: '',
+      purposeOther: '',
+      visitDate: new Date().toISOString().split('T')[0],
+      visitEndDate: new Date().toISOString().split('T')[0],
+      entryTime: '',
+      hasVehicle: false,
+      vehicleType: '',
+      vehicleNumber: '',
+      vehicleModel: '',
+    });
+    setAccommodationType(null);
+    setHostelBookingChoice(null);
+    setWantToBook(null);
+    setExistingBookingDetails(null);
+    setCreatedPassId(null);
   };
 
   return (
@@ -297,8 +362,13 @@ export default function CreatePassPage() {
               </div>
 
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2 flex items-center gap-2">
                   Relation
+                  {isStudentLocked && (
+                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      🔒 Student - Parent Only
+                    </span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -306,7 +376,8 @@ export default function CreatePassPage() {
                   value={formData.visitorRelation}
                   onChange={handleChange}
                   className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., Friend, Family, Vendor"
+                  placeholder={isStudentLocked ? "Parent (Auto-filled)" : "e.g., Friend, Family, Vendor"}
+                  readOnly={isStudentLocked}
                 />
               </div>
 
@@ -414,96 +485,16 @@ export default function CreatePassPage() {
                 </label>
                 <input
                   type="time"
-                  name="expectedEntryTime"
-                  value={formData.expectedEntryTime}
+                  name="entryTime"
+                  value={formData.entryTime}
                   onChange={handleChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
-                {formData.expectedEntryTime && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    🕐 {(() => {
-                      const [hours, minutes] = formData.expectedEntryTime.split(':');
-                      const hour = parseInt(hours);
-                      const period = hour >= 12 ? 'PM' : 'AM';
-                      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                      return `${displayHour}:${minutes} ${period}`;
-                    })()}
-                  </p>
-                )}
+                <p className="text-xs text-blue-600 mt-1">
+                  ⏰ QR code will activate 5 hours before this time
+                </p>
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Exit Time <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="time"
-                  name="expectedExitTime"
-                  value={formData.expectedExitTime}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-                {formData.expectedExitTime && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    🕐 {(() => {
-                      const [hours, minutes] = formData.expectedExitTime.split(':');
-                      const hour = parseInt(hours);
-                      const period = hour >= 12 ? 'PM' : 'AM';
-                      const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-                      return `${displayHour}:${minutes} ${period}`;
-                    })()}
-                  </p>
-                )}
-              </div>
-
-              {formData.expectedEntryTime && formData.expectedExitTime && (
-                <div className="md:col-span-2">
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-lg p-4">
-                    <label className="block text-sm font-semibold text-blue-900 mb-2">
-                      ⏱️ Total Duration
-                    </label>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {(() => {
-                        const [entryHours, entryMinutes] = formData.expectedEntryTime.split(':').map(Number);
-                        const [exitHours, exitMinutes] = formData.expectedExitTime.split(':').map(Number);
-                        
-                        // Create full date-time objects for accurate calculation
-                        const startDateTime = new Date(formData.visitDate);
-                        startDateTime.setHours(entryHours, entryMinutes, 0, 0);
-                        
-                        const endDateTime = new Date(formData.visitEndDate);
-                        endDateTime.setHours(exitHours, exitMinutes, 0, 0);
-                        
-                        // Calculate difference in milliseconds
-                        const diffMs = endDateTime.getTime() - startDateTime.getTime();
-                        
-                        // Convert to minutes
-                        let diffMinutes = Math.floor(diffMs / (1000 * 60));
-                        
-                        // Ensure non-negative
-                        if (diffMinutes < 0) {
-                          diffMinutes = 0;
-                        }
-                        
-                        const days = Math.floor(diffMinutes / (24 * 60));
-                        const remainingMinutes = diffMinutes % (24 * 60);
-                        const hours = Math.floor(remainingMinutes / 60);
-                        const minutes = remainingMinutes % 60;
-                        
-                        if (days > 0) {
-                          return `${days}d ${hours}h ${minutes}m`;
-                        }
-                        return `${hours}h ${minutes}m`;
-                      })()}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Time between entry and exit
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -561,56 +552,178 @@ export default function CreatePassPage() {
                     required
                   />
                 </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    Vehicle Model <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="vehicleModel"
+                    value={formData.vehicleModel}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="e.g., Honda City, Yamaha R15"
+                    required
+                  />
+                </div>
               </div>
             )}
           </div>
 
-          {/* Stay Details Card - LPU Style - Only shows for multi-day visits */}
+          {/* Stay Details Card - LPU Style - Only shows for multi-day visits (>1 day) */}
           {isMultiDay && (
             <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
                 <Hotel className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-                Accommodation Details
+                🏨 Accommodation Section
               </h2>
               
               <div className="mb-4 bg-blue-50 border-l-4 border-blue-500 p-3 md:p-4 rounded">
                 <p className="text-xs md:text-sm text-blue-900">
                   <strong>ℹ️ Multi-day visit detected:</strong> {formData.visitDate} to {formData.visitEndDate}
                   <br />
-                  Accommodation details are required.
+                  <span className="text-xs text-blue-700">
+                    QR Code activates: 5 hours before entry time on {formData.visitDate}
+                    <br />
+                    QR Code expires: {formData.visitEndDate} at 23:59
+                  </span>
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                <div>
-                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                    Hostel Name / Apartment Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="hostelName"
-                    value={formData.hostelName}
-                    onChange={handleChange}
-                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter hostel/apartment name"
-                    required
-                  />
-                </div>
+              {/* Step 1: Already Booked vs Not Booked */}
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-gray-700 mb-3">
+                  Do you have an existing Hostel/Apartment booking?
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHostelBookingChoice('already_booked');
+                      setWantToBook(null);
+                      setAccommodationType('external');
+                    }}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      hostelBookingChoice === 'already_booked' 
+                        ? 'border-green-600 bg-green-50 ring-2 ring-green-200' 
+                        : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className={`w-5 h-5 ${hostelBookingChoice === 'already_booked' ? 'text-green-600' : 'text-gray-400'}`} />
+                      <span className="font-semibold text-gray-800 text-sm md:text-base">✅ Already Booked</span>
+                    </div>
+                    <p className="text-xs text-gray-600">Hostel/Apartment is already arranged</p>
+                  </button>
 
-                <div>
-                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                    Room Number (optional)
-                  </label>
-                  <input
-                    type="text"
-                    name="roomNumber"
-                    value={formData.roomNumber}
-                    onChange={handleChange}
-                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., A-101"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHostelBookingChoice('not_booked');
+                      setAccommodationType(null);
+                    }}
+                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      hostelBookingChoice === 'not_booked' 
+                        ? 'border-orange-600 bg-orange-50 ring-2 ring-orange-200' 
+                        : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertCircle className={`w-5 h-5 ${hostelBookingChoice === 'not_booked' ? 'text-orange-600' : 'text-gray-400'}`} />
+                      <span className="font-semibold text-gray-800 text-sm md:text-base">❌ Not Booked</span>
+                    </div>
+                    <p className="text-xs text-gray-600">No accommodation arranged yet</p>
+                  </button>
                 </div>
               </div>
+
+              {/* Step 2A: If Already Booked - Show auto-fill fields (read-only) */}
+              {hostelBookingChoice === 'already_booked' && (
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm font-semibold text-green-800 mb-3">
+                    📋 Existing Booking Details (Auto-populated)
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Hostel/Apartment Name</label>
+                      <input
+                        type="text"
+                        value={existingBookingDetails?.hostelName || ''}
+                        onChange={(e) => setExistingBookingDetails(prev => ({...prev || {hostelName: '', roomNumber: ''}, hostelName: e.target.value}))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                        placeholder="Enter hostel name"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Room Number</label>
+                      <input
+                        type="text"
+                        value={existingBookingDetails?.roomNumber || ''}
+                        onChange={(e) => setExistingBookingDetails(prev => ({...prev || {hostelName: '', roomNumber: ''}, roomNumber: e.target.value}))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                        placeholder="Enter room number"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-600 mt-2">
+                    ✓ Details will be linked to the pass
+                  </p>
+                </div>
+              )}
+
+              {/* Step 2B: If Not Booked - Ask if they want to book */}
+              {hostelBookingChoice === 'not_booked' && (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-gray-700 mb-3">
+                    Do you want to book Hostel/Apartment?
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWantToBook(true);
+                        setAccommodationType('university');
+                      }}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        wantToBook === true 
+                          ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' 
+                          : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Hotel className={`w-5 h-5 ${wantToBook === true ? 'text-blue-600' : 'text-gray-400'}`} />
+                        <span className="font-semibold text-gray-800 text-sm md:text-base">✅ Yes, I want to book</span>
+                      </div>
+                      <p className="text-xs text-gray-600">Browse & book from available rooms</p>
+                      {wantToBook === true && (
+                        <p className="text-xs text-blue-600 font-medium mt-2">
+                          ✓ Booking flow opens after pass creation
+                        </p>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWantToBook(false);
+                        setAccommodationType('none');
+                      }}
+                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                        wantToBook === false 
+                          ? 'border-gray-600 bg-gray-50 ring-2 ring-gray-200' 
+                          : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className={`w-5 h-5 ${wantToBook === false ? 'text-gray-600' : 'text-gray-400'}`} />
+                        <span className="font-semibold text-gray-800 text-sm md:text-base">❌ No, skip booking</span>
+                      </div>
+                      <p className="text-xs text-gray-600">Continue without accommodation</p>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -645,6 +758,24 @@ export default function CreatePassPage() {
             </div>
           </div>
         </form>
+
+        {/* Hostel Booking Modal - shown after pass creation for multi-day university hostel */}
+        {showHostelBooking && createdPassId && (
+          <HostelBookingFlow
+            passId={createdPassId}
+            checkInDate={formData.visitDate}
+            checkOutDate={formData.visitEndDate}
+            guestCount={formData.numberOfPersons}
+            onClose={() => {
+              setShowHostelBooking(false);
+              resetForm();
+            }}
+            onSuccess={() => {
+              setShowHostelBooking(false);
+              resetForm();
+            }}
+          />
+        )}
       </div>
     </div>
   );

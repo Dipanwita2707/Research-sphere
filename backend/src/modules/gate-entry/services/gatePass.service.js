@@ -169,12 +169,29 @@ class GatePassService {
         throw new Error('Visitor name and mobile number are required');
       }
       
-      if (!data.visit_date || !data.expected_entry_time || !data.expected_exit_time) {
+      if (!data.visit_date || !data.entry_time) {
         throw new Error('Missing required visit timing information');
       }
       
       if (!data.purpose_of_visit) {
         throw new Error('Purpose of visit is required');
+      }
+
+      // Student role validation - can only create passes for parents
+      if (created_by_id) {
+        const creator = await prisma.userLogin.findUnique({
+          where: { id: created_by_id },
+          select: { role: true }
+        });
+
+        if (creator && creator.role?.toLowerCase() === 'student') {
+          data.visitor_relation = 'Parent';
+        }
+      }
+
+      // Vehicle model validation
+      if (data.has_vehicle && !data.vehicle_model) {
+        throw new Error('Vehicle model is required when vehicle is selected');
       }
 
       const pass_id = await this.generatePassId();
@@ -192,12 +209,11 @@ class GatePassService {
       
       console.log('[CREATE PASS] Visit Date normalized to IST:', visit_date.toISOString());
 
-      // Parse time strings (HH:MM format)
-      const [entryHour, entryMinute] = data.expected_entry_time.split(':').map(Number);
-      const [exitHour, exitMinute] = data.expected_exit_time.split(':').map(Number);
+      // Parse entry time (HH:MM format)
+      const [entryHour, entryMinute] = data.entry_time.split(':').map(Number);
 
       // Check for lunch time (1:00 PM - 2:00 PM)
-      if ((entryHour >= 13 && entryHour < 14) || (exitHour >= 13 && exitHour < 14)) {
+      if (entryHour >= 13 && entryHour < 14) {
         throw new Error('This is lunch time (1:00 PM - 2:00 PM). Please schedule your visit before 1:00 PM or after 2:00 PM.');
       }
 
@@ -213,21 +229,8 @@ class GatePassService {
         
         person_to_meet_name = employee.name;
 
-        // Check if person to meet is available at this time
-        const conflictingPass = await this.checkPersonAvailability(
-          data.person_to_meet_id,
-          visit_date,
-          data.expected_entry_time,
-          data.expected_exit_time
-        );
-
-        if (conflictingPass) {
-          const suggestedTime = this.getSuggestedTime(conflictingPass.expected_exit_time);
-          throw new Error(
-            `${person_to_meet_name} is not available during ${data.expected_entry_time} - ${data.expected_exit_time}. ` +
-            `They have another meeting scheduled. Please schedule after ${suggestedTime}.`
-          );
-        }
+        // TODO: Person availability check - requires expected_exit_time
+        // Can be added back if needed for scheduling conflicts
       }
       
       // Generate QR Code
@@ -258,11 +261,12 @@ class GatePassService {
           purpose_of_visit: data.purpose_of_visit,
           purpose_other: data.purpose_other || null,
           department_to_visit: data.department_to_visit || null,
-          person_to_meet_id: data.person_to_meet_id || null,
           person_to_meet_name: person_to_meet_name || null,
           visit_date: visit_date,
-          expected_entry_time: data.expected_entry_time,
-          expected_exit_time: data.expected_exit_time,
+          visit_end_date: data.visit_end_date ? new Date(data.visit_end_date) : null,
+          entry_time: data.entry_time,
+          expected_entry_time: data.entry_time, // Backward compatibility
+          expected_exit_time: data.expected_exit_time || null,
           
           // Stay details
           stay_required: data.stay_required || false,
@@ -278,11 +282,20 @@ class GatePassService {
           items_carrying: data.items_carrying || null,
           special_instructions: data.special_instructions || null,
           
-          // Status
-          status: 'active',
+          // Status fields
+          status: 'active', // Legacy field
+          qr_status: 'inactive', // New field - QR activates 5 hours before entry
+          pass_status: 'created', // New field - replaces status
           
-          // Creator
-          created_by_id
+          // Relations - use connect syntax for FK fields
+          user_login_gate_pass_created_by_idTouser_login: {
+            connect: { id: created_by_id }
+          },
+          ...(data.person_to_meet_id ? {
+            user_login_gate_pass_person_to_meet_idTouser_login: {
+              connect: { id: data.person_to_meet_id }
+            }
+          } : {})
         },
       });
 
@@ -293,21 +306,40 @@ class GatePassService {
       // TODO: Enable after testing basic flow
       // await this.createNotifications(gatePass);
 
+      // Calculate QR activation time (5 hours before entry on visit_date)
+      const [entryH, entryM] = data.entry_time.split(':').map(Number);
+      let activationHour = entryH - 5;
+      let activationDate = visit_date.toISOString().split('T')[0];
+      if (activationHour < 0) {
+        activationHour = 24 + activationHour;
+        // Activation would be previous day - show as "day before"
+        activationDate = '(day before)';
+      }
+      const activationTimeStr = `${activationDate} ${activationHour.toString().padStart(2, '0')}:${entryM.toString().padStart(2, '0')}`;
+      
+      // Calculate expiration (end of visit_end_date or visit_date at 23:59)
+      const endDateStr = data.visit_end_date || visit_date.toISOString().split('T')[0];
+
       // Display QR code and Pass ID in terminal for testing
       console.log('\n╔════════════════════════════════════════════════════════════╗');
       console.log('║           🎫 NEW GATE PASS CREATED                        ║');
       console.log('╠════════════════════════════════════════════════════════════╣');
       console.log(`║ Pass ID: ${pass_id.padEnd(42)}║`);
       console.log(`║ Verification Code: ${verification_code.padEnd(34)}║`);
-      console.log(`║ Visitor: ${gatePass.visitor_name.padEnd(42)}║`);
+      console.log(`║ Visitor: ${gatePass.visitor_name.substring(0, 42).padEnd(42)}║`);
       console.log(`║ Mobile:  ${gatePass.mobile_number.padEnd(42)}║`);
       console.log(`║ Visit Date: ${visit_date.toISOString().split('T')[0].padEnd(38)}║`);
-      console.log(`║ Entry Time: ${gatePass.expected_entry_time.padEnd(38)}║`);
-      console.log(`║ Exit Time:  ${gatePass.expected_exit_time.padEnd(38)}║`);
+      if (data.visit_end_date) {
+        console.log(`║ End Date:   ${data.visit_end_date.padEnd(38)}║`);
+        console.log(`║ Stay Type:  Multi-Day                                     ║`);
+      }
+      console.log(`║ Entry Time: ${gatePass.entry_time.padEnd(38)}║`);
       console.log('╠════════════════════════════════════════════════════════════╣');
-      console.log('║ QR Code Data (Base64):                                    ║');
-      console.log(`║ ${qrCodeDataURL.substring(0, 54)}...║`);
-      console.log('║                                                            ║');
+      console.log(`║ QR Status: ${gatePass.qr_status.toUpperCase().padEnd(39)}║`);
+      console.log(`║ QR Activates: ${activationTimeStr.padEnd(36)}║`);
+      console.log(`║ QR Expires: ${endDateStr} 23:59${''.padEnd(25)}║`);
+      console.log(`║ Pass Status: ${gatePass.pass_status.padEnd(37)}║`);
+      console.log('╠════════════════════════════════════════════════════════════╣');
       console.log('║ ✅ Guard can scan QR code, enter verification code,      ║');
       console.log('║    or search by Pass ID                                   ║');
       console.log('╚════════════════════════════════════════════════════════════╝\n');
@@ -418,6 +450,15 @@ class GatePassService {
                 }
               }
             }
+          },
+          hostel_booking: {
+            include: {
+              room: {
+                include: {
+                  hostel: true
+                }
+              }
+            }
           }
         }
       });
@@ -456,10 +497,12 @@ class GatePassService {
       const result = await prisma.gate_pass.updateMany({
         where: {
           visit_date: { lt: todayIST },
-          status: { in: ['active', 'pending', 'checked_in'] }
+          pass_status: { notIn: ['checked_out', 'cancelled', 'expired'] }
         },
         data: {
-          status: 'expired'
+          status: 'expired', // Legacy field
+          pass_status: 'expired',
+          qr_status: 'expired'
         }
       });
 
@@ -584,12 +627,42 @@ class GatePassService {
         where.vehicle_number = { equals: searchTerm, mode: 'insensitive' };
       }
 
-      const pass = await prisma.gate_pass.findFirst({
+      let pass = await prisma.gate_pass.findFirst({
         where
       });
 
       if (!pass) {
         return null;
+      }
+
+      // Real-time QR activation check
+      // If pass is inactive and should be active now, activate it
+      if (pass.qr_status === 'inactive' && pass.pass_status === 'created') {
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
+        const nowIST = new Date(now.getTime() + istOffset);
+        const todayStr = nowIST.toISOString().split('T')[0];
+        const visitDateStr = new Date(pass.visit_date).toISOString().split('T')[0];
+        
+        // Check if visit date is today
+        if (visitDateStr === todayStr && pass.entry_time) {
+          const [hours, minutes] = pass.entry_time.split(':').map(Number);
+          const entryTimeInMinutes = hours * 60 + minutes;
+          const currentTimeInMinutes = nowIST.getHours() * 60 + nowIST.getMinutes();
+          const activationWindowMinutes = 5 * 60; // 5 hours
+          
+          // Activate if within activation window or entry time has passed
+          if ((entryTimeInMinutes - currentTimeInMinutes) <= activationWindowMinutes) {
+            pass = await prisma.gate_pass.update({
+              where: { id: pass.id },
+              data: {
+                qr_status: 'active',
+                qr_activation_time: now
+              }
+            });
+            logger.info(`Real-time QR activation for pass: ${pass.pass_id}`);
+          }
+        }
       }
 
       // Return pass data
@@ -613,8 +686,13 @@ class GatePassService {
         throw new Error('Pass not found');
       }
 
-      if (pass.status === 'cancelled' || pass.status === 'denied') {
+      if (pass.pass_status === 'cancelled' || pass.status === 'denied') {
         throw new Error('Pass is cancelled or denied');
+      }
+
+      // Check QR status - must be active to allow entry
+      if (pass.qr_status !== 'active') {
+        throw new Error('QR code is not active yet. QR becomes active 5 hours before entry time.');
       }
 
       // If verification code is provided, validate it
@@ -627,7 +705,8 @@ class GatePassService {
       const updatedPass = await prisma.gate_pass.update({
         where: { pass_id },
         data: {
-          status: 'checked_in',
+          status: 'checked_in', // Legacy field
+          pass_status: 'checked_in',
           actual_entry_time: new Date(),
           entry_gate: entryData.gate,
           entry_guard_id: guardId,
@@ -693,14 +772,15 @@ class GatePassService {
         throw new Error('Pass not found');
       }
 
-      if (pass.status !== 'checked_in') {
+      if (pass.pass_status !== 'checked_in') {
         throw new Error('Visitor is not checked in');
       }
 
       const updatedPass = await prisma.gate_pass.update({
         where: { pass_id },
         data: {
-          status: 'completed',
+          status: 'completed', // Legacy field
+          pass_status: 'checked_out',
           actual_exit_time: new Date(),
           exit_gate: exitData.gate,
           exit_guard_id: guardId,
@@ -723,19 +803,219 @@ class GatePassService {
    */
   async cancelPass(pass_id, userId, reason) {
     try {
+      const pass = await prisma.gate_pass.findUnique({
+        where: { pass_id }
+      });
+
+      if (!pass) {
+        throw new Error('Pass not found');
+      }
+
+      // Generate checkout QR code
+      const checkoutQRData = await this.generateCheckoutQR(pass.id);
+
       const updatedPass = await prisma.gate_pass.update({
         where: { pass_id },
         data: {
-          status: 'cancelled'
+          status: 'cancelled', // Legacy field
+          pass_status: 'cancelled',
+          qr_status: 'cancelled',
+          cancellation_time: new Date(),
+          checkout_qr_code: checkoutQRData.qr_code,
+          checkout_qr_expires_at: checkoutQRData.expires_at
         }
       });
 
       // Skip history for now
 
       logger.info(`Pass cancelled: ${updatedPass.pass_id}`);
-      return updatedPass;
+      return {
+        ...updatedPass,
+        checkout_qr: {
+          qr_code: checkoutQRData.qr_code,
+          expires_at: checkoutQRData.expires_at,
+          expires_in_minutes: 60
+        }
+      };
     } catch (error) {
       logger.error('Error cancelling pass:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Activate QR Code (can be called manually or by cron job)
+   */
+  async activateQRCode(passId) {
+    try {
+      const pass = await prisma.gate_pass.findUnique({
+        where: { id: passId }
+      });
+
+      if (!pass) {
+        throw new Error('Pass not found');
+      }
+
+      if (pass.qr_status !== 'inactive') {
+        throw new Error('QR code is not in inactive state');
+      }
+
+      const updatedPass = await prisma.gate_pass.update({
+        where: { id: passId },
+        data: {
+          qr_status: 'active',
+          qr_activation_time: new Date()
+        }
+      });
+
+      logger.info(`QR code activated for pass: ${updatedPass.pass_id}`);
+      return updatedPass;
+    } catch (error) {
+      logger.error('Error activating QR code:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate checkout QR code (valid for 1 hour)
+   */
+  async generateCheckoutQR(passId) {
+    try {
+      const pass = await prisma.gate_pass.findUnique({
+        where: { id: passId }
+      });
+
+      if (!pass) {
+        throw new Error('Pass not found');
+      }
+
+      const timestamp = Date.now();
+      const expiresAt = new Date(timestamp + 60 * 60 * 1000); // 1 hour from now
+      
+      // Generate unique checkout QR data
+      const checkoutData = {
+        type: 'CHECKOUT',
+        passId: pass.id,
+        pass_id: pass.pass_id,
+        timestamp: timestamp,
+        expiresAt: expiresAt.toISOString()
+      };
+
+      // Generate QR code as Data URL
+      const qrCodeDataURL = await QRCode.toDataURL(JSON.stringify(checkoutData), {
+        errorCorrectionLevel: 'H',
+        type: 'image/png',
+        quality: 0.92,
+        margin: 1,
+        width: 300
+      });
+
+      logger.info(`Checkout QR generated for pass: ${pass.pass_id}, expires at: ${expiresAt.toISOString()}`);
+
+      return {
+        qr_code: qrCodeDataURL,
+        expires_at: expiresAt
+      };
+    } catch (error) {
+      logger.error('Error generating checkout QR:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Record checkout using checkout QR code
+   */
+  async recordCheckout(pass_id, guardId, exitData) {
+    try {
+      const pass = await prisma.gate_pass.findUnique({
+        where: { pass_id }
+      });
+
+      if (!pass) {
+        throw new Error('Pass not found');
+      }
+
+      // Validate checkout QR exists and not expired
+      if (!pass.checkout_qr_code || !pass.checkout_qr_expires_at) {
+        throw new Error('No checkout QR code found. Please cancel the pass first.');
+      }
+
+      const now = new Date();
+      if (now > pass.checkout_qr_expires_at) {
+        throw new Error('Checkout QR code has expired. Please generate a new one by cancelling again.');
+      }
+
+      const updatedPass = await prisma.gate_pass.update({
+        where: { pass_id },
+        data: {
+          status: 'completed', // Legacy field
+          pass_status: 'checked_out',
+          actual_exit_time: now,
+          exit_gate: exitData.gate,
+          exit_guard_id: guardId,
+          exit_remarks: exitData.remarks || null,
+          // Clear checkout QR fields
+          checkout_qr_code: null,
+          checkout_qr_expires_at: null
+        }
+      });
+
+      logger.info(`Checkout recorded for pass: ${pass.pass_id}`);
+      return updatedPass;
+    } catch (error) {
+      logger.error('Error recording checkout:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Extend pass (modify existing pass with new entry time and date)
+   */
+  async extendPass(pass_id, newEntryTime, newVisitDate) {
+    try {
+      const pass = await prisma.gate_pass.findUnique({
+        where: { pass_id }
+      });
+
+      if (!pass) {
+        throw new Error('Pass not found');
+      }
+
+      if (pass.pass_status === 'checked_out') {
+        throw new Error('Cannot extend a pass that has been checked out');
+      }
+
+      // Parse and normalize new visit date
+      const visitDateRaw = new Date(newVisitDate);
+      if (isNaN(visitDateRaw.getTime())) {
+        throw new Error('Invalid visit date format');
+      }
+      
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const visit_date = new Date(visitDateRaw.getTime() + istOffset);
+      visit_date.setUTCHours(0, 0, 0, 0);
+
+      // Regenerate QR code with same pass_id
+      const qrCodeDataURL = await this.generateQRCode(pass_id);
+
+      const updatedPass = await prisma.gate_pass.update({
+        where: { pass_id },
+        data: {
+          entry_time: newEntryTime,
+          expected_entry_time: newEntryTime, // Backward compatibility
+          visit_date: visit_date,
+          qr_code: qrCodeDataURL,
+          qr_status: 'inactive', // Will be activated 5 hours before new entry time
+          qr_activation_time: null,
+          extension_count: { increment: 1 },
+          updated_at: new Date()
+        }
+      });
+
+      logger.info(`Pass extended: ${pass.pass_id}, new entry: ${newEntryTime}, new date: ${visit_date.toISOString()}`);
+      return updatedPass;
+    } catch (error) {
+      logger.error('Error extending pass:', error);
       throw error;
     }
   }

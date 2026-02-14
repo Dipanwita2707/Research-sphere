@@ -375,31 +375,51 @@ export default function VerifyPassPage() {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
+      created: 'bg-blue-100 text-blue-800',
+      pending: 'bg-yellow-100 text-yellow-800',
       active: 'bg-blue-100 text-blue-800',
       checked_in: 'bg-green-100 text-green-800',
       completed: 'bg-gray-100 text-gray-800',
+      checked_out: 'bg-gray-100 text-gray-800',
+      cancelled: 'bg-orange-100 text-orange-800',
+      expired: 'bg-red-100 text-red-800',
       denied: 'bg-red-100 text-red-800',
-      expired: 'bg-orange-100 text-orange-800',
-      cancelled: 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusLabel = (status: string) => {
     const labels: Record<string, string> = {
+      created: 'Created',
+      pending: 'Pending',
       active: 'Active',
       checked_in: 'Checked In',
       completed: 'Completed',
-      denied: 'Denied',
-      expired: 'Expired',
+      checked_out: 'Checked Out',
       cancelled: 'Cancelled',
+      expired: 'Expired',
+      denied: 'Denied',
     };
     return labels[status] || status;
   };
 
-  const canAllowEntry = pass && ['active'].includes(pass.status);
-  const canRecordExit = pass && ['checked_in'].includes(pass.status);
+  const canAllowEntry = pass && (pass.qrStatus === 'active' || pass.status === 'active') && (pass.passStatus === 'created' || pass.status === 'pending' || pass.status === 'active'); const canRecordExit = pass && ((pass.passStatus === 'checked_in' || pass.status === 'checked_in'));
   const canDenyEntry = pass && ['active'].includes(pass.status);
+
+  const getQRStatusBadge = (qrStatus?: string) => {
+    if (!qrStatus) return null;
+    const colors = {
+      inactive: 'bg-gray-100 text-gray-700',
+      active: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+      expired: 'bg-orange-100 text-orange-700',
+    };
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[qrStatus as keyof typeof colors] || colors.inactive}`}>
+        QR: {qrStatus}
+      </span>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-3 md:p-6">
@@ -599,25 +619,78 @@ export default function VerifyPassPage() {
                   <p className="text-white text-xs md:text-sm opacity-90">Pass ID</p>
                   <p className="text-white text-lg md:text-2xl font-bold break-all">{pass.passId}</p>
                 </div>
-                <div className={`px-2 md:px-4 py-1 md:py-2 rounded-full ${getStatusColor(pass.status)} font-semibold text-xs md:text-sm`}>
-                  {getStatusLabel(pass.status)}
+                <div className="flex flex-col items-end gap-2">
+                  <div className={`px-2 md:px-4 py-1 md:py-2 rounded-full ${getStatusColor(pass.passStatus || pass.status)} font-semibold text-xs md:text-sm`}>
+                    {getStatusLabel(pass.passStatus || pass.status)}
+                  </div>
+                  {getQRStatusBadge(pass.qrStatus)}
                 </div>
               </div>
             </div>
 
             <div className="p-3 md:p-6">
-              {/* Time Validation Success Notice - LPU Style */}
-              <div className="mb-4 md:mb-6 bg-white rounded-lg border border-blue-600 shadow-[0_2px_8px_rgba(21,101,192,0.1)] p-3 md:p-4">
-                <div className="flex items-start gap-2 md:gap-3">
-                  <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <h4 className="font-bold text-sm md:text-base text-green-900 mb-1">✅ Pass Verified - Time Valid</h4>
-                    <p className="text-xs md:text-sm text-green-700">
-                      Current time is within the scheduled visit window. Please verify visitor ID proof and details below before allowing entry.
-                    </p>
+              {/* QR Status Warning - if inactive */}
+              {pass.qrStatus === 'inactive' && (
+                <div className="mb-4 md:mb-6 bg-yellow-50 rounded-lg border border-yellow-300 p-3 md:p-4">
+                  <div className="flex items-start gap-2 md:gap-3">
+                    <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm md:text-base text-yellow-900 mb-1">⏰ QR Code Not Yet Active</h4>
+                      <p className="text-xs md:text-sm text-yellow-700">
+                        This QR code will activate 5 hours before entry time ({pass.entryTime || pass.expectedEntryTime}).
+                        {pass.qrActivationTime && (
+                          <><br/>Activation Time: {new Date(pass.qrActivationTime).toLocaleString()}</>
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {/* Checkout QR for Cancelled Passes */}
+              {(pass.passStatus === 'cancelled' || pass.status === 'cancelled') && pass.checkoutQrCode && (
+                <div className="mb-4 md:mb-6 bg-orange-50 rounded-lg border-2 border-orange-300 p-4">
+                  <h4 className="font-bold text-orange-900 mb-3 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" />
+                    Pass Cancelled - Checkout QR Code
+                  </h4>
+                  <div className="flex flex-col md:flex-row items-center gap-4">
+                    <img 
+                      src={pass.checkoutQrCode} 
+                      alt="Checkout QR" 
+                      className="w-48 h-48 border-2 border-orange-400 rounded" 
+                    />
+                    <div className="text-sm space-y-2">
+                      <p className="text-gray-700">
+                        <strong>Expires:</strong> {pass.checkoutQrExpiresAt ? new Date(pass.checkoutQrExpiresAt).toLocaleString() : 'N/A'}
+                      </p>
+                      <p className="text-orange-600 font-medium">
+                        ⏰ Valid for 1 hour only. Scan this QR to allow exit.
+                      </p>
+                      {pass.checkoutQrExpiresAt && new Date(pass.checkoutQrExpiresAt) < new Date() && (
+                        <p className="text-red-600 font-bold">
+                          ❌ QR Code Expired! Contact admin to regenerate.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Time Validation Success Notice - LPU Style */}
+              {pass.qrStatus === 'active' && (
+                <div className="mb-4 md:mb-6 bg-white rounded-lg border border-blue-600 shadow-[0_2px_8px_rgba(21,101,192,0.1)] p-3 md:p-4">
+                  <div className="flex items-start gap-2 md:gap-3">
+                    <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm md:text-base text-green-900 mb-1">✅ Pass Verified - QR Active</h4>
+                      <p className="text-xs md:text-sm text-green-700">
+                        QR code is active. Please verify visitor ID proof and details below before allowing entry.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 {/* Visitor Information Card - LPU Style */}
@@ -702,19 +775,21 @@ export default function VerifyPassPage() {
                         <p className="font-medium text-sm md:text-base text-gray-900">{pass.visitDate.split('T')[0]}</p>
                       </div>
                     )}
-                    {(pass.expectedEntryTime || pass.expectedExitTime) && (
+                    {(pass.entryTime || pass.expectedEntryTime) && (
                       <div>
                         <p className="text-xs md:text-sm text-gray-600 flex items-center gap-1">
                           <Clock className="w-3 h-3 md:w-4 md:h-4" />
-                          Time Slot
+                          Entry Time
                         </p>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-sm md:text-base text-gray-900">{pass.expectedEntryTime || '-'} - {pass.expectedExitTime || '-'}</p>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                            <CheckCircle className="w-3 h-3" />
-                            Valid Time
-                          </span>
-                        </div>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.entryTime || pass.expectedEntryTime}</p>
+                      </div>
+                    )}
+                    {pass.qrActivationTime && (
+                      <div>
+                        <p className="text-xs md:text-sm text-gray-600">QR Activates At</p>
+                        <p className="font-medium text-sm md:text-base text-blue-600">
+                          {new Date(pass.qrActivationTime).toLocaleString()}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -808,7 +883,7 @@ export default function VerifyPassPage() {
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-                  {canAllowEntry && (
+                  {canAllowEntry && pass.qrStatus === 'active' && (
                     <button
                       onClick={handleAllowEntry}
                       disabled={actionLoading}
@@ -817,6 +892,12 @@ export default function VerifyPassPage() {
                       <CheckCircle className="w-5 h-5 md:w-6 md:h-6" />
                       {actionLoading ? 'Processing...' : 'Allow Entry'}
                     </button>
+                  )}
+
+                  {pass.qrStatus === 'inactive' && (
+                    <div className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-yellow-50 border-2 border-yellow-400 text-yellow-800 rounded-lg text-center font-semibold text-sm md:text-base">
+                      ⏰ QR will activate 5 hours before entry time
+                    </div>
                   )}
                   
                   {canRecordExit && (

@@ -178,12 +178,17 @@ const startServer = async () => {
     const { emailService } = require('./modules/core/services/email.service');
     await emailService.initialize();
     
+    // Initialize QR activation cron job for gate entry
+    const { startQRActivationJob } = require('./jobs/qrActivation.job');
+    startQRActivationJob();
+    
     app.listen(config.port, () => {
       console.log(`✅ Server running in ${config.env} mode on port ${config.port}`);
       console.log(`🔗 API available at http://localhost:${config.port}${API_PREFIX}`);
       console.log(`🗄️  Database connected via Prisma`);
       console.log(`📦 Cache initialized (${cache.isConnected() ? 'Redis' : 'Memory fallback'})`);
       console.log(`📊 Audit report scheduler initialized`);
+      console.log(`🎫 QR activation job started for gate entry`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);

@@ -63,6 +63,55 @@ router.post('/record-exit/:passId', checkGateEntryAccess(true), gatePassControll
 router.post('/cancel/:passId', checkGateEntryAccess(), gatePassController.cancelPass);
 
 /**
+ * @route POST /api/v1/gate-entry/extend-pass/:passId
+ * @desc Extend pass (modify entry time and date)
+ * @access Private (Creator or Admin)
+ */
+router.post('/extend-pass/:passId', checkGateEntryAccess(), gatePassController.extendPass);
+
+/**
+ * @route POST /api/v1/gate-entry/checkout/:passId
+ * @desc Record checkout using checkout QR code
+ * @access Private (Admin, Guards only)
+ */
+router.post('/checkout/:passId', checkGateEntryAccess(true), gatePassController.recordCheckout);
+
+/**
+ * @route GET /api/v1/gate-entry/hostels/available
+ * @desc Get available hostels for date range
+ * @access Private (All authenticated users)
+ */
+router.get('/hostels/available', checkGateEntryAccess(), gatePassController.getAvailableHostels);
+
+/**
+ * @route GET /api/v1/gate-entry/hostels/:hostelId/rooms
+ * @desc Get available rooms for a hostel
+ * @access Private (All authenticated users)
+ */
+router.get('/hostels/:hostelId/rooms', checkGateEntryAccess(), gatePassController.getHostelRooms);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/create
+ * @desc Create hostel booking
+ * @access Private (All authenticated users)
+ */
+router.post('/bookings/create', checkGateEntryAccess(), gatePassController.createBooking);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/confirm-payment
+ * @desc Confirm payment for hostel booking
+ * @access Private (Admin only)
+ */
+router.post('/bookings/:bookingId/confirm-payment', checkGateEntryAccess(true), gatePassController.confirmPayment);
+
+/**
+ * @route GET /api/v1/gate-entry/bookings/:passId
+ * @desc Get booking details for a pass
+ * @access Private (Creator or Admin)
+ */
+router.get('/bookings/:passId', checkGateEntryAccess(), gatePassController.getBookingByPass);
+
+/**
  * @route GET /api/v1/gate-entry/check-in-history
  * @desc Get check-in history (for guards)
  * @access Private (Admin, Guards only)

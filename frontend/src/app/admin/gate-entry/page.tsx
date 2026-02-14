@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { gateEntryService, type GatePass } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
+import ExtendPassModal from './components/ExtendPassModal';
 
 interface Pass {
   id: string;
@@ -20,10 +21,16 @@ interface Pass {
   purposeOther?: string;
   visitDate: string;
   expectedEntryTime: string;
-  expectedExitTime: string;
+  expectedExitTime?: string;
+  entryTime?: string;
   actualEntryTime?: string;
   actualExitTime?: string;
   status: string;
+  passStatus?: string;
+  qrStatus?: string;
+  qrActivationTime?: string;
+  checkoutQrCode?: string;
+  checkoutQrExpiresAt?: string;
   hasVehicle: boolean;
   vehicleNumber?: string;
   vehicleType?: string;
@@ -53,13 +60,17 @@ interface Pass {
 }
 
 const STATUS_CONFIG = {
+  // New pass_status values with spec colors
+  created: { label: 'Created', color: 'bg-blue-100 text-blue-800', icon: Clock },
+  checked_in: { label: 'Checked In', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+  cancelled: { label: 'Cancelled', color: 'bg-orange-100 text-orange-800', icon: XCircle },
+  checked_out: { label: 'Checked Out', color: 'bg-gray-100 text-gray-800', icon: CheckCircle },
+  expired: { label: 'Expired', color: 'bg-red-100 text-red-800', icon: AlertCircle },
+  // Legacy status values (for backward compatibility)
   pending: { label: 'Pending', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
   active: { label: 'Active', color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
-  checked_in: { label: 'Checked In', color: 'bg-green-100 text-green-800', icon: CheckCircle },
   completed: { label: 'Completed', color: 'bg-gray-100 text-gray-800', icon: CheckCircle },
   denied: { label: 'Denied', color: 'bg-red-100 text-red-800', icon: XCircle },
-  expired: { label: 'Expired', color: 'bg-orange-100 text-orange-800', icon: AlertCircle },
-  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: X },
 };
 
 export default function AllPassesPage() {
@@ -72,6 +83,8 @@ export default function AllPassesPage() {
   const [selectedPass, setSelectedPass] = useState<Pass | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [selectedPassForExtend, setSelectedPassForExtend] = useState<Pass | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,      // Active Today
@@ -94,7 +107,16 @@ export default function AllPassesPage() {
       setPasses(response.data?.passes || []);
     } catch (err: any) {
       console.error('Error fetching passes:', err);
-      setError(err.response?.data?.message || 'Failed to load passes');
+      // More user-friendly error messages
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setError('Cannot connect to server. Please check if the backend is running.');
+      } else if (err.response?.status === 401) {
+        setError('Session expired. Please login again.');
+      } else if (err.response?.status === 403) {
+        setError('You do not have permission to view gate passes.');
+      } else {
+        setError(err.response?.data?.message || err.message || 'Failed to load passes');
+      }
       setPasses([]);
     } finally {
       setLoading(false);
@@ -108,6 +130,22 @@ export default function AllPassesPage() {
     } catch (err) {
       console.error('Error fetching stats:', err);
     }
+  };
+
+  const getQRStatusBadge = (qrStatus?: string) => {
+    if (!qrStatus) return null;
+    const colors = {
+      inactive: 'bg-gray-100 text-gray-700',
+      active: 'bg-green-100 text-green-700',
+      cancelled: 'bg-red-100 text-red-700',
+      expired: 'bg-orange-100 text-orange-700',
+    };
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[qrStatus as keyof typeof colors] || colors.inactive}`}>
+        QR: {qrStatus}
+      </span>
+    );
   };
 
   // Filter and search logic
@@ -509,7 +547,7 @@ export default function AllPassesPage() {
                                   <Send className="w-4 h-4" />
                                 </button>
                                 <button
-                                  onClick={() => handleCancelPass(pass.id)}
+                                  onClick={() => handleCancelPass(pass.passId)}
                                   className="text-red-600 hover:text-red-800"
                                   title="Cancel Pass"
                                 >
@@ -549,9 +587,12 @@ export default function AllPassesPage() {
                     <QrCode className="w-8 h-8 text-blue-600" />
                   </div>
                   <h4 className="text-2xl font-bold text-gray-900">{selectedPass.passId}</h4>
-                  <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium mt-2 ${STATUS_CONFIG[selectedPass.status as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100 text-gray-800'}`}>
-                    {STATUS_CONFIG[selectedPass.status as keyof typeof STATUS_CONFIG]?.label || selectedPass.status}
-                  </span>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${STATUS_CONFIG[(selectedPass.passStatus || selectedPass.status) as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100 text-gray-800'}`}>
+                      {STATUS_CONFIG[(selectedPass.passStatus || selectedPass.status) as keyof typeof STATUS_CONFIG]?.label || selectedPass.passStatus || selectedPass.status}
+                    </span>
+                    {getQRStatusBadge(selectedPass.qrStatus)}
+                  </div>
                 </div>
 
                 {/* Details Grid */}
@@ -586,8 +627,11 @@ export default function AllPassesPage() {
                       {selectedPass.visitDate && (
                         <div><dt className="text-gray-600">Date:</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
                       )}
-                      {(selectedPass.expectedEntryTime || selectedPass.expectedExitTime) && (
-                        <div><dt className="text-gray-600">Time:</dt><dd className="font-medium">{selectedPass.expectedEntryTime || '-'} - {selectedPass.expectedExitTime || '-'}</dd></div>
+                      {(selectedPass.entryTime || selectedPass.expectedEntryTime) && (
+                        <div><dt className="text-gray-600">Entry Time:</dt><dd className="font-medium">{selectedPass.entryTime || selectedPass.expectedEntryTime}</dd></div>
+                      )}
+                      {selectedPass.qrActivationTime && (
+                        <div><dt className="text-gray-600">QR Activates:</dt><dd className="font-medium text-blue-600">{new Date(selectedPass.qrActivationTime).toLocaleString()}</dd></div>
                       )}
                     </dl>
                   </div>
@@ -620,6 +664,32 @@ export default function AllPassesPage() {
                           <div><dt className="text-gray-600">Room Number:</dt><dd className="font-medium">{selectedPass.roomNumber}</dd></div>
                         )}
                       </dl>
+                    </div>
+                  )}
+
+                  {selectedPass.checkoutQrCode && (
+                    <div className="md:col-span-2">
+                      <div className="border-2 border-orange-300 rounded-lg p-4 bg-orange-50">
+                        <h5 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                          <AlertCircle className="w-5 h-5" />
+                          Checkout QR Code (1 Hour Validity)
+                        </h5>
+                        <div className="flex flex-col md:flex-row items-center gap-4">
+                          <img 
+                            src={selectedPass.checkoutQrCode} 
+                            alt="Checkout QR" 
+                            className="w-48 h-48 border-2 border-orange-400 rounded" 
+                          />
+                          <div className="text-sm space-y-2">
+                            <p className="text-gray-700">
+                              <strong>Expires:</strong> {new Date(selectedPass.checkoutQrExpiresAt || '').toLocaleString()}
+                            </p>
+                            <p className="text-orange-600 font-medium">
+                              ⏰ Valid for 1 hour only. Visitor must exit within this time.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -673,6 +743,18 @@ export default function AllPassesPage() {
               </div>
 
               <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
+                {(selectedPass.passStatus === 'created' || selectedPass.passStatus === 'checked_in' || selectedPass.status === 'active' || selectedPass.status === 'checked_in') && (
+                  <button
+                    onClick={() => {
+                      setSelectedPassForExtend(selectedPass);
+                      setShowExtendModal(true);
+                    }}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Clock className="w-4 h-4" />
+                    Extend Pass
+                  </button>
+                )}
                 <button
                   onClick={() => handleResendNotification(selectedPass)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
@@ -689,6 +771,26 @@ export default function AllPassesPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Extend Pass Modal */}
+        {showExtendModal && selectedPassForExtend && (
+          <ExtendPassModal
+            passId={selectedPassForExtend.passId}
+            currentEntryTime={selectedPassForExtend.entryTime || selectedPassForExtend.expectedEntryTime}
+            currentVisitDate={selectedPassForExtend.visitDate}
+            onClose={() => {
+              setShowExtendModal(false);
+              setSelectedPassForExtend(null);
+            }}
+            onSuccess={() => {
+              fetchPasses();
+              fetchStats();
+              setShowExtendModal(false);
+              setSelectedPassForExtend(null);
+              setSelectedPass(null);
+            }}
+          />
         )}
       </div>
     </div>
