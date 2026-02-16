@@ -7,6 +7,7 @@
 
 const express = require('express');
 const router = express.Router();
+const prisma = require('../../../shared/config/database');
 const eventController = require('../controllers/event.controller');
 const {
   validateEventUpdate,
@@ -23,9 +24,55 @@ const {
   checkAnyPermission,
   requireEventPermission 
 } = require('../../../shared/middleware/auth');
+const { getDefaultPermissions } = require('../../../shared/config/permissions.config');
 
 // All routes require authentication
 router.use(protect);
+
+/**
+ * Allow scan if user has event_manage_attendance OR is a volunteer with canScanQr for this event
+ */
+const allowEventScan = async (req, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+
+    // Check 1: event_manage_attendance permission
+    const defaultPerms = getDefaultPermissions(user.role);
+    if (defaultPerms.event_manage_attendance === true) {
+      return next();
+    }
+    const permissionVariants = ['event_manage_attendance', 'event_event_manage_attendance'];
+    const hasExplicit = (user.centralDeptPermissions || []).some(d =>
+      d.permissions && permissionVariants.some(v => d.permissions[v] === true)
+    ) || (user.schoolDeptPermissions || []).some(d =>
+      d.permissions && permissionVariants.some(v => d.permissions[v] === true)
+    );
+    if (hasExplicit) {
+      return next();
+    }
+
+    // Check 2: volunteer with canScanQr for this event
+    const eventId = req.params?.id;
+    const userId = user.id;
+    if (eventId && userId) {
+      const volunteer = await prisma.eventVolunteer.findFirst({
+        where: { eventId, userId, canScanQr: true },
+      });
+      if (volunteer) return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied - event_manage_attendance or volunteer with QR scan permission required',
+    });
+  } catch (e) {
+    console.error('allowEventScan error:', e);
+    return res.status(500).json({ success: false, message: 'Permission check failed' });
+  }
+};
 
 /**
  * Event Routes
@@ -114,6 +161,14 @@ router.post(
   eventController.assignVolunteer
 );
 
+// Get volunteer activity (event creator view) - must be before /:id/volunteers
+router.get(
+  '/:id/volunteers/:volunteerId/activity',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  eventController.getVolunteerActivity
+);
+
 // Get event volunteers - require event_manage_own or event_manage_all
 router.get(
   '/:id/volunteers',
@@ -122,11 +177,11 @@ router.get(
   eventController.getEventVolunteers
 );
 
-// Scan QR code for entry/exit - require event_manage_attendance
+// Scan QR code for entry/exit - allow event_manage_attendance OR volunteer with canScanQr
 router.post(
   '/:id/scan',
   validateEventId,
-  checkPermission('event_manage_attendance', { checkDefaultPermissions: true }),
+  allowEventScan,
   validateQRScan,
   eventController.scanQRCode
 );

@@ -26,8 +26,13 @@ export const notingService = {
     endDate?: string;
     page?: number; 
     limit?: number;
+    includeCounts?: boolean;
   }) =>
-    api.get(BASE, { params }).then((res) => ({ data: res.data.data, pagination: res.data.pagination })),
+    api.get(BASE, { params }).then((res) => ({
+      data: res.data.data,
+      pagination: res.data.pagination,
+      counts: res.data.counts as { mine: number; pending: number; handled: number } | undefined,
+    })),
 
   getById: (id: string): Promise<Note> =>
     api.get(`${BASE}/${id}`).then((res) => res.data.data),

@@ -12,6 +12,7 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { EventCustomField, EventFieldType } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
 
 const FIELD_TYPES: { value: EventFieldType; label: string; icon: React.ReactNode }[] = [
   { value: 'text', label: 'Text', icon: <AlignLeft className="w-4 h-4" /> },
@@ -281,7 +282,7 @@ export default function RegistrationSettingsPage() {
           setSettings(prev => ({ ...prev, ...settingsData }));
         }
       } catch (error: any) {
-        toast({ type: 'error', message: 'Failed to load settings' });
+        toast({ type: 'error', message: getErrorMessage(error) });
       } finally {
         setLoading(false);
       }
@@ -301,7 +302,7 @@ export default function RegistrationSettingsPage() {
       setCustomFields([...customFields, newField]);
       toast({ type: 'success', message: 'Field added successfully' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to add field' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -313,7 +314,7 @@ export default function RegistrationSettingsPage() {
       setCustomFields(customFields.map(f => f.id === field.id ? updated : f));
       toast({ type: 'success', message: 'Field updated successfully' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to update field' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -325,7 +326,7 @@ export default function RegistrationSettingsPage() {
       setCustomFields(customFields.filter(f => f.id !== fieldId));
       toast({ type: 'success', message: 'Field deleted successfully' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to delete field' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -335,7 +336,7 @@ export default function RegistrationSettingsPage() {
       await eventService.updateRegistrationSettings(eventId, settings);
       toast({ type: 'success', message: 'Settings saved successfully' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to save settings' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }

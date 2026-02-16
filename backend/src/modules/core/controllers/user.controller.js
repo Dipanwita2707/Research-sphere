@@ -123,10 +123,10 @@ exports.searchUsersByPartialUid = async (req, res) => {
       });
     }
 
-    // If searching for students, search in studentDetails
+    // If searching for students, search in studentDetails (only those with login access)
     if (role === 'student') {
       console.log('🔍 Searching students with query:', query);
-      
+
       const students = await prisma.studentDetails.findMany({
         where: {
           OR: [
@@ -137,6 +137,7 @@ exports.searchUsersByPartialUid = async (req, res) => {
             { email: { contains: query, mode: 'insensitive' } },
           ],
           isActive: true,
+          userLoginId: { not: null }, // Only students with login (can be volunteers)
         },
         take: 10,
         include: {
@@ -152,7 +153,7 @@ exports.searchUsersByPartialUid = async (req, res) => {
 
       const suggestions = students.map(student => ({
         uid: student.studentId,
-        id: student.id,
+        id: student.userLoginId, // UserLogin id required for EventVolunteer
         name: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
         role: 'student',
         department: student.program?.programName || 'N/A',

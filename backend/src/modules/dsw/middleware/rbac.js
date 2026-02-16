@@ -8,8 +8,7 @@
  * - Context-aware checks (club ownership) are preserved as secondary validation
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../../shared/config/database');
 const { ErrorMessages } = require('../constants');
 const { 
   checkPermission, 

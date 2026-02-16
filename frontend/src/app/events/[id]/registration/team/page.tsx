@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Users, UserPlus, Search, X, Send, Clock,
-  AlertCircle, CheckCircle2, XCircle, Loader2, Plus, Trash2,
+  AlertCircle, CheckCircle2, XCircle, Plus, Trash2,
   Crown, Mail, Info, Eye, ExternalLink, UserMinus, Bell, ArrowRight
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
@@ -18,6 +18,9 @@ import type {
   TeamSearchResult
 } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 type TabType = 'create' | 'join';
 type SectionType = 'invitations' | 'requests';
@@ -389,7 +392,7 @@ export default function TeamManagementPage() {
       setMyTeam(team);
       toast({ type: 'success', message: 'Team created successfully!' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to create team' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setCreatingTeam(false);
     }
@@ -423,7 +426,7 @@ export default function TeamManagementPage() {
       const invitationsData = await eventService.getMyInvitations(eventId);
       setSentInvitations(invitationsData.sent || []);
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to send invitation' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -433,7 +436,7 @@ export default function TeamManagementPage() {
       toast({ type: 'success', message: accept ? 'Invitation accepted!' : 'Invitation declined' });
       loadData();
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to respond to invitation' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -446,7 +449,7 @@ export default function TeamManagementPage() {
       const requestsData = await eventService.getMyRequests(eventId);
       setSentRequests(requestsData.sent || []);
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to send request' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -456,7 +459,7 @@ export default function TeamManagementPage() {
       toast({ type: 'success', message: accept ? 'Request accepted!' : 'Request declined' });
       loadData();
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to respond to request' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -468,7 +471,7 @@ export default function TeamManagementPage() {
       toast({ type: 'success', message: 'Member removed from team' });
       loadData();
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to remove member' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -509,7 +512,7 @@ export default function TeamManagementPage() {
       }, 1500);
     } catch (error: any) {
       console.error('Finalize error:', error);
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to finalize registration' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setFinalizingTeam(false);
     }
@@ -518,8 +521,7 @@ export default function TeamManagementPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-        <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Loading team data...</p>
+        <PageSkeleton message="Loading team data..." />
       </div>
     );
   }
@@ -630,7 +632,7 @@ export default function TeamManagementPage() {
                       >
                         {creatingTeam ? (
                           <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <LoadingSpinner size="sm" />
                             Creating Team...
                           </>
                         ) : (
@@ -691,7 +693,7 @@ export default function TeamManagementPage() {
                           >
                             {finalizingTeam ? (
                               <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <LoadingSpinner size="sm" />
                                 Completing...
                               </>
                             ) : (
@@ -777,7 +779,7 @@ export default function TeamManagementPage() {
                           disabled={searching || !searchQuery.trim()}
                           className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
                         >
-                          {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                          {searching ? <LoadingSpinner size="sm" /> : 'Search'}
                         </button>
                       </div>
 

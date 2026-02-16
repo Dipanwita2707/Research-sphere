@@ -54,6 +54,16 @@ export interface Note {
   eventStartDate?: string | null;
   eventEndDate?: string | null;
   eventPaymentType?: 'free' | 'paid' | null;
+  eventParticipationType?: 'individual' | 'team' | null;
+  eventRegistrationFeeIndividual?: number | null;
+  eventRegistrationFeeTeam?: number | null;
+  eventApproxCapacity?: number | null;
+  eventDutyLeaveAvailable?: boolean | null;
+  eventDutyLeaveEligibility?: string[] | null;
+  eventHasSponsorship?: boolean | null;
+  eventSponsors?: { name: string; amount: number; type: 'cash' | 'in_kind'; notes?: string }[] | null;
+  eventHasResources?: boolean | null;
+  eventResources?: { category: string; type: string; description?: string; estimatedCost?: number }[] | null;
   status: NoteStatus;
   createdById: string;
   currentHolderId?: string | null;
@@ -85,6 +95,8 @@ export interface Note {
   attachments?: { id: string; fileName: string; filePath: string; fileDescription?: string | null }[];
   /** Present when listing with filter=handled: action you took and when */
   myAction?: { action: 'approved' | 'rejected' | 'forwarded' | 'reverted'; performedAt: string };
+  /** Present in list view: counts for history and attachments */
+  _count?: { history?: number; attachments?: number };
 }
 
 export interface NoteHistoryEntry {

@@ -89,9 +89,17 @@ export interface Event {
   endDate: string;
   paymentType: EventPaymentType;
   registrationFee?: number;
+  teamRegistrationFee?: number;
   status: EventStatus;
   venue?: string;
   maxCapacity?: number;
+  approxCapacity?: number;
+  dutyLeaveAvailable?: boolean;
+  dutyLeaveEligibility?: string[];
+  hasSponsorship?: boolean;
+  sponsors?: Array<{ name: string; amount: number; type: string; notes?: string }>;
+  hasResources?: boolean;
+  resources?: Array<{ category: string; type: string; description: string; estimatedCost?: number }>;
   currentRegistrations: number;
   isPaid: boolean;
   registrationStartDate?: string;

@@ -3,10 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, CheckCircle, XCircle, Send, User, Clock, Hand, Paperclip, FileText, Pencil, Download, Eye, Trash2, RotateCcw, ArrowRight, CornerDownLeft, Building2, Search, ArrowUpRight, Users } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Send, User, Clock, Hand, Paperclip, FileText, Pencil, Download, Eye, Trash2, RotateCcw, ArrowRight, CornerDownLeft, Building2, Search, ArrowUpRight, Users } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Note } from '@/features/noting-management/types/noting.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import { useAuthStore } from '@/shared/auth/authStore';
 
 function getDisplayName(obj: { uid?: string; employeeDetails?: { displayName?: string; firstName?: string; lastName?: string }; studentLogin?: { displayName?: string } } | null | undefined): string {
@@ -123,7 +126,7 @@ export default function NoteDetailPage() {
       notingService.getMyManager()
         .then(setManagerInfo)
         .catch((err) => {
-          toast({ type: 'error', message: err.response?.data?.message || 'Failed to fetch manager info' });
+          toast({ type: 'error', message: getErrorMessage(err) });
           setManagerInfo(null);
         })
         .finally(() => setManagerLoading(false));
@@ -151,7 +154,7 @@ export default function NoteDetailPage() {
         setRemarks('');
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to approve' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -170,7 +173,7 @@ export default function NoteDetailPage() {
         setRemarks('');
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to reject' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -189,7 +192,7 @@ export default function NoteDetailPage() {
         setRemarks('');
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to revert' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -215,7 +218,7 @@ export default function NoteDetailPage() {
         setForwardMode(null);
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to forward' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -235,14 +238,14 @@ export default function NoteDetailPage() {
         setForwardMode(null);
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to auto-forward' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setAutoForwardLoading(false));
   };
 
   if (loading || !note) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="w-7 h-7 animate-spin text-sgt-600" />
+        <PageSkeleton message="Loading note..." />
       </div>
     );
   }
@@ -256,10 +259,10 @@ export default function NoteDetailPage() {
   const StatusIcon = STATUS_ICONS[note.status] || Clock;
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-6 px-4">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-4 sm:py-6 px-4 sm:px-6">
       <div className="max-w-[850px] mx-auto">
         {/* Navigation Bar */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <Link href="/noting" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Back to Noting
@@ -282,7 +285,7 @@ export default function NoteDetailPage() {
                         router.push('/noting');
                       })
                       .catch((err) => {
-                        const message = err.response?.data?.message || 'Failed to delete note';
+                        const message = getErrorMessage(err);
                         toast({ type: 'error', message });
                       });
                   }
@@ -315,8 +318,8 @@ export default function NoteDetailPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
 
           {/* Document Header */}
-          <div className="border-b border-gray-200 dark:border-gray-700 px-8 py-5">
-            <div className="flex items-start justify-between gap-4">
+          <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
                   <span className="px-2 py-0.5 rounded bg-sgt-50 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 text-xs font-mono font-semibold border border-sgt-100 dark:border-sgt-800/50">
@@ -352,7 +355,7 @@ export default function NoteDetailPage() {
           </div>
 
           {/* Document Body */}
-          <div className="px-8 py-6 space-y-6">
+          <div className="px-4 sm:px-8 py-4 sm:py-6 space-y-6">
             {/* Description */}
             <section>
               <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Description</h3>
@@ -370,7 +373,7 @@ export default function NoteDetailPage() {
                   {!note.eventName && !note.eventType && !note.eventStartDate ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400 italic p-4">Event details not provided.</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
                       {note.eventName && (
                         <div className="bg-white dark:bg-gray-800 p-3">
                           <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Event Name</label>
@@ -408,6 +411,75 @@ export default function NoteDetailPage() {
                             }`}>
                             {note.eventPaymentType.toUpperCase()}
                           </span>
+                        </div>
+                      )}
+                      {note.eventParticipationType && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Participation</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{note.eventParticipationType.replace('_', ' ')}</p>
+                        </div>
+                      )}
+                      {note.eventPaymentType === 'paid' && (note.eventRegistrationFeeIndividual != null || note.eventRegistrationFeeTeam != null) && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Fee</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {note.eventParticipationType === 'team'
+                              ? `₹ ${Number(note.eventRegistrationFeeTeam || 0).toLocaleString()} per team`
+                              : `₹ ${Number(note.eventRegistrationFeeIndividual || 0).toLocaleString()} per person`}
+                          </p>
+                        </div>
+                      )}
+                      {note.eventApproxCapacity != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Approx. Capacity</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventApproxCapacity}</p>
+                        </div>
+                      )}
+                      {note.eventDutyLeaveAvailable != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Duty Leave</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventDutyLeaveAvailable ? 'Yes' : 'No'}</p>
+                          {note.eventDutyLeaveAvailable && Array.isArray(note.eventDutyLeaveEligibility) && note.eventDutyLeaveEligibility.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-0.5">{note.eventDutyLeaveEligibility.map((e) => e.replace('_', ' ')).join(', ')}</p>
+                          )}
+                        </div>
+                      )}
+                      {note.eventHasSponsorship != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3 sm:col-span-2">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Sponsorship</label>
+                          {note.eventHasSponsorship && Array.isArray(note.eventSponsors) && note.eventSponsors.length > 0 ? (
+                            <div className="mt-1 space-y-1">
+                              {note.eventSponsors.map((s, i) => (
+                                <div key={i} className="text-sm text-gray-900 dark:text-white">
+                                  <span className="font-medium">{s.name}</span>
+                                  {s.type === 'cash' ? (
+                                    <span className="text-gray-600 dark:text-gray-300"> — ₹ {Number(s.amount || 0).toLocaleString()}</span>
+                                  ) : (
+                                    <span className="text-gray-600 dark:text-gray-300"> — In-kind: {s.notes || '—'}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventHasSponsorship ? 'Yes (details not provided)' : 'No'}</p>
+                          )}
+                        </div>
+                      )}
+                      {note.eventHasResources != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3 sm:col-span-2">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Resources</label>
+                          {note.eventHasResources && Array.isArray(note.eventResources) && note.eventResources.length > 0 ? (
+                            <div className="mt-1 space-y-1">
+                              {note.eventResources.map((r, i) => (
+                                <div key={i} className="text-sm text-gray-900 dark:text-white">
+                                  <span className="font-medium capitalize">{r.category}</span> — {r.type} {r.description && `: ${r.description}`}
+                                  {r.estimatedCost != null && <span className="text-gray-600 dark:text-gray-300"> (₹ {Number(r.estimatedCost).toLocaleString()})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventHasResources ? 'Yes (details not provided)' : 'No'}</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -491,7 +563,7 @@ export default function NoteDetailPage() {
                                 disabled={isViewing}
                                 className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-sgt-600 transition-colors"
                               >
-                                {isViewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                                {isViewing ? <LoadingSpinner size="sm" className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                                 Preview
                               </button>
                               <button
@@ -510,7 +582,7 @@ export default function NoteDetailPage() {
                                 disabled={isDownloading}
                                 className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-sgt-600 transition-colors"
                               >
-                                {isDownloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                                {isDownloading ? <LoadingSpinner size="sm" className="w-3 h-3" /> : <Download className="w-3 h-3" />}
                                 Download
                               </button>
                             </div>
@@ -682,7 +754,7 @@ export default function NoteDetailPage() {
                         <div className="space-y-2">
                           {managerLoading ? (
                             <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <LoadingSpinner size="sm" className="w-3 h-3" />
                               Loading manager info...
                             </div>
                           ) : managerInfo ? (
@@ -705,7 +777,7 @@ export default function NoteDetailPage() {
                             disabled={autoForwardLoading || !remarks.trim() || !managerInfo}
                             className="w-full px-3 py-1.5 text-xs bg-sgt-600 text-white rounded hover:bg-sgt-700 disabled:opacity-50 font-medium inline-flex items-center justify-center gap-1"
                           >
-                            {autoForwardLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ArrowUpRight className="w-3 h-3" />}
+                            {autoForwardLoading ? <LoadingSpinner size="sm" className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
                             Forward
                           </button>
                         </div>
@@ -735,7 +807,7 @@ export default function NoteDetailPage() {
                                 className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                                 autoFocus
                               />
-                              {searchLoading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-gray-400" />}
+                              {searchLoading && <LoadingSpinner size="sm" className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 !border-gray-400" />}
                             </div>
                           )}
 
@@ -776,7 +848,7 @@ export default function NoteDetailPage() {
                       disabled={actionLoading}
                       className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                     >
-                      {actionType === 'approve' && actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                      {actionType === 'approve' && actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
                       Approve
                     </button>
                     <button
@@ -784,7 +856,7 @@ export default function NoteDetailPage() {
                       disabled={actionLoading || !remarks.trim()}
                       className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                     >
-                      {actionType === 'reject' && actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                      {actionType === 'reject' && actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
                       Reject
                     </button>
                     <button
@@ -793,7 +865,7 @@ export default function NoteDetailPage() {
                       className="px-4 py-2 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                       title="Send back to creator for modifications"
                     >
-                      {actionType === 'revert' && actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                      {actionType === 'revert' && actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
                       Revert Back
                     </button>
                     <button
@@ -810,7 +882,7 @@ export default function NoteDetailPage() {
                         disabled={actionLoading || !remarks.trim() || !forwardUserId.trim()}
                         className="px-4 py-2 text-sm bg-sgt-600 text-white rounded-md hover:bg-sgt-700 disabled:opacity-50 font-medium transition-colors"
                       >
-                        {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Forward'}
+                        {actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : 'Forward'}
                       </button>
                     )}
                   </div>

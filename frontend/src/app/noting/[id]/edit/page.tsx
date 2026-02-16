@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 /**
  * Edit draft is handled by the same page as create: /noting/new.
@@ -19,7 +19,7 @@ export default function EditDraftRedirectPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      <LoadingSpinner size="md" className="!border-indigo-600" />
     </div>
   );
 }

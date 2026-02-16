@@ -198,6 +198,30 @@ export const eventService = {
   },
 
   /**
+   * Get volunteer activity for a specific volunteer (event creator view)
+   */
+  async getVolunteerActivity(
+    eventId: string,
+    volunteerId: string,
+    page: number = 1,
+    limit: number = 50,
+    filters?: { startDate?: string; endDate?: string }
+  ): Promise<{
+    volunteer: any;
+    event: any;
+    entries: any[];
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    const response = await api.get(`${BASE_URL}/${eventId}/volunteers/${volunteerId}/activity?${params.toString()}`);
+    return response.data.data;
+  },
+
+  /**
    * Get my volunteer activity (scan history)
    */
   async getMyVolunteerActivity(
@@ -309,6 +333,16 @@ export const eventService = {
   async searchUsersToInvite(eventId: string, query: string): Promise<any[]> {
     const response = await api.get(`${BASE_URL}/${eventId}/search-users?q=${encodeURIComponent(query)}`);
     return response.data.data;
+  },
+
+  /**
+   * Search students for volunteer assignment (by UID, name, or email)
+   * Only returns students with login access
+   */
+  async searchStudentsForVolunteer(query: string): Promise<{ id: string; uid: string; name: string; email: string; department?: string }[]> {
+    if (!query.trim() || query.length < 2) return [];
+    const response = await api.get(`/users/suggestions/${encodeURIComponent(query.trim())}?role=student`);
+    return response.data?.data ?? [];
   },
 
   /**

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
-  ArrowLeft, Calendar, MapPin, Users, Loader2, UserPlus, Clock,
+  ArrowLeft, Calendar, MapPin, Users, UserPlus, Clock,
   Globe, Mail, Phone, User, Award, FileText, ChevronDown, ChevronUp,
   ExternalLink, CheckCircle2, IndianRupee, Settings, Monitor, Building2,
   Wifi, Shield, HelpCircle, Trophy, GraduationCap, Sparkles, MousePointerClick,
@@ -13,6 +13,8 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   seminar: 'Seminar', workshop: 'Workshop', fest: 'Fest',
@@ -103,7 +105,7 @@ export default function EventDetailPage() {
       const data = await eventService.getEventById(id);
       setEvent(data);
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to load event' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -143,7 +145,7 @@ export default function EventDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="w-7 h-7 animate-spin text-sgt-600" />
+        <PageSkeleton message="Loading event..." />
       </div>
     );
   }
@@ -194,8 +196,8 @@ export default function EventDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16" style={{ marginTop: event.bannerImageUrl ? '-4rem' : '0' }}>
 
         {/* Header Card — Title + Quick Info + Register CTA */}
-        <div className={`relative ${CARD} overflow-hidden mb-8`}>
-          <div className="px-6 sm:px-10 py-8">
+        <div className={`relative ${CARD} overflow-hidden mb-6 sm:mb-8`}>
+          <div className="px-4 sm:px-6 md:px-10 py-6 sm:py-8">
             <div className="flex flex-col md:flex-row md:items-start gap-8">
               {/* Logo */}
               {event.logoImageUrl && (
@@ -394,6 +396,51 @@ export default function EventDetailPage() {
                             )}
                           </div>
                         )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sponsorship */}
+                  {(event.hasSponsorship && Array.isArray(event.sponsors) && event.sponsors.length > 0) && (
+                    <div className="flex gap-4 md:col-span-2">
+                      <div className="mt-1 p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600 text-amber-600 dark:text-amber-400">
+                        <IndianRupee className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Sponsorship</p>
+                        <div className="space-y-1.5">
+                          {event.sponsors.map((s, i) => (
+                            <div key={i} className="text-sm text-gray-900 dark:text-white">
+                              <span className="font-medium">{s.name}</span>
+                              {s.type === 'cash' ? (
+                                <span className="text-gray-600 dark:text-gray-300"> — ₹ {Number(s.amount || 0).toLocaleString()}</span>
+                              ) : (
+                                <span className="text-gray-600 dark:text-gray-300"> — In-kind: {s.notes || '—'}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Resources */}
+                  {(event.hasResources && Array.isArray(event.resources) && event.resources.length > 0) && (
+                    <div className="flex gap-4 md:col-span-2">
+                      <div className="mt-1 p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600 text-indigo-600 dark:text-indigo-400">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Resources</p>
+                        <div className="space-y-1.5">
+                          {event.resources.map((r, i) => (
+                            <div key={i} className="text-sm text-gray-900 dark:text-white">
+                              <span className="font-medium capitalize">{r.category}</span> — {r.type}
+                              {r.description && <span className="text-gray-600 dark:text-gray-300">: {r.description}</span>}
+                              {r.estimatedCost != null && <span className="text-gray-600 dark:text-gray-300"> (₹ {Number(r.estimatedCost).toLocaleString()})</span>}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}

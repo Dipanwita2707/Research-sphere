@@ -6,6 +6,7 @@
 
 const prisma = require('../../../shared/config/database');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
+const { sanitizeSponsors } = require('../../../shared/utils/validators');
 const { ERRORS, EVENT_STATUS, REGISTRATION_STATUS, PAYMENT_STATUS } = require('../constants/event.constants');
 const {
   generateEventId,
@@ -59,6 +60,15 @@ const createEventFromNoting = async (noteId, userId) => {
     throw new ValidationError(ERRORS.INVALID_EVENT_DATES);
   }
   
+  // Determine registration fee from noting (individual vs team)
+  const participationType = noting.eventParticipationType || 'individual';
+  const registrationFee = noting.eventPaymentType === 'paid'
+    ? (participationType === 'team' ? noting.eventRegistrationFeeTeam : noting.eventRegistrationFeeIndividual)
+    : null;
+  const teamRegistrationFee = (noting.eventPaymentType === 'paid' && participationType === 'team')
+    ? noting.eventRegistrationFeeTeam
+    : null;
+  
   // Generate event ID
   const eventId = await generateEventId(prisma);
   
@@ -73,6 +83,16 @@ const createEventFromNoting = async (noteId, userId) => {
       startDate: noting.eventStartDate,
       endDate: noting.eventEndDate,
       paymentType: noting.eventPaymentType,
+      participationType,
+      registrationFee: registrationFee ?? null,
+      teamRegistrationFee: teamRegistrationFee ?? null,
+      approxCapacity: noting.eventApproxCapacity ?? null,
+      dutyLeaveAvailable: noting.eventDutyLeaveAvailable ?? null,
+      dutyLeaveEligibility: noting.eventDutyLeaveEligibility ?? null,
+      hasSponsorship: noting.eventHasSponsorship ?? null,
+      sponsors: noting.eventSponsors ?? null,
+      hasResources: noting.eventHasResources ?? null,
+      resources: noting.eventResources ?? null,
       description: noting.description,
       status: 'draft', // Creator will add more details and then publish
       createdById: noting.createdById, // Event creator is the noting creator
@@ -104,96 +124,91 @@ const createEventFromNoting = async (noteId, userId) => {
  * Get event by ID with full details
  */
 const getEventDetails = async (eventId, userId) => {
-  const event = await getEventById(prisma, eventId, {
-    EventRegistration: {
-      select: {
-        id: true,
-        registrationId: true,
-        status: true,
-        hasEntered: true,
-        userId: true,
+  const [event, currentRegistrations, userRegistration] = await Promise.all([
+    getEventById(prisma, eventId, {
+      EventRegistration: {
+        select: {
+          id: true,
+          registrationId: true,
+          status: true,
+          hasEntered: true,
+          userId: true,
+        },
       },
-    },
-    EventVolunteer: {
-      include: {
-        user_login: {
-          select: {
-            id: true,
-            uid: true,
-            email: true,
-            employeeDetails: {
-              select: {
-                firstName: true,
-                lastName: true,
-                displayName: true,
+      EventVolunteer: {
+        include: {
+          user_login: {
+            select: {
+              id: true,
+              uid: true,
+              email: true,
+              employeeDetails: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                },
+              },
+              studentLogin: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                },
               },
             },
           },
         },
       },
-    },
-    EventCustomField: {
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
+      EventCustomField: {
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+        select: {
+          id: true,
+          fieldName: true,
+          fieldLabel: true,
+          fieldType: true,
+          isRequired: true,
+          placeholder: true,
+          helpText: true,
+          options: true,
+          sortOrder: true,
+        },
+      },
+      EventPrize: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { position: 'asc' }],
+        select: {
+          id: true,
+          position: true,
+          rank: true,
+          title: true,
+          description: true,
+          prizeType: true,
+          prizeAmount: true,
+          additionalPerks: true,
+          sortOrder: true,
+        },
+      },
+    }),
+    prisma.eventRegistration.count({
+      where: { eventId, status: 'confirmed' },
+    }),
+    prisma.eventRegistration.findFirst({
+      where: { eventId, userId },
       select: {
         id: true,
-        fieldName: true,
-        fieldLabel: true,
-        fieldType: true,
-        isRequired: true,
-        placeholder: true,
-        helpText: true,
-        options: true,
-        sortOrder: true,
+        registrationId: true,
+        qrCode: true,
+        status: true,
+        hasEntered: true,
+        registeredAt: true,
       },
-    },
-    EventPrize: {
-      where: { isActive: true },
-      orderBy: [{ sortOrder: 'asc' }, { position: 'asc' }],
-      select: {
-        id: true,
-        position: true,
-        rank: true,
-        title: true,
-        description: true,
-        prizeType: true,
-        prizeAmount: true,
-        additionalPerks: true,
-        sortOrder: true,
-      },
-    },
-  });
-  
-  // Get current registrations count (only confirmed/completed registrations)
-  const currentRegistrations = await prisma.eventRegistration.count({
-    where: {
-      eventId: event.id,
-      status: 'confirmed',
-    },
-  });
-  
-  // Check if the current user has registered for this event
-  const userRegistration = await prisma.eventRegistration.findFirst({
-    where: {
-      eventId: event.id,
-      userId: userId,
-    },
-    select: {
-      id: true,
-      registrationId: true,
-      qrCode: true,
-      status: true,
-      hasEntered: true,
-      registeredAt: true,
-    },
-  });
-  
-  // Add current registrations count
+    }),
+  ]);
+
   event.currentRegistrations = currentRegistrations;
-  
-  // Add user registration to event object
   event.userRegistration = userRegistration;
-  
   return event;
 };
 
@@ -209,7 +224,11 @@ const updateEvent = async (eventId, userId, updateData) => {
   }
   
   // Locked fields cannot be updated (they come from the noting)
-  const lockedFields = ['name', 'eventType', 'startDate', 'endDate', 'paymentType', 'isPaid', 'notingId'];
+  const lockedFields = ['name', 'eventType', 'startDate', 'endDate', 'paymentType', 'participationType', 'isPaid', 'notingId'];
+  // When event is from noting, also lock: sponsorship, duty leave, resources. Capacity (approxCapacity) stays editable.
+  if (event.notingId) {
+    lockedFields.push('dutyLeaveAvailable', 'dutyLeaveEligibility', 'hasSponsorship', 'sponsors', 'hasResources', 'resources');
+  }
   lockedFields.forEach(field => {
     if (updateData.hasOwnProperty(field)) {
       delete updateData[field];
@@ -240,6 +259,11 @@ const updateEvent = async (eventId, userId, updateData) => {
   }
   if (updateData.registrationEndDate) {
     updateData.registrationEndDate = new Date(updateData.registrationEndDate);
+  }
+
+  // Sanitize sponsors (Cash: amount, In-kind: notes/description)
+  if (updateData.sponsors !== undefined) {
+    updateData.sponsors = (updateData.hasSponsorship === false) ? null : sanitizeSponsors(updateData.sponsors || []);
   }
 
   // Update event
@@ -425,12 +449,6 @@ const listEvents = async (filters, pagination, userId) => {
             },
           },
         },
-        note: {
-          select: {
-            notingId: true,
-            status: true,
-          },
-        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -440,23 +458,24 @@ const listEvents = async (filters, pagination, userId) => {
     }),
     prisma.event.count({ where }),
   ]);
-  
-  // Add currentRegistrations count to each event (only confirmed/completed registrations)
-  const eventsWithCount = await Promise.all(
-    events.map(async (event) => {
-      const currentRegistrations = await prisma.eventRegistration.count({
-        where: {
-          eventId: event.id,
-          status: 'confirmed',
-        },
-      });
-      return {
-        ...event,
-        currentRegistrations,
-      };
-    })
-  );
-  
+
+  let countMap = new Map();
+  if (events.length > 0) {
+    const counts = await prisma.eventRegistration.groupBy({
+      by: ['eventId'],
+      where: {
+        eventId: { in: events.map((e) => e.id) },
+        status: 'confirmed',
+      },
+      _count: { id: true },
+    });
+    countMap = new Map(counts.map((c) => [c.eventId, c._count?.id ?? 0]));
+  }
+  const eventsWithCount = events.map((event) => ({
+    ...event,
+    currentRegistrations: countMap.get(event.id) ?? 0,
+  }));
+
   return {
     events: eventsWithCount,
     pagination: {
@@ -658,10 +677,14 @@ const scanQRCode = async (eventId, qrCode, entryType, volunteerId, scanData) => 
   
   // Validate QR code and get registration
   const registration = await validateQRCodeAndGetRegistration(prisma, qrCode, eventId);
-  
-  // Check if already entered
+
+  // Entry: block if already checked in (must checkout first)
   if (entryType === 'entry' && registration.hasEntered) {
     throw new ValidationError(ERRORS.ALREADY_ENTERED);
+  }
+  // Exit: block if not checked in (must checkin first)
+  if (entryType === 'exit' && !registration.hasEntered) {
+    throw new ValidationError(ERRORS.NOT_CHECKED_IN);
   }
   
   // Get volunteer details
@@ -741,8 +764,15 @@ const scanQRCode = async (eventId, qrCode, entryType, volunteerId, scanData) => 
           enteredAt: new Date(),
         },
       });
+    } else if (entryType === 'exit') {
+      await tx.eventRegistration.update({
+        where: { id: registration.id },
+        data: {
+          hasEntered: false,
+        },
+      });
     }
-    
+
     return entryLog;
   });
   
@@ -1073,6 +1103,129 @@ const getMyVolunteerActivity = async (userId, filters = {}) => {
   };
 };
 
+/**
+ * Get volunteer activity for a specific volunteer (event creator view)
+ */
+const getVolunteerActivity = async (eventId, volunteerId, userId, filters = {}) => {
+  const event = await getEventById(prisma, eventId);
+  if (event.createdById !== userId) {
+    throw new ForbiddenError('Only the event creator can view volunteer activity');
+  }
+
+  const volunteer = await prisma.eventVolunteer.findFirst({
+    where: { id: volunteerId, eventId },
+    include: {
+      user_login: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          employeeDetails: { select: { firstName: true, lastName: true, displayName: true } },
+          studentLogin: { select: { firstName: true, lastName: true, displayName: true, registrationNo: true } },
+        },
+      },
+    },
+  });
+
+  if (!volunteer) {
+    throw new NotFoundError('Volunteer not found for this event');
+  }
+
+  const { page = 1, limit = 50, startDate, endDate } = filters;
+  const where = { eventId, volunteerId };
+
+  if (startDate || endDate) {
+    where.scannedAt = {};
+    if (startDate) where.scannedAt.gte = new Date(startDate);
+    if (endDate) where.scannedAt.lte = new Date(endDate);
+  }
+
+  const [entries, total] = await Promise.all([
+    prisma.eventEntry.findMany({
+      where,
+      include: {
+        EventRegistration: {
+          include: {
+            user_login: {
+              select: {
+                id: true,
+                uid: true,
+                email: true,
+                employeeDetails: { select: { firstName: true, lastName: true, displayName: true } },
+                studentLogin: { select: { firstName: true, lastName: true, displayName: true, registrationNo: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { scannedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.eventEntry.count({ where }),
+  ]);
+
+  const ul = volunteer.user_login;
+  const emp = ul?.employeeDetails;
+  const stu = ul?.studentLogin;
+  const volunteerName =
+    emp?.displayName ||
+    (emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : null) ||
+    stu?.displayName ||
+    (stu ? `${stu.firstName || ''} ${stu.lastName || ''}`.trim() : null) ||
+    ul?.uid ||
+    'Unknown';
+
+  const formattedEntries = entries.map((e) => {
+    const userLogin = e.EventRegistration?.user_login;
+    const empDetails = userLogin?.employeeDetails;
+    const studentDetails = userLogin?.studentLogin;
+    const userName =
+      empDetails?.displayName ||
+      `${empDetails?.firstName || ''} ${empDetails?.lastName || ''}`.trim() ||
+      studentDetails?.displayName ||
+      `${studentDetails?.firstName || ''} ${studentDetails?.lastName || ''}`.trim() ||
+      userLogin?.uid ||
+      'Unknown';
+
+    return {
+      id: e.id,
+      eventId: e.eventId,
+      registrationId: e.registrationId,
+      entryType: e.entryType,
+      scannedAt: e.scannedAt,
+      gateLocation: e.gateLocation,
+      remarks: e.remarks,
+      participant: {
+        id: userLogin?.id || null,
+        uid: userLogin?.uid || null,
+        email: userLogin?.email || null,
+        name: userName,
+        registrationNo: studentDetails?.registrationNo || null,
+      },
+    };
+  });
+
+  return {
+    volunteer: {
+      id: volunteer.id,
+      role: volunteer.role,
+      assignedGate: volunteer.assignedGate,
+      canScanQr: volunteer.canScanQr,
+      assignedAt: volunteer.assignedAt,
+      user: ul ? { id: ul.id, uid: ul.uid, email: ul.email, name: volunteerName } : null,
+    },
+    event: { id: event.id, eventId: event.eventId, name: event.name, venue: event.venue, startDate: event.startDate, endDate: event.endDate },
+    entries: formattedEntries,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
 module.exports = {
   createEventFromNoting,
   getEventDetails,
@@ -1086,4 +1239,5 @@ module.exports = {
   getEventStatistics,
   getMyVolunteerAssignments,
   getMyVolunteerActivity,
+  getVolunteerActivity,
 };

@@ -123,10 +123,18 @@ function parsePolicyCompliance(value) {
   return null;
 }
 
+const { sanitizeSponsors } = require('../../../shared/utils/validators');
+
+/** Alias for shared sponsor sanitization (Cash: amount, In-kind: notes) */
+function sanitizeEventSponsors(sponsors) {
+  return sanitizeSponsors(sponsors);
+}
+
 module.exports = {
   validateDescription,
   validateCategory,
   sanitizeAttachments,
   sanitizePoints,
   parsePolicyCompliance,
+  sanitizeEventSponsors,
 };

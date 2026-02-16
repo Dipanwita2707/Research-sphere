@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, Loader2, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, AlertCircle, Ticket as TicketIcon } from 'lucide-react';
+import { Calendar, MapPin, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, AlertCircle, Ticket as TicketIcon } from 'lucide-react';
 import QRCodeGenerator from 'qrcode';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { EventRegistration } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
 import TicketModal from '@/components/TicketModal';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', icon: Clock },
@@ -37,7 +40,7 @@ export default function MyRegistrationsPage() {
       setRegistrations(result.registrations);
       setPagination(result.pagination);
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to load registrations' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -101,14 +104,14 @@ export default function MyRegistrationsPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-black font-sans selection:bg-blue-500/30">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 mb-8 sm:mb-12">
           <div>
-            <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
               My Tickets
             </h1>
-            <p className="text-lg text-gray-500 dark:text-gray-400 font-medium max-w-lg">
+            <p className="text-sm sm:text-lg text-gray-500 dark:text-gray-400 font-medium max-w-lg">
               Manage your event access. View your passes and entry details.
             </p>
           </div>
@@ -156,10 +159,7 @@ export default function MyRegistrationsPage() {
 
         {/* Registrations List */}
         {loading ? (
-          <div className="flex flex-col justify-center items-center py-20 gap-4">
-            <Loader2 className="h-10 w-10 animate-spin text-gray-900 dark:text-white" />
-            <p className="text-gray-500 font-medium animate-pulse">Loading your passes...</p>
-          </div>
+          <PageSkeleton message="Loading your passes..." />
         ) : registrations.length === 0 ? (
           <div className="text-center py-24 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 relative overflow-hidden group">
             <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-transparent dark:from-gray-800/20 dark:to-transparent pointer-events-none" />
@@ -400,7 +400,7 @@ export default function MyRegistrationsPage() {
                   />
                 ) : (
                   <div className="flex items-center justify-center h-48 w-48">
-                    <Loader2 className="h-10 w-10 animate-spin text-gray-300" />
+                    <LoadingSpinner size="lg" className="!border-gray-300" />
                   </div>
                 )}
                 <div className="mt-4 px-3 py-1.5 bg-gray-100 rounded-md font-mono text-xs font-bold text-gray-600 tracking-wider">

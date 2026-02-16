@@ -460,8 +460,8 @@ const getDefaultPermissions = (role) => {
       dsw_create_club_noting: true, // Faculty can initiate club creation
       dsw_view_club: true,        // Faculty can view clubs
       dsw_request_club_change: true, // Faculty facilitators can request changes
-      // Noting Permissions - NO DEFAULT! Admin must explicitly grant
-      // noting_create: false - Removed: Admin must assign explicitly
+      // Noting Permissions - Faculty can create notings (events, curriculum, etc.)
+      noting_create: true,        // Faculty can initiate notings for approval workflows
       noting_view_own: true,      // Faculty can view their own notings
       noting_add_comment: true,   // Faculty can add comments
       // Event Permissions

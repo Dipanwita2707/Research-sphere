@@ -309,6 +309,11 @@ const listNotesValidation = [
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100'),
 
+  query('includeCounts')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('includeCounts must be true or false'),
+
   handleValidationErrors,
 ];
 

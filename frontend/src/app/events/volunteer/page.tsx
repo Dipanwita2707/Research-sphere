@@ -9,7 +9,6 @@ import {
   Clock,
   Users,
   QrCode,
-  Loader2,
   AlertCircle,
   CheckCircle,
   ChevronRight,
@@ -21,6 +20,8 @@ import {
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
 
@@ -80,7 +81,7 @@ export default function VolunteerDashboardPage() {
         const data = await eventService.getMyVolunteerAssignments();
         setAssignments(data);
       } catch (error: any) {
-        toast({ type: 'error', message: error.response?.data?.message || 'Failed to load volunteer assignments' });
+        toast({ type: 'error', message: getErrorMessage(error) });
       } finally {
         setLoading(false);
       }
@@ -144,10 +145,7 @@ export default function VolunteerDashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-sgt-600 mx-auto mb-3" />
-          <p className="text-gray-600 dark:text-gray-400">Loading your volunteer duties...</p>
-        </div>
+        <PageSkeleton message="Loading your volunteer duties..." />
       </div>
     );
   }

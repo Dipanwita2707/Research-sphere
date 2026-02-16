@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Shield,
   QrCode,
-  Loader2,
   CheckCircle,
   XCircle,
   Clock,
@@ -29,6 +28,10 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage, getErrorStatusCode, isNetworkError } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
 
@@ -37,6 +40,7 @@ interface ScanResult {
   entryType: 'entry' | 'exit';
   scannedAt: string;
   success: boolean;
+  isWarning?: boolean; // Business rule (e.g. already entered) - not counted as failed
   error?: string;
   qrCode?: string;
   gateLocation?: string;
@@ -70,9 +74,9 @@ export default function VolunteerEventPage() {
   const [sessionStats, setSessionStats] = useState({ entries: 0, exits: 0, failed: 0 });
 
   const qrInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
+  const html5QrCodeRef = useRef<any>(null);
+  const handleScanRef = useRef<(qrCode?: string) => Promise<void>>(() => Promise.resolve());
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -95,7 +99,7 @@ export default function VolunteerEventPage() {
           // Okay if this fails
         }
       } catch (error: any) {
-        toast({ type: 'error', message: error.response?.data?.message || 'Failed to load event' });
+        toast({ type: 'error', message: getErrorMessage(error) });
       } finally {
         setLoading(false);
       }
@@ -112,46 +116,14 @@ export default function VolunteerEventPage() {
     }
   }, [scanMode]);
 
-  // Camera scanner
-  const startCamera = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (err) {
-      toast({ type: 'error', message: 'Could not access camera. Please use manual input.' });
-      setScanMode('input');
-    }
-  }, [toast]);
-
-  const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (scanMode === 'camera') {
-      startCamera();
-    } else {
-      stopCamera();
-    }
-    return () => stopCamera();
-  }, [scanMode, startCamera, stopCamera]);
-
   const handleScan = async (qrCode?: string) => {
     const code = qrCode || qrInput.trim();
     if (!code) {
       toast({ type: 'error', message: 'Please enter or scan a QR code' });
       return;
     }
-
+    if (isProcessingRef.current) return;
+    isProcessingRef.current = true;
     setScanning(true);
     try {
       const result = await eventService.scanQRCode(eventId, {
@@ -161,7 +133,6 @@ export default function VolunteerEventPage() {
         remarks: remarks || undefined,
       });
 
-      // Extract participant info from scan result
       const regData = (result as any).EventRegistration || result.registration;
       const userInfo = regData?.user_login || regData?.user;
       const empDetails = userInfo?.employeeDetails;
@@ -197,26 +168,97 @@ export default function VolunteerEventPage() {
         message: `${entryType === 'entry' ? 'Check-in' : 'Check-out'} successful for ${participantName}`,
       });
 
-      // Clear & re-focus
       setQrInput('');
       setRemarks('');
       setTimeout(() => qrInputRef.current?.focus(), 100);
     } catch (error: any) {
-      const errorMsg = error.response?.data?.message || 'Scan failed';
+      const errorMsg = getErrorMessage(error);
+      const status = getErrorStatusCode(error);
+      const isValidationWarning =
+        status === 400 &&
+        (errorMsg.toLowerCase().includes('already entered') ||
+          errorMsg.toLowerCase().includes('not checked in') ||
+          errorMsg.toLowerCase().includes('check in first') ||
+          errorMsg.toLowerCase().includes('check out first') ||
+          errorMsg.toLowerCase().includes('not confirmed'));
+      const isRealFailure =
+        !isValidationWarning &&
+        (isNetworkError(error) || (status != null && status >= 500) || status === 404);
+
       const scan: ScanResult = {
         entryType,
         scannedAt: new Date().toISOString(),
         success: false,
+        isWarning: isValidationWarning,
         error: errorMsg,
         qrCode: code,
       };
       setRecentScans((prev) => [scan, ...prev.slice(0, 19)]);
-      setSessionStats((prev) => ({ ...prev, failed: prev.failed + 1 }));
-      toast({ type: 'error', message: errorMsg });
+      if (isRealFailure) {
+        setSessionStats((prev) => ({ ...prev, failed: prev.failed + 1 }));
+      }
+      toast({
+        type: isValidationWarning ? 'warning' : 'error',
+        message: errorMsg,
+      });
     } finally {
+      isProcessingRef.current = false;
       setScanning(false);
     }
   };
+
+  handleScanRef.current = handleScan;
+
+  // Camera QR scanner using html5-qrcode
+  const startCameraScanner = useCallback(async () => {
+    if (html5QrCodeRef.current) return;
+    const readerEl = document.getElementById('qr-reader');
+    if (!readerEl) return;
+    try {
+      const { Html5Qrcode } = await import('html5-qrcode');
+      const html5QrCode = new Html5Qrcode('qr-reader');
+      html5QrCodeRef.current = html5QrCode;
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText: string) => {
+          const code = decodedText?.trim();
+          if (code) {
+            handleScanRef.current?.(code);
+          }
+        },
+        () => {}
+      );
+    } catch (err) {
+      console.error('Camera scanner error:', err);
+      toast({ type: 'error', message: 'Could not access camera. Use manual input below.' });
+      setScanMode('input');
+    }
+  }, [toast]);
+
+  const stopCameraScanner = useCallback(() => {
+    if (html5QrCodeRef.current) {
+      html5QrCodeRef.current
+        .stop()
+        .catch(() => {})
+        .finally(() => {
+          html5QrCodeRef.current = null;
+        });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (scanMode === 'camera') {
+      const t = setTimeout(() => startCameraScanner(), 100);
+      return () => {
+        clearTimeout(t);
+        stopCameraScanner();
+      };
+    } else {
+      stopCameraScanner();
+      return undefined;
+    }
+  }, [scanMode, startCameraScanner, stopCameraScanner]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,10 +294,7 @@ export default function VolunteerEventPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin text-sgt-600 mx-auto mb-3" />
-          <p className="text-gray-600 dark:text-gray-400">Loading event details...</p>
-        </div>
+        <PageSkeleton message="Loading event details..." />
       </div>
     );
   }
@@ -475,18 +514,9 @@ export default function VolunteerEventPage() {
 
             {scanMode === 'camera' ? (
               <div className="mb-5">
-                <div className="relative rounded-lg overflow-hidden bg-black aspect-video">
-                  <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-                  <canvas ref={canvasRef} className="hidden" />
-                  <div className="absolute inset-0 border-2 border-dashed border-white/30 m-8 rounded-lg" />
-                  <div className="absolute bottom-3 left-0 right-0 text-center">
-                    <p className="text-white text-xs bg-black/50 inline-block px-3 py-1 rounded-full">
-                      Point camera at QR code
-                    </p>
-                  </div>
-                </div>
+                <div id="qr-reader" className="rounded-lg overflow-hidden min-h-[250px] [&_video]:!rounded-lg [&_img]:!rounded-lg" />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-                  For best results, use a device with a rear camera. You can also enter codes manually below.
+                  Point camera at entry pass QR. Use manual input below if camera fails.
                 </p>
               </div>
             ) : null}
@@ -565,7 +595,7 @@ export default function VolunteerEventPage() {
               >
                 {scanning ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <LoadingSpinner size="sm" />
                     Processing...
                   </>
                 ) : (
@@ -621,7 +651,9 @@ export default function VolunteerEventPage() {
                         ? scan.entryType === 'entry'
                           ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/10'
                           : 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/10'
-                        : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
+                        : scan.isWarning
+                          ? 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10'
+                          : 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10'
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -635,6 +667,10 @@ export default function VolunteerEventPage() {
                             <LogOut className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                           </div>
                         )
+                      ) : scan.isWarning ? (
+                        <div className="p-1.5 bg-amber-100 dark:bg-amber-900/30 rounded-full mt-0.5">
+                          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        </div>
                       ) : (
                         <div className="p-1.5 bg-red-100 dark:bg-red-900/30 rounded-full mt-0.5">
                           <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -674,8 +710,12 @@ export default function VolunteerEventPage() {
                           </>
                         ) : (
                           <>
-                            <p className="font-semibold text-red-900 dark:text-red-200">Scan Failed</p>
-                            <p className="text-sm text-red-700 dark:text-red-300 mt-0.5">{scan.error}</p>
+                            <p className={`font-semibold ${scan.isWarning ? 'text-amber-900 dark:text-amber-200' : 'text-red-900 dark:text-red-200'}`}>
+                              {scan.isWarning ? 'Warning' : 'Scan Failed'}
+                            </p>
+                            <p className={`text-sm mt-0.5 ${scan.isWarning ? 'text-amber-700 dark:text-amber-300' : 'text-red-700 dark:text-red-300'}`}>
+                              {scan.error}
+                            </p>
                             <p className="text-xs text-gray-500 mt-1">
                               <Clock className="inline h-3 w-3 mr-1" />
                               {formatTime(scan.scannedAt)}

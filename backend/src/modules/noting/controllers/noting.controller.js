@@ -24,6 +24,7 @@
  *    - noting_approve: General noting approvals
  */
 
+const { Prisma } = require('@prisma/client');
 const prisma = require('../../../shared/config/database');
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
@@ -41,6 +42,7 @@ const {
   sanitizeAttachments,
   sanitizePoints,
   parsePolicyCompliance,
+  sanitizeEventSponsors,
 } = require('../utils/validators');
 const {
   getNoteById,
@@ -148,6 +150,16 @@ const create = asyncHandler(async (req, res) => {
     eventStartDate,
     eventEndDate,
     eventPaymentType,
+    eventParticipationType,
+    eventRegistrationFeeIndividual,
+    eventRegistrationFeeTeam,
+    eventApproxCapacity,
+    eventDutyLeaveAvailable,
+    eventDutyLeaveEligibility,
+    eventHasSponsorship,
+    eventSponsors,
+    eventHasResources,
+    eventResources,
   } = req.body;
 
   // Validate category and subcategory
@@ -177,6 +189,17 @@ const create = asyncHandler(async (req, res) => {
       throw new ValidationError(
         'Event end date cannot be before the start date. Please correct the dates.'
       );
+    }
+    
+    // Validate fee for paid events
+    if (eventPaymentType === 'paid') {
+      const isTeam = eventParticipationType === 'team';
+      if (isTeam && (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam < 0)) {
+        throw new ValidationError('For paid team events, fee per team (₹) is required.');
+      }
+      if (!isTeam && (eventRegistrationFeeIndividual == null || eventRegistrationFeeIndividual < 0)) {
+        throw new ValidationError('For paid individual events, participation fee (₹) is required.');
+      }
     }
   }
 
@@ -216,6 +239,16 @@ const create = asyncHandler(async (req, res) => {
       eventStartDate: eventStartDate ? new Date(eventStartDate) : null,
       eventEndDate: eventEndDate ? new Date(eventEndDate) : null,
       eventPaymentType: eventPaymentType || null,
+      eventParticipationType: eventParticipationType || null,
+      eventRegistrationFeeIndividual: eventPaymentType === 'paid' && eventRegistrationFeeIndividual != null ? parseFloat(eventRegistrationFeeIndividual) : null,
+      eventRegistrationFeeTeam: eventPaymentType === 'paid' && eventParticipationType === 'team' && eventRegistrationFeeTeam != null ? parseFloat(eventRegistrationFeeTeam) : null,
+      eventApproxCapacity: eventApproxCapacity != null ? parseInt(eventApproxCapacity, 10) : null,
+      eventDutyLeaveAvailable: eventDutyLeaveAvailable != null ? !!eventDutyLeaveAvailable : null,
+      eventDutyLeaveEligibility: Array.isArray(eventDutyLeaveEligibility) ? eventDutyLeaveEligibility : null,
+      eventHasSponsorship: eventHasSponsorship != null ? !!eventHasSponsorship : null,
+      eventSponsors: eventHasSponsorship ? sanitizeEventSponsors(eventSponsors) : null,
+      eventHasResources: eventHasResources != null ? !!eventHasResources : null,
+      eventResources: Array.isArray(eventResources) ? eventResources : null,
       status,
       createdById: userId,
       currentHolderId,
@@ -339,6 +372,16 @@ const updateDraft = asyncHandler(async (req, res) => {
     eventStartDate,
     eventEndDate,
     eventPaymentType,
+    eventParticipationType,
+    eventRegistrationFeeIndividual,
+    eventRegistrationFeeTeam,
+    eventApproxCapacity,
+    eventDutyLeaveAvailable,
+    eventDutyLeaveEligibility,
+    eventHasSponsorship,
+    eventSponsors,
+    eventHasResources,
+    eventResources,
   } = req.body;
 
   // Load note with history to check if approver has acted
@@ -391,6 +434,16 @@ const updateDraft = asyncHandler(async (req, res) => {
   if (eventStartDate !== undefined) updateData.eventStartDate = eventStartDate ? new Date(eventStartDate) : null;
   if (eventEndDate !== undefined) updateData.eventEndDate = eventEndDate ? new Date(eventEndDate) : null;
   if (eventPaymentType !== undefined) updateData.eventPaymentType = eventPaymentType || null;
+  if (eventParticipationType !== undefined) updateData.eventParticipationType = eventParticipationType || null;
+  if (eventRegistrationFeeIndividual !== undefined) updateData.eventRegistrationFeeIndividual = eventPaymentType === 'paid' && eventRegistrationFeeIndividual != null ? parseFloat(eventRegistrationFeeIndividual) : null;
+  if (eventRegistrationFeeTeam !== undefined) updateData.eventRegistrationFeeTeam = eventPaymentType === 'paid' && eventParticipationType === 'team' && eventRegistrationFeeTeam != null ? parseFloat(eventRegistrationFeeTeam) : null;
+  if (eventApproxCapacity !== undefined) updateData.eventApproxCapacity = eventApproxCapacity != null ? parseInt(eventApproxCapacity, 10) : null;
+  if (eventDutyLeaveAvailable !== undefined) updateData.eventDutyLeaveAvailable = eventDutyLeaveAvailable != null ? !!eventDutyLeaveAvailable : null;
+  if (eventDutyLeaveEligibility !== undefined) updateData.eventDutyLeaveEligibility = Array.isArray(eventDutyLeaveEligibility) ? eventDutyLeaveEligibility : null;
+  if (eventHasSponsorship !== undefined) updateData.eventHasSponsorship = eventHasSponsorship != null ? !!eventHasSponsorship : null;
+  if (eventSponsors !== undefined) updateData.eventSponsors = (eventHasSponsorship === false) ? null : sanitizeEventSponsors(eventSponsors || []);
+  if (eventHasResources !== undefined) updateData.eventHasResources = eventHasResources != null ? !!eventHasResources : null;
+  if (eventResources !== undefined) updateData.eventResources = Array.isArray(eventResources) ? eventResources : null;
 
   // Update in transaction
   await prisma.$transaction(async (tx) => {
@@ -596,8 +649,10 @@ const list = asyncHandler(async (req, res) => {
     createdById,   // Filter by creator ID
     startDate,     // Date range start
     endDate,       // Date range end
+    includeCounts, // When true, include mine/pending/handled counts in response
   } = req.query;
   const { page, limit, skip } = getPaginationParams(req.query);
+  const wantCounts = includeCounts === 'true' || includeCounts === true;
 
   const include = getListNoteInclude();
 
@@ -605,43 +660,38 @@ const list = asyncHandler(async (req, res) => {
   let total;
 
   if (filter === 'handled') {
-    // Get notes current user has acted on (approved/rejected/forwarded/reverted)
-    const historyRows = await prisma.noteHistory.findMany({
-      where: {
-        performedById: userId,
-        action: { in: [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED] },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { noteId: true, action: true, createdAt: true },
-    });
+    // Get notes current user has acted on - use efficient paginated subquery instead of loading all history
+    const actions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED];
+    const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
+    const [totalResult, pageRows] = await Promise.all([
+      prisma.$queryRaw(Prisma.sql`SELECT COUNT(*)::int as cnt FROM (
+        SELECT DISTINCT note_id FROM note_history
+        WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+      ) sub`),
+      prisma.$queryRaw(Prisma.sql`
+        SELECT note_id as "noteId", action, created_at as "performedAt"
+        FROM (
+          SELECT note_id, action, created_at,
+            ROW_NUMBER() OVER (PARTITION BY note_id ORDER BY created_at DESC) as rn
+          FROM note_history
+          WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+        ) sub
+        WHERE rn = 1
+        ORDER BY "performedAt" DESC
+        LIMIT ${limit} OFFSET ${skip}
+      `),
+    ]);
 
-    // Get unique note IDs (most recent action per note)
-    const seen = new Set();
-    const noteIdsWithAction = [];
-    for (const h of historyRows) {
-      if (seen.has(h.noteId)) continue;
-      seen.add(h.noteId);
-      noteIdsWithAction.push({
-        noteId: h.noteId,
-        action: h.action,
-        performedAt: h.createdAt,
-      });
-    }
-
-    total = noteIdsWithAction.length;
-    const pageItems = noteIdsWithAction.slice(skip, skip + limit);
-    const noteIds = pageItems.map((x) => x.noteId);
+    total = totalResult?.[0]?.cnt ?? 0;
+    const noteIds = pageRows.map((r) => r.noteId);
 
     if (noteIds.length > 0) {
       const fetched = await prisma.note.findMany({
         where: { id: { in: noteIds } },
         include,
       });
-
-      const noteMap = new Map();
-      fetched.forEach((n) => noteMap.set(n.id, n));
-
-      notes = pageItems
+      const noteMap = new Map(fetched.map((n) => [n.id, n]));
+      notes = pageRows
         .map(({ noteId, action, performedAt }) => {
           const note = noteMap.get(noteId);
           if (!note) return null;
@@ -703,6 +753,37 @@ const list = asyncHandler(async (req, res) => {
 
   const pagination = createPaginationMeta(page, limit, total);
 
+  if (wantCounts) {
+    const actions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED];
+    const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
+    const [mineCount, handledResult, pendingCount] = await Promise.all([
+      prisma.note.count({ where: { createdById: userId } }),
+      prisma.$queryRaw(Prisma.sql`
+        SELECT COUNT(DISTINCT note_id)::int as cnt FROM note_history
+        WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+      `),
+      prisma.note.count({
+        where: {
+          status: NOTE_STATUS.PENDING,
+          currentHolderId: userId,
+        },
+      }),
+    ]);
+    const handledCount = handledResult?.[0]?.cnt ?? 0;
+    return res.status(200).json({
+      success: true,
+      message: 'Notes fetched successfully',
+      data: notes,
+      pagination: {
+        page: pagination.page,
+        limit: pagination.limit,
+        total: pagination.total,
+        totalPages: pagination.totalPages || Math.ceil(pagination.total / pagination.limit),
+      },
+      counts: { mine: mineCount, pending: pendingCount, handled: handledCount },
+    });
+  }
+
   return ApiResponse.paginated(res, notes, pagination, 'Notes fetched successfully');
 });
 
@@ -715,30 +796,24 @@ const list = asyncHandler(async (req, res) => {
  */
 const getCounts = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  const actions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED];
+  const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
 
-  // Count my notes
-  const mineCount = await prisma.note.count({
-    where: { createdById: userId },
-  });
+  const [mineCount, handledResult, pendingCount] = await Promise.all([
+    prisma.note.count({ where: { createdById: userId } }),
+    prisma.$queryRaw(Prisma.sql`
+      SELECT COUNT(DISTINCT note_id)::int as cnt FROM note_history
+      WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+    `),
+    prisma.note.count({
+      where: {
+        status: NOTE_STATUS.PENDING,
+        currentHolderId: userId,
+      },
+    }),
+  ]);
 
-  // Count notes I've handled (acted on)
-  const handledNoteIds = await prisma.noteHistory.findMany({
-    where: {
-      performedById: userId,
-      action: { in: [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED] },
-    },
-    select: { noteId: true },
-    distinct: ['noteId'],
-  });
-  const handledCount = handledNoteIds.length;
-
-  // Count pending notes (notes where I am current holder)
-  const pendingCount = await prisma.note.count({
-    where: {
-      status: NOTE_STATUS.PENDING,
-      currentHolderId: userId,
-    },
-  });
+  const handledCount = handledResult?.[0]?.cnt ?? 0;
 
   return ApiResponse.success(res, {
     mine: mineCount,

@@ -3,12 +3,11 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
-const FACULTY_ID = '4771706b-c6db-4283-a948-cdb266fc8f7f'; // Faculty of Engineering
-const DEPARTMENTS = [
-  { id: 'ac43e97b-8470-4bcf-bcbd-d782527c700b', name: 'Mechanical Engineering' },
-  { id: 'ed32a8cf-cffa-45d5-89d9-16600d890d12', name: 'Civil Engineering' },
-  { id: 'ed6b1675-f2bd-4db5-b4ea-84bfad552075', name: 'Electronics & Communication Engineering' },
-  { id: 'fa5ba1ed-8420-4738-ba32-5906994ae313', name: 'Computer Science & Engineering' },
+const DEPT_CONFIG = [
+  { code: 'CSE', name: 'Computer Science & Engineering' },
+  { code: 'MECH', name: 'Mechanical Engineering' },
+  { code: 'CIVIL', name: 'Civil Engineering' },
+  { code: 'ECE', name: 'Electronics & Communication Engineering' },
 ];
 
 const FIRST_NAMES = [
@@ -33,6 +32,36 @@ const DESIGNATIONS = [
 async function seedTeachingFaculty() {
   console.log('🚀 Starting seed of 20 teaching faculty employees...\n');
 
+  // Ensure Engineering Faculty and departments exist (fetch or create)
+  const engineeringFaculty = await prisma.facultySchoolList.upsert({
+    where: { facultyCode: 'ENG' },
+    update: {},
+    create: {
+      facultyCode: 'ENG',
+      facultyName: 'Faculty of Engineering',
+      facultyType: 'engineering',
+      shortName: 'Engineering',
+      isActive: true
+    }
+  });
+
+  const departments = [];
+  for (const d of DEPT_CONFIG) {
+    const dept = await prisma.department.upsert({
+      where: { departmentCode: d.code },
+      update: {},
+      create: {
+        facultyId: engineeringFaculty.id,
+        departmentCode: d.code,
+        departmentName: d.name,
+        shortName: d.code,
+        isActive: true
+      }
+    });
+    departments.push({ id: dept.id, name: d.name });
+  }
+  console.log(`✅ Using ${departments.length} departments: ${departments.map(d => d.name).join(', ')}\n`);
+
   const passwordHash = await bcrypt.hash('Faculty@123', 12);
   const createdUsers = [];
 
@@ -42,7 +71,7 @@ async function seedTeachingFaculty() {
     const lastName = LAST_NAMES[i - 1];
     const email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}@sgt.edu`;
     const empId = `EMP${String(1000 + i)}`;
-    const dept = DEPARTMENTS[(i - 1) % DEPARTMENTS.length];
+    const dept = departments[(i - 1) % departments.length];
     const designation = DESIGNATIONS[(i - 1) % DESIGNATIONS.length];
 
     try {
@@ -79,7 +108,7 @@ async function seedTeachingFaculty() {
               email,
               designation,
               phoneNumber: `98765${String(10000 + i)}`,
-              primarySchoolId: FACULTY_ID,
+              primarySchoolId: engineeringFaculty.id,
               primaryDepartmentId: dept.id,
             }
           }

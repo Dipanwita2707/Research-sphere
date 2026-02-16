@@ -3,8 +3,7 @@
  * Handles integration between DSW and Noting system
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../../shared/config/database');
 const clubService = require('./clubService');
 const { DSWNotingConfig } = require('../constants');
 const approvalFlowService = require('../../noting/services/approvalFlow.service');

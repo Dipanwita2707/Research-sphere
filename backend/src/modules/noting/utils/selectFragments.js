@@ -120,7 +120,7 @@ function getFullNoteInclude() {
 }
 
 /**
- * Note include for list view (optimized - minimal history data)
+ * Note include for list view (optimized - minimal history for approver check, _count for badge)
  */
 function getListNoteInclude() {
   return {
@@ -131,15 +131,12 @@ function getListNoteInclude() {
       select: userBasic,
     },
     history: {
-      select: {
-        performedById: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20, // Limit history to last 20 actions for list view
+      select: { performedById: true },
+      take: 50, // Minimal data for approver-action check only
     },
     _count: {
       select: {
+        history: true,
         attachments: true,
       },
     },

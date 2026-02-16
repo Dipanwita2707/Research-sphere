@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  ArrowLeft, ArrowRight, Loader2, CheckCircle2,
+  ArrowLeft, ArrowRight, CheckCircle2,
   AlertCircle, Info, MapPin, Phone, Mail, Building2
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
@@ -13,6 +13,9 @@ import type {
   RegistrationFormData
 } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 interface DynamicFieldProps {
   field: EventCustomField;
@@ -208,7 +211,7 @@ export default function EventRegistrationPage() {
 
         setValues(initialValues);
       } catch (error: any) {
-        toast({ type: 'error', message: error.response?.data?.message || 'Failed to load registration form' });
+        toast({ type: 'error', message: getErrorMessage(error) });
       } finally {
         setLoading(false);
       }
@@ -258,7 +261,7 @@ export default function EventRegistrationPage() {
         router.push(`/events/${eventId}`);
       }
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Submission failed' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setSubmitting(false);
     }
@@ -267,8 +270,7 @@ export default function EventRegistrationPage() {
   if (loading || !formData) {
     return (
       <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950 flex flex-col items-center justify-center gap-4">
-        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-        <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Loading registration...</p>
+        <PageSkeleton message="Loading registration..." />
       </div>
     );
   }
@@ -522,7 +524,7 @@ export default function EventRegistrationPage() {
                     >
                       {submitting ? (
                         <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <LoadingSpinner size="sm" />
                           Processing...
                         </>
                       ) : isTeamEvent ? (

@@ -61,6 +61,7 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventStatistics } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
 
 // ── Design System Constants ──────────────────────────────────────
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
@@ -109,7 +110,7 @@ export default function EventStatisticsPage() {
     } catch (error: any) {
       toast({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to load statistics',
+        message: getErrorMessage(error),
       });
     } finally {
       setLoading(false);
@@ -132,7 +133,8 @@ export default function EventStatisticsPage() {
   // ── Computed Values ────────────────────────────────────────────
   const attendanceRate = useMemo(() => {
     if (!statistics || statistics.totalRegistrations === 0) return 0;
-    return Number(((statistics.totalAttended / statistics.totalRegistrations) * 100).toFixed(1));
+    const attended = statistics.totalAttended ?? 0;
+    return Number(((attended / statistics.totalRegistrations) * 100).toFixed(1));
   }, [statistics]);
 
   const confirmationRate = useMemo(() => {

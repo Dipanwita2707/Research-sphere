@@ -27,12 +27,22 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token (use auth-storage - same as rest of app)
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('auth-storage');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { state?: { token?: string | null } };
+          const token = parsed?.state?.token;
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        }
+      } catch {
+        // Ignore parse errors
+      }
     }
     return config;
   },
@@ -44,8 +54,7 @@ api.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiResponse<any>>) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login
-      localStorage.removeItem('authToken');
+      // Handle unauthorized - redirect to login (auth-storage cleared by auth flow)
       window.location.href = '/login';
     }
     return Promise.reject(error);

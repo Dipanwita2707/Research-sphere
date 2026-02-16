@@ -1854,6 +1854,16 @@ model Note {
   eventStartDate      DateTime?
   eventEndDate        DateTime?
   eventPaymentType    EventPaymentType?
+  eventParticipationType ParticipationType?       @map("event_participation_type")
+  eventRegistrationFeeIndividual Float?            @map("event_registration_fee_individual")
+  eventRegistrationFeeTeam       Float?            @map("event_registration_fee_team")
+  eventApproxCapacity Int?                        @map("event_approx_capacity")
+  eventDutyLeaveAvailable Boolean?                @map("event_duty_leave_available")
+  eventDutyLeaveEligibility Json?                  @map("event_duty_leave_eligibility")
+  eventHasSponsorship Boolean?                    @map("event_has_sponsorship")
+  eventSponsors       Json?                       @map("event_sponsors") // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  eventHasResources   Boolean?                    @map("event_has_resources")
+  eventResources      Json?                       @map("event_resources")
   clubName            String?                     @map("club_name") @db.VarChar(256)
   clubCategoryId      String?                     @map("club_category_id") @db.Uuid
   clubPurpose         String?                     @map("club_purpose") @db.Text
@@ -1920,6 +1930,7 @@ model NoteHistory {
   @@index([action])
   @@index([noteId, createdAt], map: "note_history_noteId_createdAt_idx")
   @@index([performedById], map: "note_history_performedById_idx")
+  @@index([performedById, action], map: "note_history_performedById_action_idx")
   @@index([performedById, createdAt], map: "note_history_performedById_createdAt_idx")
   @@map("note_history")
 }
@@ -2071,7 +2082,9 @@ model Event {
   paymentType                EventPaymentType
   venue                      String?
   maxCapacity                Int?
+  approxCapacity             Int?                        @map("approx_capacity")
   registrationFee            Float?
+  teamRegistrationFee       Float?                       @map("team_registration_fee")
   registrationStartDate      DateTime?
   registrationEndDate        DateTime?
   status                     EventStatus         @default(draft)
@@ -2097,6 +2110,14 @@ model Event {
   websiteUrl                 String?
   socialMediaLinks           Json?
   
+  // Duty Leave & Sponsorship (from Noting)
+  dutyLeaveAvailable         Boolean?                    @map("duty_leave_available")
+  dutyLeaveEligibility        Json?                       @map("duty_leave_eligibility")
+  hasSponsorship             Boolean?                    @map("has_sponsorship")
+  sponsors                   Json?                       // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  hasResources               Boolean?                    @map("has_resources")
+  resources                  Json?
+
   // Additional Information
   eligibilityCriteria        String?
   rulesAndGuidelines         String?
@@ -2152,6 +2173,7 @@ model Event {
   @@index([notingId])
   @@index([startDate])
   @@index([status])
+  @@index([status, startDate], map: "event_status_startDate_idx")
   @@index([opportunityMode])
   @@index([participationType])
 }
@@ -3011,6 +3033,7 @@ model Club {
   changeRequests               ClubChangeRequest[]
 
   @@index([status])
+  @@index([status, categoryId], map: "club_status_categoryId_idx")
   @@index([lifecycleState])
   @@index([categoryId])
   @@index([facultyFacilitatorId])

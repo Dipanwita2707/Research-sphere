@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
  ArrowLeft, TrendingUp, TrendingDown, Users, UserCheck, UserX, UserMinus, Clock,
@@ -18,6 +18,7 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventStatistics, EventVolunteer } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
 
 // ── Design System Constants ──────────────────────────────────────
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
@@ -38,15 +39,23 @@ interface UserSearchResult {
   name: string;
   email: string;
   department?: string;
+  uid?: string;
 }
 
 type TabType = 'overview' | 'registrations' | 'volunteers' | 'analytics';
 
+const VALID_TABS: TabType[] = ['overview', 'registrations', 'volunteers', 'analytics'];
+
 export default function EventManagementPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const eventId = params.id as string;
+
+  // Tab from URL (persists on refresh & back navigation)
+  const tabFromUrl = searchParams.get('tab') as TabType | null;
+  const initialTab = tabFromUrl && VALID_TABS.includes(tabFromUrl) ? tabFromUrl : 'overview';
 
   // ── State ──────────────────────────────────────────────────────
   const [event, setEvent] = useState<Event | null>(null);
@@ -56,13 +65,21 @@ export default function EventManagementPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
+  // Sync activeTab when URL tab changes (e.g. back from volunteer detail)
+  useEffect(() => {
+    if (tabFromUrl && VALID_TABS.includes(tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
 
   // Volunteer Management State
   const [assigning, setAssigning] = useState(false);
   const [volunteerSearchQuery, setVolunteerSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedUserName, setSelectedUserName] = useState('');
   const [volunteerRole, setVolunteerRole] = useState('');
@@ -89,7 +106,7 @@ export default function EventManagementPage() {
     } catch (error: any) {
       toast({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to load event management data',
+        message: getErrorMessage(error),
       });
     } finally {
       setLoading(false);
@@ -116,7 +133,8 @@ export default function EventManagementPage() {
   // ── Computed Metrics ───────────────────────────────────────────
   const attendanceRate = useMemo(() => {
     if (!statistics || statistics.confirmedRegistrations === 0) return 0;
-    return Math.round((statistics.attendedCount / statistics.confirmedRegistrations) * 100);
+    const attended = statistics.totalAttended ?? 0;
+    return Math.round((attended / statistics.confirmedRegistrations) * 100);
   }, [statistics]);
 
   const confirmationRate = useMemo(() => {
@@ -182,14 +200,17 @@ export default function EventManagementPage() {
 
     try {
       setSearching(true);
-      // Mock search - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setSearchResults([
-        { id: '1', name: 'John Doe', email: 'john@example.com', department: 'CSE' },
-        { id: '2', name: 'Jane Smith', email: 'jane@example.com', department: 'ECE' }
-      ]);
+      const results = await eventService.searchStudentsForVolunteer(query.trim());
+      setSearchResults(results.map(r => ({
+        id: r.id,
+        name: r.name || r.uid || 'Unknown',
+        email: r.email || '',
+        department: r.department,
+        uid: r.uid,
+      })));
     } catch (error) {
       console.error('Search error:', error);
+      setSearchResults([]);
     } finally {
       setSearching(false);
     }
@@ -237,7 +258,7 @@ export default function EventManagementPage() {
     } catch (error: any) {
       toast({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to assign volunteer'
+        message: getErrorMessage(error)
       });
     } finally {
       setAssigning(false);
@@ -257,7 +278,7 @@ export default function EventManagementPage() {
     } catch (error: any) {
       toast({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to remove volunteer'
+        message: getErrorMessage(error)
       });
     }
   };
@@ -276,7 +297,7 @@ export default function EventManagementPage() {
     } catch (error: any) {
       toast({
         type: 'error',
-        message: error.response?.data?.message || 'Failed to update permission'
+        message: getErrorMessage(error)
       });
     }
   };
@@ -449,7 +470,10 @@ export default function EventManagementPage() {
             {tabs.map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  router.replace(`/events/${eventId}/management?tab=${tab.id}`, { scroll: false });
+                }}
                 className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'bg-sgt-600 text-white shadow-sm'
@@ -915,23 +939,29 @@ export default function EventManagementPage() {
                   {/* User Search */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Search User <span className="text-red-500">*</span>
+                      Search Student <span className="text-red-500">*</span>
                     </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Students only</p>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input
                         type="text"
                         value={selectedUserName || volunteerSearchQuery}
                         onChange={(e) => {
-                          setVolunteerSearchQuery(e.target.value);
-                          handleSearchUsers(e.target.value);
-                          if (!e.target.value) {
+                          const val = e.target.value;
+                          setVolunteerSearchQuery(val);
+                          if (!val) {
                             setSelectedUserId('');
                             setSelectedUserName('');
+                            setSearchResults([]);
+                            if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                            return;
                           }
+                          if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                          searchDebounceRef.current = setTimeout(() => handleSearchUsers(val), 300);
                         }}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
-                        placeholder="Search by name or email..."
+                        placeholder="Search by UID, name or email..."
                         disabled={!!selectedUserId}
                       />
                       {selectedUserId && (
@@ -963,6 +993,7 @@ export default function EventManagementPage() {
                           >
                             <p className="text-sm font-medium text-gray-900 dark:text-white">
                               {user.name}
+                              {user.uid && <span className="text-gray-500 font-normal ml-1">({user.uid})</span>}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                               {user.email}
@@ -1073,16 +1104,23 @@ export default function EventManagementPage() {
                       {volunteers.map((volunteer) => (
                         <div
                           key={volunteer.id}
-                          className="p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-sgt-300 dark:hover:border-sgt-600 transition-all"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => router.push(`/events/${eventId}/volunteers/${volunteer.id}`)}
+                          onKeyDown={(e) => e.key === 'Enter' && router.push(`/events/${eventId}/volunteers/${volunteer.id}`)}
+                          className="p-4 border-2 border-gray-200 dark:border-gray-600 rounded-lg hover:border-sgt-300 dark:hover:border-sgt-600 transition-all cursor-pointer group"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
-                                <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                                <h4 className="text-base font-semibold text-gray-900 dark:text-white group-hover:text-sgt-600 dark:group-hover:text-sgt-400 transition-colors">
                                   {volunteer.user?.name || 'Unknown User'}
                                 </h4>
                                 <span className="px-2 py-1 bg-sgt-100 text-sgt-800 dark:bg-sgt-900/30 dark:text-sgt-300 rounded-full text-xs font-medium">
                                   {volunteer.role}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-sgt-600 dark:group-hover:text-sgt-400">
+                                  View activity →
                                 </span>
                               </div>
                               <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
@@ -1095,7 +1133,7 @@ export default function EventManagementPage() {
                                 )}
                                 <div className="flex items-center gap-2 mt-2">
                                   <button
-                                    onClick={() => handleToggleQrPermission(volunteer.id, volunteer.canScanQr)}
+                                    onClick={(e) => { e.stopPropagation(); handleToggleQrPermission(volunteer.id, volunteer.canScanQr); }}
                                     className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                                       volunteer.canScanQr
                                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-200'
@@ -1118,7 +1156,7 @@ export default function EventManagementPage() {
                               </div>
                             </div>
                             <button
-                              onClick={() => handleRemoveVolunteer(volunteer.id)}
+                              onClick={(e) => { e.stopPropagation(); handleRemoveVolunteer(volunteer.id); }}
                               className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                               title="Remove volunteer"
                             >

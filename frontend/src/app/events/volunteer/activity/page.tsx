@@ -8,7 +8,6 @@ import {
   LogIn,
   LogOut,
   XCircle,
-  Loader2,
   Search,
   Filter,
   Calendar,
@@ -25,6 +24,8 @@ import {
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
 
@@ -108,7 +109,7 @@ export default function VolunteerActivityPage() {
       setEntries(result.entries || []);
       setPagination(result.pagination || { total: 0, totalPages: 0 });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to load activity history' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -328,7 +329,7 @@ export default function VolunteerActivityPage() {
         {/* Activity List */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-sgt-600" />
+            <LoadingSpinner size="md" className="!border-sgt-600" />
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className={CARD + ' p-12 text-center'}>

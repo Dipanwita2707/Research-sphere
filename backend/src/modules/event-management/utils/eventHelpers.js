@@ -81,6 +81,12 @@ const getEventById = async (prisma, eventId, include = {}) => {
           status: true,
           category: true,
           subcategory: true,
+          eventSponsors: true,
+          eventResources: true,
+          eventHasSponsorship: true,
+          eventHasResources: true,
+          eventDutyLeaveAvailable: true,
+          eventDutyLeaveEligibility: true,
         },
       },
       ...include,
@@ -185,7 +191,7 @@ const validateQRCodeAndGetRegistration = async (prisma, qrCode, eventId) => {
           },
         },
       },
-      event: {
+      Event: {
         select: {
           id: true,
           eventId: true,
@@ -210,8 +216,43 @@ const validateQRCodeAndGetRegistration = async (prisma, qrCode, eventId) => {
 
 /**
  * Format event for API response
+ * When event is from noting, fallback to note's data if event fields are empty (ensures sponsorship/resources display correctly)
  */
 const formatEventResponse = (event) => {
+  const note = event.note;
+  const rawSponsors = (Array.isArray(event.sponsors) && event.sponsors.length > 0)
+    ? event.sponsors
+    : (Array.isArray(note?.eventSponsors) && note.eventSponsors.length > 0)
+      ? note.eventSponsors
+      : [];
+  const sponsors = rawSponsors.map((s) => ({
+    name: String(s?.name ?? '').trim(),
+    amount: typeof s?.amount === 'number' ? s.amount : Number(s?.amount) || 0,
+    type: s?.type === 'in_kind' ? 'in_kind' : 'cash',
+    notes: s?.notes != null ? String(s.notes).trim() : undefined,
+  })).filter((s) => s.name);
+  const hasSponsorship = event.hasSponsorship ?? note?.eventHasSponsorship ?? (sponsors.length > 0 ? true : null);
+
+  const hasResources = event.hasResources ?? note?.eventHasResources ?? null;
+  const rawResources = (Array.isArray(event.resources) && event.resources.length > 0)
+    ? event.resources
+    : (Array.isArray(note?.eventResources) && note.eventResources.length > 0)
+      ? note.eventResources
+      : [];
+  const resources = rawResources.map((r) => ({
+    category: String(r?.category ?? 'internal').trim() || 'internal',
+    type: String(r?.type ?? '').trim(),
+    description: String(r?.description ?? '').trim(),
+    estimatedCost: typeof r?.estimatedCost === 'number' ? r.estimatedCost : (r?.estimatedCost ? Number(r.estimatedCost) : undefined),
+  }));
+  const hasResourcesResolved = event.hasResources ?? note?.eventHasResources ?? (resources.length > 0 ? true : null);
+  const dutyLeaveAvailable = event.dutyLeaveAvailable ?? note?.eventDutyLeaveAvailable ?? null;
+  const dutyLeaveEligibility = (Array.isArray(event.dutyLeaveEligibility) && event.dutyLeaveEligibility.length > 0)
+    ? event.dutyLeaveEligibility
+    : (Array.isArray(note?.eventDutyLeaveEligibility) && note.eventDutyLeaveEligibility.length > 0)
+      ? note.eventDutyLeaveEligibility
+      : null;
+
   return {
     id: event.id,
     eventId: event.eventId,
@@ -226,6 +267,14 @@ const formatEventResponse = (event) => {
     status: event.status,
     venue: event.venue,
     maxCapacity: event.maxCapacity,
+    approxCapacity: event.approxCapacity,
+    teamRegistrationFee: event.teamRegistrationFee,
+    dutyLeaveAvailable,
+    dutyLeaveEligibility,
+    hasSponsorship,
+    sponsors: sponsors.length > 0 ? sponsors : null,
+    hasResources: hasResourcesResolved,
+    resources: resources.length > 0 ? resources : null,
     currentRegistrations: event.currentRegistrations,
     isPaid: event.isPaid,
     registrationStartDate: event.registrationStartDate,

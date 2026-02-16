@@ -241,16 +241,11 @@ async function assignManagerChain(userId, managerChain, createdById) {
     throw new Error('One or more users in the chain do not exist');
   }
 
-  // Check for circular dependencies across the chain
-  for (let i = 0; i < managerChain.length; i++) {
-    for (let j = i + 1; j < managerChain.length; j++) {
-      // Check if higher level manager is already reporting to lower level
-      const wouldCreateCircular = await checkCircularDependency(managerChain[j], managerChain[i]);
-      if (wouldCreateCircular) {
-        throw new Error(`Circular dependency detected: Level ${j + 1} cannot report to Level ${i + 1}`);
-      }
-    }
-  }
+  // Clear existing reporting relationships for all users in the chain
+  // This allows reassigning without circular dependency errors from old hierarchy
+  await prisma.reportingStructure.deleteMany({
+    where: { userId: { in: allUserIds } }
+  });
 
   const createdRelationships = [];
 

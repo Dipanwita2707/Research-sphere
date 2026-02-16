@@ -191,6 +191,15 @@ export const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   archived: { label: 'Archived', color: 'gray' },
 };
 
+// Club status config for badge UI (Tailwind classes)
+export const CLUB_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  active: { label: 'Active', className: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' },
+  pending_approval: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' },
+  approved: { label: 'Approved', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' },
+  suspended: { label: 'Suspended', className: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' },
+  archived: { label: 'Archived', className: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400' },
+};
+
 // Audit Action Labels
 export const AUDIT_ACTION_LABELS: Record<string, { label: string; icon: string }> = {
   club_created: { label: 'Club Created', icon: '🎉' },

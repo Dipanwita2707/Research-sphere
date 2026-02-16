@@ -14,7 +14,6 @@ import {
   AlertCircle,
   Users,
   IndianRupee,
-  Loader2,
   ExternalLink,
   Upload,
   X,
@@ -37,6 +36,9 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, OpportunityMode, ParticipationType, EventPrize, PrizeType, EventCustomField, EventFieldType } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
@@ -166,6 +168,16 @@ export default function ManageEventPage() {
   const [showFieldModal, setShowFieldModal] = useState(false);
   const [requireFormSubmission, setRequireFormSubmission] = useState(false);
 
+  // Extended fields (from Noting - editable)
+  const [approxCapacity, setApproxCapacity] = useState<number | ''>('');
+  const [teamRegistrationFee, setTeamRegistrationFee] = useState<number | ''>('');
+  const [dutyLeaveAvailable, setDutyLeaveAvailable] = useState<boolean | null>(null);
+  const [dutyLeaveEligibility, setDutyLeaveEligibility] = useState<string[]>([]);
+  const [hasSponsorship, setHasSponsorship] = useState<boolean | null>(null);
+  const [sponsors, setSponsors] = useState<Array<{ name: string; amount: number; type: string; notes?: string }>>([]);
+  const [hasResources, setHasResources] = useState<boolean | null>(null);
+  const [resources, setResources] = useState<Array<{ category: string; type: string; description: string; estimatedCost?: number }>>([]);
+
   useEffect(() => {
     loadEvent();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -240,8 +252,16 @@ export default function ManageEventPage() {
       setPrizes(existingPrizes);
       setCustomFields(existingFields);
       setRequireFormSubmission(data.requireFormSubmission || false);
+      setApproxCapacity(data.approxCapacity ?? '');
+      setTeamRegistrationFee(data.teamRegistrationFee ?? '');
+      setDutyLeaveAvailable(data.dutyLeaveAvailable ?? null);
+      setDutyLeaveEligibility(Array.isArray(data.dutyLeaveEligibility) ? data.dutyLeaveEligibility : []);
+      setHasSponsorship(data.hasSponsorship ?? null);
+      setSponsors(Array.isArray(data.sponsors) ? data.sponsors : []);
+      setHasResources(data.hasResources ?? null);
+      setResources(Array.isArray(data.resources) ? data.resources : []);
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to load event' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -347,7 +367,7 @@ export default function ManageEventPage() {
       setEditingField(null);
       toast({ type: 'success', message: 'Field saved successfully' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to save field' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -357,7 +377,7 @@ export default function ManageEventPage() {
       setCustomFields(customFields.filter(f => f.id !== fieldId));
       toast({ type: 'success', message: 'Field deleted' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to delete field' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     }
   };
 
@@ -414,9 +434,22 @@ export default function ManageEventPage() {
       // Step 3: Prizes
       prizesEnabled,
       requireFormSubmission,
+
+      // Extended fields (from Noting)
+      approxCapacity: approxCapacity ? Number(approxCapacity) : null,
+      dutyLeaveAvailable: dutyLeaveAvailable ?? null,
+      dutyLeaveEligibility: dutyLeaveEligibility.length > 0 ? dutyLeaveEligibility : null,
+      hasSponsorship: hasSponsorship ?? null,
+      sponsors: hasSponsorship && sponsors.length > 0 ? sponsors : null,
+      hasResources: hasResources ?? null,
+      resources: hasResources && resources.length > 0 ? resources : null,
     };
     if (event?.paymentType === 'paid') {
-      updateData.registrationFee = registrationFee ? Number(registrationFee) : null;
+      if (participationType === 'team') {
+        updateData.teamRegistrationFee = teamRegistrationFee ? Number(teamRegistrationFee) : null;
+      } else {
+        updateData.registrationFee = registrationFee ? Number(registrationFee) : null;
+      }
     }
     return updateData;
   };
@@ -424,7 +457,13 @@ export default function ManageEventPage() {
   const validateForm = (): boolean => {
     if (!venue.trim()) { toast({ type: 'error', message: 'Venue is required' }); return false; }
     if (maxCapacity && maxCapacity < 1) { toast({ type: 'error', message: 'Max capacity must be at least 1' }); return false; }
-    if (event?.paymentType === 'paid' && (!registrationFee || registrationFee < 1)) { toast({ type: 'error', message: 'Registration fee is required for paid events' }); return false; }
+    if (event?.paymentType === 'paid') {
+      if (participationType === 'team') {
+        if (!teamRegistrationFee || teamRegistrationFee < 1) { toast({ type: 'error', message: 'Team registration fee is required for paid team events' }); return false; }
+      } else {
+        if (!registrationFee || registrationFee < 1) { toast({ type: 'error', message: 'Registration fee is required for paid events' }); return false; }
+      }
+    }
     if (registrationStartDate && registrationEndDate && new Date(registrationEndDate) < new Date(registrationStartDate)) { toast({ type: 'error', message: 'Registration end date must be after registration start date' }); return false; }
     if (registrationEndDate && event && new Date(registrationEndDate) > new Date(event.startDate)) { toast({ type: 'error', message: 'Registration must close before the event starts' }); return false; }
     if (registrationStartDate && event && new Date(registrationStartDate) > new Date(event.startDate)) { toast({ type: 'error', message: 'Registration must open before the event starts' }); return false; }
@@ -451,7 +490,7 @@ export default function ManageEventPage() {
       setEvent(updated);
       toast({ type: 'success', message: 'Event saved successfully' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to save event' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setSaving(false);
     }
@@ -479,7 +518,7 @@ export default function ManageEventPage() {
       setEvent(published);
       toast({ type: 'success', message: 'Event published successfully! It is now visible to everyone.' });
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to publish event' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setPublishing(false);
     }
@@ -489,7 +528,7 @@ export default function ManageEventPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="w-7 h-7 animate-spin text-sgt-600" />
+        <PageSkeleton message="Loading event..." />
       </div>
     );
   }
@@ -647,6 +686,10 @@ export default function ManageEventPage() {
                       {event.paymentType.toUpperCase()}
                     </span>
                   </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="text-gray-400 font-medium min-w-[80px]">Participation:</span>
+                    <span className="text-gray-900 dark:text-white capitalize">{participationType || event.participationType || 'individual'}</span>
+                  </div>
                   {event.notingId && (
                     <div className="flex gap-2 items-center">
                       <span className="text-gray-400 font-medium min-w-[80px]">Noting:</span>
@@ -795,7 +838,20 @@ export default function ManageEventPage() {
                       placeholder="Leave empty for unlimited"
                     />
                   </div>
-                  {event.paymentType === 'paid' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                      Approx. Capacity <span className="text-xs text-gray-400 font-normal">(editable)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={approxCapacity}
+                      onChange={(e) => setApproxCapacity(e.target.value ? Number(e.target.value) : '')}
+                      min="1"
+                      className={inputClass}
+                      placeholder="Informational only"
+                    />
+                  </div>
+                  {event.paymentType === 'paid' && participationType === 'individual' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                         Registration Fee (₹) <span className="text-red-500">*</span>
@@ -809,6 +865,138 @@ export default function ManageEventPage() {
                         placeholder="Amount in INR"
                         required
                       />
+                    </div>
+                  )}
+                  {event.paymentType === 'paid' && participationType === 'team' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                        Team Registration Fee (₹) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={teamRegistrationFee}
+                        onChange={(e) => setTeamRegistrationFee(e.target.value ? Number(e.target.value) : '')}
+                        min="1"
+                        className={inputClass}
+                        placeholder="Per team amount in INR"
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* ====== Additional Details (from Noting) ====== */}
+            <section>
+              <SectionLabel>Additional Details (from Noting)</SectionLabel>
+              {event.notingId && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    Duty Leave, Sponsorship, and Resources were set during noting approval and cannot be changed. Approx. Capacity remains editable.
+                  </p>
+                </div>
+              )}
+              <div className="space-y-4">
+                {/* Duty Leave */}
+                <div className={event.notingId ? 'opacity-90' : ''}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Duty Leave</label>
+                  <div className="flex gap-4">
+                    <label className={`${checkboxClass(dutyLeaveAvailable === true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={dutyLeaveAvailable === true} onChange={() => !event.notingId && setDutyLeaveAvailable(true)} disabled={!!event.notingId} className="sr-only" />
+                      <span>Yes</span>
+                    </label>
+                    <label className={`${checkboxClass(dutyLeaveAvailable === false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={dutyLeaveAvailable === false} onChange={() => { if (!event.notingId) { setDutyLeaveAvailable(false); setDutyLeaveEligibility([]); } }} disabled={!!event.notingId} className="sr-only" />
+                      <span>No</span>
+                    </label>
+                  </div>
+                  {dutyLeaveAvailable && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {['students', 'faculty_teaching', 'faculty_non_teaching', 'staff'].map((opt) => {
+                        const label = opt.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        const checked = dutyLeaveEligibility.includes(opt);
+                        return (
+                          <label key={opt} className={`flex items-center gap-1.5 text-sm ${event.notingId ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => !event.notingId && setDutyLeaveEligibility(prev => checked ? prev.filter(x => x !== opt) : [...prev, opt])}
+                              disabled={!!event.notingId}
+                              className="w-4 h-4 text-sgt-600 rounded disabled:cursor-not-allowed"
+                            />
+                            <span>{label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Sponsorship */}
+                <div className={event.notingId ? 'opacity-90' : ''}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sponsorship</label>
+                  <div className="flex gap-4">
+                    <label className={`${checkboxClass(hasSponsorship === true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasSponsorship === true} onChange={() => !event.notingId && setHasSponsorship(true)} disabled={!!event.notingId} className="sr-only" />
+                      <span>Yes</span>
+                    </label>
+                    <label className={`${checkboxClass(hasSponsorship === false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasSponsorship === false} onChange={() => { if (!event.notingId) { setHasSponsorship(false); setSponsors([]); } }} disabled={!!event.notingId} className="sr-only" />
+                      <span>No</span>
+                    </label>
+                  </div>
+                  {hasSponsorship && (
+                    <div className="mt-2 space-y-2">
+                      {sponsors.map((s, i) => (
+                        <div key={i} className="flex gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md">
+                          <input value={s.name} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Sponsor name" disabled={!!event.notingId} className={`${inputClass} flex-1 disabled:cursor-not-allowed`} />
+                          <select value={s.type} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} w-28 disabled:cursor-not-allowed`}>
+                            <option value="cash">Cash</option>
+                            <option value="in_kind">In-kind</option>
+                          </select>
+                          {s.type === 'cash' ? (
+                            <input type="number" value={s.amount || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, amount: Number(e.target.value) || 0 } : x))} placeholder="Amount (₹)" disabled={!!event.notingId} className={`${inputClass} w-28 disabled:cursor-not-allowed`} />
+                          ) : (
+                            <input type="text" value={s.notes || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} placeholder="Describe in-kind (e.g. Laptops, Food)" disabled={!!event.notingId} className={`${inputClass} flex-1 min-w-[180px] disabled:cursor-not-allowed`} />
+                          )}
+                          {!event.notingId && <button type="button" onClick={() => setSponsors(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
+                        </div>
+                      ))}
+                      {!event.notingId && <button type="button" onClick={() => setSponsors(prev => [...prev, { name: '', amount: 0, type: 'cash' }])} className="text-sm text-sgt-600 hover:text-sgt-700">+ Add sponsor</button>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Resources */}
+                <div className={event.notingId ? 'opacity-90' : ''}>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Resources</label>
+                  <div className="flex gap-4">
+                    <label className={`${checkboxClass(hasResources === true)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasResources === true} onChange={() => !event.notingId && setHasResources(true)} disabled={!!event.notingId} className="sr-only" />
+                      <span>Yes</span>
+                    </label>
+                    <label className={`${checkboxClass(hasResources === false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
+                      <input type="radio" checked={hasResources === false} onChange={() => { if (!event.notingId) { setHasResources(false); setResources([]); } }} disabled={!!event.notingId} className="sr-only" />
+                      <span>No</span>
+                    </label>
+                  </div>
+                  {hasResources && (
+                    <div className="mt-2 space-y-2">
+                      {resources.map((r, i) => (
+                        <div key={i} className="flex gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md">
+                          <select value={r.category} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, category: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} w-28 disabled:cursor-not-allowed`}>
+                            <option value="internal">Internal</option>
+                            <option value="external">External</option>
+                          </select>
+                          <input value={r.type} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} placeholder="Type" disabled={!!event.notingId} className={`${inputClass} w-32 disabled:cursor-not-allowed`} />
+                          <input value={r.description} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Description" disabled={!!event.notingId} className={`${inputClass} flex-1 disabled:cursor-not-allowed`} />
+                          <input type="number" value={r.estimatedCost ?? ''} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, estimatedCost: e.target.value ? Number(e.target.value) : undefined } : x))} placeholder="Cost (₹)" disabled={!!event.notingId} className={`${inputClass} w-24 disabled:cursor-not-allowed`} />
+                          {!event.notingId && <button type="button" onClick={() => setResources(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
+                        </div>
+                      ))}
+                      {!event.notingId && <button type="button" onClick={() => setResources(prev => [...prev, { category: 'internal', type: '', description: '' }])} className="text-sm text-sgt-600 hover:text-sgt-700">+ Add resource</button>}
                     </div>
                   )}
                 </div>
@@ -909,22 +1097,30 @@ export default function ManageEventPage() {
             {/* ====== Participation & Mode ====== */}
             <section>
               <SectionLabel>Participation & Mode</SectionLabel>
+              {event.notingId && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    Participation Type was set during noting approval and cannot be changed.
+                  </p>
+                </div>
+              )}
               <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {/* Side by Side: Participation Type + Opportunity Mode */}
                 <div className="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
                   {/* Participation Type */}
-                  <div className="bg-white dark:bg-gray-800 p-4">
+                  <div className={`bg-white dark:bg-gray-800 p-4 ${event.notingId ? 'opacity-90' : ''}`}>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Participation Type</label>
                     <div className="flex flex-col gap-2">
-                      <label className={radioClass(participationType === 'individual')}>
-                        <input type="radio" name="participationType" checked={participationType === 'individual'} onChange={() => setParticipationType('individual')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <label className={`${radioClass(participationType === 'individual')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
+                        <input type="radio" name="participationType" checked={participationType === 'individual'} onChange={() => !event.notingId && setParticipationType('individual')} disabled={!!event.notingId} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500 disabled:cursor-not-allowed" />
                         <div className="flex items-center gap-1.5">
                           <User className="w-4 h-4 text-gray-400" />
                           <span className="text-sm font-medium">Individual</span>
                         </div>
                       </label>
-                      <label className={radioClass(participationType === 'team')}>
-                        <input type="radio" name="participationType" checked={participationType === 'team'} onChange={() => setParticipationType('team')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                      <label className={`${radioClass(participationType === 'team')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
+                        <input type="radio" name="participationType" checked={participationType === 'team'} onChange={() => !event.notingId && setParticipationType('team')} disabled={!!event.notingId} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500 disabled:cursor-not-allowed" />
                         <div className="flex items-center gap-1.5">
                           <Users className="w-4 h-4 text-gray-400" />
                           <span className="text-sm font-medium">Team</span>
@@ -1166,10 +1362,10 @@ export default function ManageEventPage() {
               </div>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save Draft
+                  {saving ? <LoadingSpinner size="sm" /> : <Save className="w-4 h-4" />}Save Draft
                 </button>
                 <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
-                  {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                  {publishing ? <LoadingSpinner size="sm" /> : <CheckCircle className="w-4 h-4" />}
                   {event.status === 'published' ? 'Update & Republish' : 'Save & Publish'}
                 </button>
               </div>

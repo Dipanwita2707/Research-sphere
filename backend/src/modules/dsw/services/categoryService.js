@@ -3,8 +3,7 @@
  * Service for managing club categories
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../../shared/config/database');
 
 /**
  * Get all club categories with hierarchical structure

@@ -3,10 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, QrCode, Loader2, CheckCircle, XCircle, Clock, User, MapPin, AlertCircle } from 'lucide-react';
+import { ArrowLeft, QrCode, CheckCircle, XCircle, Clock, User, MapPin, AlertCircle } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 export default function QRScannerPage() {
   const params = useParams();
@@ -30,7 +33,7 @@ export default function QRScannerPage() {
         const data = await eventService.getEventById(eventId);
         setEvent(data);
       } catch (error: any) {
-        toast({ type: 'error', message: error.response?.data?.message || 'Failed to load event' });
+        toast({ type: 'error', message: getErrorMessage(error) });
       } finally {
         setLoading(false);
       }
@@ -85,10 +88,10 @@ export default function QRScannerPage() {
         qrCode: qrInput,
         scannedAt: new Date().toISOString(),
         success: false,
-        error: error.response?.data?.message || 'Scan failed',
+        error: getErrorMessage(error),
       }, ...prev.slice(0, 9)]);
 
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to scan QR code' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setScanning(false);
     }
@@ -105,7 +108,7 @@ export default function QRScannerPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <PageSkeleton message="Loading event..." />
       </div>
     );
   }
@@ -243,7 +246,7 @@ export default function QRScannerPage() {
               >
                 {scanning ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <LoadingSpinner size="sm" />
                     Scanning...
                   </>
                 ) : (
