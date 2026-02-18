@@ -151,6 +151,8 @@ class GatePassController {
         );
       }
 
+      logger.info(`[VERIFY PASS] Type: ${searchType}, Term: ${searchType === 'checkout_qr' ? 'QR Data' : searchTerm}`);
+
       const pass = await gatePassService.verifyPass(searchTerm, searchType);
 
       if (!pass) {
@@ -159,13 +161,38 @@ class GatePassController {
         );
       }
 
+      // Transform pass for frontend
+      const transformedPass = gatePassService.transformPassToFrontend(pass);
+
+      // Add checkout QR info if available
+      if (pass.pass_status === 'cancelled' && pass.checkout_qr_expires_at) {
+        const now = new Date();
+        const remainingMinutes = Math.floor((pass.checkout_qr_expires_at.getTime() - now.getTime()) / (1000 * 60));
+        
+        return res.status(200).json(
+          formatResponse(true, `⚠️ CANCELLED PASS - Checkout QR valid for ${remainingMinutes} more minute(s)`, { 
+            pass: transformedPass,
+            isCancelled: true,
+            checkoutQRRemaining: remainingMinutes
+          })
+        );
+      }
+
       return res.status(200).json(
-        formatResponse(true, 'Pass found successfully', { pass })
+        formatResponse(true, 'Pass found successfully', { pass: transformedPass })
       );
     } catch (error) {
-      logger.error('Verify pass error:', error);
-      return res.status(500).json(
-        formatResponse(false, 'Failed to verify pass', null, error.message)
+      logger.error('[VERIFY PASS] Error:', error);
+      
+      let userMessage = error.message || 'Failed to verify pass';
+      let statusCode = 500;
+      
+      if (error.message.includes('expired') || error.message.includes('Invalid')) {
+        statusCode = 400;
+      }
+      
+      return res.status(statusCode).json(
+        formatResponse(false, userMessage)
       );
     }
   }
@@ -262,15 +289,36 @@ class GatePassController {
       const userId = req.user.id;
       const { reason } = req.body;
 
+      logger.info(`[CANCEL PASS REQUEST] PassID: ${passId}, UserID: ${userId}, Reason: ${reason}`);
+
       const pass = await gatePassService.cancelPass(passId, userId, reason);
+      
+      // Transform pass data for frontend
+      const transformedPass = gatePassService.transformPassToFrontend(pass);
 
       return res.status(200).json(
-        formatResponse(true, 'Pass cancelled successfully', { pass })
+        formatResponse(true, 'Pass cancelled successfully. Checkout QR code sent to visitor (valid for 1 hour).', { pass: transformedPass })
       );
     } catch (error) {
-      logger.error('Cancel pass error:', error);
-      return res.status(500).json(
-        formatResponse(false, 'Failed to cancel pass', null, error.message)
+      logger.error('[CANCEL PASS] Error:', error);
+      
+      // Handle specific error messages
+      let userMessage = 'Failed to cancel pass';
+      let statusCode = 500;
+      
+      if (error.message.includes('not found')) {
+        userMessage = error.message;
+        statusCode = 404;
+      } else if (error.message.includes('permission')) {
+        userMessage = error.message;
+        statusCode = 403;
+      } else if (error.message.includes('only be cancelled after check-in')) {
+        userMessage = error.message;
+        statusCode = 400;
+      }
+      
+      return res.status(statusCode).json(
+        formatResponse(false, userMessage)
       );
     }
   }
@@ -328,29 +376,54 @@ class GatePassController {
   }
 
   /**
-   * Extend pass (modify entry time and date)
+   * Extend pass (modify end date only)
    * POST /api/v1/gate-entry/extend-pass/:passId
    */
   async extendPass(req, res) {
     try {
       const { passId } = req.params;
-      const { newEntryTime, newVisitDate } = req.body;
+      const { newEndDate, extensionReason } = req.body;
 
-      if (!newEntryTime || !newVisitDate) {
+      logger.info(`[EXTEND PASS] Request received for passId: ${passId}, newEndDate: ${newEndDate}, reason: ${extensionReason}`);
+
+      if (!newEndDate || !extensionReason) {
         return res.status(400).json(
-          formatResponse(false, 'New entry time and visit date are required')
+          formatResponse(false, 'New end date and extension reason are required')
         );
       }
 
-      const pass = await gatePassService.extendPass(passId, newEntryTime, newVisitDate);
+      const pass = await gatePassService.extendPass(passId, newEndDate, extensionReason);
+      
+      logger.info(`[EXTEND PASS] Pass extended successfully: ${passId}`);
+      
+      // Transform pass data to camelCase for frontend
+      const transformedPass = gatePassService.transformPassToFrontend(pass);
 
       return res.status(200).json(
-        formatResponse(true, 'Pass extended successfully. New QR code generated and will activate 5 hours before entry.', { pass })
+        formatResponse(true, 'Pass end date extended successfully. QR code expiration updated.', { pass: transformedPass })
       );
     } catch (error) {
       logger.error('Extend pass error:', error);
-      return res.status(500).json(
-        formatResponse(false, error.message || 'Failed to extend pass', null, error.message)
+      
+      // Handle common user-facing errors with friendly messages
+      let userMessage = 'Failed to extend pass';
+      
+      if (error.message.includes('Pass not found')) {
+        userMessage = 'Pass not found. Please check the Pass ID and try again.';
+      } else if (error.message.includes('Cannot extend')) {
+        userMessage = error.message; // Already user-friendly
+      } else if (error.message.includes('New end date must be after')) {
+        userMessage = error.message; // Already user-friendly
+      } else if (error.message.includes('Invalid')) {
+        userMessage = 'Invalid date format. Please select a valid date.';
+      } else if (error.name === 'PrismaClientValidationError') {
+        userMessage = 'Database validation error. Please contact support.';
+      } else if (error.message) {
+        userMessage = error.message;
+      }
+      
+      return res.status(400).json(
+        formatResponse(false, userMessage)
       );
     }
   }
@@ -365,7 +438,8 @@ class GatePassController {
       const guardId = req.user.id;
       const exitData = {
         gate: req.body.gate,
-        remarks: req.body.remarks
+        remarks: req.body.remarks,
+        verificationCode: req.body.verificationCode
       };
 
       const pass = await gatePassService.recordCheckout(passId, guardId, exitData);

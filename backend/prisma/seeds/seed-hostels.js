@@ -9,7 +9,7 @@ async function seedHostels() {
     console.log('🏨 Starting hostel seed...');
 
     // Create Hostels
-    const hostel1 = await prisma.hostel.create({
+    const hostel1 = await prisma.Hostel.create({
       data: {
         name: 'University Boys Hostel - A Block',
         hostel_type: 'boys',
@@ -20,7 +20,7 @@ async function seedHostels() {
       }
     });
 
-    const hostel2 = await prisma.hostel.create({
+    const hostel2 = await prisma.Hostel.create({
       data: {
         name: 'University Girls Hostel - B Block',
         hostel_type: 'girls',
@@ -31,7 +31,7 @@ async function seedHostels() {
       }
     });
 
-    const hostel3 = await prisma.hostel.create({
+    const hostel3 = await prisma.Hostel.create({
       data: {
         name: 'Guest House - Co-ed',
         hostel_type: 'coed',
@@ -62,7 +62,7 @@ async function seedHostels() {
       });
     }
 
-    await prisma.hostelRoom.createMany({ data: hostel1Rooms });
+    await prisma.HostelRoom.createMany({ data: hostel1Rooms });
     console.log('✅ Created 15 rooms for Boys Hostel - A Block');
 
     // Create Rooms for Hostel 2 (Girls - B Block)
@@ -83,7 +83,7 @@ async function seedHostels() {
       });
     }
 
-    await prisma.hostelRoom.createMany({ data: hostel2Rooms });
+    await prisma.HostelRoom.createMany({ data: hostel2Rooms });
     console.log('✅ Created 12 rooms for Girls Hostel - B Block');
 
     // Create Rooms for Hostel 3 (Guest House - Co-ed)
@@ -104,7 +104,7 @@ async function seedHostels() {
       });
     }
 
-    await prisma.hostelRoom.createMany({ data: hostel3Rooms });
+    await prisma.HostelRoom.createMany({ data: hostel3Rooms });
     console.log('✅ Created 10 rooms for Guest House - Co-ed');
 
     console.log('');

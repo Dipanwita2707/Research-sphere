@@ -80,7 +80,9 @@ export interface GatePass {
   qrStatus?: 'inactive' | 'active' | 'cancelled' | 'expired';
   passStatus?: 'created' | 'checked_in' | 'cancelled' | 'checked_out' | 'expired';
   qrActivationTime?: string;
+  visitEndDate?: string;
   extensionCount?: number;
+  extensionReason?: string;
   cancellationTime?: string;
   checkoutQrCode?: string;
   checkoutQrExpiresAt?: string;
@@ -295,13 +297,15 @@ function transformPass(pass: any): GatePass {
     specialInstructions: pass.special_instructions,
     itemsCarrying: pass.items_carrying,
     status: pass.status,
-    qrStatus: pass.qr_status,
-    passStatus: pass.pass_status,
-    qrActivationTime: pass.qr_activation_time,
-    extensionCount: pass.extension_count,
-    cancellationTime: pass.cancellation_time,
-    checkoutQrCode: pass.checkout_qr_code,
-    checkoutQrExpiresAt: pass.checkout_qr_expires_at,
+    qrStatus: pass.qrStatus || pass.qr_status,
+    passStatus: pass.passStatus || pass.pass_status,
+    qrActivationTime: pass.qrActivationTime || pass.qr_activation_time,
+    extensionCount: pass.extensionCount || pass.extension_count || 0,
+    extensionReason: pass.extensionReason || pass.extension_reason,
+    visitEndDate: pass.visitEndDate || pass.visit_end_date,
+    cancellationTime: pass.cancellationTime || pass.cancellation_time,
+    checkoutQrCode: pass.checkoutQrCode || pass.checkout_qr_code,
+    checkoutQrExpiresAt: pass.checkoutQrExpiresAt || pass.checkout_qr_expires_at,
     qrCode: pass.qr_code,
     verificationCode: pass.verification_code,
     actualEntryTime: pass.actual_entry_time,
@@ -380,11 +384,20 @@ class GateEntryService {
   }
 
   /**
-   * Verify a gate pass (by ID, mobile, name, or vehicle number)
+   * Verify a gate pass (by ID, mobile, name, vehicle number, or checkout QR)
    */
-  async verifyPass(searchTerm: string, searchType: 'passId' | 'mobile' | 'visitorName' | 'vehicleNumber'): Promise<{ success: boolean; pass: GatePass | null }> {
+  async verifyPass(searchTerm: string, searchType: 'passId' | 'mobile' | 'visitorName' | 'vehicleNumber' | 'checkout_qr'): Promise<{ 
+    success: boolean; 
+    pass: GatePass | null;
+    isCancelled?: boolean;
+    checkoutQRRemaining?: number;
+    message?: string;
+  }> {
     // Map frontend searchType to backend format
-    const backendSearchType = searchType === 'visitorName' ? 'name' : searchType === 'vehicleNumber' ? 'vehicle' : searchType === 'passId' ? 'pass_id' : searchType;
+    const backendSearchType = searchType === 'visitorName' ? 'name' 
+      : searchType === 'vehicleNumber' ? 'vehicle' 
+      : searchType === 'passId' ? 'pass_id' 
+      : searchType; // checkout_qr stays as is
     
     const response = await api.post<any>(
       '/gate-entry/verify',
@@ -392,7 +405,13 @@ class GateEntryService {
     );
     
     const rawPass = response.data?.data?.pass;
-    return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null };
+    return { 
+      success: response.data.success, 
+      pass: rawPass ? transformPass(rawPass) : null,
+      isCancelled: response.data?.data?.isCancelled,
+      checkoutQRRemaining: response.data?.data?.checkoutQRRemaining,
+      message: response.data?.message
+    };
   }
 
   /**
@@ -422,7 +441,7 @@ class GateEntryService {
   /**
    * Record exit for a pass
    */
-  async recordExit(passId: string, data: { gate?: string; remarks?: string }): Promise<{ success: boolean; pass: GatePass }> {
+  async recordExit(passId: string, data: { gate?: string; remarks?: string; verificationCode?: string }): Promise<{ success: boolean; pass: GatePass }> {
     const response = await api.post<any>(
       `/gate-entry/record-exit/${passId}`,
       data
@@ -446,10 +465,10 @@ class GateEntryService {
   /**
    * Extend pass (modify entry time and date)
    */
-  async extendPass(passId: string, newEntryTime: string, newVisitDate: string): Promise<{ success: boolean; pass: GatePass; message: string }> {
+  async extendPass(passId: string, newEndDate: string, extensionReason: string): Promise<{ success: boolean; pass: GatePass; message: string }> {
     const response = await api.post<any>(
       `/gate-entry/extend-pass/${passId}`,
-      { newEntryTime, newVisitDate }
+      { newEndDate, extensionReason }
     );
     const rawPass = response.data?.data?.pass;
     return {
@@ -462,7 +481,7 @@ class GateEntryService {
   /**
    * Record checkout using checkout QR code
    */
-  async recordCheckout(passId: string, data: { gate?: string; remarks?: string }): Promise<{ success: boolean; pass: GatePass }> {
+  async recordCheckout(passId: string, data: { gate?: string; remarks?: string; verificationCode?: string }): Promise<{ success: boolean; pass: GatePass }> {
     const response = await api.post<any>(
       `/gate-entry/checkout/${passId}`,
       data

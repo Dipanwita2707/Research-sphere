@@ -8,6 +8,7 @@ interface ExtendPassModalProps {
   passId: string;
   currentEntryTime: string;
   currentVisitDate: string;
+  currentEndDate?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -16,39 +17,46 @@ export default function ExtendPassModal({
   passId,
   currentEntryTime,
   currentVisitDate,
+  currentEndDate,
   onClose,
   onSuccess
 }: ExtendPassModalProps) {
   const { error: showError, success: showSuccess } = useToast();
-  const [newVisitDate, setNewVisitDate] = useState(currentVisitDate);
-  const [newEntryTime, setNewEntryTime] = useState(currentEntryTime);
+  const [newEndDate, setNewEndDate] = useState(currentEndDate || currentVisitDate);
+  const [extensionReason, setExtensionReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newVisitDate || !newEntryTime) {
-      showError('Please select both date and time');
+    if (!newEndDate) {
+      showError('Please select new end date');
       return;
     }
 
-    // Validate new date is not in the past
-    const selectedDate = new Date(newVisitDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (!extensionReason.trim()) {
+      showError('Please provide a reason for extension');
+      return;
+    }
+
+    // Validate new end date is not before current end date or visit date
+    const selectedDate = new Date(newEndDate);
+    const currentDate = new Date(currentEndDate || currentVisitDate);
+    currentDate.setHours(0, 0, 0, 0);
+    selectedDate.setHours(0, 0, 0, 0);
     
-    if (selectedDate < today) {
-      showError('Visit date cannot be in the past');
+    if (selectedDate <= currentDate) {
+      showError('New end date must be after current end date');
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await gateEntryService.extendPass(passId, newEntryTime, newVisitDate);
+      const response = await gateEntryService.extendPass(passId, newEndDate, extensionReason);
       
       if (response.success) {
-        showSuccess(response.message || 'Pass extended successfully');
-        onSuccess();
+        showSuccess(response.message || 'Pass end date extended successfully');
+        await onSuccess(response.pass); // Pass the updated pass data
         onClose();
       } else {
         showError('Failed to extend pass');
@@ -77,8 +85,8 @@ export default function ExtendPassModal({
 
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <p className="text-sm text-blue-800">
-            <span className="font-semibold">Note:</span> Extending the pass will regenerate the QR code. 
-            The new QR will activate 5 hours before the new entry time.
+            <span className="font-semibold">Note:</span> Extending the end date will update the pass expiry time to the new end date at 23:59. 
+            QR code expiration will be updated automatically.
           </p>
         </div>
 
@@ -88,43 +96,45 @@ export default function ExtendPassModal({
             <h3 className="text-sm font-semibold text-gray-700 mb-2">Current Details</h3>
             <div className="text-sm text-gray-600 space-y-1">
               <p><span className="font-medium">Pass ID:</span> {passId}</p>
-              <p><span className="font-medium">Visit Date:</span> {new Date(currentVisitDate).toLocaleDateString()}</p>
+              <p><span className="font-medium">Visit Start Date:</span> {new Date(currentVisitDate).toLocaleDateString()}</p>
+              <p><span className="font-medium">Current End Date:</span> {currentEndDate ? new Date(currentEndDate).toLocaleDateString() : new Date(currentVisitDate).toLocaleDateString()}</p>
               <p><span className="font-medium">Entry Time:</span> {currentEntryTime}</p>
             </div>
           </div>
 
-          {/* New Visit Date */}
+          {/* New End Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              New Visit Date <span className="text-red-500">*</span>
+              New End Date <span className="text-red-500">*</span>
             </label>
             <input
               type="date"
-              value={newVisitDate}
-              onChange={(e) => setNewVisitDate(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-              disabled={isLoading}
-            />
-          </div>
-
-          {/* New Entry Time */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              New Entry Time <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="time"
-              value={newEntryTime}
-              onChange={(e) => setNewEntryTime(e.target.value)}
+              value={newEndDate}
+              onChange={(e) => setNewEndDate(e.target.value)}
+              min={currentEndDate || currentVisitDate}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
               disabled={isLoading}
             />
             <p className="text-xs text-gray-500 mt-1">
-              QR code will activate 5 hours before this time
+              Pass will expire at 23:59 on this date
             </p>
+          </div>
+
+          {/* Extension Reason */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Extension Reason <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={extensionReason}
+              onChange={(e) => setExtensionReason(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={3}
+              placeholder="Please provide a reason for extending the pass..."
+              required
+              disabled={isLoading}
+            />
           </div>
 
           {/* Action Buttons */}

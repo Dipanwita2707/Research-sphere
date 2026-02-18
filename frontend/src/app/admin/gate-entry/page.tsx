@@ -20,6 +20,7 @@ interface Pass {
   purposeOfVisit: string;
   purposeOther?: string;
   visitDate: string;
+  visitEndDate?: string;
   expectedEntryTime: string;
   expectedExitTime?: string;
   entryTime?: string;
@@ -31,6 +32,8 @@ interface Pass {
   qrActivationTime?: string;
   checkoutQrCode?: string;
   checkoutQrExpiresAt?: string;
+  extensionCount?: number;
+  extensionReason?: string;
   hasVehicle: boolean;
   vehicleNumber?: string;
   vehicleType?: string;
@@ -85,6 +88,9 @@ export default function AllPassesPage() {
   const [error, setError] = useState<string | null>(null);
   const [showExtendModal, setShowExtendModal] = useState(false);
   const [selectedPassForExtend, setSelectedPassForExtend] = useState<Pass | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingPass, setCancellingPass] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,      // Active Today
@@ -98,6 +104,19 @@ export default function AllPassesPage() {
     fetchPasses();
     fetchStats();
   }, []);
+
+  // Debug selectedPass data
+  useEffect(() => {
+    if (selectedPass) {
+      console.log('[DEBUG] Selected Pass Data:', {
+        passId: selectedPass.passId,
+        extensionCount: selectedPass.extensionCount,
+        extensionReason: selectedPass.extensionReason,
+        visitEndDate: selectedPass.visitEndDate,
+        checkOutDate: selectedPass.checkOutDate,
+      });
+    }
+  }, [selectedPass]);
 
   const fetchPasses = async () => {
     try {
@@ -191,16 +210,29 @@ export default function AllPassesPage() {
     toast.success(`Notification resent to ${pass.mobileNumber}${pass.email ? ` and ${pass.email}` : ''}`, 'Notification Sent');
   };
 
-  const handleCancelPass = async (passId: string) => {
-    if (confirm('Are you sure you want to cancel this pass?')) {
-      try {
-        await gateEntryService.cancelPass(passId, 'Cancelled by admin');
-        toast.success('Pass has been cancelled successfully', 'Pass Cancelled');
-        fetchPasses(); // Refresh the list
-        fetchStats(); // Refresh stats
-      } catch (err: any) {
-        toast.error(err.response?.data?.message || 'Failed to cancel pass', 'Error');
-      }
+  const handleCancelPassConfirm = async () => {
+    if (!selectedPass || !cancelReason.trim()) {
+      toast.error('Please provide a cancellation reason', 'Reason Required');
+      return;
+    }
+    
+    setCancellingPass(true);
+    try {
+      const response = await gateEntryService.cancelPass(selectedPass.passId, cancelReason);
+      
+      toast.success('Pass cancelled successfully. Checkout QR code sent to visitor (valid for 1 hour).', 'Pass Cancelled');
+      
+      // Close modal and refresh data
+      setShowCancelModal(false);
+      setCancelReason('');
+      setSelectedPass(null);
+      await fetchPasses();
+      await fetchStats();
+    } catch (err: any) {
+      console.error('Error cancelling pass:', err);
+      toast.error(err.response?.data?.message || 'Failed to cancel pass', 'Error');
+    } finally {
+      setCancellingPass(false);
     }
   };
 
@@ -537,6 +569,18 @@ export default function AllPassesPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
+                            {(pass.status === 'checked_in' || pass.passStatus === 'checked_in') && (
+                              <button
+                                onClick={() => {
+                                  setSelectedPass(pass);
+                                  setShowCancelModal(true);
+                                }}
+                                className="text-red-600 hover:text-red-800"
+                                title="Cancel Pass"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
                             {(pass.status === 'active' || pass.status === 'pending') && (
                               <>
                                 <button
@@ -625,7 +669,10 @@ export default function AllPassesPage() {
                         <div><dt className="text-gray-600">Purpose:</dt><dd className="font-medium">{selectedPass.purposeOfVisit === 'other' && selectedPass.purposeOther ? selectedPass.purposeOther : selectedPass.purposeOfVisit}</dd></div>
                       )}
                       {selectedPass.visitDate && (
-                        <div><dt className="text-gray-600">Date:</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
+                        <div><dt className="text-gray-600">Visit Date:</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
+                      )}
+                      {selectedPass.visitEndDate && (
+                        <div><dt className="text-gray-600">End Date:</dt><dd className="font-medium text-blue-600">{selectedPass.visitEndDate}</dd></div>
                       )}
                       {(selectedPass.entryTime || selectedPass.expectedEntryTime) && (
                         <div><dt className="text-gray-600">Entry Time:</dt><dd className="font-medium">{selectedPass.entryTime || selectedPass.expectedEntryTime}</dd></div>
@@ -655,8 +702,8 @@ export default function AllPassesPage() {
                     <div>
                       <h5 className="font-semibold text-gray-900 mb-3">Stay Information</h5>
                       <dl className="space-y-2 text-sm">
-                        <div><dt className="text-gray-600">Check-in Date:</dt><dd className="font-medium">{selectedPass.checkInDate || selectedPass.visitDate}</dd></div>
-                        <div><dt className="text-gray-600">Check-out Date:</dt><dd className="font-medium">{selectedPass.checkOutDate || 'N/A'}</dd></div>
+                        <div><dt className="text-gray-600">Check-in Date:</dt><dd className="font-medium">{selectedPass.checkInDate ? new Date(selectedPass.checkInDate).toLocaleDateString() : (selectedPass.visitDate ? new Date(selectedPass.visitDate).toLocaleDateString() : 'N/A')}</dd></div>
+                        <div><dt className="text-gray-600">Check-out Date:</dt><dd className="font-medium">{selectedPass.checkOutDate ? new Date(selectedPass.checkOutDate).toLocaleDateString() : 'N/A'}</dd></div>
                         {selectedPass.hostelName && (
                           <div><dt className="text-gray-600">Hostel:</dt><dd className="font-medium">{selectedPass.hostelName}</dd></div>
                         )}
@@ -689,6 +736,24 @@ export default function AllPassesPage() {
                             </p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedPass.extensionCount && selectedPass.extensionCount > 0 && (
+                    <div className="md:col-span-2">
+                      <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50">
+                        <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                          <Calendar className="w-5 h-5" />
+                          Pass Extension Information
+                        </h5>
+                        <dl className="space-y-2 text-sm">
+                          <div><dt className="text-gray-600">Extended:</dt><dd className="font-medium text-blue-600">{selectedPass.extensionCount} time(s)</dd></div>
+                          <div>
+                            <dt className="text-gray-600">Reason:</dt>
+                            <dd className="font-medium">{selectedPass.extensionReason || 'Not provided'}</dd>
+                          </div>
+                        </dl>
                       </div>
                     </div>
                   )}
@@ -742,7 +807,7 @@ export default function AllPassesPage() {
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
+              <div className="border-t border-gray-200 px-6 py-4 flex flex-wrap gap-3">
                 {(selectedPass.passStatus === 'created' || selectedPass.passStatus === 'checked_in' || selectedPass.status === 'active' || selectedPass.status === 'checked_in') && (
                   <button
                     onClick={() => {
@@ -779,18 +844,113 @@ export default function AllPassesPage() {
             passId={selectedPassForExtend.passId}
             currentEntryTime={selectedPassForExtend.entryTime || selectedPassForExtend.expectedEntryTime}
             currentVisitDate={selectedPassForExtend.visitDate}
+            currentEndDate={
+              selectedPassForExtend.stayRequired 
+                ? (selectedPassForExtend.checkOutDate || selectedPassForExtend.visitEndDate || selectedPassForExtend.visitDate)
+                : (selectedPassForExtend.visitEndDate || selectedPassForExtend.visitDate)
+            }
             onClose={() => {
               setShowExtendModal(false);
               setSelectedPassForExtend(null);
             }}
-            onSuccess={() => {
-              fetchPasses();
-              fetchStats();
+            onSuccess={async (updatedPass?: Pass) => {
+              await fetchPasses();
+              await fetchStats();
               setShowExtendModal(false);
               setSelectedPassForExtend(null);
-              setSelectedPass(null);
+              // Update the pass details view with the updated pass from API response
+              if (selectedPass && updatedPass && selectedPass.passId === updatedPass.passId) {
+                console.log('[EXTEND SUCCESS] Updating selectedPass with:', updatedPass);
+                setSelectedPass(updatedPass);
+              }
             }}
           />
+        )}
+
+        {/* Cancel Pass Confirmation Modal */}
+        {showCancelModal && selectedPass && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">Cancel Pass</h3>
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={cancellingPass}
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-red-800">
+                  <span className="font-semibold">Warning:</span> Cancelling this pass will generate a checkout QR code (valid for 1 hour) that will be sent to the visitor's mobile/email. 
+                  The visitor must exit the premises within 1 hour using this QR code.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">Pass Details</h4>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p><span className="font-medium">Pass ID:</span> {selectedPass.passId}</p>
+                  <p><span className="font-medium">Visitor:</span> {selectedPass.visitorName}</p>
+                  <p><span className="font-medium">Mobile:</span> {selectedPass.mobileNumber}</p>
+                  <p><span className="font-medium">Status:</span> {selectedPass.passStatus}</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cancellation Reason <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Enter reason for cancelling this pass..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                  rows={3}
+                  required
+                  disabled={cancellingPass}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={cancellingPass}
+                >
+                  No, Keep Pass
+                </button>
+                <button
+                  onClick={handleCancelPassConfirm}
+                  disabled={!cancelReason.trim() || cancellingPass}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {cancellingPass ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Cancelling...
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4" />
+                      Yes, Cancel Pass
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

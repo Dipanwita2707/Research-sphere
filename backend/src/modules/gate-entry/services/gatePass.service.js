@@ -10,6 +10,78 @@ const logger = {
 
 class GatePassService {
   /**
+   * Transform snake_case fields to camelCase for frontend
+   */
+  transformPassToFrontend(pass) {
+    if (!pass) return null;
+    
+    console.log(`[TRANSFORM INPUT] Pass ${pass.pass_id}: extension_count=${pass.extension_count}, extension_reason="${pass.extension_reason}"`);
+    
+    // For multiday passes with hostel booking, use check_out_date as visitEndDate
+    let visitEndDate = pass.visit_end_date;
+    if (pass.hostel_booking?.check_out_date) {
+      visitEndDate = pass.hostel_booking.check_out_date;
+      console.log(`[TRANSFORM] Pass ${pass.pass_id}: Using hostel check_out_date ${visitEndDate} instead of visit_end_date ${pass.visit_end_date}`);
+    }
+    
+    // Format dates to ISO string for consistent frontend handling
+    const formatDateForFrontend = (date) => {
+      if (!date) return null;
+      if (date instanceof Date) {
+        return date.toISOString();
+      }
+      return date;
+    };
+    
+    const transformed = {
+      ...pass,
+      passId: pass.pass_id,
+      visitorName: pass.visitor_name,
+      mobileNumber: pass.mobile_number,
+      visitorRelation: pass.visitor_relation,
+      purposeOfVisit: pass.purpose_of_visit,
+      purposeOther: pass.purpose_other,
+      visitDate: formatDateForFrontend(pass.visit_date),
+      visitEndDate: formatDateForFrontend(visitEndDate), // Use hostel check_out_date if available
+      expectedEntryTime: pass.expected_entry_time,
+      expectedExitTime: pass.expected_exit_time,
+      entryTime: pass.entry_time,
+      actualEntryTime: formatDateForFrontend(pass.actual_entry_time),
+      actualExitTime: formatDateForFrontend(pass.actual_exit_time),
+      qrStatus: pass.qr_status,
+      qrActivationTime: formatDateForFrontend(pass.qr_activation_time),
+      checkoutQrCode: pass.checkout_qr_code,
+      checkoutQrExpiresAt: formatDateForFrontend(pass.checkout_qr_expires_at),
+      extensionCount: pass.extension_count,
+      extensionReason: pass.extension_reason,
+      hasVehicle: pass.has_vehicle,
+      vehicleNumber: pass.vehicle_number,
+      vehicleType: pass.vehicle_type,
+      vehicleModel: pass.vehicle_model,
+      stayRequired: pass.stay_required,
+      checkInDate: formatDateForFrontend(pass.check_in_date || pass.hostel_booking?.check_in_date),
+      checkOutDate: formatDateForFrontend(pass.check_out_date || pass.hostel_booking?.check_out_date),
+      hostelName: pass.hostel_booking?.room?.hostel?.name,
+      roomNumber: pass.hostel_booking?.room?.room_number,
+      createdAt: formatDateForFrontend(pass.created_at),
+      updatedAt: formatDateForFrontend(pass.updated_at),
+      createdBy: pass.user_login_gate_pass_created_by_idTouser_login,
+      hostelBooking: pass.hostel_booking ? {
+        ...pass.hostel_booking,
+        check_in_date: formatDateForFrontend(pass.hostel_booking.check_in_date),
+        check_out_date: formatDateForFrontend(pass.hostel_booking.check_out_date),
+        hostelName: pass.hostel_booking.room?.hostel?.name,
+        roomNumber: pass.hostel_booking.room?.room_number
+      } : null
+    };
+    
+    console.log(`[TRANSFORM DEBUG] Pass ${pass.pass_id}: visitEndDate = ${transformed.visitEndDate}, checkOutDate = ${transformed.checkOutDate}, extensionCount = ${transformed.extensionCount}, extensionReason = "${transformed.extensionReason}"`);
+    
+    // Clean up - remove snake_case duplicates (keep original for nested queries)
+    return transformed;
+  }
+
+  /**
    * Generate unique Pass ID
    */
   async generatePassId() {
@@ -465,8 +537,11 @@ class GatePassService {
 
       const total = await prisma.gate_pass.count({ where });
 
+      // Transform passes to camelCase for frontend
+      const transformedPasses = passes.map(pass => this.transformPassToFrontend(pass));
+
       return {
-        passes,
+        passes: transformedPasses,
         pagination: {
           page,
           limit,
@@ -625,6 +700,19 @@ class GatePassService {
         where.visitor_name = { contains: searchTerm, mode: 'insensitive' };
       } else if (searchType === 'vehicle') {
         where.vehicle_number = { equals: searchTerm, mode: 'insensitive' };
+      } else if (searchType === 'checkout_qr') {
+        // Handle checkout QR verification (for cancelled passes)
+        try {
+          const qrData = JSON.parse(searchTerm);
+          if (qrData.type === 'CHECKOUT' && qrData.pass_id) {
+            where.pass_id = qrData.pass_id;
+            logger.info(`[VERIFY] Checkout QR scanned for pass: ${qrData.pass_id}`);
+          } else {
+            throw new Error('Invalid checkout QR code format');
+          }
+        } catch (parseError) {
+          throw new Error('Invalid QR code data');
+        }
       }
 
       let pass = await prisma.gate_pass.findFirst({
@@ -635,7 +723,26 @@ class GatePassService {
         return null;
       }
 
-      // Real-time QR activation check
+      // For checkout QR verification, validate expiry
+      if (searchType === 'checkout_qr') {
+        if (!pass.checkout_qr_code || !pass.checkout_qr_expires_at) {
+          throw new Error('No valid checkout QR found for this pass');
+        }
+        
+        const now = new Date();
+        if (now > pass.checkout_qr_expires_at) {
+          throw new Error('Checkout QR code has expired (1-hour validity)');
+        }
+        
+        if (pass.pass_status !== 'cancelled') {
+          throw new Error('This pass is not cancelled. Use regular checkout process.');
+        }
+        
+        logger.info(`[VERIFY] Checkout QR valid for pass: ${pass.pass_id}, expires: ${pass.checkout_qr_expires_at}`);
+        return pass;
+      }
+
+      // Real-time QR activation check (for regular check-in)
       // If pass is inactive and should be active now, activate it
       if (pass.qr_status === 'inactive' && pass.pass_status === 'created') {
         const now = new Date();
@@ -803,17 +910,67 @@ class GatePassService {
    */
   async cancelPass(pass_id, userId, reason) {
     try {
+      // Fetch pass with creator info
       const pass = await prisma.gate_pass.findUnique({
-        where: { pass_id }
+        where: { pass_id },
+        include: {
+          user_login_gate_pass_created_by_idTouser_login: {
+            select: {
+              id: true,
+              role: true,
+              employeeDetails: {
+                select: {
+                  designation: true
+                }
+              }
+            }
+          }
+        }
       });
 
       if (!pass) {
         throw new Error('Pass not found');
       }
 
-      // Generate checkout QR code
+      // Check permissions: only creator, guard, or admin can cancel
+      const user = await prisma.userLogin.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          role: true,
+          employeeDetails: {
+            select: {
+              designation: true
+            }
+          }
+        }
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const role = user.role?.toLowerCase() || '';
+      const designation = user.employeeDetails?.designation?.toLowerCase() || '';
+      const isAdmin = role === 'admin';
+      const isGuard = designation.includes('guard') || designation.includes('security') || designation.includes('volunteer');
+      const isCreator = pass.created_by_id === userId;
+
+      if (!isAdmin && !isGuard && !isCreator) {
+        throw new Error('You do not have permission to cancel this pass. Only the pass creator, guards, or admin can cancel.');
+      }
+
+      // Only allow cancellation after check-in
+      if (pass.pass_status !== 'checked_in') {
+        throw new Error('Pass can only be cancelled after check-in. Current status: ' + pass.pass_status);
+      }
+
+      logger.info(`[CANCEL PASS] User ${userId} (admin:${isAdmin}, guard:${isGuard}, creator:${isCreator}) cancelling pass ${pass_id}`);
+
+      // Generate checkout QR code with 1-hour validity
       const checkoutQRData = await this.generateCheckoutQR(pass.id);
 
+      // Update pass status to cancelled
       const updatedPass = await prisma.gate_pass.update({
         where: { pass_id },
         data: {
@@ -826,9 +983,12 @@ class GatePassService {
         }
       });
 
-      // Skip history for now
+      logger.info(`[CANCEL PASS] Pass cancelled: ${updatedPass.pass_id}, checkout QR generated with 1-hour validity`);
 
-      logger.info(`Pass cancelled: ${updatedPass.pass_id}`);
+      // TODO: Send email and WhatsApp notification to visitor with checkout QR
+      // This will be implemented with notification service
+      logger.info(`[CANCEL PASS] Notification queued for mobile: ${pass.mobile_number}, email: ${pass.email || 'N/A'}`);
+
       return {
         ...updatedPass,
         checkout_qr: {
@@ -838,7 +998,7 @@ class GatePassService {
         }
       };
     } catch (error) {
-      logger.error('Error cancelling pass:', error);
+      logger.error('[CANCEL PASS] Error:', error);
       throw error;
     }
   }
@@ -935,14 +1095,32 @@ class GatePassService {
         throw new Error('Pass not found');
       }
 
-      // Validate checkout QR exists and not expired
-      if (!pass.checkout_qr_code || !pass.checkout_qr_expires_at) {
-        throw new Error('No checkout QR code found. Please cancel the pass first.');
+      // Check if pass is checked_in but NOT cancelled - must cancel first
+      if (pass.pass_status === 'checked_in') {
+        throw new Error('Pass must be cancelled before checkout. Guard should cancel the pass first.');
       }
 
-      const now = new Date();
-      if (now > pass.checkout_qr_expires_at) {
-        throw new Error('Checkout QR code has expired. Please generate a new one by cancelling again.');
+      // Check if pass is cancelled - requires verification
+      if (pass.pass_status === 'cancelled') {
+        // Validate checkout QR exists and not expired
+        if (!pass.checkout_qr_code || !pass.checkout_qr_expires_at) {
+          throw new Error('No checkout QR code found. This cancelled pass requires a valid checkout QR.');
+        }
+
+        const now = new Date();
+        if (now > pass.checkout_qr_expires_at) {
+          const expiredMinutes = Math.floor((now.getTime() - pass.checkout_qr_expires_at.getTime()) / (1000 * 60));
+          throw new Error(`Checkout QR code expired ${expiredMinutes} minute(s) ago. Visitor must contact admin for new checkout QR.`);
+        }
+
+        // Validate verification code if provided
+        if (exitData.verificationCode && exitData.verificationCode !== pass.verification_code) {
+          throw new Error('Invalid verification code. Please check and try again.');
+        }
+        
+        logger.info(`[CHECKOUT] Cancelled pass checkout: ${pass.pass_id}, QR expires: ${pass.checkout_qr_expires_at}`);
+      } else if (pass.pass_status !== 'checked_out' && pass.pass_status !== 'cancelled') {
+        throw new Error(`Cannot checkout pass with status: ${pass.pass_status}`);
       }
 
       const updatedPass = await prisma.gate_pass.update({
@@ -950,20 +1128,20 @@ class GatePassService {
         data: {
           status: 'completed', // Legacy field
           pass_status: 'checked_out',
-          actual_exit_time: now,
-          exit_gate: exitData.gate,
+          actual_exit_time: new Date(),
+          exit_gate: exitData.gate || 'Main Gate',
           exit_guard_id: guardId,
-          exit_remarks: exitData.remarks || null,
+          exit_remarks: exitData.remarks || (pass.pass_status === 'cancelled' ? 'Emergency checkout via cancelled pass QR' : null),
           // Clear checkout QR fields
           checkout_qr_code: null,
           checkout_qr_expires_at: null
         }
       });
 
-      logger.info(`Checkout recorded for pass: ${pass.pass_id}`);
+      logger.info(`[CHECKOUT] Successful checkout for pass: ${pass.pass_id}, Status was: ${pass.pass_status}`);
       return updatedPass;
     } catch (error) {
-      logger.error('Error recording checkout:', error);
+      logger.error('[CHECKOUT] Error:', error);
       throw error;
     }
   }
@@ -971,48 +1149,103 @@ class GatePassService {
   /**
    * Extend pass (modify existing pass with new entry time and date)
    */
-  async extendPass(pass_id, newEntryTime, newVisitDate) {
+  async extendPass(pass_id, newEndDate, extensionReason) {
     try {
       const pass = await prisma.gate_pass.findUnique({
-        where: { pass_id }
+        where: { pass_id },
+        include: {
+          hostel_booking: true
+        }
       });
 
       if (!pass) {
         throw new Error('Pass not found');
       }
 
-      if (pass.pass_status === 'checked_out') {
+      if (pass.status === 'checked_out') {
         throw new Error('Cannot extend a pass that has been checked out');
       }
 
-      // Parse and normalize new visit date
-      const visitDateRaw = new Date(newVisitDate);
-      if (isNaN(visitDateRaw.getTime())) {
-        throw new Error('Invalid visit date format');
+      if (pass.status === 'cancelled') {
+        throw new Error('Cannot extend a cancelled pass');
+      }
+
+      // Parse and normalize new end date
+      const endDateRaw = new Date(newEndDate);
+      if (isNaN(endDateRaw.getTime())) {
+        throw new Error('Invalid end date format');
       }
       
       const istOffset = 5.5 * 60 * 60 * 1000;
-      const visit_date = new Date(visitDateRaw.getTime() + istOffset);
-      visit_date.setUTCHours(0, 0, 0, 0);
+      const visit_end_date = new Date(endDateRaw.getTime() + istOffset);
+      visit_end_date.setUTCHours(0, 0, 0, 0);
 
-      // Regenerate QR code with same pass_id
-      const qrCodeDataURL = await this.generateQRCode(pass_id);
+      // Validate new end date is after current end date or visit date
+      const currentEndDate = pass.visit_end_date || pass.visit_date;
+      if (visit_end_date <= currentEndDate) {
+        throw new Error('New end date must be after current end date');
+      }
 
-      const updatedPass = await prisma.gate_pass.update({
-        where: { pass_id },
-        data: {
-          entry_time: newEntryTime,
-          expected_entry_time: newEntryTime, // Backward compatibility
-          visit_date: visit_date,
-          qr_code: qrCodeDataURL,
-          qr_status: 'inactive', // Will be activated 5 hours before new entry time
-          qr_activation_time: null,
-          extension_count: { increment: 1 },
-          updated_at: new Date()
+      // Use Prisma transaction to ensure both updates commit atomically
+      await prisma.$transaction(async (tx) => {
+        // Update gate pass
+        await tx.gate_pass.update({
+          where: { pass_id },
+          data: {
+            visit_end_date: visit_end_date,
+            extension_count: { increment: 1 },
+            extension_reason: extensionReason,
+            updated_at: new Date()
+          }
+        });
+
+        logger.info(`Gate pass updated: ${pass.pass_id}, new end date: ${visit_end_date.toISOString()}`);
+
+        // If pass has hostel booking, update check_out_date too
+        if (pass.hostel_booking) {
+          const updatedBooking = await tx.hostelBooking.update({
+            where: { id: pass.hostel_booking.id },
+            data: {
+              check_out_date: visit_end_date,
+              updated_at: new Date()
+            }
+          });
+          
+          logger.info(`✅ Hostel booking updated in transaction: ${pass.hostel_booking.id}, new check_out_date: ${visit_end_date.toISOString()}`);
+          logger.info(`Updated booking data:`, updatedBooking);
+        } else {
+          logger.info(`No hostel booking found for pass: ${pass.pass_id}`);
         }
       });
 
-      logger.info(`Pass extended: ${pass.pass_id}, new entry: ${newEntryTime}, new date: ${visit_date.toISOString()}`);
+      // Fetch fresh data with updated hostel booking
+      const updatedPass = await prisma.gate_pass.findUnique({
+        where: { pass_id },
+        include: {
+          hostel_booking: {
+            include: {
+              room: {
+                include: {
+                  hostel: true
+                }
+              }
+            }
+          },
+          user_login_gate_pass_created_by_idTouser_login: {
+            select: {
+              id: true,
+              uid: true,
+              employeeDetails: {
+                select: {
+                  displayName: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      logger.info(`Pass extended: ${pass.pass_id}, new end date: ${visit_end_date.toISOString()}, reason: ${extensionReason}`);
       return updatedPass;
     } catch (error) {
       logger.error('Error extending pass:', error);

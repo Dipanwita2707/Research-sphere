@@ -1986,6 +1986,7 @@ model gate_pass {
   pass_status                                        pass_status_enum?        @default(created)
   qr_activation_time                                 DateTime?                @db.Timestamptz(6)
   extension_count                                    Int                      @default(0)
+  extension_reason                                   String?
   cancellation_time                                  DateTime?                @db.Timestamptz(6)
   checkout_qr_code                                   String?
   checkout_qr_expires_at                             DateTime?                @db.Timestamptz(6)

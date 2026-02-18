@@ -25,7 +25,6 @@ interface SimplePassFormData {
 }
 
 type AccommodationType = 'university' | 'external' | 'none' | null;
-type HostelBookingChoice = 'already_booked' | 'not_booked' | null;
 
 const PURPOSE_OPTIONS = [
   { value: 'meeting', label: 'Meeting' },
@@ -52,10 +51,8 @@ export default function CreatePassPage() {
   const [createdPassId, setCreatedPassId] = useState<string | null>(null);
   const [accommodationType, setAccommodationType] = useState<AccommodationType>(null);
   
-  // New accommodation flow states
-  const [hostelBookingChoice, setHostelBookingChoice] = useState<HostelBookingChoice>(null);
+  // Accommodation flow state
   const [wantToBook, setWantToBook] = useState<boolean | null>(null);
-  const [existingBookingDetails, setExistingBookingDetails] = useState<{hostelName: string; roomNumber: string} | null>(null);
   
   const [formData, setFormData] = useState<SimplePassFormData>({
     visitorName: '',
@@ -170,18 +167,14 @@ export default function CreatePassPage() {
     
     // Multi-day accommodation validation
     if (isMultiDay) {
-      if (hostelBookingChoice === null) {
-        setError('Please indicate if you have an existing hostel booking');
-        return false;
-      }
-      if (hostelBookingChoice === 'not_booked' && wantToBook === null) {
+      if (wantToBook === null) {
         setError('Please indicate if you want to book accommodation');
         return false;
       }
-      // Set accommodationType based on new flow for backward compatibility  
-      if (hostelBookingChoice === 'already_booked' || (hostelBookingChoice === 'not_booked' && wantToBook === false)) {
-        // External or skip - no university booking needed
-      } else if (hostelBookingChoice === 'not_booked' && wantToBook === true) {
+      // Set accommodationType based on user choice
+      if (wantToBook === false) {
+        // Skip booking - no university booking needed
+      } else if (wantToBook === true) {
         // Want to book - will show booking flow
       }
     }
@@ -277,9 +270,7 @@ export default function CreatePassPage() {
       vehicleModel: '',
     });
     setAccommodationType(null);
-    setHostelBookingChoice(null);
     setWantToBook(null);
-    setExistingBookingDetails(null);
     setCreatedPassId(null);
   };
 
@@ -591,139 +582,56 @@ export default function CreatePassPage() {
                 </p>
               </div>
 
-              {/* Step 1: Already Booked vs Not Booked */}
-              <div className="mb-4">
+              {/* Hostel/Apartment Booking Options */}
+              <div className="mt-4">
                 <p className="text-sm font-semibold text-gray-700 mb-3">
-                  Do you have an existing Hostel/Apartment booking?
+                  Do you want to book Hostel/Apartment?
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => {
-                      setHostelBookingChoice('already_booked');
-                      setWantToBook(null);
-                      setAccommodationType('external');
+                      setWantToBook(true);
+                      setAccommodationType('university');
                     }}
                     className={`p-4 border-2 rounded-lg text-left transition-all ${
-                      hostelBookingChoice === 'already_booked' 
-                        ? 'border-green-600 bg-green-50 ring-2 ring-green-200' 
-                        : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                      wantToBook === true 
+                        ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' 
+                        : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle className={`w-5 h-5 ${hostelBookingChoice === 'already_booked' ? 'text-green-600' : 'text-gray-400'}`} />
-                      <span className="font-semibold text-gray-800 text-sm md:text-base">✅ Already Booked</span>
+                      <Hotel className={`w-5 h-5 ${wantToBook === true ? 'text-blue-600' : 'text-gray-400'}`} />
+                      <span className="font-semibold text-gray-800 text-sm md:text-base">✅ Yes, I want to book</span>
                     </div>
-                    <p className="text-xs text-gray-600">Hostel/Apartment is already arranged</p>
+                    <p className="text-xs text-gray-600">Browse & book from available rooms</p>
+                    {wantToBook === true && (
+                      <p className="text-xs text-blue-600 font-medium mt-2">
+                        ✓ Booking flow opens after pass creation
+                      </p>
+                    )}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => {
-                      setHostelBookingChoice('not_booked');
-                      setAccommodationType(null);
+                      setWantToBook(false);
+                      setAccommodationType('none');
                     }}
                     className={`p-4 border-2 rounded-lg text-left transition-all ${
-                      hostelBookingChoice === 'not_booked' 
-                        ? 'border-orange-600 bg-orange-50 ring-2 ring-orange-200' 
-                        : 'border-gray-300 hover:border-orange-400 hover:bg-orange-50'
+                      wantToBook === false 
+                        ? 'border-gray-600 bg-gray-50 ring-2 ring-gray-200' 
+                        : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-1">
-                      <AlertCircle className={`w-5 h-5 ${hostelBookingChoice === 'not_booked' ? 'text-orange-600' : 'text-gray-400'}`} />
-                      <span className="font-semibold text-gray-800 text-sm md:text-base">❌ Not Booked</span>
+                      <Clock className={`w-5 h-5 ${wantToBook === false ? 'text-gray-600' : 'text-gray-400'}`} />
+                      <span className="font-semibold text-gray-800 text-sm md:text-base">❌ No, skip booking</span>
                     </div>
-                    <p className="text-xs text-gray-600">No accommodation arranged yet</p>
+                    <p className="text-xs text-gray-600">Continue without accommodation</p>
                   </button>
                 </div>
               </div>
-
-              {/* Step 2A: If Already Booked - Show auto-fill fields (read-only) */}
-              {hostelBookingChoice === 'already_booked' && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <p className="text-sm font-semibold text-green-800 mb-3">
-                    📋 Existing Booking Details (Auto-populated)
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Hostel/Apartment Name</label>
-                      <input
-                        type="text"
-                        value={existingBookingDetails?.hostelName || ''}
-                        onChange={(e) => setExistingBookingDetails(prev => ({...prev || {hostelName: '', roomNumber: ''}, hostelName: e.target.value}))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                        placeholder="Enter hostel name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Room Number</label>
-                      <input
-                        type="text"
-                        value={existingBookingDetails?.roomNumber || ''}
-                        onChange={(e) => setExistingBookingDetails(prev => ({...prev || {hostelName: '', roomNumber: ''}, roomNumber: e.target.value}))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                        placeholder="Enter room number"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-green-600 mt-2">
-                    ✓ Details will be linked to the pass
-                  </p>
-                </div>
-              )}
-
-              {/* Step 2B: If Not Booked - Ask if they want to book */}
-              {hostelBookingChoice === 'not_booked' && (
-                <div className="mt-4">
-                  <p className="text-sm font-semibold text-gray-700 mb-3">
-                    Do you want to book Hostel/Apartment?
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWantToBook(true);
-                        setAccommodationType('university');
-                      }}
-                      className={`p-4 border-2 rounded-lg text-left transition-all ${
-                        wantToBook === true 
-                          ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' 
-                          : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Hotel className={`w-5 h-5 ${wantToBook === true ? 'text-blue-600' : 'text-gray-400'}`} />
-                        <span className="font-semibold text-gray-800 text-sm md:text-base">✅ Yes, I want to book</span>
-                      </div>
-                      <p className="text-xs text-gray-600">Browse & book from available rooms</p>
-                      {wantToBook === true && (
-                        <p className="text-xs text-blue-600 font-medium mt-2">
-                          ✓ Booking flow opens after pass creation
-                        </p>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWantToBook(false);
-                        setAccommodationType('none');
-                      }}
-                      className={`p-4 border-2 rounded-lg text-left transition-all ${
-                        wantToBook === false 
-                          ? 'border-gray-600 bg-gray-50 ring-2 ring-gray-200' 
-                          : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <Clock className={`w-5 h-5 ${wantToBook === false ? 'text-gray-600' : 'text-gray-400'}`} />
-                        <span className="font-semibold text-gray-800 text-sm md:text-base">❌ No, skip booking</span>
-                      </div>
-                      <p className="text-xs text-gray-600">Continue without accommodation</p>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

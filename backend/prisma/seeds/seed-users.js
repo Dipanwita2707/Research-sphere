@@ -10,7 +10,7 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 10);
   
   // Create Admin user
-  const admin = await prisma.userLogin.upsert({
+  const admin = await prisma.UserLogin.upsert({
     where: { uid: 'admin' },
     update: {},
     create: {
@@ -23,7 +23,7 @@ async function main() {
   });
   console.log('✅ Admin user created:', admin.uid);
 
-  const admin2 = await prisma.userLogin.upsert({
+  const admin2 = await prisma.UserLogin.upsert({
     where: { uid: 'ADMIN001' },
     update: {},
     create: {
@@ -36,7 +36,7 @@ async function main() {
   });
   console.log('✅ Admin2 user created:', admin2.uid);
 
-  const superAdmin = await prisma.userLogin.upsert({
+  const superAdmin = await prisma.UserLogin.upsert({
     where: { uid: 'SUPER001' },
     update: {},
     create: {
@@ -49,7 +49,7 @@ async function main() {
   });
   console.log('✅ Super Admin created:', superAdmin.uid);
 
-  const student = await prisma.userLogin.upsert({
+  const student = await prisma.UserLogin.upsert({
     where: { uid: 'STU001' },
     update: {},
     create: {
@@ -62,7 +62,7 @@ async function main() {
   });
   console.log('✅ Student created:', student.uid);
 
-  const faculty = await prisma.userLogin.upsert({
+  const faculty = await prisma.UserLogin.upsert({
     where: { uid: 'FAC001' },
     update: {},
     create: {
@@ -75,7 +75,7 @@ async function main() {
   });
   console.log('✅ Faculty created:', faculty.uid);
 
-  const staff = await prisma.userLogin.upsert({
+  const staff = await prisma.UserLogin.upsert({
     where: { uid: 'STF001' },
     update: {},
     create: {
@@ -89,7 +89,7 @@ async function main() {
   console.log('✅ Staff created:', staff.uid);
 
   // Guard role doesn't exist in enum, use staff instead
-  const guard = await prisma.userLogin.upsert({
+  const guard = await prisma.UserLogin.upsert({
     where: { uid: 'GUARD001' },
     update: {},
     create: {
