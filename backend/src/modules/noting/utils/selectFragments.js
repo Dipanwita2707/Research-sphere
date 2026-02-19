@@ -132,7 +132,7 @@ function getListNoteInclude() {
     },
     history: {
       select: { performedById: true },
-      take: 50, // Minimal data for approver-action check only
+      take: 1,
     },
     _count: {
       select: {

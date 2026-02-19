@@ -175,6 +175,7 @@ export default function ManageEventPage() {
   const [dutyLeaveEligibility, setDutyLeaveEligibility] = useState<string[]>([]);
   const [hasSponsorship, setHasSponsorship] = useState<boolean | null>(null);
   const [sponsors, setSponsors] = useState<Array<{ name: string; amount: number; type: string; notes?: string }>>([]);
+  const [showSponsorshipPublicly, setShowSponsorshipPublicly] = useState(false);
   const [hasResources, setHasResources] = useState<boolean | null>(null);
   const [resources, setResources] = useState<Array<{ category: string; type: string; description: string; estimatedCost?: number }>>([]);
 
@@ -258,6 +259,7 @@ export default function ManageEventPage() {
       setDutyLeaveEligibility(Array.isArray(data.dutyLeaveEligibility) ? data.dutyLeaveEligibility : []);
       setHasSponsorship(data.hasSponsorship ?? null);
       setSponsors(Array.isArray(data.sponsors) ? data.sponsors : []);
+      setShowSponsorshipPublicly(data.showSponsorshipPublicly ?? false);
       setHasResources(data.hasResources ?? null);
       setResources(Array.isArray(data.resources) ? data.resources : []);
     } catch (error: any) {
@@ -441,6 +443,7 @@ export default function ManageEventPage() {
       dutyLeaveEligibility: dutyLeaveEligibility.length > 0 ? dutyLeaveEligibility : null,
       hasSponsorship: hasSponsorship ?? null,
       sponsors: hasSponsorship && sponsors.length > 0 ? sponsors : null,
+      showSponsorshipPublicly: hasSponsorship && sponsors.length > 0 ? showSponsorshipPublicly : false,
       hasResources: hasResources ?? null,
       resources: hasResources && resources.length > 0 ? resources : null,
     };
@@ -949,6 +952,15 @@ export default function ManageEventPage() {
                   </div>
                   {hasSponsorship && (
                     <div className="mt-2 space-y-2">
+                      <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showSponsorshipPublicly}
+                          onChange={(e) => setShowSponsorshipPublicly(e.target.checked)}
+                          className="w-4 h-4 text-sgt-600 rounded"
+                        />
+                        Show sponsorship to users on event page (creator decides at publish)
+                      </label>
                       {sponsors.map((s, i) => (
                         <div key={i} className="flex gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md">
                           <input value={s.name} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Sponsor name" disabled={!!event.notingId} className={`${inputClass} flex-1 disabled:cursor-not-allowed`} />

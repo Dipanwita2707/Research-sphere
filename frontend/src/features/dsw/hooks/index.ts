@@ -52,6 +52,7 @@ export function useClub(clubId: string) {
     queryKey: DSW_QUERY_KEYS.club(clubId),
     queryFn: () => dswAPI.clubs.getClubById(clubId),
     enabled: !!clubId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -62,6 +63,7 @@ export function useMyClubs() {
   return useQuery({
     queryKey: DSW_QUERY_KEYS.myClubs(),
     queryFn: () => dswAPI.clubs.getMyClubs(),
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -73,6 +75,7 @@ export function useClubMembers(clubId: string) {
     queryKey: DSW_QUERY_KEYS.clubMembers(clubId),
     queryFn: () => dswAPI.clubs.getClubMembers(clubId),
     enabled: !!clubId,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -94,6 +97,7 @@ export function useStatistics() {
   return useQuery({
     queryKey: DSW_QUERY_KEYS.statistics(),
     queryFn: () => dswAPI.statistics.getStatistics(),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

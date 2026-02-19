@@ -400,8 +400,8 @@ export default function EventDetailPage() {
                     </div>
                   )}
 
-                  {/* Sponsorship */}
-                  {(event.hasSponsorship && Array.isArray(event.sponsors) && event.sponsors.length > 0) && (
+                  {/* Sponsorship - only if creator chose to show publicly */}
+                  {(event.showSponsorshipPublicly && event.hasSponsorship && Array.isArray(event.sponsors) && event.sponsors.length > 0) && (
                     <div className="flex gap-4 md:col-span-2">
                       <div className="mt-1 p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600 text-amber-600 dark:text-amber-400">
                         <IndianRupee className="w-5 h-5" />
@@ -424,26 +424,7 @@ export default function EventDetailPage() {
                     </div>
                   )}
 
-                  {/* Resources */}
-                  {(event.hasResources && Array.isArray(event.resources) && event.resources.length > 0) && (
-                    <div className="flex gap-4 md:col-span-2">
-                      <div className="mt-1 p-2 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-100 dark:border-gray-600 text-indigo-600 dark:text-indigo-400">
-                        <Sparkles className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Resources</p>
-                        <div className="space-y-1.5">
-                          {event.resources.map((r, i) => (
-                            <div key={i} className="text-sm text-gray-900 dark:text-white">
-                              <span className="font-medium capitalize">{r.category}</span> — {r.type}
-                              {r.description && <span className="text-gray-600 dark:text-gray-300">: {r.description}</span>}
-                              {r.estimatedCost != null && <span className="text-gray-600 dark:text-gray-300"> (₹ {Number(r.estimatedCost).toLocaleString()})</span>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  {/* Resources - hidden from public (internal/organizer only) */}
 
                   {/* Reg Dates */}
                   {(event.registrationStartDate || event.registrationEndDate) && (
@@ -965,7 +946,7 @@ export default function EventDetailPage() {
                     {event.eventId}
                   </span>
                 </div>
-                {event.notingId && event.note && (
+                {event.notingId && event.note && isCreator && (
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-medium text-gray-400 uppercase">Noting</span>
                     <Link href={`/noting/${event.notingId}`} className="text-xs text-sgt-600 dark:text-sgt-400 hover:underline flex items-center gap-1">

@@ -1,9 +1,10 @@
 /**
  * DSW API Service
  * Handles all HTTP requests to the DSW backend
+ * Uses shared API instance for consistent timeout, retry, and auth handling
  */
 
-import axios, { AxiosError } from 'axios';
+import api from '@/shared/api/api';
 import {
   Club,
   ClubCategory,
@@ -18,48 +19,6 @@ import {
   ClubChangeRequest,
 } from '../types';
 import { DSW_API_ENDPOINTS } from '../constants';
-
-// Create axios instance with default config
-// Uses relative URLs so Next.js proxy can redirect to backend
-const api = axios.create({
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor to add auth token (use auth-storage - same as rest of app)
-api.interceptors.request.use(
-  (config) => {
-    if (typeof window !== 'undefined') {
-      try {
-        const raw = localStorage.getItem('auth-storage');
-        if (raw) {
-          const parsed = JSON.parse(raw) as { state?: { token?: string | null } };
-          const token = parsed?.state?.token;
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-          }
-        }
-      } catch {
-        // Ignore parse errors
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError<ApiResponse<any>>) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login (auth-storage cleared by auth flow)
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
 
 // Club API
 export const clubAPI = {
