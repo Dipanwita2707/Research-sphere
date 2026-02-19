@@ -139,7 +139,7 @@ export default function CreateClubPage() {
       // Use the notingAPI which includes auth token automatically
       const result = await notingAPI.createClub(clubPayload as any);
 
-      if (!result.success) {
+      if (!result.success || !result.data) {
         throw new Error(result.message || 'Failed to submit club creation request');
       }
 
