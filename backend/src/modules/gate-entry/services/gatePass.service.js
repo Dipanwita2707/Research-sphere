@@ -701,12 +701,13 @@ class GatePassService {
       } else if (searchType === 'vehicle') {
         where.vehicle_number = { equals: searchTerm, mode: 'insensitive' };
       } else if (searchType === 'checkout_qr') {
-        // Handle checkout QR verification (for cancelled passes)
+        // Handle checkout QR verification (for cancelled passes with new unique checkout ID)
         try {
           const qrData = JSON.parse(searchTerm);
-          if (qrData.type === 'CHECKOUT' && qrData.pass_id) {
-            where.pass_id = qrData.pass_id;
-            logger.info(`[VERIFY] Checkout QR scanned for pass: ${qrData.pass_id}`);
+          if (qrData.type === 'CHECKOUT' && qrData.checkout_id) {
+            // Search by the NEW checkout_unique_id
+            where.checkout_unique_id = qrData.checkout_id;
+            logger.info(`[VERIFY] Checkout QR scanned with checkout ID: ${qrData.checkout_id}`);
           } else {
             throw new Error('Invalid checkout QR code format');
           }
@@ -967,10 +968,12 @@ class GatePassService {
 
       logger.info(`[CANCEL PASS] User ${userId} (admin:${isAdmin}, guard:${isGuard}, creator:${isCreator}) cancelling pass ${pass_id}`);
 
-      // Generate checkout QR code with 1-hour validity
+      // Generate NEW unique checkout ID and QR code with 1-hour validity
       const checkoutQRData = await this.generateCheckoutQR(pass.id);
+      
+      logger.info(`[CANCEL PASS] New checkout ID: ${checkoutQRData.checkout_unique_id}, verification code: ${checkoutQRData.checkout_verification_code}`);
 
-      // Update pass status to cancelled
+      // Update pass status to cancelled with new checkout unique ID and verification code
       const updatedPass = await prisma.gate_pass.update({
         where: { pass_id },
         data: {
@@ -978,6 +981,8 @@ class GatePassService {
           pass_status: 'cancelled',
           qr_status: 'cancelled',
           cancellation_time: new Date(),
+          checkout_unique_id: checkoutQRData.checkout_unique_id,
+          checkout_verification_code: checkoutQRData.checkout_verification_code,
           checkout_qr_code: checkoutQRData.qr_code,
           checkout_qr_expires_at: checkoutQRData.expires_at
         }
@@ -992,6 +997,8 @@ class GatePassService {
       return {
         ...updatedPass,
         checkout_qr: {
+          checkout_unique_id: checkoutQRData.checkout_unique_id,
+          checkout_verification_code: checkoutQRData.checkout_verification_code,
           qr_code: checkoutQRData.qr_code,
           expires_at: checkoutQRData.expires_at,
           expires_in_minutes: 60
@@ -1037,7 +1044,7 @@ class GatePassService {
   }
 
   /**
-   * Generate checkout QR code (valid for 1 hour)
+   * Generate checkout QR code with unique checkout ID (valid for 1 hour)
    */
   async generateCheckoutQR(passId) {
     try {
@@ -1049,14 +1056,38 @@ class GatePassService {
         throw new Error('Pass not found');
       }
 
+      // Generate unique checkout ID (different from pass_id)
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
+      
+      // Get count of checkouts today to generate sequence number
+      const checkoutCountToday = await prisma.gate_pass.count({
+        where: {
+          cancellation_time: {
+            gte: new Date(today.setHours(0, 0, 0, 0)),
+            lt: new Date(today.setHours(23, 59, 59, 999))
+          },
+          checkout_unique_id: {
+            not: null
+          }
+        }
+      });
+
+      const sequence = String(checkoutCountToday + 1).padStart(3, '0');
+      const checkoutUniqueId = `CHECKOUT-${dateStr}-${sequence}`;
+
+      // Generate NEW 6-digit verification code for checkout (different from original)
+      const checkoutVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
       const timestamp = Date.now();
       const expiresAt = new Date(timestamp + 60 * 60 * 1000); // 1 hour from now
       
-      // Generate unique checkout QR data
+      // Generate checkout QR data with new unique checkout ID
       const checkoutData = {
         type: 'CHECKOUT',
-        passId: pass.id,
-        pass_id: pass.pass_id,
+        checkout_id: checkoutUniqueId,
+        checkout_verification_code: checkoutVerificationCode,
+        original_pass_id: pass.pass_id,
         timestamp: timestamp,
         expiresAt: expiresAt.toISOString()
       };
@@ -1070,9 +1101,11 @@ class GatePassService {
         width: 300
       });
 
-      logger.info(`Checkout QR generated for pass: ${pass.pass_id}, expires at: ${expiresAt.toISOString()}`);
+      logger.info(`[CHECKOUT QR] Generated new checkout ID: ${checkoutUniqueId}, verification code: ${checkoutVerificationCode} for pass: ${pass.pass_id}, expires at: ${expiresAt.toISOString()}`);
 
       return {
+        checkout_unique_id: checkoutUniqueId,
+        checkout_verification_code: checkoutVerificationCode,
         qr_code: qrCodeDataURL,
         expires_at: expiresAt
       };
@@ -1102,23 +1135,28 @@ class GatePassService {
 
       // Check if pass is cancelled - requires verification
       if (pass.pass_status === 'cancelled') {
-        // Validate checkout QR exists and not expired
-        if (!pass.checkout_qr_code || !pass.checkout_qr_expires_at) {
-          throw new Error('No checkout QR code found. This cancelled pass requires a valid checkout QR.');
+        // Validate checkout credentials exist and not expired
+        if ((!pass.checkout_unique_id || !pass.checkout_verification_code) && !pass.checkout_qr_expires_at) {
+          throw new Error('No checkout credentials found. This cancelled pass requires valid checkout verification.');
         }
 
         const now = new Date();
-        if (now > pass.checkout_qr_expires_at) {
+        if (pass.checkout_qr_expires_at && now > pass.checkout_qr_expires_at) {
           const expiredMinutes = Math.floor((now.getTime() - pass.checkout_qr_expires_at.getTime()) / (1000 * 60));
-          throw new Error(`Checkout QR code expired ${expiredMinutes} minute(s) ago. Visitor must contact admin for new checkout QR.`);
+          throw new Error(`Checkout credentials expired ${expiredMinutes} minute(s) ago. Visitor must contact admin for new checkout credentials.`);
         }
 
-        // Validate verification code if provided
-        if (exitData.verificationCode && exitData.verificationCode !== pass.verification_code) {
-          throw new Error('Invalid verification code. Please check and try again.');
+        // Validate NEW checkout verification code (different from check-in code)
+        if (exitData.verificationCode) {
+          if (!pass.checkout_verification_code) {
+            throw new Error('No checkout verification code found. Please scan the checkout QR code.');
+          }
+          if (exitData.verificationCode !== pass.checkout_verification_code) {
+            throw new Error('Invalid checkout verification code. Please use the NEW code sent after cancellation.');
+          }
         }
         
-        logger.info(`[CHECKOUT] Cancelled pass checkout: ${pass.pass_id}, QR expires: ${pass.checkout_qr_expires_at}`);
+        logger.info(`[CHECKOUT] Cancelled pass checkout: ${pass.pass_id}, checkout ID: ${pass.checkout_unique_id}, QR expires: ${pass.checkout_qr_expires_at}`);
       } else if (pass.pass_status !== 'checked_out' && pass.pass_status !== 'cancelled') {
         throw new Error(`Cannot checkout pass with status: ${pass.pass_status}`);
       }

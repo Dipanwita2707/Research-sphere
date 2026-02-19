@@ -1988,6 +1988,8 @@ model gate_pass {
   extension_count                                    Int                      @default(0)
   extension_reason                                   String?
   cancellation_time                                  DateTime?                @db.Timestamptz(6)
+  checkout_unique_id                                 String?                  @unique
+  checkout_verification_code                         String?
   checkout_qr_code                                   String?
   checkout_qr_expires_at                             DateTime?                @db.Timestamptz(6)
   linked_pass_id                                     String?                  @db.Uuid

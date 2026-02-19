@@ -29,6 +29,7 @@ export default function VerifyPassPage() {
   // Cancelled pass checkout QR states
   const [isCancelledPass, setIsCancelledPass] = useState(false);
   const [checkoutQRRemaining, setCheckoutQRRemaining] = useState<number>(0);
+  const [checkoutExpiresAt, setCheckoutExpiresAt] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(Date.now());
   
   // Verification modal states
@@ -49,6 +50,10 @@ export default function VerifyPassPage() {
   const [showCancelFirstModal, setShowCancelFirstModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancellingPass, setCancellingPass] = useState(false);
+  
+  // Checkout credentials modal
+  const [showCheckoutCredentialsModal, setShowCheckoutCredentialsModal] = useState(false);
+  const [checkoutCredentials, setCheckoutCredentials] = useState<{checkoutId: string; checkoutCode: string; expiresAt: string} | null>(null);
 
   // Page-level access control - Only Admin and Guard can verify passes
   useEffect(() => {
@@ -107,16 +112,35 @@ export default function VerifyPassPage() {
     };
   }, [activeTab, scannerInitialized]);
 
-  // Countdown timer for cancelled pass checkout QR
+  // Countdown timer for cancelled pass checkout QR - updates every second
   useEffect(() => {
-    if (isCancelledPass && checkoutQRRemaining > 0) {
+    if (isCancelledPass && checkoutExpiresAt) {
       const interval = setInterval(() => {
         setCurrentTime(Date.now());
       }, 1000);
       
       return () => clearInterval(interval);
     }
-  }, [isCancelledPass, checkoutQRRemaining]);
+  }, [isCancelledPass, checkoutExpiresAt]);
+
+  // Calculate remaining time dynamically
+  const getCheckoutTimeRemaining = () => {
+    if (!checkoutExpiresAt) return { minutes: 0, seconds: 0, total: 0 };
+    
+    const expiryTime = new Date(checkoutExpiresAt).getTime();
+    const now = currentTime;
+    const remainingMs = expiryTime - now;
+    
+    if (remainingMs <= 0) {
+      return { minutes: 0, seconds: 0, total: 0 };
+    }
+    
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    
+    return { minutes, seconds, total: minutes + seconds / 60 };
+  };
 
   const handleQRScan = async (scannedData: string) => {
     try {
@@ -125,6 +149,7 @@ export default function VerifyPassPage() {
       setPass(null);
       setIsCancelledPass(false);
       setCheckoutQRRemaining(0);
+      setCheckoutExpiresAt(null);
       
       // Check if this is a checkout QR code (JSON format)
       let isCheckoutQR = false;
@@ -149,8 +174,9 @@ export default function VerifyPassPage() {
           if (response.isCancelled) {
             setIsCancelledPass(true);
             setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
+            setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
             setPass(passData);
-            toast.warning(response.message || '⚠️ CANCELLED PASS - Emergency Checkout');
+            toast.warning(response.message || '⚠️ CANCELLED PASS - Checkout Required');
             setLoading(false);
             return;
           }
@@ -252,6 +278,9 @@ export default function VerifyPassPage() {
       setLoading(true);
       setError(null);
       setPass(null);
+      setIsCancelledPass(false);
+      setCheckoutQRRemaining(0);
+      setCheckoutExpiresAt(null);
 
       const response = await gateEntryService.verifyPass(searchTerm, searchType);
       const passData = response.pass;
@@ -262,7 +291,18 @@ export default function VerifyPassPage() {
         return;
       }
       
-      // Validate time window
+      // Check if this is a cancelled pass (for checkout)
+      if (response.isCancelled) {
+        setIsCancelledPass(true);
+        setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
+        setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
+        setPass(passData);
+        toast.warning(response.message || '⚠️ CANCELLED PASS - Checkout Required');
+        setLoading(false);
+        return;
+      }
+      
+      // For non-cancelled passes, validate time window
       const now = new Date();
       const visitDate = new Date(passData.visitDate || now);
       const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -479,8 +519,8 @@ export default function VerifyPassPage() {
 
         scanner.render(
           (decodedText: string) => {
-            // Success - QR code scanned
-            confirmRecordExit();
+            // Success - QR code scanned for checkout
+            confirmRecordCheckout();
             scanner.clear().catch(() => {});
           },
           () => {}
@@ -515,9 +555,44 @@ export default function VerifyPassPage() {
       setPass(response.pass);
       setIsCancelledPass(false);
       setCheckoutQRRemaining(0);
+      setCheckoutExpiresAt(null);
       toast.success('Visitor has been checked out successfully!', 'Exit Recorded');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to record exit', 'Error');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+  
+  // For cancelled passes - use the checkout endpoint with NEW verification code
+  const confirmRecordCheckout = async (code?: string) => {
+    if (!pass) return;
+
+    try {
+      setActionLoading(true);
+      await gateEntryService.recordCheckout(pass.passId, {
+        gate: 'Main Gate',
+        remarks: 'Checkout verified and recorded',
+        verificationCode: code || undefined
+      });
+      
+      // Close modal and cleanup
+      setShowCheckoutVerificationModal(false);
+      setCheckoutVerificationMethod(null);
+      if (checkoutVerifyScannerRef.current) {
+        checkoutVerifyScannerRef.current.clear().catch(() => {});
+        checkoutVerifyScannerRef.current = null;
+      }
+      
+      // Refresh pass data
+      const response = await gateEntryService.verifyPass(pass.passId, 'passId');
+      setPass(response.pass);
+      setIsCancelledPass(false);
+      setCheckoutQRRemaining(0);
+      setCheckoutExpiresAt(null);
+      toast.success('Visitor has been checked out successfully!', 'Checkout Recorded');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to record checkout', 'Error');
     } finally {
       setActionLoading(false);
     }
@@ -529,12 +604,13 @@ export default function VerifyPassPage() {
       return;
     }
     
-    if (checkoutVerificationCodeInput.trim() !== pass?.verificationCode) {
-      toast.error('Invalid verification code. Please try again.', 'Verification Failed');
+    // Use NEW checkout verification code for cancelled passes
+    if (checkoutVerificationCodeInput.trim() !== pass?.checkoutVerificationCode) {
+      toast.error('Invalid checkout verification code. Please use the NEW code sent after cancellation.', 'Verification Failed');
       return;
     }
     
-    confirmRecordExit(checkoutVerificationCodeInput);
+    confirmRecordCheckout(checkoutVerificationCodeInput);
   };
 
   const handleCancelAndCheckout = async () => {
@@ -560,14 +636,15 @@ export default function VerifyPassPage() {
         setShowCancelFirstModal(false);
         setCancelReason('');
         
-        toast.success('Pass cancelled successfully. 1-hour checkout QR sent to visitor.', 'Pass Cancelled');
+        // Show checkout credentials popup
+        setCheckoutCredentials({
+          checkoutId: cancelResponse.pass.checkoutUniqueId || '',
+          checkoutCode: cancelResponse.pass.checkoutVerificationCode || '',
+          expiresAt: cancelResponse.pass.checkoutQrExpiresAt || ''
+        });
+        setShowCheckoutCredentialsModal(true);
         
-        // Open verification modal for checkout
-        setTimeout(() => {
-          setShowCheckoutVerificationModal(true);
-          setCheckoutVerificationMethod(null);
-          setCheckoutVerificationCodeInput('');
-        }, 500);
+        toast.success('Pass cancelled successfully. Checkout credentials generated!', 'Pass Cancelled');
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to cancel pass', 'Error');
@@ -832,18 +909,18 @@ export default function VerifyPassPage() {
             </div>
 
             <div className="p-3 md:p-6">
-              {/* Emergency Checkout Warning for Cancelled Pass */}
+              {/* Checkout Warning for Cancelled Pass */}
               {isCancelledPass && pass.passStatus === 'cancelled' && (
                 <div className="mb-4 md:mb-6 bg-red-50 rounded-lg border-2 border-red-400 p-4 md:p-6 animate-pulse">
                   <div className="flex items-start gap-3 mb-4">
                     <AlertCircle className="w-7 h-7 md:w-8 md:h-8 text-red-600 flex-shrink-0 mt-1" />
                     <div className="flex-1">
-                      <h3 className="text-xl md:text-2xl font-bold text-red-900 mb-2">⚠️ EMERGENCY CHECKOUT - CANCELLED PASS</h3>
+                      <h3 className="text-xl md:text-2xl font-bold text-red-900 mb-2">⚠️ CHECKOUT - CANCELLED PASS</h3>
                       <p className="text-sm md:text-base text-red-700 font-medium mb-2">
-                        This pass has been cancelled. A 1-hour emergency checkout QR code was issued to the visitor.
+                        This pass has been cancelled. A 1-hour checkout QR code was issued to the visitor.
                       </p>
                       <p className="text-xs md:text-sm text-red-600">
-                        Verify visitor identity and allow exit using the "Record Emergency Checkout" button below.
+                        Verify visitor identity and allow exit using the "Record Checkout" button below.
                       </p>
                     </div>
                   </div>
@@ -855,21 +932,21 @@ export default function VerifyPassPage() {
                         <p className="text-xs md:text-sm text-gray-600 mb-1">Checkout QR Validity</p>
                         <div className="flex items-center gap-2">
                           <Clock className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
-                          <span className={`text-xl md:text-3xl font-bold ${checkoutQRRemaining <= 5 ? 'text-red-600' : 'text-orange-600'}`}>
-                            {Math.floor(checkoutQRRemaining)} min {Math.floor((checkoutQRRemaining % 1) * 60)} sec
+                          <span className={`text-xl md:text-3xl font-bold ${getCheckoutTimeRemaining().total <= 5 ? 'text-red-600' : 'text-orange-600'}`}>
+                            {getCheckoutTimeRemaining().minutes} min {getCheckoutTimeRemaining().seconds} sec
                           </span>
                         </div>
                       </div>
                       <div className="text-right">
-                        {checkoutQRRemaining <= 5 ? (
+                        {getCheckoutTimeRemaining().total <= 5 ? (
                           <p className="text-xs md:text-sm font-bold text-red-600">⏰ EXPIRING SOON!</p>
-                        ) : checkoutQRRemaining <= 15 ? (
+                        ) : getCheckoutTimeRemaining().total <= 15 ? (
                           <p className="text-xs md:text-sm font-semibold text-orange-600">⚠️ Less than 15 min</p>
                         ) : (
                           <p className="text-xs md:text-sm text-green-600">✅ Valid</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">
-                          {checkoutQRRemaining <= 0 ? 'EXPIRED' : 'Remaining'}
+                          {getCheckoutTimeRemaining().total <= 0 ? 'EXPIRED' : 'Remaining'}
                         </p>
                       </div>
                     </div>
@@ -904,35 +981,9 @@ export default function VerifyPassPage() {
                 </div>
               )}
 
-              {/* Checkout QR for Cancelled Passes */}
-              {(pass.passStatus === 'cancelled' || pass.status === 'cancelled') && pass.checkoutQrCode && (
-                <div className="mb-4 md:mb-6 bg-orange-50 rounded-lg border-2 border-orange-300 p-4">
-                  <h4 className="font-bold text-orange-900 mb-3 flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
-                    Pass Cancelled - Checkout QR Code
-                  </h4>
-                  <div className="flex flex-col md:flex-row items-center gap-4">
-                    <img 
-                      src={pass.checkoutQrCode} 
-                      alt="Checkout QR" 
-                      className="w-48 h-48 border-2 border-orange-400 rounded" 
-                    />
-                    <div className="text-sm space-y-2">
-                      <p className="text-gray-700">
-                        <strong>Expires:</strong> {pass.checkoutQrExpiresAt ? new Date(pass.checkoutQrExpiresAt).toLocaleString() : 'N/A'}
-                      </p>
-                      <p className="text-orange-600 font-medium">
-                        ⏰ Valid for 1 hour only. Scan this QR to allow exit.
-                      </p>
-                      {pass.checkoutQrExpiresAt && new Date(pass.checkoutQrExpiresAt) < new Date() && (
-                        <p className="text-red-600 font-bold">
-                          ❌ QR Code Expired! Contact admin to regenerate.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Checkout QR for Cancelled Passes - REMOVED (Should only be on visitor's device) */}
+              {/* The checkout QR code is sent to visitor's WhatsApp/Email only */}
+              {/* Guard will scan visitor's QR or enter the verification code */}
 
               {/* Time Validation Success Notice - LPU Style */}
               {pass.qrStatus === 'active' && (
@@ -1132,7 +1183,7 @@ export default function VerifyPassPage() {
                     </div>
                   </div>
                   <p className="text-xs md:text-sm text-gray-600">
-                    {isCancelledPass && "🚨 EMERGENCY CHECKOUT - Record visitor exit"}
+                    {isCancelledPass && "🚨 CHECKOUT - Record visitor exit"}
                     {canAllowEntry && !isCancelledPass && "✅ Verify visitor ID proof before allowing entry"}
                     {canRecordExit && !isCancelledPass && "✅ Confirm visitor is leaving premises"}
                     {canDenyEntry && !isCancelledPass && "⚠️ Deny entry if verification fails"}
@@ -1141,20 +1192,20 @@ export default function VerifyPassPage() {
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-                  {/* Emergency Checkout for Cancelled Pass */}
-                  {isCancelledPass && pass.passStatus === 'cancelled' && checkoutQRRemaining > 0 && (
+                  {/* Checkout for Cancelled Pass */}
+                  {isCancelledPass && pass.passStatus === 'cancelled' && getCheckoutTimeRemaining().total > 0 && (
                     <button
                       onClick={handleRecordExit}
                       disabled={actionLoading}
                       className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all hover:shadow-lg flex items-center justify-center gap-2 md:gap-3 font-bold text-base md:text-lg disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-95"
                     >
                       <AlertCircle className="w-5 h-5 md:w-6 md:h-6" />
-                      {actionLoading ? 'Processing...' : '🚨 Record Emergency Checkout'}
+                      {actionLoading ? 'Processing...' : '🚨 Record Checkout'}
                     </button>
                   )}
 
                   {/* Expired QR Warning */}
-                  {isCancelledPass && checkoutQRRemaining <= 0 && (
+                  {isCancelledPass && getCheckoutTimeRemaining().total <= 0 && (
                     <div className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-red-100 border-2 border-red-500 text-red-800 rounded-lg text-center font-semibold text-sm md:text-base">
                       ❌ Checkout QR Expired - Contact Admin to Regenerate
                     </div>
@@ -1439,7 +1490,7 @@ export default function VerifyPassPage() {
                       <div className="flex items-start">
                         <AlertCircle className="w-5 h-5 text-orange-600 mr-3 mt-0.5 flex-shrink-0" />
                         <div>
-                          <h3 className="font-semibold text-orange-900">Emergency Checkout Verification</h3>
+                          <h3 className="font-semibold text-orange-900">Checkout Verification</h3>
                           <p className="text-sm text-orange-700 mt-1">
                             This pass was cancelled. Visitor must show checkout QR code or provide verification code.
                           </p>
@@ -1460,7 +1511,7 @@ export default function VerifyPassPage() {
                         </div>
                         <h3 className="font-bold text-lg text-gray-900 mb-2">Scan Checkout QR</h3>
                         <p className="text-sm text-gray-600 mb-3">
-                          Scan the emergency checkout QR code sent to visitor
+                          Scan the checkout QR code sent to visitor
                         </p>
                         <div className="bg-red-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
                           Open Camera
@@ -1479,7 +1530,7 @@ export default function VerifyPassPage() {
                         </div>
                         <h3 className="font-bold text-lg text-gray-900 mb-2">Enter Code</h3>
                         <p className="text-sm text-gray-600 mb-3">
-                          Ask visitor for their 6-digit verification code
+                          Ask visitor for their NEW 6-digit checkout code
                         </p>
                         <div className="bg-orange-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
                           Enter Code
@@ -1514,7 +1565,7 @@ export default function VerifyPassPage() {
                       Scan Checkout QR Code
                     </h3>
                     <p className="text-sm text-red-700">
-                      Ask the visitor to show their emergency checkout QR code. Position it within the camera frame.
+                      Ask the visitor to show their checkout QR code. Position it within the camera frame.
                     </p>
                   </div>
 
@@ -1546,16 +1597,16 @@ export default function VerifyPassPage() {
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
                     <h3 className="font-semibold text-orange-900 mb-2 flex items-center gap-2">
                       <span className="text-xl">🔢</span>
-                      Enter Verification Code
+                      Enter NEW Checkout Verification Code
                     </h3>
                     <p className="text-sm text-orange-700">
-                      Ask the visitor to provide their 6-digit verification code from the gate pass.
+                      Ask the visitor for their NEW 6-digit verification code sent AFTER cancellation (not the original check-in code).
                     </p>
                   </div>
 
                   <div className="mb-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Verification Code
+                      Checkout Verification Code
                     </label>
                     <input
                       type="text"
@@ -1615,7 +1666,7 @@ export default function VerifyPassPage() {
                   <XCircle className="w-6 h-6" />
                 </button>
               </div>
-              <p className="text-orange-100 text-sm mt-1">Cancel checked-in pass and proceed with emergency checkout</p>
+              <p className="text-orange-100 text-sm mt-1">Cancel checked-in pass and proceed with checkout</p>
             </div>
 
             <div className="p-6">
@@ -1629,7 +1680,7 @@ export default function VerifyPassPage() {
                     </p>
                     <ol className="text-sm text-orange-700 mt-2 ml-4 list-decimal space-y-1">
                       <li>Enter cancellation reason below</li>
-                      <li>System will generate 1-hour emergency checkout QR</li>
+                      <li>System will generate 1-hour checkout QR</li>
                       <li>Visitor will receive QR via email/WhatsApp</li>
                       <li>Then verify using QR code or verification code to checkout</li>
                     </ol>
@@ -1681,6 +1732,135 @@ export default function VerifyPassPage() {
                       Cancel Pass & Proceed to Checkout
                     </>
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Checkout Credentials Modal - Shows after cancellation */}
+      {showCheckoutCredentialsModal && checkoutCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  ✅ Pass Cancelled - Checkout Credentials Generated
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowCheckoutCredentialsModal(false);
+                    setCheckoutCredentials(null);
+                  }}
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Success Message */}
+              <div className="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+                <div className="flex items-start">
+                  <CheckCircle className="w-6 h-6 text-green-600 mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-green-900 mb-1">Pass Successfully Cancelled</h3>
+                    <p className="text-sm text-green-700">
+                      1-hour checkout QR code has been generated and sent to visitor's WhatsApp/Email.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Checkout Credentials */}
+              <div className="space-y-4 mb-6">
+                {/* Checkout ID */}
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">Checkout ID</label>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-mono font-bold text-gray-800">{checkoutCredentials.checkoutId}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(checkoutCredentials.checkoutId);
+                        toast.success('Checkout ID copied!', 'Copied');
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    >
+                      📋 Copy
+                    </button>
+                  </div>
+                </div>
+
+                {/* Checkout Verification Code */}
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-5 border-2 border-orange-300">
+                  <label className="block text-xs font-semibold text-orange-900 mb-2">
+                    🔐 Checkout Verification Code
+                  </label>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-4xl font-mono font-bold text-orange-600 tracking-wider">
+                      {checkoutCredentials.checkoutCode}
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(checkoutCredentials.checkoutCode);
+                        toast.success('Checkout code copied!', 'Copied');
+                      }}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition"
+                    >
+                      📋 Copy Code
+                    </button>
+                  </div>
+                  <p className="text-xs text-orange-700 font-medium">
+                    ⚠️ Use this code for checkout verification (NOT the original check-in code)
+                  </p>
+                </div>
+
+                {/* Expiry Time */}
+                <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                  <label className="block text-xs font-semibold text-red-900 mb-2">⏰ Valid Until</label>
+                  <span className="text-base font-semibold text-red-700">
+                    {new Date(checkoutCredentials.expiresAt).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </span>
+                  <p className="text-xs text-red-600 mt-1">Valid for 1 hour only</p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCheckoutCredentialsModal(false);
+                    setCheckoutCredentials(null);
+                  }}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 rounded-lg transition"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCheckoutCredentialsModal(false);
+                    setCheckoutCredentials(null);
+                    // Open checkout verification modal
+                    setTimeout(() => {
+                      setShowCheckoutVerificationModal(true);
+                      setCheckoutVerificationMethod(null);
+                      setCheckoutVerificationCodeInput('');
+                    }, 300);
+                  }}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  Proceed to Checkout
                 </button>
               </div>
             </div>
