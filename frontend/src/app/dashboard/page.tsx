@@ -3,7 +3,7 @@
 import { useAuthStore } from '@/shared/auth/authStore';
 import ModernStaffDashboard from '@/features/dashboard/components/ModernStaffDashboard';
 import StudentDashboard from '@/features/dashboard/components/StudentDashboard';
-import LoadingSpinner from '@/shared/ui-components/LoadingSpinner';
+import PageLoader from '@/shared/components/PageLoader';
 import { useEffect } from 'react';
 import { logger } from '@/shared/utils/logger';
 
@@ -24,12 +24,12 @@ export default function DashboardPage() {
 
   if (isLoading) {
     logger.debug('Dashboard - Showing loading spinner');
-    return <LoadingSpinner fullScreen />;
+    return <PageLoader fullScreen />;
   }
 
   if (!user) {
     logger.debug('Dashboard - No user, redirecting...');
-    return <LoadingSpinner fullScreen />;
+    return <PageLoader fullScreen />;
   }
 
   logger.debug('Dashboard - Rendering for userType:', user.userType);

@@ -27,7 +27,8 @@ import {
   Plus,
   List,
   UserPlus,
-  CheckSquare
+  CheckSquare,
+  Shield
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -162,6 +163,7 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
       { name: 'Browse Events', href: '/events', icon: List },
       { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
       { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
+      { name: 'Volunteer', href: '/events/volunteer', icon: Shield },
     ]
   });
   
@@ -185,6 +187,7 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
         { name: 'Employees', href: '/admin/employees', icon: Users },
         { name: 'Students', href: '/admin/students', icon: GraduationCap },
         { name: 'Permissions', href: '/admin/permissions', icon: Settings },
+        { name: 'Reporting Structure', href: '/admin/reporting-structure', icon: Shield },
         { name: 'IPR School Assignment', href: '/admin/drd-school-assignment', icon: MapPin },
         { name: 'Research School Assignment', href: '/admin/research-school-assignment', icon: BookOpen },
         { name: 'Book School Assignment', href: '/admin/book-school-assignment', icon: BookOpen },

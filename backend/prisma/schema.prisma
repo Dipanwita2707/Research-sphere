@@ -106,6 +106,12 @@ model UserLogin {
   clubChangeRequestsApproved                        ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
   clubChangeRequestsRejected                        ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
   clubAuditLogs                                     ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
+  reportingStructure                                ReportingStructure?                  @relation("UserReporting")
+  directReports                                     ReportingStructure[]                 @relation("ManagerReporting")
+  sentInvitations                                    EventTeamInvitation[]                @relation("InvitationInviter")
+  receivedInvitations                                EventTeamInvitation[]                @relation("InvitationInvitee")
+  teamJoinRequests                                   EventTeamRequest[]                   @relation("RequestRequester")
+  eventTeamMemberships                               EventTeamMember[]                    @relation("TeamMemberUser")
 
   @@map("user_login")
 }
@@ -1848,6 +1854,16 @@ model Note {
   eventStartDate      DateTime?
   eventEndDate        DateTime?
   eventPaymentType    EventPaymentType?
+  eventParticipationType ParticipationType?       @map("event_participation_type")
+  eventRegistrationFeeIndividual Float?            @map("event_registration_fee_individual")
+  eventRegistrationFeeTeam       Float?            @map("event_registration_fee_team")
+  eventApproxCapacity Int?                        @map("event_approx_capacity")
+  eventDutyLeaveAvailable Boolean?                @map("event_duty_leave_available")
+  eventDutyLeaveEligibility Json?                  @map("event_duty_leave_eligibility")
+  eventHasSponsorship Boolean?                    @map("event_has_sponsorship")
+  eventSponsors       Json?                       @map("event_sponsors") // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  eventHasResources   Boolean?                    @map("event_has_resources")
+  eventResources      Json?                       @map("event_resources")
   clubName            String?                     @map("club_name") @db.VarChar(256)
   clubCategoryId      String?                     @map("club_category_id") @db.Uuid
   clubPurpose         String?                     @map("club_purpose") @db.Text
@@ -1864,6 +1880,9 @@ model Note {
   clubFacultyFacilitatorId String?                @map("club_faculty_facilitator_id") @db.Uuid
   clubViceChairpersonId    String?                @map("club_vice_chairperson_id") @db.Uuid
   clubInitialMembers       String[]               @default([]) @map("club_initial_members")
+  autoForwardedToManager   Boolean                @default(false) @map("auto_forwarded_to_manager")
+  manualForwardReason      String?                @map("manual_forward_reason") @db.Text
+  reportingChainHistory    Json?                  @map("reporting_chain_history")
   Event               Event?
   createdBy           UserLogin                   @relation("NoteCreatedBy", fields: [createdById], references: [id])
   currentHolder       UserLogin?                  @relation("NoteCurrentHolder", fields: [currentHolderId], references: [id])
@@ -1911,6 +1930,7 @@ model NoteHistory {
   @@index([action])
   @@index([noteId, createdAt], map: "note_history_noteId_createdAt_idx")
   @@index([performedById], map: "note_history_performedById_idx")
+  @@index([performedById, action], map: "note_history_performedById_action_idx")
   @@index([performedById, createdAt], map: "note_history_performedById_createdAt_idx")
   @@map("note_history")
 }
@@ -1938,23 +1958,46 @@ model NotingAuthority {
   @@map("noting_authority")
 }
 
+model ReportingStructure {
+  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId        String     @unique @map("user_id") @db.Uuid
+  managerId     String?    @map("manager_id") @db.Uuid
+  hierarchyDepth Int       @default(0) @map("hierarchy_depth")
+  hierarchyPath String?    @map("hierarchy_path") @db.Text
+  isActive      Boolean    @default(true) @map("is_active")
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdById   String     @map("created_by_id") @db.Uuid
+  
+  user          UserLogin  @relation("UserReporting", fields: [userId], references: [id], onDelete: Cascade)
+  manager       UserLogin? @relation("ManagerReporting", fields: [managerId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([managerId])
+  @@index([hierarchyDepth])
+  @@index([isActive])
+  @@index([isActive, managerId])
+  @@index([isActive, hierarchyDepth])
+  @@map("reporting_structure")
+}
+
 model gate_pass {
   id                                                 String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   pass_id                                            String                   @unique @db.VarChar(64)
   visitor_name                                       String                   @db.VarChar(255)
   mobile_number                                      String                   @db.VarChar(20)
   email                                              String?                  @db.VarChar(255)
-  id_proof_type                                      id_proof_type_enum
-  id_proof_number                                    String                   @db.VarChar(100)
+  id_proof_type                                      id_proof_type_enum?
+  id_proof_number                                    String?                  @db.VarChar(100)
   photo_file_path                                    String?
   photo                                              String?                  @db.VarChar(64)
   gender                                             gender_enum?
   age                                                Int?
   purpose_of_visit                                   visit_purpose_enum
   purpose_other                                      String?                  @db.VarChar(255)
-  department_to_visit                                String                   @db.VarChar(255)
+  department_to_visit                                String?                  @db.VarChar(255)
   person_to_meet_id                                  String?                  @db.Uuid
-  person_to_meet_name                                String                   @db.VarChar(255)
+  person_to_meet_name                                String?                  @db.VarChar(255)
   visit_date                                         DateTime                 @db.Date
   expected_entry_time                                String                   @db.VarChar(10)
   expected_exit_time                                 String                   @db.VarChar(10)
@@ -1965,6 +2008,9 @@ model gate_pass {
   number_of_persons                                  Int                      @default(1)
   items_carrying                                     String?
   special_instructions                               String?
+  stay_required                                      Boolean?                 @default(false)
+  verification_code                                  String?                  @db.VarChar(10)
+  visitor_relation                                   String?                  @db.VarChar(100)
   status                                             gate_pass_status_enum    @default(active)
   qr_code                                            String?
   actual_entry_time                                  DateTime?                @db.Timestamptz(6)
@@ -2024,30 +2070,102 @@ model gate_pass_notification {
 }
 
 model Event {
-  id                    String              @id
-  eventId               String              @unique
-  notingId              String              @unique @db.Uuid
-  name                  String
-  eventType             EventType
-  description           String?
-  startDate             DateTime
-  endDate               DateTime
-  paymentType           EventPaymentType
-  venue                 String?
-  maxCapacity           Int?
-  registrationFee       Float?
-  registrationStartDate DateTime?
-  registrationEndDate   DateTime?
-  status                EventStatus         @default(draft)
-  publishedAt           DateTime?
-  createdById           String              @db.Uuid
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime
-  user_login            UserLogin           @relation(fields: [createdById], references: [id])
-  note                  Note                @relation(fields: [notingId], references: [id])
-  EventEntry            EventEntry[]
-  EventRegistration     EventRegistration[]
-  EventVolunteer        EventVolunteer[]
+  id                         String              @id
+  eventId                    String              @unique
+  notingId                   String              @unique @db.Uuid
+  name                       String
+  eventType                  EventType
+  description                String?
+  longDescription            String?
+  startDate                  DateTime
+  endDate                    DateTime
+  paymentType                EventPaymentType
+  venue                      String?
+  maxCapacity                Int?
+  approxCapacity             Int?                        @map("approx_capacity")
+  registrationFee            Float?
+  teamRegistrationFee       Float?                       @map("team_registration_fee")
+  registrationStartDate      DateTime?
+  registrationEndDate        DateTime?
+  status                     EventStatus         @default(draft)
+  publishedAt                DateTime?
+  
+  // Event Branding
+  bannerImageUrl             String?
+  logoImageUrl               String?
+  
+  // Opportunity Mode & Participation
+  opportunityMode            OpportunityMode?    @default(online)
+  participationType          ParticipationType?  @default(individual)
+  minTeamSize                Int?
+  maxTeamSize                Int?
+  interCollegeAllowed        Boolean?            @default(false)
+  interSpecializationAllowed Boolean?            @default(false)
+  
+  // Contact Details
+  contactPersonName          String?
+  contactEmail               String?
+  contactMobile              String?
+  alternateContact           String?
+  websiteUrl                 String?
+  socialMediaLinks           Json?
+  
+  // Duty Leave & Sponsorship (from Noting)
+  dutyLeaveAvailable         Boolean?                    @map("duty_leave_available")
+  dutyLeaveEligibility        Json?                       @map("duty_leave_eligibility")
+  hasSponsorship             Boolean?                    @map("has_sponsorship")
+  sponsors                   Json?                       // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  hasResources               Boolean?                    @map("has_resources")
+  resources                  Json?
+
+  // Additional Information
+  eligibilityCriteria        String?
+  rulesAndGuidelines         String?
+  prizeDetails               String?
+  certificateAvailable       Boolean?            @default(false)
+  faqs                       Json?
+  
+  // Advanced Registration Settings
+  autoApproveRegistration    Boolean             @default(true)           // Auto-approve or manual approval
+  maxTeamLimit               Int?                                          // Max number of teams allowed
+  teamRegistrationDeadline   DateTime?                                     // Separate deadline for team finalization
+  allowEditAfterSubmission   Boolean             @default(false)           // Allow editing after submission
+  requireFormSubmission      Boolean             @default(false)           // Require form before team creation
+  lookingForTeammatesEnabled Boolean             @default(true)            // Enable "Looking for Teammates" feature
+  
+  // Team Settings (additional)
+  allowCrossInstituteTeams   Boolean             @default(false)           // Allow teams from different institutes
+  allowTeamEditAfterSubmission Boolean           @default(false)           // Allow team editing after submission
+  autoApproveTeams           Boolean             @default(true)            // Auto-approve teams
+  
+  // Registration Control Settings
+  registrationCap            Int?                                          // Overall registration limit
+  showParticipantsPublicly   Boolean             @default(false)           // Show participants publicly
+  allowWithdrawRegistration  Boolean             @default(true)            // Allow withdraw registration
+  lockTeamAfterDeadline      Boolean             @default(true)            // Lock team after deadline
+  
+  // Team Discovery Settings
+  allowPublicTeamListing     Boolean             @default(true)            // Allow public team listing
+  allowJoinRequests          Boolean             @default(true)            // Allow join requests
+  allowInviteSystem          Boolean             @default(true)            // Allow invite system
+  
+  // Prize Settings
+  prizesEnabled              Boolean             @default(false)           // Enable prize section
+  
+  // Metadata
+  createdById                String              @db.Uuid
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime
+  
+  // Relations
+  user_login                 UserLogin           @relation(fields: [createdById], references: [id])
+  note                       Note                @relation(fields: [notingId], references: [id])
+  EventEntry                 EventEntry[]
+  EventRegistration          EventRegistration[]
+  EventVolunteer             EventVolunteer[]
+  EventCustomField           EventCustomField[]
+  EventTeam                  EventTeam[]
+  EventPrize                 EventPrize[]
 
   @@index([createdById])
   @@index([eventId])
@@ -2055,6 +2173,9 @@ model Event {
   @@index([notingId])
   @@index([startDate])
   @@index([status])
+  @@index([status, startDate], map: "event_status_startDate_idx")
+  @@index([opportunityMode])
+  @@index([participationType])
 }
 
 model EventEntry {
@@ -2078,22 +2199,34 @@ model EventEntry {
 }
 
 model EventRegistration {
-  id             String             @id
-  registrationId String             @unique
-  eventId        String
-  userId         String             @db.Uuid
-  status         RegistrationStatus @default(pending)
-  qrCode         String             @unique
-  paymentStatus  PaymentStatus?
-  paymentId      String?
-  amountPaid     Float?
-  hasEntered     Boolean            @default(false)
-  enteredAt      DateTime?
-  registeredAt   DateTime           @default(now())
-  updatedAt      DateTime
-  EventEntry     EventEntry[]
-  Event          Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user_login     UserLogin          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String                       @id
+  registrationId        String                       @unique
+  eventId               String
+  userId                String                       @db.Uuid
+  teamId                String?                      @db.Uuid                    // Team association for team events
+  status                RegistrationStatus           @default(pending)
+  qrCode                String                       @unique
+  paymentStatus         PaymentStatus?
+  paymentId             String?
+  amountPaid            Float?
+  hasEntered            Boolean                      @default(false)
+  enteredAt             DateTime?
+  registeredAt          DateTime                     @default(now())
+  updatedAt             DateTime
+  
+  // Form submission data
+  formData              Json?                                                      // Store form field responses
+  formSubmittedAt       DateTime?
+  
+  // Registration tracking
+  isTeamLeader          Boolean                      @default(false)              // Is this user the team leader
+  lookingForTeammates   Boolean                      @default(false)              // User is seeking teammates
+  
+  EventEntry            EventEntry[]
+  Event                 Event                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
+  EventFieldResponse    EventFieldResponse[]
 
   @@unique([eventId, userId])
   @@index([eventId])
@@ -2101,6 +2234,8 @@ model EventRegistration {
   @@index([registrationId])
   @@index([status])
   @@index([userId])
+  @@index([teamId])
+  @@index([lookingForTeammates])
 }
 
 model EventVolunteer {
@@ -2119,6 +2254,253 @@ model EventVolunteer {
   @@index([canScanQr])
   @@index([eventId])
   @@index([userId])
+}
+
+// ============================================
+// Advanced Event Registration System
+// ============================================
+
+// Custom fields configured by event organizer
+model EventCustomField {
+  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId           String
+  fieldName         String                @map("field_name") @db.VarChar(128)
+  fieldLabel        String                @map("field_label") @db.VarChar(256)
+  fieldType         EventFieldType        @map("field_type")
+  isRequired        Boolean               @default(false) @map("is_required")
+  placeholder       String?               @db.VarChar(256)
+  helpText          String?               @map("help_text") @db.VarChar(512)
+  options           Json?                                                          // For dropdown/radio/checkbox options
+  validationRules   Json?                 @map("validation_rules")                 // Min/max length, regex pattern, etc.
+  defaultValue      String?               @map("default_value")
+  sortOrder         Int                   @default(0) @map("sort_order")
+  isActive          Boolean               @default(true) @map("is_active")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  Event             Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  EventFieldResponse EventFieldResponse[]
+
+  @@index([eventId])
+  @@index([sortOrder])
+  @@map("event_custom_field")
+}
+
+// User responses to custom fields
+model EventFieldResponse {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  registrationId    String
+  fieldId           String              @db.Uuid
+  value             String?                                                        // Text value
+  fileUrl           String?             @map("file_url")                           // For file uploads
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  EventRegistration EventRegistration   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  EventCustomField  EventCustomField    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, fieldId])
+  @@index([registrationId])
+  @@index([fieldId])
+  @@map("event_field_response")
+}
+
+// Teams for team-based events
+model EventTeam {
+  id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId               String
+  teamId                String                @unique @map("team_id") @db.VarChar(64)    // Human-readable team ID
+  name                  String                @db.VarChar(256)
+  leaderId              String                @map("leader_id") @db.Uuid
+  status                EventTeamStatus       @default(forming)
+  lookingForMembers     Boolean               @default(true) @map("looking_for_members")
+  isComplete            Boolean               @default(false) @map("is_complete")        // Team has min members
+  isLocked              Boolean               @default(false) @map("is_locked")          // Team finalized
+  metadata              Json                  @default("{}")
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  Event                 Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  EventTeamMember       EventTeamMember[]
+  EventTeamInvitation   EventTeamInvitation[]
+  EventTeamRequest      EventTeamRequest[]
+  EventRegistration     EventRegistration[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+  @@index([leaderId])
+  @@index([status])
+  @@index([lookingForMembers])
+  @@map("event_team")
+}
+
+// Team membership
+model EventTeamMember {
+  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId            String                @db.Uuid
+  userId            String                @db.Uuid
+  role              EventTeamMemberRole   @default(member)
+  status            EventTeamMemberStatus @default(confirmed)
+  joinedAt          DateTime              @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt            DateTime?             @map("left_at") @db.Timestamptz(6)
+  
+  EventTeam         EventTeam             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user              UserLogin             @relation("TeamMemberUser", fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@index([status])
+  @@map("event_team_member")
+}
+
+// Invitations sent by team leader to potential members
+model EventTeamInvitation {
+  id                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId            String                    @db.Uuid
+  inviterId         String                    @map("inviter_id") @db.Uuid            // Team leader who sent invite
+  inviteeId         String                    @map("invitee_id") @db.Uuid            // User being invited
+  status            EventInvitationStatus     @default(pending)
+  message           String?                   @db.VarChar(500)
+  expiresAt         DateTime?                 @map("expires_at") @db.Timestamptz(6)
+  respondedAt       DateTime?                 @map("responded_at") @db.Timestamptz(6)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  EventTeam         EventTeam                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inviter           UserLogin                 @relation("InvitationInviter", fields: [inviterId], references: [id])
+  invitee           UserLogin                 @relation("InvitationInvitee", fields: [inviteeId], references: [id])
+
+  @@unique([teamId, inviteeId])
+  @@index([teamId])
+  @@index([inviterId])
+  @@index([inviteeId])
+  @@index([status])
+  @@map("event_team_invitation")
+}
+
+// Requests sent by users to join teams
+model EventTeamRequest {
+  id                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId            String                    @db.Uuid
+  requesterId       String                    @map("requester_id") @db.Uuid          // User requesting to join
+  status            EventRequestStatus        @default(pending)
+  message           String?                   @db.VarChar(500)
+  respondedById     String?                   @map("responded_by_id") @db.Uuid       // Team leader who responded
+  respondedAt       DateTime?                 @map("responded_at") @db.Timestamptz(6)
+  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  
+  EventTeam         EventTeam                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  requester         UserLogin                 @relation("RequestRequester", fields: [requesterId], references: [id])
+
+  @@unique([teamId, requesterId])
+  @@index([teamId])
+  @@index([requesterId])
+  @@index([status])
+  @@map("event_team_request")
+}
+
+// Event prizes/rewards
+model EventPrize {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId           String
+  position          Int                 @default(1)                                     // 1 = 1st, 2 = 2nd, etc.
+  rank              String              @db.VarChar(64)                                 // "Winner", "Runner-up", "Custom"
+  title             String              @db.VarChar(128)                                // Display title
+  description       String?             @db.VarChar(512)
+  prizeType         PrizeType           @default(certificate) @map("prize_type")
+  prizeAmount       Float?              @map("prize_amount")                            // For cash prizes
+  additionalPerks   Json?               @map("additional_perks")                        // Certificate, internship, etc.
+  sortOrder         Int                 @default(0) @map("sort_order")
+  isActive          Boolean             @default(true) @map("is_active")
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  
+  Event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([sortOrder])
+  @@map("event_prize")
+}
+
+// ============================================
+// Advanced Registration Enums
+// ============================================
+
+enum PrizeType {
+  cash
+  certificate
+  internship
+  merchandise
+  trophy
+  scholarship
+  voucher
+  custom
+
+  @@map("prize_type_enum")
+}
+
+enum EventFieldType {
+  text
+  textarea
+  number
+  email
+  phone
+  url
+  date
+  time
+  datetime
+  dropdown
+  radio
+  checkbox
+  file
+  image
+
+  @@map("event_field_type_enum")
+}
+
+enum EventTeamStatus {
+  forming         // Team is being created
+  complete        // Team has minimum members
+  confirmed       // Team is finalized
+  disqualified    // Team disqualified
+  withdrawn       // Team withdrew
+
+  @@map("event_team_status_enum")
+}
+
+enum EventTeamMemberRole {
+  leader
+  member
+
+  @@map("event_team_member_role_enum")
+}
+
+enum EventTeamMemberStatus {
+  pending
+  confirmed
+  removed
+  left
+
+  @@map("event_team_member_status_enum")
+}
+
+enum EventInvitationStatus {
+  pending
+  accepted
+  declined
+  expired
+  cancelled
+
+  @@map("event_invitation_status_enum")
+}
+
+enum EventRequestStatus {
+  pending
+  accepted
+  rejected
+  cancelled
+
+  @@map("event_request_status_enum")
 }
 
 enum AuditActionType {
@@ -2522,6 +2904,7 @@ enum visit_purpose_enum {
   maintenance
   event
   interview
+  personal
   other
 }
 
@@ -2556,6 +2939,17 @@ enum EventType {
   other
 }
 
+enum OpportunityMode {
+  online
+  offline
+  hybrid
+}
+
+enum ParticipationType {
+  individual
+  team
+}
+
 enum PaymentStatus {
   pending
   completed
@@ -2564,10 +2958,13 @@ enum PaymentStatus {
 }
 
 enum RegistrationStatus {
-  pending
-  confirmed
-  cancelled
-  waitlisted
+  draft               // Form started but not submitted
+  pending             // Submitted, awaiting approval
+  confirmed           // Registration confirmed
+  cancelled           // Registration cancelled
+  waitlisted          // On waitlist
+  rejected            // Registration rejected by organizer
+  incomplete_team     // Team-based: team not complete yet
 }
 
 // ============================================
@@ -2636,6 +3033,7 @@ model Club {
   changeRequests               ClubChangeRequest[]
 
   @@index([status])
+  @@index([status, categoryId], map: "club_status_categoryId_idx")
   @@index([lifecycleState])
   @@index([categoryId])
   @@index([facultyFacilitatorId])

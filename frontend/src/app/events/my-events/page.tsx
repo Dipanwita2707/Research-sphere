@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, Users, Loader2, Edit, TrendingUp, CheckCircle, AlertCircle, Eye, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Users, Edit, TrendingUp, CheckCircle, AlertCircle, Eye, Trash2, QrCode, UserPlus, Settings, BarChart3 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventFilters } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   seminar: 'Seminar',
@@ -57,7 +59,7 @@ export default function MyCreatedEventsPage() {
       setEvents(result.events);
       setPagination(result.pagination);
     } catch (error: any) {
-      toast({ type: 'error', message: error.response?.data?.message || 'Failed to load events' });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -97,16 +99,16 @@ export default function MyCreatedEventsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">My Created Events</h1>
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">My Created Events</h1>
           <p className="text-gray-600 dark:text-gray-400">Events you organized through approved noting requests</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 sm:mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Draft Events</p>
@@ -119,7 +121,7 @@ export default function MyCreatedEventsPage() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Published Events</p>
@@ -132,7 +134,7 @@ export default function MyCreatedEventsPage() {
             </p>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Registrations</p>
@@ -149,11 +151,11 @@ export default function MyCreatedEventsPage() {
         </div>
 
         {/* Tabs */}
-        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
-          <nav className="-mb-px flex space-x-8">
+        <div className="mb-4 sm:mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
             <button
               onClick={() => setActiveTab('published')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${
                 activeTab === 'published'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -163,7 +165,7 @@ export default function MyCreatedEventsPage() {
             </button>
             <button
               onClick={() => setActiveTab('draft')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${
                 activeTab === 'draft'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -173,7 +175,7 @@ export default function MyCreatedEventsPage() {
             </button>
             <button
               onClick={() => setActiveTab('past')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${
                 activeTab === 'past'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -186,9 +188,7 @@ export default function MyCreatedEventsPage() {
 
         {/* Events List */}
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-          </div>
+          <PageSkeleton message="Loading events..." />
         ) : events.length === 0 ? (
           <div className="text-center py-12">
             {activeTab === 'draft' ? (
@@ -231,7 +231,7 @@ export default function MyCreatedEventsPage() {
                 return (
                   <div
                     key={event.id}
-                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow p-6"
+                    className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-6"
                   >
                     <div className="flex items-start justify-between">
                       {/* Event Info */}
@@ -321,7 +321,7 @@ export default function MyCreatedEventsPage() {
                       <div className="flex flex-col gap-2 ml-4">
                         <Link
                           href={`/events/${event.id}`}
-                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors"
                         >
                           <Eye className="h-4 w-4" />
                           View
@@ -330,21 +330,37 @@ export default function MyCreatedEventsPage() {
                         {event.status === 'draft' && (
                           <Link
                             href={`/events/${event.id}/manage`}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors border border-blue-200 dark:border-blue-800"
+                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-sgt-600 dark:text-sgt-400 bg-sgt-50 dark:bg-sgt-900/20 hover:bg-sgt-100 dark:hover:bg-sgt-900/30 rounded-lg transition-colors border border-sgt-200 dark:border-sgt-800"
                           >
                             <Edit className="h-4 w-4" />
                             Complete & Publish
                           </Link>
                         )}
 
-                        {event.status === 'published' && (
-                          <Link
-                            href={`/events/${event.id}?tab=statistics`}
-                            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
-                          >
-                            <TrendingUp className="h-4 w-4" />
-                            Statistics
-                          </Link>
+                        {event.status !== 'draft' && (
+                          <>
+                            <Link
+                              href={`/events/${event.id}/management`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors shadow-sm"
+                            >
+                              <BarChart3 className="h-4 w-4" />
+                              Event Management
+                            </Link>
+                            <Link
+                              href={`/events/${event.id}/manage`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                            >
+                              <Settings className="h-4 w-4" />
+                              Event Update
+                            </Link>
+                            <Link
+                              href={`/events/${event.id}/scan`}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                            >
+                              <QrCode className="h-4 w-4" />
+                              QR Scan
+                            </Link>
+                          </>
                         )}
                       </div>
                     </div>

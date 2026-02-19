@@ -236,13 +236,19 @@ export interface DSWStatistics {
   totalClubs: number;
   activeClubs: number;
   totalMembers: number;
+  totalCategories: number;
+  pendingApprovals: number;
   clubsByCategory: Array<{
     categoryId: string;
     categoryName: string;
-    count: number;
+    _count: number;
   }>;
   clubsBySession: Array<{
     academicSession: string;
+    _count: number;
+  }>;
+  clubsByStatus: Array<{
+    status: string;
     _count: number;
   }>;
 }

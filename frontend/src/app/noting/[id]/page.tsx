@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, CheckCircle, XCircle, Send, User, Clock, Zap, Hand, Paperclip, FileText, Pencil, Building2, Download, Eye, Trash2, RotateCcw, ArrowRight, CornerDownLeft } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Send, User, Clock, Hand, Paperclip, FileText, Pencil, Download, Eye, Trash2, RotateCcw, ArrowRight, CornerDownLeft, Building2, Search, ArrowUpRight, Users } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Note } from '@/features/noting-management/types/noting.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import { useAuthStore } from '@/shared/auth/authStore';
-import api from '@/shared/api/api';
 
 function getDisplayName(obj: { uid?: string; employeeDetails?: { displayName?: string; firstName?: string; lastName?: string }; studentLogin?: { displayName?: string } } | null | undefined): string {
   if (!obj) return '—';
@@ -46,10 +48,14 @@ export default function NoteDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'revert' | 'forward' | null>(null);
   const [remarks, setRemarks] = useState('');
-  const [forwardMode, setForwardMode] = useState<'automated' | 'manual' | null>(null);
   const [forwardUserId, setForwardUserId] = useState('');
-  const [schools, setSchools] = useState<{ id: string; facultyName: string }[]>([]);
-  const [departments, setDepartments] = useState<{ id: string; departmentName: string }[]>([]);
+  const [forwardMode, setForwardMode] = useState<'auto' | 'manual' | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; uid: string; role: string; displayName: string; empId: string; department: string; school: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{ id: string; uid: string; displayName: string; department: string } | null>(null);
+  const [managerInfo, setManagerInfo] = useState<{ id: string; uid: string; displayName: string; empId: string; department: string; school: string } | null>(null);
+  const [managerLoading, setManagerLoading] = useState(false);
 
   // Block students from accessing noting system
   useEffect(() => {
@@ -58,14 +64,9 @@ export default function NoteDetailPage() {
       router.push('/dashboard');
     }
   }, [user, router, toast]);
-  const [programs, setPrograms] = useState<{ id: string; programName: string; programCode?: string }[]>([]);
-  const [forwardUsers, setForwardUsers] = useState<{ id: string; uid: string; role: string; displayName: string }[]>([]);
-  const [schoolId, setSchoolId] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
-  const [programId, setProgramId] = useState('');
-  const [optionsLoading, setOptionsLoading] = useState(false);
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
   const [viewingPath, setViewingPath] = useState<string | null>(null);
+  const [autoForwardLoading, setAutoForwardLoading] = useState(false);
 
   const isCurrentHolder = note?.currentHolderId && typeof window !== 'undefined';
   let currentUserId: string | null = null;
@@ -77,8 +78,7 @@ export default function NoteDetailPage() {
     }
   } catch (_) { }
 
-  const isCentralDeptMember = note?.currentStep?.isCentralDepartment && note.currentStep.members?.some((m) => m.id === currentUserId);
-  const canAct = note?.status === 'pending' && (note?.currentHolderId === currentUserId || (note?.currentHolderId == null && isCentralDeptMember));
+  const canAct = note?.status === 'pending' && note?.currentHolderId === currentUserId;
 
   useEffect(() => {
     if (!id) return;
@@ -89,81 +89,49 @@ export default function NoteDetailPage() {
       .finally(() => setLoading(false));
   }, [id, toast]);
 
-  const fetchSchools = useCallback(async () => {
-    try {
-      const res = await api.get('/schools');
-      const data = res.data?.data ?? res.data ?? [];
-      setSchools(Array.isArray(data) ? data : []);
-    } catch {
-      setSchools([]);
-    }
-  }, []);
-
   useEffect(() => {
     if (actionType === 'forward') {
+      setForwardUserId('');
       setForwardMode(null);
-      setForwardUserId('');
-      setSchoolId('');
-      setDepartmentId('');
-      setProgramId('');
-      setDepartments([]);
-      setPrograms([]);
-      setForwardUsers([]);
-      fetchSchools();
+      setSearchQuery('');
+      setSearchResults([]);
+      setSelectedUser(null);
     }
-  }, [actionType, fetchSchools]);
+  }, [actionType]);
 
+  // Search employees with debounce
   useEffect(() => {
-    if (!schoolId) {
-      setDepartments([]);
-      setDepartmentId('');
-      setProgramId('');
-      setPrograms([]);
-      setForwardUsers([]);
-      setForwardUserId('');
+    if (forwardMode !== 'manual' || searchQuery.trim().length < 2) {
+      setSearchResults([]);
       return;
     }
-    setOptionsLoading(true);
-    api
-      .get(`/departments/by-school/${schoolId}`)
-      .then((res) => {
-        const data = res.data?.data ?? res.data ?? [];
-        setDepartments(Array.isArray(data) ? data : []);
-        setDepartmentId('');
-        setProgramId('');
-        setPrograms([]);
-        setForwardUsers([]);
-        setForwardUserId('');
-      })
-      .catch(() => setDepartments([]))
-      .finally(() => setOptionsLoading(false));
-  }, [schoolId]);
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const results = await notingService.searchEmployees(searchQuery.trim());
+        setSearchResults(results);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, forwardMode]);
 
+  // Fetch manager info when auto mode is selected
   useEffect(() => {
-    if (!departmentId) {
-      setPrograms([]);
-      setForwardUsers([]);
-      setProgramId('');
-      setForwardUserId('');
-      return;
+    if (forwardMode === 'auto' && !managerInfo) {
+      setManagerLoading(true);
+      notingService.getMyManager()
+        .then(setManagerInfo)
+        .catch((err) => {
+          toast({ type: 'error', message: getErrorMessage(err) });
+          setManagerInfo(null);
+        })
+        .finally(() => setManagerLoading(false));
     }
-    setOptionsLoading(true);
-    Promise.all([
-      notingService.getForwardPrograms(departmentId),
-      notingService.getForwardUsers(departmentId),
-    ])
-      .then(([progs, users]) => {
-        setPrograms(progs ?? []);
-        setForwardUsers(users ?? []);
-        setProgramId('');
-        setForwardUserId('');
-      })
-      .catch(() => {
-        setPrograms([]);
-        setForwardUsers([]);
-      })
-      .finally(() => setOptionsLoading(false));
-  }, [departmentId]);
+  }, [forwardMode, managerInfo, toast]);
 
   const doApprove = () => {
     if (!note) return;
@@ -186,7 +154,7 @@ export default function NoteDetailPage() {
         setRemarks('');
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to approve' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -205,7 +173,7 @@ export default function NoteDetailPage() {
         setRemarks('');
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to reject' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -224,7 +192,7 @@ export default function NoteDetailPage() {
         setRemarks('');
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to revert' }))
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
       .finally(() => setActionLoading(false));
   };
 
@@ -233,37 +201,51 @@ export default function NoteDetailPage() {
       toast({ type: 'error', message: 'Remarks are required for forward' });
       return;
     }
-    if (forwardMode === 'manual' && !forwardUserId.trim()) {
+    if (!forwardUserId.trim()) {
       toast({ type: 'error', message: 'Please select a user to forward to' });
       return;
     }
-    if (!forwardMode) {
-      toast({ type: 'error', message: 'Please choose Automated or Manual forward' });
-      return;
-    }
     setActionLoading(true);
-    setActionType('forward');
-    const payload = forwardMode === 'automated'
-      ? { remarks: remarks.trim(), automated: true }
-      : { remarks: remarks.trim(), nextHolderId: forwardUserId.trim() };
+    const payload = { remarks: remarks.trim(), nextHolderId: forwardUserId.trim() };
     notingService
       .forward(note.id, payload)
       .then(() => {
-        toast({ type: 'success', message: 'Note forwarded' });
+        toast({ type: 'success', message: `Note forwarded to ${selectedUser?.displayName || 'selected user'}` });
+        notingService.getById(note.id).then(setNote);
+        setRemarks('');
+        setForwardUserId('');
+        setSelectedUser(null);
+        setForwardMode(null);
+        setActionType(null);
+      })
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
+      .finally(() => setActionLoading(false));
+  };
+
+  const doAutoForward = () => {
+    if (!note) return;
+    if (!remarks.trim()) {
+      toast({ type: 'error', message: 'Remarks are mandatory for forwarding' });
+      return;
+    }
+    setAutoForwardLoading(true);
+    notingService
+      .autoForward(note.id, remarks.trim())
+      .then((response) => {
+        toast({ type: 'success', message: response?.message || 'Note forwarded to your reporting manager' });
         notingService.getById(note.id).then(setNote);
         setRemarks('');
         setForwardMode(null);
-        setForwardUserId('');
         setActionType(null);
       })
-      .catch((err) => toast({ type: 'error', message: err.response?.data?.message || 'Failed to forward' }))
-      .finally(() => setActionLoading(false));
+      .catch((err) => toast({ type: 'error', message: getErrorMessage(err) }))
+      .finally(() => setAutoForwardLoading(false));
   };
 
   if (loading || !note) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="w-7 h-7 animate-spin text-sgt-600" />
+        <PageSkeleton message="Loading note..." />
       </div>
     );
   }
@@ -277,10 +259,10 @@ export default function NoteDetailPage() {
   const StatusIcon = STATUS_ICONS[note.status] || Clock;
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-6 px-4">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-4 sm:py-6 px-4 sm:px-6">
       <div className="max-w-[850px] mx-auto">
         {/* Navigation Bar */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <Link href="/noting" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Back to Noting
@@ -303,7 +285,7 @@ export default function NoteDetailPage() {
                         router.push('/noting');
                       })
                       .catch((err) => {
-                        const message = err.response?.data?.message || 'Failed to delete note';
+                        const message = getErrorMessage(err);
                         toast({ type: 'error', message });
                       });
                   }
@@ -336,8 +318,8 @@ export default function NoteDetailPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
 
           {/* Document Header */}
-          <div className="border-b border-gray-200 dark:border-gray-700 px-8 py-5">
-            <div className="flex items-start justify-between gap-4">
+          <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
                   <span className="px-2 py-0.5 rounded bg-sgt-50 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 text-xs font-mono font-semibold border border-sgt-100 dark:border-sgt-800/50">
@@ -370,43 +352,17 @@ export default function NoteDetailPage() {
                 </div>
               )}
             </div>
-
-            {/* Central Department Step */}
-            {note.currentStep?.isCentralDepartment && (
-              <div className="mt-3 bg-sgt-50 dark:bg-sgt-900/10 px-3 py-2.5 rounded-md border border-sgt-100 dark:border-sgt-800">
-                <div className="flex items-start gap-2.5">
-                  <Building2 className="w-4 h-4 text-sgt-600 dark:text-sgt-400 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-sgt-700 dark:text-sgt-300 uppercase tracking-wide">Current Step: {note.currentStep.centralDepartmentName ?? note.currentStep.authorityType}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Central Department Approval</p>
-                    {note.currentStep.members?.length > 0 && (
-                      <div className="mt-1.5 flex -space-x-1.5 overflow-hidden">
-                        {note.currentStep.members.slice(0, 3).map((m, i) => (
-                          <div key={i} title={m.displayName} className="flex h-6 w-6 rounded-full ring-2 ring-white dark:ring-gray-800 bg-gray-200 items-center justify-center text-[9px] font-bold overflow-hidden">
-                            {m.displayName.substring(0, 2)}
-                          </div>
-                        ))}
-                        {note.currentStep.members.length > 3 && (
-                          <div className="flex h-6 w-6 rounded-full ring-2 ring-white dark:ring-gray-800 bg-gray-100 items-center justify-center text-[9px] text-gray-500 font-bold">
-                            +{note.currentStep.members.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Document Body */}
-          <div className="px-8 py-6 space-y-6">
+          <div className="px-4 sm:px-8 py-4 sm:py-6 space-y-6">
             {/* Description */}
             <section>
               <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Description</h3>
-              <div className="bg-gray-50 dark:bg-gray-900/20 px-4 py-3 rounded-md border border-gray-100 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
-                {note.description}
-              </div>
+              <div 
+                className="noting-rich-content bg-gray-50 dark:bg-gray-900/20 px-4 py-3 rounded-md border border-gray-100 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 [&>ol]:!list-decimal [&>ol]:!ml-6 [&>ol]:!pl-4 [&>ul]:!list-disc [&>ul]:!ml-6 [&>ul]:!pl-4 [&_ol]:!list-decimal [&_ol]:!ml-6 [&_ol]:!pl-4 [&_ul]:!list-disc [&_ul]:!ml-6 [&_ul]:!pl-4 [&_li]:!mb-1 [&_p]:!mb-2 [&_p]:!block [&_h1]:!text-2xl [&_h1]:!font-bold [&_h1]:!my-3 [&_h2]:!text-xl [&_h2]:!font-semibold [&_h2]:!my-2 [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!my-2 [&_blockquote]:!border-l-4 [&_blockquote]:!border-sgt-500 [&_blockquote]:!pl-4 [&_blockquote]:!italic [&_blockquote]:!my-2"
+                dangerouslySetInnerHTML={{ __html: note.description || '' }}
+              />
             </section>
 
             {/* Event Details */}
@@ -417,7 +373,7 @@ export default function NoteDetailPage() {
                   {!note.eventName && !note.eventType && !note.eventStartDate ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400 italic p-4">Event details not provided.</p>
                   ) : (
-                    <div className="grid grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
                       {note.eventName && (
                         <div className="bg-white dark:bg-gray-800 p-3">
                           <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Event Name</label>
@@ -455,6 +411,75 @@ export default function NoteDetailPage() {
                             }`}>
                             {note.eventPaymentType.toUpperCase()}
                           </span>
+                        </div>
+                      )}
+                      {note.eventParticipationType && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Participation</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{note.eventParticipationType.replace('_', ' ')}</p>
+                        </div>
+                      )}
+                      {note.eventPaymentType === 'paid' && (note.eventRegistrationFeeIndividual != null || note.eventRegistrationFeeTeam != null) && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Fee</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {note.eventParticipationType === 'team'
+                              ? `₹ ${Number(note.eventRegistrationFeeTeam || 0).toLocaleString()} per team`
+                              : `₹ ${Number(note.eventRegistrationFeeIndividual || 0).toLocaleString()} per person`}
+                          </p>
+                        </div>
+                      )}
+                      {note.eventApproxCapacity != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Approx. Capacity</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventApproxCapacity}</p>
+                        </div>
+                      )}
+                      {note.eventDutyLeaveAvailable != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Duty Leave</label>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventDutyLeaveAvailable ? 'Yes' : 'No'}</p>
+                          {note.eventDutyLeaveAvailable && Array.isArray(note.eventDutyLeaveEligibility) && note.eventDutyLeaveEligibility.length > 0 && (
+                            <p className="text-xs text-gray-500 mt-0.5">{note.eventDutyLeaveEligibility.map((e) => e.replace('_', ' ')).join(', ')}</p>
+                          )}
+                        </div>
+                      )}
+                      {note.eventHasSponsorship != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3 sm:col-span-2">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Sponsorship</label>
+                          {note.eventHasSponsorship && Array.isArray(note.eventSponsors) && note.eventSponsors.length > 0 ? (
+                            <div className="mt-1 space-y-1">
+                              {note.eventSponsors.map((s, i) => (
+                                <div key={i} className="text-sm text-gray-900 dark:text-white">
+                                  <span className="font-medium">{s.name}</span>
+                                  {s.type === 'cash' ? (
+                                    <span className="text-gray-600 dark:text-gray-300"> — ₹ {Number(s.amount || 0).toLocaleString()}</span>
+                                  ) : (
+                                    <span className="text-gray-600 dark:text-gray-300"> — In-kind: {s.notes || '—'}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventHasSponsorship ? 'Yes (details not provided)' : 'No'}</p>
+                          )}
+                        </div>
+                      )}
+                      {note.eventHasResources != null && (
+                        <div className="bg-white dark:bg-gray-800 p-3 sm:col-span-2">
+                          <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Resources</label>
+                          {note.eventHasResources && Array.isArray(note.eventResources) && note.eventResources.length > 0 ? (
+                            <div className="mt-1 space-y-1">
+                              {note.eventResources.map((r, i) => (
+                                <div key={i} className="text-sm text-gray-900 dark:text-white">
+                                  <span className="font-medium capitalize">{r.category}</span> — {r.type} {r.description && `: ${r.description}`}
+                                  {r.estimatedCost != null && <span className="text-gray-600 dark:text-gray-300"> (₹ {Number(r.estimatedCost).toLocaleString()})</span>}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">{note.eventHasResources ? 'Yes (details not provided)' : 'No'}</p>
+                          )}
                         </div>
                       )}
                     </div>
@@ -538,7 +563,7 @@ export default function NoteDetailPage() {
                                 disabled={isViewing}
                                 className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-sgt-600 transition-colors"
                               >
-                                {isViewing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Eye className="w-3 h-3" />}
+                                {isViewing ? <LoadingSpinner size="sm" className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                                 Preview
                               </button>
                               <button
@@ -557,7 +582,7 @@ export default function NoteDetailPage() {
                                 disabled={isDownloading}
                                 className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-sgt-600 transition-colors"
                               >
-                                {isDownloading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                                {isDownloading ? <LoadingSpinner size="sm" className="w-3 h-3" /> : <Download className="w-3 h-3" />}
                                 Download
                               </button>
                             </div>
@@ -694,86 +719,124 @@ export default function NoteDetailPage() {
                     onChange={(e) => setRemarks(e.target.value)}
                     rows={2}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                    placeholder="Remarks (mandatory for Reject, Revert & Forward)"
+                    placeholder="Remarks (mandatory for Reject, Revert & Forward)..."
                   />
 
                   {/* Forward Panel */}
                   {actionType === 'forward' && (
-                    <div className="rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 p-4 space-y-3">
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Forward Method</p>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="forwardMode" checked={forwardMode === 'automated'} onChange={() => setForwardMode('automated')} className="rounded border-gray-300 text-sgt-600 focus:ring-sgt-500" />
-                          <Zap className="w-3.5 h-3.5 text-amber-500" />
-                          <span className="text-sm">Automated</span>
+                    <div className="rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 p-3 space-y-2.5">
+                      {/* Radio Options */}
+                      <div className="flex items-center gap-5">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="forwardMode"
+                            checked={forwardMode === 'auto'}
+                            onChange={() => { setForwardMode('auto'); setForwardUserId(''); setSelectedUser(null); setSearchQuery(''); setSearchResults([]); }}
+                            className="w-3.5 h-3.5 text-sgt-600 accent-sgt-600"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Auto (to manager)</span>
                         </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="forwardMode" checked={forwardMode === 'manual'} onChange={() => setForwardMode('manual')} className="rounded border-gray-300 text-sgt-600 focus:ring-sgt-500" />
-                          <Hand className="w-3.5 h-3.5 text-sgt-500" />
-                          <span className="text-sm">Manual</span>
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="forwardMode"
+                            checked={forwardMode === 'manual'}
+                            onChange={() => { setForwardMode('manual'); setForwardUserId(''); setSelectedUser(null); setManagerInfo(null); }}
+                            className="w-3.5 h-3.5 text-sgt-600 accent-sgt-600"
+                          />
+                          <span className="text-sm text-gray-700 dark:text-gray-300">Manual (search faculty)</span>
                         </label>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Automated: forwards to next authority automatically. Manual: choose School → Department → User.
-                      </p>
-                      {forwardMode === 'manual' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">School</label>
-                            <select
-                              value={schoolId}
-                              onChange={(e) => setSchoolId(e.target.value)}
-                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                            >
-                              <option value="">Select school</option>
-                              {schools.map((s) => (
-                                <option key={s.id} value={s.id}>{s.facultyName}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Department</label>
-                            <select
-                              value={departmentId}
-                              onChange={(e) => setDepartmentId(e.target.value)}
-                              disabled={!schoolId || optionsLoading}
-                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                            >
-                              <option value="">Select department</option>
-                              {departments.map((d) => (
-                                <option key={d.id} value={d.id}>{d.departmentName}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Program</label>
-                            <select
-                              value={programId}
-                              onChange={(e) => setProgramId(e.target.value)}
-                              disabled={!departmentId || optionsLoading}
-                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                            >
-                              <option value="">Select program (optional)</option>
-                              {programs.map((p) => (
-                                <option key={p.id} value={p.id}>{p.programName}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Forward to user</label>
-                            <select
-                              value={forwardUserId}
-                              onChange={(e) => setForwardUserId(e.target.value)}
-                              disabled={!departmentId || optionsLoading}
-                              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white disabled:opacity-50 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                            >
-                              <option value="">Select user</option>
-                              {forwardUsers.map((u) => (
-                                <option key={u.id} value={u.id}>{u.displayName} ({u.uid})</option>
-                              ))}
-                            </select>
-                          </div>
+
+                      {/* Auto Forward */}
+                      {forwardMode === 'auto' && (
+                        <div className="space-y-2">
+                          {managerLoading ? (
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <LoadingSpinner size="sm" className="w-3 h-3" />
+                              Loading manager info...
+                            </div>
+                          ) : managerInfo ? (
+                            <div className="flex items-center gap-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2.5 py-1.5">
+                              <div className="flex-1">
+                                <p className="text-xs text-gray-500">Forwarding to:</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-sm font-medium text-gray-900 dark:text-white">{managerInfo.displayName}</span>
+                                  <span className="text-xs text-gray-400">({managerInfo.uid})</span>
+                                  {managerInfo.department && <span className="text-xs text-gray-400">• {managerInfo.department}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-red-500">No reporting manager found</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={doAutoForward}
+                            disabled={autoForwardLoading || !remarks.trim() || !managerInfo}
+                            className="w-full px-3 py-1.5 text-xs bg-sgt-600 text-white rounded hover:bg-sgt-700 disabled:opacity-50 font-medium inline-flex items-center justify-center gap-1"
+                          >
+                            {autoForwardLoading ? <LoadingSpinner size="sm" className="w-3 h-3" /> : <ArrowUpRight className="w-3 h-3" />}
+                            Forward
+                          </button>
                         </div>
+                      )}
+
+                      {/* Manual Forward */}
+                      {forwardMode === 'manual' && (
+                        <>
+                          {/* Selected user or search input */}
+                          {selectedUser ? (
+                            <div className="flex items-center gap-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2.5 py-1.5">
+                              <span className="text-sm font-medium text-gray-900 dark:text-white">{selectedUser.displayName}</span>
+                              <span className="text-xs text-gray-400">({selectedUser.uid})</span>
+                              {selectedUser.department && <span className="text-xs text-gray-400">• {selectedUser.department}</span>}
+                              <button type="button" onClick={() => { setSelectedUser(null); setForwardUserId(''); setSearchQuery(''); }} className="ml-auto text-gray-400 hover:text-red-500">
+                                <XCircle className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                              <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setForwardUserId(''); setSelectedUser(null); }}
+                                placeholder="Type UID, name or emp ID..."
+                                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                                autoFocus
+                              />
+                              {searchLoading && <LoadingSpinner size="sm" className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 !border-gray-400" />}
+                            </div>
+                          )}
+
+                          {/* Search Results Dropdown */}
+                          {!selectedUser && searchQuery.trim().length >= 2 && (
+                            <div className="max-h-40 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+                              {searchResults.length === 0 && !searchLoading && (
+                                <p className="px-3 py-2 text-xs text-gray-500 text-center">No employees found</p>
+                              )}
+                              {searchResults.map((u) => (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedUser({ id: u.id, uid: u.uid, displayName: u.displayName, department: u.department });
+                                    setForwardUserId(u.id);
+                                    setSearchQuery('');
+                                    setSearchResults([]);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-left text-sm"
+                                >
+                                  <span className="font-medium text-gray-900 dark:text-white">{u.displayName}</span>
+                                  <span className="text-xs text-gray-400">({u.uid})</span>
+                                  {u.department && <span className="text-xs text-gray-400 ml-auto truncate max-w-[140px]">{u.department}</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
@@ -785,7 +848,7 @@ export default function NoteDetailPage() {
                       disabled={actionLoading}
                       className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                     >
-                      {actionType === 'approve' && actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                      {actionType === 'approve' && actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
                       Approve
                     </button>
                     <button
@@ -793,7 +856,7 @@ export default function NoteDetailPage() {
                       disabled={actionLoading || !remarks.trim()}
                       className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                     >
-                      {actionType === 'reject' && actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                      {actionType === 'reject' && actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
                       Reject
                     </button>
                     <button
@@ -802,7 +865,7 @@ export default function NoteDetailPage() {
                       className="px-4 py-2 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                       title="Send back to creator for modifications"
                     >
-                      {actionType === 'revert' && actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                      {actionType === 'revert' && actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : <RotateCcw className="w-3.5 h-3.5" />}
                       Revert Back
                     </button>
                     <button
@@ -811,20 +874,15 @@ export default function NoteDetailPage() {
                       title="Forward note"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      {actionType === 'forward' ? 'Cancel' : 'Forward…'}
+                      {actionType === 'forward' ? 'Cancel' : 'Forward'}
                     </button>
-                    {actionType === 'forward' && (
+                    {actionType === 'forward' && forwardMode === 'manual' && (
                       <button
                         onClick={doForward}
-                        disabled={
-                          actionLoading ||
-                          !remarks.trim() ||
-                          !forwardMode ||
-                          (forwardMode === 'manual' && !forwardUserId.trim())
-                        }
+                        disabled={actionLoading || !remarks.trim() || !forwardUserId.trim()}
                         className="px-4 py-2 text-sm bg-sgt-600 text-white rounded-md hover:bg-sgt-700 disabled:opacity-50 font-medium transition-colors"
                       >
-                        {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Forward'}
+                        {actionLoading ? <LoadingSpinner size="sm" className="w-3.5 h-3.5" /> : 'Forward'}
                       </button>
                     )}
                   </div>

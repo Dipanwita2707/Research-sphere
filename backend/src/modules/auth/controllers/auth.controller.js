@@ -232,11 +232,13 @@ exports.login = async (req, res) => {
 
     // Set cookie with appropriate sameSite setting for cross-origin
     // sameSite: 'none' REQUIRES secure: true for cross-origin cookies
+    const origin = req.headers.origin || '';
+    const isSecureOrigin = config.env === 'production' || origin.startsWith('https://');
     const cookieOptions = {
       expires: new Date(Date.now() + config.jwt.cookieExpire * 24 * 60 * 60 * 1000),
       httpOnly: true,
-      sameSite: config.env === 'production' ? 'none' : 'lax',
-      secure: config.env === 'production' ? true : false, // Must be true when sameSite is 'none'
+      sameSite: isSecureOrigin ? 'none' : 'lax',
+      secure: isSecureOrigin, // Must be true when sameSite is 'none'
     };
     
     res.cookie('token', token, cookieOptions);
@@ -281,11 +283,13 @@ exports.login = async (req, res) => {
 exports.logout = async (req, res) => {
   try {
     // Clear cookie with same options as login
+    const origin = req.headers.origin || '';
+    const isSecureOrigin = config.env === 'production' || origin.startsWith('https://');
     const cookieOptions = {
       expires: new Date(Date.now() + 1000),
       httpOnly: true,
-      sameSite: config.env === 'production' ? 'none' : 'lax',
-      secure: config.env === 'production' ? true : false,
+      sameSite: isSecureOrigin ? 'none' : 'lax',
+      secure: isSecureOrigin,
     };
     
     res.cookie('token', 'none', cookieOptions);

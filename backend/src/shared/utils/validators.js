@@ -23,10 +23,33 @@ const sanitizeInput = (input) => {
   return input.trim();
 };
 
+/**
+ * Sanitize sponsors array (used by Noting and Event)
+ * Cash: name + amount (₹). In-kind: name + notes (description)
+ */
+const sanitizeSponsors = (sponsors) => {
+  if (!Array.isArray(sponsors)) return [];
+  return sponsors
+    .filter((s) => s && typeof s === 'object')
+    .map((s) => {
+      const name = String(s.name || '').trim();
+      const type = s.type === 'in_kind' ? 'in_kind' : 'cash';
+      const notes = s.notes != null ? String(s.notes).trim() : '';
+      if (!name) return null;
+      if (type === 'cash') {
+        const amount = Number(s.amount);
+        return { name, amount: !Number.isNaN(amount) && amount >= 0 ? amount : 0, type: 'cash', notes: notes || undefined };
+      }
+      return { name, amount: 0, type: 'in_kind', notes: notes || undefined };
+    })
+    .filter(Boolean);
+};
+
 module.exports = {
   isValidStudentRegNo,
   isValidStaffUID,
   isValidEmail,
   isValidPassword,
-  sanitizeInput
+  sanitizeInput,
+  sanitizeSponsors
 };

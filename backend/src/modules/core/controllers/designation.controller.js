@@ -1,4 +1,9 @@
 const prisma = require('../../../shared/config/database');
+const { 
+  DSW_PERMISSIONS, 
+  NOTING_PERMISSIONS, 
+  EVENT_PERMISSIONS 
+} = require('../../../shared/config/permissions.config');
 
 // Permission categories and their options
 const PERMISSION_CATEGORIES = {
@@ -114,6 +119,56 @@ const PERMISSION_CATEGORIES = {
       { key: 'system_settings', label: 'System Settings' },
       { key: 'backup_restore', label: 'Backup & Restore' },
     ]
+  },
+  // ===========================================
+  // DSW (Dean of Student Welfare) Permissions
+  // ===========================================
+  dsw: {
+    label: 'DSW & Club Management',
+    permissions: [
+      { key: 'dsw_create_club_noting', label: 'Create Club Noting', description: 'Can initiate club creation notings' },
+      { key: 'dsw_view_club', label: 'View Clubs', description: 'Can view club details and member lists' },
+      { key: 'dsw_view_all_clubs', label: 'View All Clubs', description: 'Can view all clubs across the institution' },
+      { key: 'dsw_manage_members', label: 'Manage Club Members', description: 'Can add/remove club members' },
+      { key: 'dsw_approve_club', label: 'Approve Club Creation', description: 'Can approve or reject club creation requests' },
+      { key: 'dsw_suspend_club', label: 'Suspend/Archive Club', description: 'Can suspend or archive clubs' },
+      { key: 'dsw_request_club_change', label: 'Request Club Changes', description: 'Can request modifications to club details' },
+      { key: 'dsw_approve_club_change', label: 'Approve Club Changes', description: 'Can approve club modification requests' },
+      { key: 'dsw_view_audit_logs', label: 'View DSW Audit Logs', description: 'Can view club audit and change history' },
+    ]
+  },
+  // ===========================================
+  // Noting System Permissions
+  // ===========================================
+  noting: {
+    label: 'Noting & Approvals',
+    permissions: [
+      { key: 'noting_create', label: 'Create Noting', description: 'Can initiate new notings for approval workflows' },
+      { key: 'noting_view_own', label: 'View Own Notings', description: 'Can view notings created by self' },
+      { key: 'noting_view_department', label: 'View Department Notings', description: 'Can view all notings within assigned department' },
+      { key: 'noting_view_all', label: 'View All Notings', description: 'Can view all notings across institution' },
+      { key: 'noting_approve', label: 'Approve Notings', description: 'Can approve/reject notings at assigned approval level' },
+      { key: 'noting_forward', label: 'Forward Notings', description: 'Can forward notings to next approval level' },
+      { key: 'noting_return', label: 'Return Notings', description: 'Can return notings to previous level with comments' },
+      { key: 'noting_add_comment', label: 'Add Noting Comments', description: 'Can add comments/observations to notings' },
+    ]
+  },
+  // ===========================================
+  // Event Management Permissions
+  // ===========================================
+  events: {
+    label: 'Event Management',
+    permissions: [
+      { key: 'event_create', label: 'Create Events', description: 'Can create new events (requires approved noting)' },
+      { key: 'event_manage_own', label: 'Manage Own Events', description: 'Can edit/update events created by self' },
+      { key: 'event_manage_all', label: 'Manage All Events', description: 'Can edit/update any event' },
+      { key: 'event_publish', label: 'Publish Events', description: 'Can publish events to make them visible to students' },
+      { key: 'event_cancel', label: 'Cancel Events', description: 'Can cancel scheduled events' },
+      { key: 'event_view_all', label: 'View All Events', description: 'Can view all events including unpublished' },
+      { key: 'event_manage_attendance', label: 'Manage Event Attendance', description: 'Can mark attendance and manage check-ins' },
+      { key: 'event_assign_volunteers', label: 'Assign Event Volunteers', description: 'Can assign volunteers for event management' },
+      { key: 'event_view_reports', label: 'View Event Reports', description: 'Can view event analytics and attendance reports' },
+    ]
   }
 };
 
@@ -126,6 +181,8 @@ const DESIGNATION_TEMPLATES = {
       academics: ['view_courses', 'manage_courses', 'view_results', 'approve_results'],
       examinations: ['schedule_exams', 'generate_hall_tickets', 'view_exam_results', 'publish_results'],
       reports: ['view_reports', 'generate_custom_reports', 'export_data'],
+      // Noting permissions for approvals
+      noting: ['noting_view_all', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment'],
     }
   },
   'Assistant Registrar': {
@@ -135,6 +192,7 @@ const DESIGNATION_TEMPLATES = {
       academics: ['view_courses', 'view_results'],
       examinations: ['generate_hall_tickets', 'view_exam_results'],
       reports: ['view_reports'],
+      noting: ['noting_view_department', 'noting_forward', 'noting_add_comment'],
     }
   },
   'Admission Officer': {
@@ -143,6 +201,7 @@ const DESIGNATION_TEMPLATES = {
       admissions: ['view_applications', 'process_applications', 'generate_offer_letters'],
       students: ['view_students', 'add_students'],
       reports: ['view_reports'],
+      noting: ['noting_create', 'noting_view_own'],
     }
   },
   'Admission Head': {
@@ -151,6 +210,7 @@ const DESIGNATION_TEMPLATES = {
       admissions: ['view_applications', 'process_applications', 'approve_admissions', 'generate_offer_letters', 'manage_admission_criteria'],
       students: ['view_students', 'add_students', 'approve_student_data'],
       reports: ['view_reports', 'generate_custom_reports'],
+      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward'],
     }
   },
   'HR Manager': {
@@ -159,6 +219,7 @@ const DESIGNATION_TEMPLATES = {
       faculty: ['view_faculty', 'add_faculty', 'edit_faculty', 'view_faculty_attendance'],
       staff: ['view_staff', 'add_staff', 'edit_staff', 'manage_attendance'],
       reports: ['view_reports', 'export_data'],
+      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward'],
     }
   },
   'HR Executive': {
@@ -166,6 +227,7 @@ const DESIGNATION_TEMPLATES = {
     defaultPermissions: {
       faculty: ['view_faculty', 'edit_faculty'],
       staff: ['view_staff', 'edit_staff'],
+      noting: ['noting_create', 'noting_view_own'],
     }
   },
   'Professor': {
@@ -174,6 +236,10 @@ const DESIGNATION_TEMPLATES = {
       students: ['view_students'],
       academics: ['view_courses', 'manage_timetable', 'enter_marks'],
       research: ['view_research', 'submit_research', 'review_research'],
+      // Professors can create notings and clubs
+      noting: ['noting_create', 'noting_view_own', 'noting_add_comment'],
+      dsw: ['dsw_create_club_noting', 'dsw_view_club', 'dsw_request_club_change'],
+      events: ['event_create', 'event_manage_own', 'event_publish', 'event_assign_volunteers'],
     }
   },
   'Assistant Professor': {
@@ -182,6 +248,9 @@ const DESIGNATION_TEMPLATES = {
       students: ['view_students'],
       academics: ['view_courses', 'enter_marks'],
       research: ['view_research', 'submit_research'],
+      noting: ['noting_create', 'noting_view_own'],
+      dsw: ['dsw_create_club_noting', 'dsw_view_club'],
+      events: ['event_create', 'event_manage_own', 'event_publish'],
     }
   },
   'Dean': {
@@ -193,6 +262,10 @@ const DESIGNATION_TEMPLATES = {
       examinations: ['schedule_exams', 'view_exam_results', 'publish_results'],
       research: ['view_research', 'review_research', 'approve_research', 'manage_patents'],
       reports: ['view_reports', 'generate_custom_reports', 'view_analytics'],
+      // Dean has approval authority
+      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment'],
+      dsw: ['dsw_view_club', 'dsw_view_all_clubs', 'dsw_approve_club', 'dsw_view_audit_logs'],
+      events: ['event_create', 'event_manage_own', 'event_view_all', 'event_publish', 'event_view_reports'],
     }
   },
   'HOD': {
@@ -204,6 +277,10 @@ const DESIGNATION_TEMPLATES = {
       examinations: ['schedule_exams', 'view_exam_results'],
       research: ['view_research', 'review_research'],
       reports: ['view_reports', 'generate_custom_reports'],
+      // HOD has department-level approval
+      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward', 'noting_add_comment'],
+      dsw: ['dsw_view_club', 'dsw_create_club_noting', 'dsw_request_club_change'],
+      events: ['event_create', 'event_manage_own', 'event_publish', 'event_assign_volunteers'],
     }
   },
   'Finance Manager': {
@@ -212,6 +289,7 @@ const DESIGNATION_TEMPLATES = {
       finance: ['view_fee_records', 'collect_fees', 'generate_receipts', 'manage_fee_structure', 'view_financial_reports'],
       students: ['view_students'],
       reports: ['view_reports', 'export_data'],
+      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward'],
     }
   },
   'Accountant': {
@@ -219,6 +297,7 @@ const DESIGNATION_TEMPLATES = {
     defaultPermissions: {
       finance: ['view_fee_records', 'collect_fees', 'generate_receipts'],
       reports: ['view_reports'],
+      noting: ['noting_view_own'],
     }
   },
   'Librarian': {
@@ -227,6 +306,7 @@ const DESIGNATION_TEMPLATES = {
       library: ['view_books', 'issue_books', 'return_books', 'manage_inventory'],
       students: ['view_students'],
       faculty: ['view_faculty'],
+      noting: ['noting_create', 'noting_view_own'],
     }
   },
   'System Administrator': {
@@ -234,6 +314,43 @@ const DESIGNATION_TEMPLATES = {
     defaultPermissions: {
       system: ['manage_users', 'manage_roles', 'manage_permissions', 'view_audit_logs', 'system_settings', 'backup_restore'],
       reports: ['view_reports', 'generate_custom_reports', 'export_data', 'view_analytics'],
+      // Full admin access to all modules
+      noting: ['noting_view_all', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment'],
+      dsw: ['dsw_view_club', 'dsw_view_all_clubs', 'dsw_approve_club', 'dsw_suspend_club', 'dsw_approve_club_change', 'dsw_view_audit_logs'],
+      events: ['event_view_all', 'event_manage_all', 'event_view_reports'],
+    }
+  },
+  // ===========================================
+  // DSW Office Templates
+  // ===========================================
+  'DSW Officer': {
+    departments: ['DSW'],
+    defaultPermissions: {
+      dsw: ['dsw_view_club', 'dsw_view_all_clubs', 'dsw_approve_club', 'dsw_suspend_club', 'dsw_approve_club_change', 'dsw_view_audit_logs'],
+      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward', 'noting_add_comment'],
+      events: ['event_view_all', 'event_manage_all', 'event_publish', 'event_cancel', 'event_view_reports'],
+      students: ['view_students'],
+    }
+  },
+  'DSW Assistant': {
+    departments: ['DSW'],
+    defaultPermissions: {
+      dsw: ['dsw_view_club', 'dsw_view_all_clubs', 'dsw_view_audit_logs'],
+      noting: ['noting_create', 'noting_view_own', 'noting_forward'],
+      events: ['event_view_all', 'event_manage_attendance', 'event_assign_volunteers'],
+      students: ['view_students'],
+    }
+  },
+  // ===========================================
+  // Faculty Club Facilitator Template
+  // ===========================================
+  'Faculty Facilitator': {
+    departments: ['REGISTRAR'],
+    defaultPermissions: {
+      dsw: ['dsw_create_club_noting', 'dsw_view_club', 'dsw_manage_members', 'dsw_request_club_change'],
+      noting: ['noting_create', 'noting_view_own', 'noting_add_comment'],
+      events: ['event_create', 'event_manage_own', 'event_publish', 'event_assign_volunteers', 'event_manage_attendance'],
+      students: ['view_students'],
     }
   }
 };

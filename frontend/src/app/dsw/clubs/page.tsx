@@ -1,86 +1,43 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Users, Filter, Search, Calendar, UserCheck, Mail, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Search, Calendar, UserCheck, Mail } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { clubAPI } from '@/features/dsw/services/api';
-import { Club, ClubFilters } from '@/features/dsw/types';
+import { useClubs } from '@/features/dsw/hooks';
+import { ClubStatusBadge } from '@/features/dsw/components/ClubStatusBadge';
+import { ClubFilters } from '@/features/dsw/types';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { useDebounce } from '@/shared/hooks/useDebounce';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 export default function AllClubsPage() {
   const router = useRouter();
-  const [clubs, setClubs] = useState<Club[]>([]);
-  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ClubFilters>({
     page: 1,
     limit: 20,
   });
-  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearch = useDebounce(searchInput, 300);
 
   useEffect(() => {
-    fetchClubs();
-  }, [filters]);
+    setFilters((prev) => ({ ...prev, search: debouncedSearch || undefined, page: 1 }));
+  }, [debouncedSearch]);
 
-  const fetchClubs = async () => {
-    try {
-      setLoading(true);
-      const response = await clubAPI.getClubs(filters);
-      if (response.success) {
-        setClubs(response.data);
-        setTotal(response.pagination.total);
-      }
-    } catch (err: any) {
-      console.error('Error fetching clubs:', err);
-      // Set empty clubs on error so page still shows
-      setClubs([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = (searchTerm: string) => {
-    setFilters((prev) => ({ ...prev, search: searchTerm, page: 1 }));
-  };
+  const { data: response, isLoading, error } = useClubs(filters);
+  const clubs = response?.success ? response.data ?? [] : [];
+  const total = response?.pagination?.total ?? 0;
+  const errorMessage = error ? getErrorMessage(error) : null;
 
   const handleStatusFilter = (status: string) => {
     setFilters((prev) => ({
       ...prev,
-      status: status === 'all' ? undefined : (status as any),
+      status: status === 'all' ? undefined : (status as ClubFilters['status']),
       page: 1,
     }));
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<
-      string,
-      { label: string; className: string }
-    > = {
-      active: { label: 'Active', className: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' },
-      pending_approval: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' },
-      approved: { label: 'Approved', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' },
-      suspended: { label: 'Suspended', className: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' },
-      archived: { label: 'Archived', className: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400' },
-    };
-
-    const config = statusConfig[status] || statusConfig.active;
-    return (
-      <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.className}`}
-      >
-        {config.label}
-      </span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading clubs...</p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <PageSkeleton message="Loading clubs..." />;
   }
 
   return (
@@ -88,23 +45,30 @@ export default function AllClubsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">All Clubs</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">All Clubs</h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
             Showing {clubs.length} of {total} clubs
           </p>
         </div>
       </div>
 
+      {errorMessage && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-200">{errorMessage}</p>
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search clubs by name, purpose, or ID..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              onChange={(e) => handleSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <select
@@ -133,11 +97,11 @@ export default function AllClubsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {clubs.map((club) => (
             <div
               key={club.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => router.push(`/dsw/clubs/${club.id}`)}
             >
               <div className="flex items-start justify-between mb-4">
@@ -149,7 +113,7 @@ export default function AllClubsPage() {
                     {club.clubId}
                   </p>
                 </div>
-                {getStatusBadge(club.status)}
+                <ClubStatusBadge status={club.status} size="sm" />
               </div>
 
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
@@ -190,26 +154,26 @@ export default function AllClubsPage() {
       )}
 
       {/* Pagination */}
-      {total > filters.limit! && (
+      {total > (filters.limit ?? 20) && (
         <div className="flex justify-center gap-2">
           <button
-            onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, prev.page! - 1) }))}
+            onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, (prev.page ?? 1) - 1) }))}
             disabled={filters.page === 1}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
           >
             Previous
           </button>
           <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
-            Page {filters.page} of {Math.ceil(total / filters.limit!)}
+            Page {filters.page} of {Math.ceil(total / (filters.limit ?? 20))}
           </span>
           <button
             onClick={() =>
               setFilters((prev) => ({
                 ...prev,
-                page: Math.min(Math.ceil(total / filters.limit!), prev.page! + 1),
+                page: Math.min(Math.ceil(total / (filters.limit ?? 20)), (prev.page ?? 1) + 1),
               }))
             }
-            disabled={filters.page! >= Math.ceil(total / filters.limit!)}
+            disabled={(filters.page ?? 1) >= Math.ceil(total / (filters.limit ?? 20))}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
           >
             Next

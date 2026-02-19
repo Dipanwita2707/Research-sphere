@@ -43,17 +43,17 @@ const getValidSubcategories = (category) => {
 const createNoteValidation = [
   body('category')
     .notEmpty()
-    .withMessage('Category is required')
+    .withMessage('Please select a category for your note (e.g., Academic, Administrative)')
     .isIn(getValidCategories())
-    .withMessage(`Category must be one of: ${getValidCategories().join(', ')}`),
+    .withMessage(`Invalid category. Please choose from: ${getValidCategories().join(', ')}`),
 
   body('subcategory')
     .notEmpty()
-    .withMessage('Subcategory is required')
+    .withMessage('Please select a subcategory for your note')
     .custom((value, { req }) => {
       const validSubs = getValidSubcategories(req.body.category);
       if (validSubs.length && !validSubs.includes(value)) {
-        throw new Error(`Subcategory must be one of: ${validSubs.join(', ')}`);
+        throw new Error(`Invalid subcategory for this category. Available options: ${validSubs.join(', ')}`);
       }
       return true;
     }),
@@ -173,7 +173,7 @@ const updateDraftValidation = [
 const noteIdValidation = [
   param('id')
     .isUUID()
-    .withMessage('Invalid note ID'),
+    .withMessage('Invalid note ID. The note you are trying to access may not exist or the link is incorrect.'),
 
   handleValidationErrors,
 ];
@@ -205,9 +205,9 @@ const rejectNoteValidation = [
 
   body('remarks')
     .notEmpty()
-    .withMessage('Remarks are required for rejection')
+    .withMessage('Rejection reason is required. Please explain why you are rejecting this note so the creator can understand what needs to be corrected.')
     .isString()
-    .withMessage('Remarks must be a string')
+    .withMessage('Remarks must be text')
     .trim(),
 
   handleValidationErrors,
@@ -223,9 +223,9 @@ const revertNoteValidation = [
 
   body('remarks')
     .notEmpty()
-    .withMessage('Remarks are required for reverting back to creator')
+    .withMessage('Please provide instructions to the creator explaining what changes are needed before they resubmit the note.')
     .isString()
-    .withMessage('Remarks must be a string')
+    .withMessage('Remarks must be text')
     .trim(),
 
   handleValidationErrors,
@@ -241,20 +241,20 @@ const forwardNoteValidation = [
 
   body('remarks')
     .notEmpty()
-    .withMessage('Remarks are required for forwarding')
+    .withMessage('Please add a note explaining why you are forwarding this request to the next person.')
     .isString()
-    .withMessage('Remarks must be a string')
+    .withMessage('Remarks must be text')
     .trim(),
 
   body('nextHolderId')
     .optional()
     .isUUID()
-    .withMessage('Next holder ID must be a valid UUID'),
+    .withMessage('Invalid user selected. Please choose a valid person to forward to.'),
 
   body('automated')
     .optional()
     .isBoolean()
-    .withMessage('Automated must be a boolean'),
+    .withMessage('Automated must be true or false'),
 
   handleValidationErrors,
 ];
@@ -308,6 +308,11 @@ const listNotesValidation = [
     .optional()
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100'),
+
+  query('includeCounts')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('includeCounts must be true or false'),
 
   handleValidationErrors,
 ];

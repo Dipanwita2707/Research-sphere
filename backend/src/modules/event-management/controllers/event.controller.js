@@ -272,9 +272,85 @@ const getEventVolunteers = asyncHandler(async (req, res) => {
     throw new ForbiddenError('Only the event creator can view volunteers');
   }
   
-  const volunteers = event.volunteers || [];
-  
+  const rawVolunteers = event.EventVolunteer || [];
+  const volunteers = rawVolunteers.map((v) => {
+    const ul = v.user_login;
+    const emp = ul?.employeeDetails;
+    const stu = ul?.studentLogin;
+    const name = emp?.displayName ||
+      (emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : null) ||
+      stu?.displayName ||
+      (stu ? `${stu.firstName || ''} ${stu.lastName || ''}`.trim() : null) ||
+      ul?.uid ||
+      'Unknown User';
+    return {
+      ...v,
+      user: ul ? { id: ul.id, uid: ul.uid, email: ul.email, name } : null,
+    };
+  });
+
   return ApiResponse.success(res, volunteers, 'Volunteers fetched successfully');
+});
+
+/**
+ * Get my volunteer assignments (events where user is a volunteer)
+ * 
+ * @route GET /api/events/volunteers/my
+ * @access Protected
+ */
+const getMyVolunteerAssignments = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  
+  const assignments = await eventService.getMyVolunteerAssignments(userId);
+  
+  return ApiResponse.success(res, assignments, 'Volunteer assignments fetched successfully');
+});
+
+/**
+ * Get my volunteer activity (scan history)
+ * 
+ * @route GET /api/events/volunteers/my/activity
+ * @access Protected
+ */
+const getMyVolunteerActivity = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { page, limit, eventId, search, startDate, endDate } = req.query;
+  
+  const filters = {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 30,
+    eventId,
+    search,
+    startDate,
+    endDate,
+  };
+  
+  const result = await eventService.getMyVolunteerActivity(userId, filters);
+  
+  return ApiResponse.success(res, result, 'Volunteer activity fetched successfully');
+});
+
+/**
+ * Get volunteer activity for a specific volunteer (event creator view)
+ * 
+ * @route GET /api/events/:id/volunteers/:volunteerId/activity
+ * @access Protected (Event Creator only)
+ */
+const getVolunteerActivity = asyncHandler(async (req, res) => {
+  const { id: eventId, volunteerId } = req.params;
+  const userId = req.user.id;
+  const { page, limit, startDate, endDate } = req.query;
+  
+  const filters = {
+    page: parseInt(page) || 1,
+    limit: parseInt(limit) || 50,
+    startDate,
+    endDate,
+  };
+  
+  const result = await eventService.getVolunteerActivity(eventId, volunteerId, userId, filters);
+  
+  return ApiResponse.success(res, result, 'Volunteer activity fetched successfully');
 });
 
 module.exports = {
@@ -289,4 +365,7 @@ module.exports = {
   scanQRCode,
   getEventRegistrations,
   getEventVolunteers,
+  getMyVolunteerAssignments,
+  getMyVolunteerActivity,
+  getVolunteerActivity,
 };

@@ -7,7 +7,6 @@ const prisma = require('../../../shared/config/database');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../../../shared/utils/AppError');
 const { NOTE_STATUS } = require('../constants/noting.constants');
 const { noteForValidation, getFullNoteInclude } = require('./selectFragments');
-const approvalFlowService = require('../services/approvalFlow.service');
 
 /**
  * Get note by ID with validation
@@ -47,11 +46,15 @@ async function getNoteWithDetails(id) {
  */
 function verifyCanEditDraft(note, userId) {
   if (note.status !== NOTE_STATUS.DRAFT && note.status !== NOTE_STATUS.REVERTED) {
-    throw new ValidationError('Only draft or reverted notes can be edited');
+    throw new ValidationError(
+      `This note cannot be edited because it is currently "${note.status}". Only drafts or notes returned for revision can be edited.`
+    );
   }
 
   if (note.createdById !== userId) {
-    throw new ForbiddenError('You can only edit your own notes');
+    throw new ForbiddenError(
+      'You can only edit notes that you created. This note belongs to another user.'
+    );
   }
 }
 
@@ -87,7 +90,7 @@ async function verifyCanDeleteNote(note, userId) {
 
   if (approverActions.length > 0) {
     throw new ForbiddenError(
-      'Cannot delete note after an approver has taken action. The note is being processed in the approval workflow.'
+      'This note cannot be deleted because an approver has already reviewed it. The note is currently in the approval workflow. If you need to cancel this request, please contact your manager.'
     );
   }
 }
@@ -129,7 +132,7 @@ async function verifyCanEditNote(note, userId) {
 
   if (approverActions.length > 0) {
     throw new ForbiddenError(
-      'Cannot edit note after an approver has taken action. The note is being processed in the approval workflow.'
+      'This note cannot be edited because an approver has already reviewed it. If changes are needed, ask your manager to "Revert" the note back to you for modifications.'
     );
   }
 }
@@ -141,36 +144,28 @@ async function verifyCanEditNote(note, userId) {
  */
 function verifyNotePending(note) {
   if (note.status !== NOTE_STATUS.PENDING) {
-    throw new ValidationError('Note is not in pending status');
+    const statusMessages = {
+      draft: 'This note is still a draft. Please submit it first before any actions can be taken.',
+      approved: 'This note has already been approved. No further actions are needed.',
+      rejected: 'This note has been rejected. Please create a new note if needed.',
+      reverted: 'This note has been returned for revision. The creator needs to modify and resubmit it.',
+    };
+    throw new ValidationError(
+      statusMessages[note.status] || `This note is currently "${note.status}" and cannot be acted upon.`
+    );
   }
 }
 
 /**
  * Check if user can act on note (approve/reject/forward)
+ * User must be the current holder of the note
  * @param {Object} note - Note object
  * @param {string} userId - User ID
  * @returns {Promise<boolean>} True if user can act
  */
 async function canUserActOnNote(note, userId) {
-  // Direct holder
-  if (note.currentHolderId === userId) {
-    return true;
-  }
-
-  // Group step (central department)
-  if (note.currentHolderId == null && note.currentFlowIndex != null) {
-    const noteContext = { amountRequired: note.amountRequired === true };
-    return await approvalFlowService.canUserActAtStep(
-      userId,
-      note.category,
-      note.subcategory,
-      note.createdById,
-      note.currentFlowIndex,
-      noteContext
-    );
-  }
-
-  return false;
+  // Direct holder - only the current holder can act
+  return note.currentHolderId === userId;
 }
 
 /**
@@ -182,27 +177,10 @@ async function canUserActOnNote(note, userId) {
 async function verifyCanActOnNote(note, userId) {
   const canAct = await canUserActOnNote(note, userId);
   if (!canAct) {
-    throw new ForbiddenError('You are not authorized to act on this note');
+    throw new ForbiddenError(
+      'You are not the current holder of this note. Only the person to whom the note is currently assigned can Approve, Reject, Forward, or Revert it.'
+    );
   }
-}
-
-/**
- * Resolve current flow step index from note
- * @param {Object} note - Note object
- * @param {Array} steps - Flow steps array
- * @returns {number|null} Current flow index
- */
-function resolveCurrentFlowIndex(note, steps) {
-  if (note.currentFlowIndex != null) {
-    return note.currentFlowIndex;
-  }
-
-  if (!note.currentHolderId) {
-    return null;
-  }
-
-  const idx = steps.findIndex((s) => s.userIds.includes(note.currentHolderId));
-  return idx >= 0 ? idx : null;
 }
 
 /**
@@ -232,6 +210,5 @@ module.exports = {
   verifyNotePending,
   canUserActOnNote,
   verifyCanActOnNote,
-  resolveCurrentFlowIndex,
   getDescriptionForSave,
 };

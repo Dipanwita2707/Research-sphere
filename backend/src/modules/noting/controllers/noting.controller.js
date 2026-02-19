@@ -1,3 +1,30 @@
+/**
+ * Noting & Approval System Controller
+ * 
+ * WORKFLOW SYSTEM:
+ * All noting approvals work through the Reporting Structure system:
+ * 
+ * 1. CREATE NOTING:
+ *    - User creates noting (any category/subcategory)
+ *    - System checks user's manager from ReportingStructure table
+ *    - If manager has required permission → Auto-forward to manager
+ *    - If not → User must manually select approver from reporting chain
+ * 
+ * 2. APPROVE/REJECT:
+ *    - Current holder can approve → Note status becomes APPROVED (workflow ends)
+ *    - Current holder can reject → Note status becomes REJECTED (workflow ends)
+ * 
+ * 3. FORWARD:
+ *    - Manual: Forward to user in reporting chain with required permission
+ *    - DEAN role can override and forward to anyone
+ * 
+ * 4. PERMISSIONS:
+ *    - dsw_approve_noting: DSW-related notings
+ *    - event_approve: Event approvals
+ *    - noting_approve: General noting approvals
+ */
+
+const { Prisma } = require('@prisma/client');
 const prisma = require('../../../shared/config/database');
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
@@ -6,7 +33,7 @@ const { ValidationError, ForbiddenError } = require('../../../shared/utils/AppEr
 const { generateNotingId } = require('../services/notingId.service');
 const approvalFlowService = require('../services/approvalFlow.service');
 
-const { CATEGORIES, isCentralDepartmentRole, CENTRAL_DEPARTMENT_ROLE_TO_DEPT_CODE } = require('../config/noting.config');
+const { CATEGORIES } = require('../config/noting.config');
 const { NOTE_STATUS, NOTE_ACTIONS, LIMITS } = require('../constants/noting.constants');
 const { getPaginationParams, createPaginationMeta } = require('../utils/pagination');
 const {
@@ -15,6 +42,7 @@ const {
   sanitizeAttachments,
   sanitizePoints,
   parsePolicyCompliance,
+  sanitizeEventSponsors,
 } = require('../utils/validators');
 const {
   getNoteById,
@@ -24,7 +52,6 @@ const {
   verifyCanDeleteNote,
   verifyNotePending,
   verifyCanActOnNote,
-  resolveCurrentFlowIndex,
 } = require('../utils/noteHelpers');
 const { getFullNoteInclude, getListNoteInclude } = require('../utils/selectFragments');
 
@@ -123,6 +150,16 @@ const create = asyncHandler(async (req, res) => {
     eventStartDate,
     eventEndDate,
     eventPaymentType,
+    eventParticipationType,
+    eventRegistrationFeeIndividual,
+    eventRegistrationFeeTeam,
+    eventApproxCapacity,
+    eventDutyLeaveAvailable,
+    eventDutyLeaveEligibility,
+    eventHasSponsorship,
+    eventSponsors,
+    eventHasResources,
+    eventResources,
   } = req.body;
 
   // Validate category and subcategory
@@ -131,13 +168,17 @@ const create = asyncHandler(async (req, res) => {
   // Validate description (required only if submitting)
   const descriptionValue = validateDescription(description, submit);
   if (submit && !descriptionValue) {
-    throw new ValidationError('Description is required when submitting for approval');
+    throw new ValidationError(
+      'Description is required to submit a note. Please provide a clear description of your request before submitting for approval.'
+    );
   }
 
   // Validate event fields if provided
   if (eventName || eventType || eventStartDate || eventEndDate || eventPaymentType) {
     if (!eventName || !eventType || !eventStartDate || !eventEndDate || !eventPaymentType) {
-      throw new ValidationError('All event fields (name, type, start date, end date, payment type) are required when creating an event noting');
+      throw new ValidationError(
+        'For event approval requests, all event details are required: Event Name, Event Type, Start Date, End Date, and Payment Type. Please fill in all fields.'
+      );
     }
     
     // Validate dates
@@ -145,7 +186,20 @@ const create = asyncHandler(async (req, res) => {
     const endDate = new Date(eventEndDate);
     
     if (endDate < startDate) {
-      throw new ValidationError('Event end date must be after start date');
+      throw new ValidationError(
+        'Event end date cannot be before the start date. Please correct the dates.'
+      );
+    }
+    
+    // Validate fee for paid events
+    if (eventPaymentType === 'paid') {
+      const isTeam = eventParticipationType === 'team';
+      if (isTeam && (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam < 0)) {
+        throw new ValidationError('For paid team events, fee per team (₹) is required.');
+      }
+      if (!isTeam && (eventRegistrationFeeIndividual == null || eventRegistrationFeeIndividual < 0)) {
+        throw new ValidationError('For paid individual events, participation fee (₹) is required.');
+      }
     }
   }
 
@@ -153,21 +207,8 @@ const create = asyncHandler(async (req, res) => {
   const notingId = generateNotingId(category, subcategory);
   const status = submit ? NOTE_STATUS.PENDING : NOTE_STATUS.DRAFT;
 
-  // Determine initial holder if submitting
+  // Determine initial holder if submitting - will be set after create if auto-forward succeeds
   let currentHolderId = null;
-  let currentFlowIndex = null;
-
-  if (submit) {
-    const noteContext = { amountRequired: amountRequired === true };
-    const steps = await approvalFlowService.getFullFlowSteps(category, subcategory, userId, noteContext);
-    const firstStep = steps[0];
-
-    if (firstStep) {
-      currentFlowIndex = 0;
-      const isGroupStep = isCentralDepartmentRole(firstStep.authorityType) && firstStep.userIds.length > 0;
-      currentHolderId = isGroupStep ? null : (firstStep.userIds[0] ?? null);
-    }
-  }
 
   // Parse policy compliance
   const policyCompliant = parsePolicyCompliance(policyCompliance);
@@ -198,10 +239,19 @@ const create = asyncHandler(async (req, res) => {
       eventStartDate: eventStartDate ? new Date(eventStartDate) : null,
       eventEndDate: eventEndDate ? new Date(eventEndDate) : null,
       eventPaymentType: eventPaymentType || null,
+      eventParticipationType: eventParticipationType || null,
+      eventRegistrationFeeIndividual: eventPaymentType === 'paid' && eventRegistrationFeeIndividual != null ? parseFloat(eventRegistrationFeeIndividual) : null,
+      eventRegistrationFeeTeam: eventPaymentType === 'paid' && eventParticipationType === 'team' && eventRegistrationFeeTeam != null ? parseFloat(eventRegistrationFeeTeam) : null,
+      eventApproxCapacity: eventApproxCapacity != null ? parseInt(eventApproxCapacity, 10) : null,
+      eventDutyLeaveAvailable: eventDutyLeaveAvailable != null ? !!eventDutyLeaveAvailable : null,
+      eventDutyLeaveEligibility: Array.isArray(eventDutyLeaveEligibility) ? eventDutyLeaveEligibility : null,
+      eventHasSponsorship: eventHasSponsorship != null ? !!eventHasSponsorship : null,
+      eventSponsors: eventHasSponsorship ? sanitizeEventSponsors(eventSponsors) : null,
+      eventHasResources: eventHasResources != null ? !!eventHasResources : null,
+      eventResources: Array.isArray(eventResources) ? eventResources : null,
       status,
       createdById: userId,
       currentHolderId,
-      currentFlowIndex,
       points: validPoints.length
         ? { create: validPoints }
         : undefined,
@@ -212,23 +262,88 @@ const create = asyncHandler(async (req, res) => {
     include: getFullNoteInclude(),
   });
 
-  // Create history entry if submitted
-  if (submit && currentHolderId) {
-    await prisma.noteHistory.create({
+  // ==========================================
+  // REPORTING STRUCTURE BASED AUTO-FORWARD
+  // This is the PRIMARY workflow for all notings
+  // ==========================================
+  let finalCurrentHolderId = currentHolderId;
+  let autoForwarded = false;
+
+  if (submit) {
+    // Get module permission key based on subcategory
+    const modulePermissionKey = approvalFlowService.getModulePermissionKey(note);
+    
+    // Check user's reporting structure and manager's permissions
+    const autoForwardResult = await approvalFlowService.determineNextApproverByReporting(
+      note,
+      modulePermissionKey
+    );
+
+    // CASE 1: No manager assigned - REJECT submission
+    if (!autoForwardResult.nextApproverId) {
+      // Delete the draft note that was created
+      await prisma.note.delete({ where: { id: note.id } });
+      throw new ValidationError(
+        'You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure before submitting notes.'
+      );
+    }
+
+    // CASE 2: Manager doesn't have approval permission - REJECT submission
+    if (!autoForwardResult.canAutoForward) {
+      // Delete the draft note that was created
+      await prisma.note.delete({ where: { id: note.id } });
+      const managerName = autoForwardResult.managerInfo?.name || autoForwardResult.managerInfo?.email || 'Your manager';
+      throw new ValidationError(
+        `${managerName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission before you can submit notes.`
+      );
+    }
+
+    // CASE 3: Manager has permission - Forward to manager
+    finalCurrentHolderId = autoForwardResult.nextApproverId;
+    autoForwarded = true;
+
+    await prisma.note.update({
+      where: { id: note.id },
       data: {
-        noteId: note.id,
-        action: NOTE_ACTIONS.SUBMITTED,
-        performedById: userId,
-        remarks: 'Note submitted for approval',
-        nextHolderId: currentHolderId,
+        currentHolderId: finalCurrentHolderId,
+        autoForwardedToManager: true,
+        reportingChainHistory: {
+          push: {
+            timestamp: new Date().toISOString(),
+            fromUserId: userId,
+            toUserId: finalCurrentHolderId,
+            reason: autoForwardResult.reason,
+          },
+        },
       },
     });
   }
 
+  // Create history entry if submitted
+  if (submit && finalCurrentHolderId) {
+    await prisma.noteHistory.create({
+      data: {
+        noteId: note.id,
+        action: NOTE_ACTIONS.FORWARDED,
+        performedById: userId,
+        remarks: 'Auto-forwarded to manager based on reporting hierarchy',
+        nextHolderId: finalCurrentHolderId,
+      },
+    });
+  }
+
+  // Fetch updated note with all relations
+  const updatedNote = await prisma.note.findUnique({
+    where: { id: note.id },
+    include: getFullNoteInclude(),
+  });
+
   return ApiResponse.created(
     res,
-    note,
-    submit ? 'Note submitted successfully' : 'Draft saved successfully'
+    updatedNote,
+    submit
+      ? 'Note submitted and forwarded to your manager successfully'
+      : 'Draft saved successfully'
   );
 });
 
@@ -257,6 +372,16 @@ const updateDraft = asyncHandler(async (req, res) => {
     eventStartDate,
     eventEndDate,
     eventPaymentType,
+    eventParticipationType,
+    eventRegistrationFeeIndividual,
+    eventRegistrationFeeTeam,
+    eventApproxCapacity,
+    eventDutyLeaveAvailable,
+    eventDutyLeaveEligibility,
+    eventHasSponsorship,
+    eventSponsors,
+    eventHasResources,
+    eventResources,
   } = req.body;
 
   // Load note with history to check if approver has acted
@@ -309,6 +434,16 @@ const updateDraft = asyncHandler(async (req, res) => {
   if (eventStartDate !== undefined) updateData.eventStartDate = eventStartDate ? new Date(eventStartDate) : null;
   if (eventEndDate !== undefined) updateData.eventEndDate = eventEndDate ? new Date(eventEndDate) : null;
   if (eventPaymentType !== undefined) updateData.eventPaymentType = eventPaymentType || null;
+  if (eventParticipationType !== undefined) updateData.eventParticipationType = eventParticipationType || null;
+  if (eventRegistrationFeeIndividual !== undefined) updateData.eventRegistrationFeeIndividual = eventPaymentType === 'paid' && eventRegistrationFeeIndividual != null ? parseFloat(eventRegistrationFeeIndividual) : null;
+  if (eventRegistrationFeeTeam !== undefined) updateData.eventRegistrationFeeTeam = eventPaymentType === 'paid' && eventParticipationType === 'team' && eventRegistrationFeeTeam != null ? parseFloat(eventRegistrationFeeTeam) : null;
+  if (eventApproxCapacity !== undefined) updateData.eventApproxCapacity = eventApproxCapacity != null ? parseInt(eventApproxCapacity, 10) : null;
+  if (eventDutyLeaveAvailable !== undefined) updateData.eventDutyLeaveAvailable = eventDutyLeaveAvailable != null ? !!eventDutyLeaveAvailable : null;
+  if (eventDutyLeaveEligibility !== undefined) updateData.eventDutyLeaveEligibility = Array.isArray(eventDutyLeaveEligibility) ? eventDutyLeaveEligibility : null;
+  if (eventHasSponsorship !== undefined) updateData.eventHasSponsorship = eventHasSponsorship != null ? !!eventHasSponsorship : null;
+  if (eventSponsors !== undefined) updateData.eventSponsors = (eventHasSponsorship === false) ? null : sanitizeEventSponsors(eventSponsors || []);
+  if (eventHasResources !== undefined) updateData.eventHasResources = eventHasResources != null ? !!eventHasResources : null;
+  if (eventResources !== undefined) updateData.eventResources = Array.isArray(eventResources) ? eventResources : null;
 
   // Update in transaction
   await prisma.$transaction(async (tx) => {
@@ -406,7 +541,9 @@ const submitDraft = asyncHandler(async (req, res) => {
 
   // Validate description is present
   if (!String(note.description || '').trim()) {
-    throw new ValidationError('Description is required before submitting');
+    throw new ValidationError(
+      'Description is required to submit this note. Please add a clear description explaining your request, then try again.'
+    );
   }
 
   // Determine if this is a resubmission after revert
@@ -414,24 +551,32 @@ const submitDraft = asyncHandler(async (req, res) => {
   const action = isResubmission ? NOTE_ACTIONS.RESUBMITTED : NOTE_ACTIONS.SUBMITTED;
   const actionMessage = isResubmission ? 'Note resubmitted after modifications' : 'Note submitted for approval';
 
-  // Get approval flow
-  const noteContext = { amountRequired: note.amountRequired === true };
-  const steps = await approvalFlowService.getFullFlowSteps(
-    note.category,
-    note.subcategory,
-    userId,
-    noteContext
+  // Get module permission key
+  const modulePermissionKey = approvalFlowService.getModulePermissionKey(note);
+  
+  // Check reporting structure for auto-forward
+  const autoForwardResult = await approvalFlowService.determineNextApproverByReporting(
+    note,
+    modulePermissionKey
   );
 
-  const firstStep = steps[0];
-  let currentHolderId = null;
-  let currentFlowIndex = null;
-
-  if (firstStep) {
-    currentFlowIndex = 0;
-    const isGroupStep = isCentralDepartmentRole(firstStep.authorityType) && firstStep.userIds.length > 0;
-    currentHolderId = isGroupStep ? null : (firstStep.userIds[0] ?? null);
+  // CASE 1: No manager assigned - REJECT submission
+  if (!autoForwardResult.nextApproverId) {
+    throw new ValidationError(
+      'You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure before submitting notes.'
+    );
   }
+
+  // CASE 2: Manager doesn't have approval permission - REJECT submission
+  if (!autoForwardResult.canAutoForward) {
+    const managerName = autoForwardResult.managerInfo?.name || autoForwardResult.managerInfo?.email || 'Your manager';
+    throw new ValidationError(
+      `${managerName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission before you can submit notes.`
+    );
+  }
+
+  // CASE 3: Manager has permission - Forward to manager
+  const currentHolderId = autoForwardResult.nextApproverId;
 
   // Update note and create history in transaction
   await prisma.$transaction([
@@ -440,7 +585,7 @@ const submitDraft = asyncHandler(async (req, res) => {
         noteId: id,
         action: action,
         performedById: userId,
-        remarks: actionMessage,
+        remarks: `${actionMessage} - Auto-forwarded to manager`,
         nextHolderId: currentHolderId,
       },
     }),
@@ -449,7 +594,7 @@ const submitDraft = asyncHandler(async (req, res) => {
       data: {
         status: NOTE_STATUS.PENDING,
         currentHolderId,
-        currentFlowIndex,
+        autoForwardedToManager: true,
       },
     }),
   ]);
@@ -484,61 +629,7 @@ const getById = asyncHandler(async (req, res) => {
   // Fetch note with full details
   const note = await getNoteWithDetails(id);
 
-  // If note is pending with group step, add current step info
-  if (
-    note.status === NOTE_STATUS.PENDING &&
-    note.currentHolderId == null &&
-    note.currentFlowIndex != null
-  ) {
-    const noteContext = { amountRequired: note.amountRequired === true };
-    const steps = await approvalFlowService.getFullFlowSteps(
-      note.category,
-      note.subcategory,
-      note.createdById,
-      noteContext
-    );
-
-    const step = steps[note.currentFlowIndex];
-    if (step && isCentralDepartmentRole(step.authorityType) && step.userIds.length > 0) {
-      const deptCode = CENTRAL_DEPARTMENT_ROLE_TO_DEPT_CODE[step.authorityType];
-      const centralDept = deptCode
-        ? await prisma.centralDepartment.findFirst({
-            where: { departmentCode: deptCode, isActive: true },
-            select: { id: true, departmentName: true, departmentCode: true },
-          })
-        : null;
-
-      const members = await prisma.userLogin.findMany({
-        where: { id: { in: step.userIds } },
-        select: {
-          id: true,
-          uid: true,
-          employeeDetails: {
-            select: { firstName: true, lastName: true, displayName: true },
-          },
-        },
-      });
-
-      note.currentStep = {
-        authorityType: step.authorityType,
-        isCentralDepartment: true,
-        centralDepartmentId: centralDept?.id,
-        centralDepartmentName: centralDept?.departmentName,
-        centralDepartmentCode: centralDept?.departmentCode,
-        members: members.map((u) => ({
-          id: u.id,
-          displayName:
-            u.employeeDetails?.displayName ||
-            [u.employeeDetails?.firstName, u.employeeDetails?.lastName]
-              .filter(Boolean)
-              .join(' ') ||
-            u.uid,
-        })),
-      };
-    }
-  }
-
-  return ApiResponse.success(res, note, 'Note fetched successfully');
+  return ApiResponse.success(res, note, 'Note details retrieved successfully');
 });
 
 /**
@@ -558,8 +649,10 @@ const list = asyncHandler(async (req, res) => {
     createdById,   // Filter by creator ID
     startDate,     // Date range start
     endDate,       // Date range end
+    includeCounts, // When true, include mine/pending/handled counts in response
   } = req.query;
   const { page, limit, skip } = getPaginationParams(req.query);
+  const wantCounts = includeCounts === 'true' || includeCounts === true;
 
   const include = getListNoteInclude();
 
@@ -567,43 +660,38 @@ const list = asyncHandler(async (req, res) => {
   let total;
 
   if (filter === 'handled') {
-    // Get notes current user has acted on (approved/rejected/forwarded/reverted)
-    const historyRows = await prisma.noteHistory.findMany({
-      where: {
-        performedById: userId,
-        action: { in: [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED] },
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { noteId: true, action: true, createdAt: true },
-    });
+    // Get notes current user has acted on - use efficient paginated subquery instead of loading all history
+    const actions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED];
+    const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
+    const [totalResult, pageRows] = await Promise.all([
+      prisma.$queryRaw(Prisma.sql`SELECT COUNT(*)::int as cnt FROM (
+        SELECT DISTINCT note_id FROM note_history
+        WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+      ) sub`),
+      prisma.$queryRaw(Prisma.sql`
+        SELECT note_id as "noteId", action, created_at as "performedAt"
+        FROM (
+          SELECT note_id, action, created_at,
+            ROW_NUMBER() OVER (PARTITION BY note_id ORDER BY created_at DESC) as rn
+          FROM note_history
+          WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+        ) sub
+        WHERE rn = 1
+        ORDER BY "performedAt" DESC
+        LIMIT ${limit} OFFSET ${skip}
+      `),
+    ]);
 
-    // Get unique note IDs (most recent action per note)
-    const seen = new Set();
-    const noteIdsWithAction = [];
-    for (const h of historyRows) {
-      if (seen.has(h.noteId)) continue;
-      seen.add(h.noteId);
-      noteIdsWithAction.push({
-        noteId: h.noteId,
-        action: h.action,
-        performedAt: h.createdAt,
-      });
-    }
-
-    total = noteIdsWithAction.length;
-    const pageItems = noteIdsWithAction.slice(skip, skip + limit);
-    const noteIds = pageItems.map((x) => x.noteId);
+    total = totalResult?.[0]?.cnt ?? 0;
+    const noteIds = pageRows.map((r) => r.noteId);
 
     if (noteIds.length > 0) {
       const fetched = await prisma.note.findMany({
         where: { id: { in: noteIds } },
         include,
       });
-
-      const noteMap = new Map();
-      fetched.forEach((n) => noteMap.set(n.id, n));
-
-      notes = pageItems
+      const noteMap = new Map(fetched.map((n) => [n.id, n]));
+      notes = pageRows
         .map(({ noteId, action, performedAt }) => {
           const note = noteMap.get(noteId);
           if (!note) return null;
@@ -622,10 +710,7 @@ const list = asyncHandler(async (req, res) => {
     } else if (filter === 'pending') {
       where = {
         status: NOTE_STATUS.PENDING,
-        OR: [
-          { currentHolderId: userId },
-          { currentHolderId: null, currentFlowIndex: { not: null } },
-        ],
+        currentHolderId: userId,
       };
     }
 
@@ -653,50 +738,51 @@ const list = asyncHandler(async (req, res) => {
       }
     }
 
-    // Special handling for pending filter to check authorization
-    if (filter === 'pending') {
-      // Fetch candidates (limit to reasonable number for performance)
-      const candidates = await prisma.note.findMany({
+    // Standard query with pagination
+    [notes, total] = await Promise.all([
+      prisma.note.findMany({
         where,
         include,
         orderBy: { updatedAt: 'desc' },
-        take: LIMITS.PENDING_NOTES_FETCH_LIMIT,
-      });
-
-      // Separate direct holders from group step notes
-      const directHolders = candidates.filter((n) => n.currentHolderId === userId);
-      const groupStepNotes = candidates.filter(
-        (n) => n.currentHolderId == null && n.currentFlowIndex != null
-      );
-
-      // Batch check authorization for group step notes
-      const authResults = await approvalFlowService.canUserActAtStepBatch(userId, groupStepNotes);
-      const authorizedGroupNotes = groupStepNotes.filter((n) => authResults.get(n.id));
-
-      // Combine results
-      const allAuthorized = [...directHolders, ...authorizedGroupNotes];
-
-      // Sort by updatedAt desc
-      allAuthorized.sort((a, b) => b.updatedAt - a.updatedAt);
-
-      total = allAuthorized.length;
-      notes = allAuthorized.slice(skip, skip + limit);
-    } else {
-      // Standard query with pagination
-      [notes, total] = await Promise.all([
-        prisma.note.findMany({
-          where,
-          include,
-          orderBy: { updatedAt: 'desc' },
-          skip,
-          take: limit,
-        }),
-        prisma.note.count({ where }),
-      ]);
-    }
+        skip,
+        take: limit,
+      }),
+      prisma.note.count({ where }),
+    ]);
   }
 
   const pagination = createPaginationMeta(page, limit, total);
+
+  if (wantCounts) {
+    const actions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED];
+    const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
+    const [mineCount, handledResult, pendingCount] = await Promise.all([
+      prisma.note.count({ where: { createdById: userId } }),
+      prisma.$queryRaw(Prisma.sql`
+        SELECT COUNT(DISTINCT note_id)::int as cnt FROM note_history
+        WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+      `),
+      prisma.note.count({
+        where: {
+          status: NOTE_STATUS.PENDING,
+          currentHolderId: userId,
+        },
+      }),
+    ]);
+    const handledCount = handledResult?.[0]?.cnt ?? 0;
+    return res.status(200).json({
+      success: true,
+      message: 'Notes fetched successfully',
+      data: notes,
+      pagination: {
+        page: pagination.page,
+        limit: pagination.limit,
+        total: pagination.total,
+        totalPages: pagination.totalPages || Math.ceil(pagination.total / pagination.limit),
+      },
+      counts: { mine: mineCount, pending: pendingCount, handled: handledCount },
+    });
+  }
 
   return ApiResponse.paginated(res, notes, pagination, 'Notes fetched successfully');
 });
@@ -710,58 +796,24 @@ const list = asyncHandler(async (req, res) => {
  */
 const getCounts = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  const actions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED];
+  const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
 
-  // Count my notes
-  const mineCount = await prisma.note.count({
-    where: { createdById: userId },
-  });
+  const [mineCount, handledResult, pendingCount] = await Promise.all([
+    prisma.note.count({ where: { createdById: userId } }),
+    prisma.$queryRaw(Prisma.sql`
+      SELECT COUNT(DISTINCT note_id)::int as cnt FROM note_history
+      WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+    `),
+    prisma.note.count({
+      where: {
+        status: NOTE_STATUS.PENDING,
+        currentHolderId: userId,
+      },
+    }),
+  ]);
 
-  // Count notes I've handled (acted on)
-  const handledNoteIds = await prisma.noteHistory.findMany({
-    where: {
-      performedById: userId,
-      action: { in: [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.FORWARDED, NOTE_ACTIONS.REVERTED] },
-    },
-    select: { noteId: true },
-    distinct: ['noteId'],
-  });
-  const handledCount = handledNoteIds.length;
-
-  // Count pending notes (more complex - needs authorization check)
-  const pendingWhere = {
-    status: NOTE_STATUS.PENDING,
-    OR: [
-      { currentHolderId: userId },
-      { currentHolderId: null, currentFlowIndex: { not: null } },
-    ],
-  };
-
-  const pendingCandidates = await prisma.note.findMany({
-    where: pendingWhere,
-    select: {
-      id: true,
-      currentHolderId: true,
-      currentFlowIndex: true,
-      category: true,
-      subcategory: true,
-      amountRequired: true,
-      createdById: true,
-    },
-    take: LIMITS.PENDING_NOTES_FETCH_LIMIT,
-  });
-
-  // Direct holders
-  const directHolders = pendingCandidates.filter((n) => n.currentHolderId === userId);
-  
-  // Group step notes requiring authorization check
-  const groupStepNotes = pendingCandidates.filter(
-    (n) => n.currentHolderId == null && n.currentFlowIndex != null
-  );
-
-  const authResults = await approvalFlowService.canUserActAtStepBatch(userId, groupStepNotes);
-  const authorizedGroupCount = groupStepNotes.filter((n) => authResults.get(n.id)).length;
-
-  const pendingCount = directHolders.length + authorizedGroupCount;
+  const handledCount = handledResult?.[0]?.cnt ?? 0;
 
   return ApiResponse.success(res, {
     mine: mineCount,
@@ -803,7 +855,6 @@ const approve = asyncHandler(async (req, res) => {
       where: { id },
       data: {
         currentHolderId: null,
-        currentFlowIndex: null,
         status: NOTE_STATUS.APPROVED,
       },
     }),
@@ -951,7 +1002,6 @@ const revert = asyncHandler(async (req, res) => {
       data: {
         status: NOTE_STATUS.REVERTED,
         currentHolderId: note.createdById, // Set creator as current holder
-        // Don't change currentFlowIndex - preserve where it was in flow
       },
     }),
   ]);
@@ -961,8 +1011,8 @@ const revert = asyncHandler(async (req, res) => {
 
 /**
  * Forward note to another authority
- * Can be automated (next in flow) or manual (specific user)
- * DSW/Central Team: any member can act
+ * Manual: Forward to user in reporting chain with required permission
+ * DEAN role can override and forward to anyone
  * 
  * @route POST /api/noting/:id/forward
  * @access Protected - Current approver only
@@ -970,44 +1020,46 @@ const revert = asyncHandler(async (req, res) => {
 const forward = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
-  const { nextHolderId, remarks, automated } = req.body;
+  const { nextHolderId, remarks } = req.body;
 
-  // Validation handled by validator middleware
-
-  // Load note
-  const note = await getNoteById(id);
+  // Load note with creator details
+  const note = await getNoteById(id, {
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          role: true,
+        },
+      },
+    },
+  });
   verifyNotePending(note);
   await verifyCanActOnNote(note, userId);
 
-  let targetHolderId = nextHolderId;
-  let targetFlowIndex = null;
-
-  if (automated === true) {
-    // Automated forward: move to next step in flow
-    const noteContext = { amountRequired: note.amountRequired === true };
-    const steps = await approvalFlowService.getFullFlowSteps(
-      note.category,
-      note.subcategory,
-      note.createdById,
-      noteContext
+  // Manual forward - allow forwarding to any employee (no hierarchy restriction)
+  if (!nextHolderId || !String(nextHolderId).trim()) {
+    throw new ValidationError(
+      'Please select a person to forward this note to.'
     );
-    const currentIndex = resolveCurrentFlowIndex(note, steps);
-    const nextIndex = currentIndex != null ? currentIndex + 1 : null;
-    const nextStep = nextIndex != null && nextIndex < steps.length ? steps[nextIndex] : null;
+  }
+  const targetHolderId = String(nextHolderId).trim();
 
-    if (!nextStep) {
-      throw new ValidationError('No next authority in approval flow for automated forward');
-    }
+  // Verify target user exists and is active
+  const targetUser = await prisma.userLogin.findUnique({
+    where: { id: targetHolderId },
+    select: { id: true, uid: true, status: true, employeeDetails: { select: { displayName: true } } },
+  });
 
-    targetFlowIndex = nextIndex;
-    const isGroupStep = isCentralDepartmentRole(nextStep.authorityType) && nextStep.userIds.length > 0;
-    targetHolderId = isGroupStep ? null : (nextStep.userIds[0] ?? null);
-  } else {
-    // Manual forward: use provided nextHolderId
-    if (!targetHolderId || !String(targetHolderId).trim()) {
-      throw new ValidationError('nextHolderId is required for manual forward');
-    }
-    targetHolderId = String(targetHolderId).trim();
+  if (!targetUser) {
+    throw new ValidationError('Selected user not found.');
+  }
+
+  if (targetUser.status !== 'active') {
+    throw new ValidationError(`${targetUser.employeeDetails?.displayName || targetUser.uid} is not an active user.`);
+  }
+
+  if (targetHolderId === userId) {
+    throw new ValidationError('You cannot forward a note to yourself.');
   }
 
   // Update note and create history in transaction
@@ -1017,15 +1069,23 @@ const forward = asyncHandler(async (req, res) => {
         noteId: note.id,
         action: NOTE_ACTIONS.FORWARDED,
         performedById: userId,
-        remarks: String(remarks).trim(),
-        nextHolderId: targetHolderId || undefined,
+        remarks: String(remarks || '').trim(),
+        nextHolderId: targetHolderId,
       },
     }),
     prisma.note.update({
       where: { id },
       data: {
-        currentHolderId: targetHolderId || null,
-        ...(targetFlowIndex != null && { currentFlowIndex: targetFlowIndex }),
+        currentHolderId: targetHolderId,
+        // Track reporting chain history
+        reportingChainHistory: {
+          push: {
+            timestamp: new Date().toISOString(),
+            fromUserId: userId,
+            toUserId: targetHolderId,
+            reason: remarks || 'Manual forward',
+          },
+        },
       },
     }),
   ]);
@@ -1204,6 +1264,169 @@ const getForwardUsers = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, formattedUsers);
 });
 
+/**
+ * Search employees by UID or name (for manual forward)
+ * 
+ * @route GET /api/noting/search-employees?q=searchterm
+ * @access Protected
+ */
+const searchEmployees = asyncHandler(async (req, res) => {
+  const { q } = req.query;
+
+  if (!q || String(q).trim().length < 2) {
+    return ApiResponse.success(res, []);
+  }
+
+  const searchTerm = String(q).trim();
+
+  const users = await prisma.userLogin.findMany({
+    where: {
+      role: 'faculty',
+      status: 'active',
+      OR: [
+        { uid: { contains: searchTerm, mode: 'insensitive' } },
+        { email: { contains: searchTerm, mode: 'insensitive' } },
+        { employeeDetails: { displayName: { contains: searchTerm, mode: 'insensitive' } } },
+        { employeeDetails: { firstName: { contains: searchTerm, mode: 'insensitive' } } },
+        { employeeDetails: { lastName: { contains: searchTerm, mode: 'insensitive' } } },
+        { employeeDetails: { empId: { contains: searchTerm, mode: 'insensitive' } } },
+      ],
+    },
+    select: {
+      id: true,
+      uid: true,
+      role: true,
+      employeeDetails: {
+        select: {
+          displayName: true,
+          firstName: true,
+          lastName: true,
+          empId: true,
+          primaryDepartment: { select: { departmentName: true } },
+          primarySchool: { select: { facultyName: true } },
+        },
+      },
+    },
+    take: 15,
+    orderBy: { uid: 'asc' },
+  });
+
+  const formattedUsers = users.map((u) => ({
+    id: u.id,
+    uid: u.uid,
+    role: u.role,
+    displayName:
+      u.employeeDetails?.displayName ||
+      [u.employeeDetails?.firstName, u.employeeDetails?.lastName].filter(Boolean).join(' ') ||
+      u.uid,
+    empId: u.employeeDetails?.empId || '',
+    department: u.employeeDetails?.primaryDepartment?.departmentName || '',
+    school: u.employeeDetails?.primarySchool?.facultyName || '',
+  }));
+
+  return ApiResponse.success(res, formattedUsers);
+});
+
+/**
+ * Get reporting manager info for preview
+ * 
+ * @route GET /api/noting/my-manager
+ * @access Protected
+ */
+const getMyManager = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const reportingService = require('../../core/services/reportingStructure.service');
+  const manager = await reportingService.getDirectManager(userId);
+
+  if (!manager) {
+    return ApiResponse.success(res, null, 'No reporting manager found');
+  }
+
+  const managerInfo = {
+    id: manager.id,
+    uid: manager.uid,
+    displayName: manager.employeeDetails?.displayName || manager.employeeDetails?.firstName || manager.uid,
+    empId: manager.employeeDetails?.empId || '',
+    department: manager.employeeDetails?.primaryDepartment?.departmentName || '',
+    school: manager.employeeDetails?.primarySchool?.facultyName || '',
+  };
+
+  return ApiResponse.success(res, managerInfo);
+});
+
+/**
+ * Auto-forward note to immediate reporting manager
+ * 
+ * @route POST /api/noting/:id/auto-forward
+ * @access Protected
+ */
+const autoForward = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { id } = req.params;
+  const { remarks } = req.body;
+
+  // Load note
+  const note = await getNoteById(id);
+  verifyNotePending(note);
+  await verifyCanActOnNote(note, userId);
+
+  // Get module permission key
+  const modulePermissionKey = approvalFlowService.getModulePermissionKey(note);
+
+  // Get immediate manager
+  const reportingService = require('../../core/services/reportingStructure.service');
+  const manager = await reportingService.getDirectManager(userId);
+
+  if (!manager) {
+    throw new ValidationError(
+      'You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure.'
+    );
+  }
+
+  // Update note and create history
+  await prisma.$transaction([
+    prisma.noteHistory.create({
+      data: {
+        noteId: note.id,
+        action: NOTE_ACTIONS.FORWARDED,
+        performedById: userId,
+        remarks: String(remarks || 'Auto-forwarded to reporting manager').trim(),
+        nextHolderId: manager.id,
+      },
+    }),
+    prisma.note.update({
+      where: { id },
+      data: {
+        currentHolderId: manager.id,
+        reportingChainHistory: {
+          push: {
+            timestamp: new Date().toISOString(),
+            fromUserId: userId,
+            toUserId: manager.id,
+            reason: remarks || 'Auto-forwarded to reporting manager',
+          },
+        },
+      },
+    }),
+  ]);
+
+  const updated = await prisma.note.findUnique({
+    where: { id },
+    include: {
+      currentHolder: {
+        select: {
+          id: true,
+          uid: true,
+          employeeDetails: { select: { displayName: true } },
+        },
+      },
+    },
+  });
+
+  const managerName = manager.employeeDetails?.displayName || manager.uid || manager.email;
+  return ApiResponse.success(res, updated, `Note forwarded to ${managerName} (your reporting manager)`);
+});
+
 module.exports = {
   getConfig,
   previewNotingId,
@@ -1221,4 +1444,7 @@ module.exports = {
   getMyCreatorInfo,
   getForwardPrograms,
   getForwardUsers,
+  searchEmployees,
+  getMyManager,
+  autoForward,
 };
