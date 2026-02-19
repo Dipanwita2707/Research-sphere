@@ -75,7 +75,7 @@ export default function QuickAccessModules() {
         <p className="text-gray-600 dark:text-gray-300">Connect to your essential university modules</p>
       </motion.div>
 
-      <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {modules.map((module, index) => {
           const Icon = module.icon;
           
@@ -96,7 +96,7 @@ export default function QuickAccessModules() {
                     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
                   }}
                   whileTap={{ scale: 0.98 }}
-                  className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${module.color} p-6 border border-white/20 shadow-2xl hover:shadow-3xl transition-all duration-300 cursor-pointer group min-h-[280px] flex flex-col`}
+                  className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${module.color} p-4 sm:p-6 border border-white/20 shadow-2xl hover:shadow-3xl transition-all duration-300 cursor-pointer group min-h-[240px] sm:min-h-[280px] flex flex-col`}
                 >
                   {/* Animated Background Overlay */}
                   <motion.div
@@ -143,16 +143,16 @@ export default function QuickAccessModules() {
                     </div>
 
                     {/* Content */}
-                    <h3 className="text-lg font-bold text-white mb-2 group-hover:text-white transition-colors">
+                    <h3 className="text-base sm:text-lg font-bold text-white mb-2 group-hover:text-white transition-colors">
                       {module.title}
                     </h3>
-                    <p className="text-white/90 text-sm mb-6 flex-grow">
+                    <p className="text-white/90 text-xs sm:text-sm mb-4 sm:mb-6 flex-grow">
                       {module.description}
                     </p>
 
                     {/* Stats */}
                     {module.stats && (
-                      <div className="grid grid-cols-3 gap-2 mb-4">
+                      <div className="grid grid-cols-3 gap-1 sm:gap-2 mb-4">
                         {module.stats.map((stat, statIndex) => (
                           <motion.div
                             key={statIndex}

@@ -672,6 +672,77 @@ const requireOwnershipOrPermission = (ownershipCheck, permissionKey, options = {
   };
 };
 
+/**
+ * Check Gate Entry access based on user designation
+ * Admin & Guard: Full access (all features including verify)
+ * Student: No access (blocked completely)
+ * Others: Limited access (create & view only, no verify)
+ * @param {boolean} requireVerifyAccess - If true, only Admin/Guard allowed
+ */
+const checkGateEntryAccess = (requireVerifyAccess = false) => {
+  return async (req, res, next) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      // Get user with role and employee details
+      const user = await prisma.userLogin.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          role: true,
+          employeeDetails: {
+            select: {
+              designation: true
+            }
+          }
+        }
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const role = user.role?.toLowerCase() || '';
+      const designation = user.employeeDetails?.designation?.toLowerCase() || '';
+      
+      const isAdmin = role === 'admin';
+      const isStudent = role === 'student';
+      const isGuard = designation.includes('guard') || designation.includes('security');
+
+      // If verify access is required, only Admin and Guard allowed
+      // Students and other roles cannot verify passes
+      if (requireVerifyAccess) {
+        if (!isAdmin && !isGuard) {
+          return res.status(403).json({
+            success: false,
+            message: isStudent 
+              ? 'Students can only create passes, not verify them'
+              : 'Only Admin and Security Guards can verify passes'
+          });
+        }
+      }
+
+      // All users (including students) can access basic features (create pass, view own passes)
+      next();
+    } catch (error) {
+      console.error('Gate Entry access check error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Access verification failed'
+      });
+    }
+  };
+};
+
 module.exports = {
   protect,
   restrictTo,
@@ -680,6 +751,7 @@ module.exports = {
   requireAnyPermission,
   checkIprFilePermission,
   checkResearchFilePermission,
+  checkGateEntryAccess,
   // New centralized permission middleware
   checkPermission,
   checkAnyPermission,

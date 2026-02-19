@@ -10,102 +10,110 @@ datasource db {
 }
 
 model UserLogin {
-  id                                                String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  uid                                               String                               @unique @db.VarChar(32)
-  email                                             String?                              @unique @db.Citext
-  phone                                             String?                              @db.VarChar(20)
-  profileImageFilePath                              String?                              @map("profile_image_file_path")
-  profileImage                                      String?                              @map("profile_image") @db.VarChar(64)
-  passwordHash                                      String                               @map("password_hash")
-  role                                              UserRoleEnum
-  assignedRoleIds                                   Json?                                @default("[]") @map("assigned_role_ids")
-  status                                            String                               @default("active") @db.VarChar(32)
-  lastLoginAt                                       DateTime?                            @map("last_login_at") @db.Timestamptz(6)
-  createdAt                                         DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                                         DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  Event                                             Event[]
-  EventRegistration                                 EventRegistration[]
-  EventVolunteer                                    EventVolunteer[]
-  auditLogs                                         AuditLog[]
-  createdBookChapterPolicies                        BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
-  updatedBookChapterPolicies                        BookChapterIncentivePolicy[]         @relation("BookChapterPolicyUpdatedBy")
-  createdBookPolicies                               BookIncentivePolicy[]                @relation("BookPolicyCreatedBy")
-  updatedBookPolicies                               BookIncentivePolicy[]                @relation("BookPolicyUpdatedBy")
-  cardsIssued                                       Card[]                               @relation("IssuedBy")
-  headOfCentralDepts                                CentralDepartment[]                  @relation("HeadOfCentralDepartment")
-  assignedCentralDeptPerms                          CentralDepartmentPermission[]        @relation("AssignedCentralDeptPermissions")
-  centralDeptPermissions                            CentralDepartmentPermission[]        @relation("UserCentralDeptPermissions")
-  changesHistory                                    ChangeHistory[]
-  createdConferencePolicies                         ConferenceIncentivePolicy[]          @relation("ConferencePolicyCreatedBy")
-  updatedConferencePolicies                         ConferenceIncentivePolicy[]          @relation("ConferencePolicyUpdatedBy")
-  headOfDepartments                                 Department[]                         @relation("HeadOfDepartment")
-  assignedSchoolDeptPerms                           DepartmentPermission[]               @relation("AssignedDepartmentPermissions")
-  schoolDeptPermissions                             DepartmentPermission[]               @relation("UserDepartmentPermissions")
-  documentChangeReviews                             DocumentChange[]                     @relation("DocumentChangeReviewer")
-  employeeDetails                                   EmployeeDetails?
-  headOfFaculties                                   FacultySchoolList[]                  @relation("HeadOfFaculty")
-  gate_pass_gate_pass_created_by_idTouser_login     gate_pass[]                          @relation("gate_pass_created_by_idTouser_login")
-  gate_pass_gate_pass_entry_guard_idTouser_login    gate_pass[]                          @relation("gate_pass_entry_guard_idTouser_login")
-  gate_pass_gate_pass_exit_guard_idTouser_login     gate_pass[]                          @relation("gate_pass_exit_guard_idTouser_login")
-  gate_pass_gate_pass_person_to_meet_idTouser_login gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
-  gate_pass_history                                 gate_pass_history[]
-  grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
-  grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
-  grantApplicationReviews                           GrantApplicationReview[]             @relation("GrantApplicationReviews")
-  grantApplicationStatusChanges                     GrantApplicationStatusHistory[]      @relation("GrantApplicationStatusChanges")
-  createdGrantPolicies                              GrantIncentivePolicy[]               @relation("GrantPolicyCreatedBy")
-  updatedGrantPolicies                              GrantIncentivePolicy[]               @relation("GrantPolicyUpdatedBy")
-  grantInvestigators                                GrantInvestigator[]                  @relation("GrantInvestigators")
-  createdIncentivePolicies                          IncentivePolicy[]                    @relation("IncentivePolicyCreatedBy")
-  updatedIncentivePolicies                          IncentivePolicy[]                    @relation("IncentivePolicyUpdatedBy")
-  approvedIPRs                                      IPR[]                                @relation("IPRApprover")
-  createdIPRs                                       IPR[]                                @relation("IPRCreator")
-  iprApplications                                   IprApplication[]                     @relation("IprApplications")
-  iprCollaborativeSessions                          IprCollaborativeSession[]            @relation("IprCollaborativeSessions")
-  iprContributions                                  IprContributor[]                     @relation("IprContributors")
-  uploadedIPRDocuments                              IPRDocument[]                        @relation("IPRDocumentUploader")
-  iprEditSuggestions                                IprEditSuggestion[]                  @relation("IprEditSuggestions")
-  iprFinanceReviews                                 IprFinance[]                         @relation("IprFinanceReviews")
-  iprReviews                                        IprReview[]                          @relation("IprReviews")
-  iprStatusChanges                                  IprStatusHistory[]                   @relation("IprStatusChanges")
-  iprStatusUpdates                                  IprStatusUpdate[]                    @relation("IprStatusUpdates")
-  notesCreated                                      Note[]                               @relation("NoteCreatedBy")
-  notesHeld                                         Note[]                               @relation("NoteCurrentHolder")
-  noteHistoryNextHolder                             NoteHistory[]                        @relation("NoteHistoryNextHolder")
-  noteHistoryPerformed                              NoteHistory[]                        @relation("NoteHistoryPerformedBy")
-  notifications                                     Notification[]                       @relation("UserNotifications")
-  notingAuthorities                                 NotingAuthority[]                    @relation("NotingAuthorityUser")
-  parentLogin                                       ParentDetails?                       @relation("ParentLogin")
-  programCoordinators                               Program[]                            @relation("ProgramCoordinator")
-  reissueRequestsApproved                           ReissueRequest[]                     @relation("ApprovedBy")
-  reissueRequestsMade                               ReissueRequest[]                     @relation("RequestedBy")
-  researchContributions                             ResearchContribution[]               @relation("ResearchContributions")
-  researchContributionAuthorship                    ResearchContributionAuthor[]         @relation("ResearchContributionAuthors")
-  researchContributionEditSuggestions               ResearchContributionEditSuggestion[] @relation("ResearchContributionEditSuggestions")
-  researchContributionReviews                       ResearchContributionReview[]         @relation("ResearchContributionReviews")
-  researchContributionStatusChanges                 ResearchContributionStatusHistory[]  @relation("ResearchContributionStatusChanges")
-  createdResearchPolicies                           ResearchIncentivePolicy[]            @relation("ResearchPolicyCreatedBy")
-  updatedResearchPolicies                           ResearchIncentivePolicy[]            @relation("ResearchPolicyUpdatedBy")
-  researchPapers                                    ResearchPaper[]                      @relation("ResearchPapers")
-  researchPaperReviews                              ResearchPaperReview[]                @relation("ResearchPaperReviews")
-  researchPaperStatusChanges                        ResearchPaperStatusHistory[]         @relation("ResearchPaperStatusChanges")
-  researchProgressTrackers                          ResearchProgressTracker[]            @relation("ResearchProgressTrackers")
-  classTeachers                                     Section[]                            @relation("ClassTeacher")
-  approvedStudents                                  StudentDetails[]                     @relation("DataApprovedBy")
-  mentoredStudents                                  StudentDetails[]                     @relation("StudentMentor")
-  studentLogin                                      StudentDetails?                      @relation("StudentLogin")
-  assignedDepartmentPermissions                     UserDepartmentPermission[]           @relation("AssignedBy")
-  departmentPermissions                             UserDepartmentPermission[]
-  userSettings                                      UserSettings?                        @relation("UserSettings")
-  clubsAsFacultyFacilitator                         Club[]                               @relation("ClubFacultyFacilitator")
-  clubsAsViceChairperson                            Club[]                               @relation("ClubViceChairperson")
-  clubMemberships                                   ClubMember[]                         @relation("ClubMemberStudent")
-  clubMembersAdded                                  ClubMember[]                         @relation("ClubMemberAddedBy")
-  clubMembersRemoved                                ClubMember[]                         @relation("ClubMemberRemovedBy")
-  clubChangeRequestsInitiated                       ClubChangeRequest[]                  @relation("ClubChangeRequestedBy")
-  clubChangeRequestsApproved                        ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
-  clubChangeRequestsRejected                        ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
-  clubAuditLogs                                     ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
+  id                                                                 String                               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  uid                                                                String                               @unique @db.VarChar(32)
+  email                                                              String?                              @unique @db.Citext
+  phone                                                              String?                              @db.VarChar(20)
+  profileImageFilePath                                               String?                              @map("profile_image_file_path")
+  profileImage                                                       String?                              @map("profile_image") @db.VarChar(64)
+  passwordHash                                                       String                               @map("password_hash")
+  role                                                               UserRoleEnum
+  status                                                             String                               @default("active") @db.VarChar(32)
+  lastLoginAt                                                        DateTime?                            @map("last_login_at") @db.Timestamptz(6)
+  createdAt                                                          DateTime                             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                                                          DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  assignedRoleIds                                                    Json?                                @default("[]") @map("assigned_role_ids")
+  Event                                                              Event[]
+  EventRegistration                                                  EventRegistration[]
+  EventVolunteer                                                     EventVolunteer[]
+  auditLogs                                                          AuditLog[]
+  createdBookChapterPolicies                                         BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
+  updatedBookChapterPolicies                                         BookChapterIncentivePolicy[]         @relation("BookChapterPolicyUpdatedBy")
+  createdBookPolicies                                                BookIncentivePolicy[]                @relation("BookPolicyCreatedBy")
+  updatedBookPolicies                                                BookIncentivePolicy[]                @relation("BookPolicyUpdatedBy")
+  cardsIssued                                                        Card[]                               @relation("IssuedBy")
+  headOfCentralDepts                                                 CentralDepartment[]                  @relation("HeadOfCentralDepartment")
+  assignedCentralDeptPerms                                           CentralDepartmentPermission[]        @relation("AssignedCentralDeptPermissions")
+  centralDeptPermissions                                             CentralDepartmentPermission[]        @relation("UserCentralDeptPermissions")
+  changesHistory                                                     ChangeHistory[]
+  clubsAsFacultyFacilitator                                          Club[]                               @relation("ClubFacultyFacilitator")
+  clubsAsViceChairperson                                             Club[]                               @relation("ClubViceChairperson")
+  clubAuditLogs                                                      ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
+  clubChangeRequestsApproved                                         ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
+  clubChangeRequestsRejected                                         ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
+  clubChangeRequestsInitiated                                        ClubChangeRequest[]                  @relation("ClubChangeRequestedBy")
+  clubMembersAdded                                                   ClubMember[]                         @relation("ClubMemberAddedBy")
+  clubMembersRemoved                                                 ClubMember[]                         @relation("ClubMemberRemovedBy")
+  clubMemberships                                                    ClubMember[]                         @relation("ClubMemberStudent")
+  createdConferencePolicies                                          ConferenceIncentivePolicy[]          @relation("ConferencePolicyCreatedBy")
+  updatedConferencePolicies                                          ConferenceIncentivePolicy[]          @relation("ConferencePolicyUpdatedBy")
+  headOfDepartments                                                  Department[]                         @relation("HeadOfDepartment")
+  assignedSchoolDeptPerms                                            DepartmentPermission[]               @relation("AssignedDepartmentPermissions")
+  schoolDeptPermissions                                              DepartmentPermission[]               @relation("UserDepartmentPermissions")
+  documentChangeReviews                                              DocumentChange[]                     @relation("DocumentChangeReviewer")
+  employeeDetails                                                    EmployeeDetails?
+  event_team_invitation_event_team_invitation_invitee_idTouser_login event_team_invitation[]              @relation("event_team_invitation_invitee_idTouser_login")
+  event_team_invitation_event_team_invitation_inviter_idTouser_login event_team_invitation[]              @relation("event_team_invitation_inviter_idTouser_login")
+  event_team_member                                                  event_team_member[]
+  event_team_request                                                 event_team_request[]
+  headOfFaculties                                                    FacultySchoolList[]                  @relation("HeadOfFaculty")
+  gate_pass_gate_pass_created_by_idTouser_login                      gate_pass[]                          @relation("gate_pass_created_by_idTouser_login")
+  gate_pass_gate_pass_entry_guard_idTouser_login                     gate_pass[]                          @relation("gate_pass_entry_guard_idTouser_login")
+  gate_pass_gate_pass_exit_guard_idTouser_login                      gate_pass[]                          @relation("gate_pass_exit_guard_idTouser_login")
+  gate_pass_gate_pass_person_to_meet_idTouser_login                  gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
+  bookingsVerified                                                   HostelBooking[]                      @relation("BookingVerifiedBy")
+  bookingsCreated                                                    HostelBooking[]                      @relation("BookingCreatedBy")
+  gate_pass_history                                                  gate_pass_history[]
+  grantApplications                                                  GrantApplication[]                   @relation("GrantApplications")
+  grantApplicationEditSuggestions                                    GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
+  grantApplicationReviews                                            GrantApplicationReview[]             @relation("GrantApplicationReviews")
+  grantApplicationStatusChanges                                      GrantApplicationStatusHistory[]      @relation("GrantApplicationStatusChanges")
+  createdGrantPolicies                                               GrantIncentivePolicy[]               @relation("GrantPolicyCreatedBy")
+  updatedGrantPolicies                                               GrantIncentivePolicy[]               @relation("GrantPolicyUpdatedBy")
+  grantInvestigators                                                 GrantInvestigator[]                  @relation("GrantInvestigators")
+  createdIncentivePolicies                                           IncentivePolicy[]                    @relation("IncentivePolicyCreatedBy")
+  updatedIncentivePolicies                                           IncentivePolicy[]                    @relation("IncentivePolicyUpdatedBy")
+  approvedIPRs                                                       IPR[]                                @relation("IPRApprover")
+  createdIPRs                                                        IPR[]                                @relation("IPRCreator")
+  iprApplications                                                    IprApplication[]                     @relation("IprApplications")
+  iprCollaborativeSessions                                           IprCollaborativeSession[]            @relation("IprCollaborativeSessions")
+  iprContributions                                                   IprContributor[]                     @relation("IprContributors")
+  uploadedIPRDocuments                                               IPRDocument[]                        @relation("IPRDocumentUploader")
+  iprEditSuggestions                                                 IprEditSuggestion[]                  @relation("IprEditSuggestions")
+  iprFinanceReviews                                                  IprFinance[]                         @relation("IprFinanceReviews")
+  iprReviews                                                         IprReview[]                          @relation("IprReviews")
+  iprStatusChanges                                                   IprStatusHistory[]                   @relation("IprStatusChanges")
+  iprStatusUpdates                                                   IprStatusUpdate[]                    @relation("IprStatusUpdates")
+  notesCreated                                                       Note[]                               @relation("NoteCreatedBy")
+  notesHeld                                                          Note[]                               @relation("NoteCurrentHolder")
+  noteHistoryNextHolder                                              NoteHistory[]                        @relation("NoteHistoryNextHolder")
+  noteHistoryPerformed                                               NoteHistory[]                        @relation("NoteHistoryPerformedBy")
+  notifications                                                      Notification[]                       @relation("UserNotifications")
+  notingAuthorities                                                  NotingAuthority[]                    @relation("NotingAuthorityUser")
+  parentLogin                                                        ParentDetails?                       @relation("ParentLogin")
+  programCoordinators                                                Program[]                            @relation("ProgramCoordinator")
+  reissueRequestsApproved                                            ReissueRequest[]                     @relation("ApprovedBy")
+  reissueRequestsMade                                                ReissueRequest[]                     @relation("RequestedBy")
+  reporting_structure_reporting_structure_manager_idTouser_login     reporting_structure[]                @relation("reporting_structure_manager_idTouser_login")
+  reporting_structure_reporting_structure_user_idTouser_login        reporting_structure?                 @relation("reporting_structure_user_idTouser_login")
+  researchContributions                                              ResearchContribution[]               @relation("ResearchContributions")
+  researchContributionAuthorship                                     ResearchContributionAuthor[]         @relation("ResearchContributionAuthors")
+  researchContributionEditSuggestions                                ResearchContributionEditSuggestion[] @relation("ResearchContributionEditSuggestions")
+  researchContributionReviews                                        ResearchContributionReview[]         @relation("ResearchContributionReviews")
+  researchContributionStatusChanges                                  ResearchContributionStatusHistory[]  @relation("ResearchContributionStatusChanges")
+  createdResearchPolicies                                            ResearchIncentivePolicy[]            @relation("ResearchPolicyCreatedBy")
+  updatedResearchPolicies                                            ResearchIncentivePolicy[]            @relation("ResearchPolicyUpdatedBy")
+  researchPapers                                                     ResearchPaper[]                      @relation("ResearchPapers")
+  researchPaperReviews                                               ResearchPaperReview[]                @relation("ResearchPaperReviews")
+  researchPaperStatusChanges                                         ResearchPaperStatusHistory[]         @relation("ResearchPaperStatusChanges")
+  researchProgressTrackers                                           ResearchProgressTracker[]            @relation("ResearchProgressTrackers")
+  classTeachers                                                      Section[]                            @relation("ClassTeacher")
+  approvedStudents                                                   StudentDetails[]                     @relation("DataApprovedBy")
+  mentoredStudents                                                   StudentDetails[]                     @relation("StudentMentor")
+  studentLogin                                                       StudentDetails?                      @relation("StudentLogin")
+  assignedDepartmentPermissions                                      UserDepartmentPermission[]           @relation("AssignedBy")
+  departmentPermissions                                              UserDepartmentPermission[]
+  userSettings                                                       UserSettings?                        @relation("UserSettings")
   reportingStructure                                ReportingStructure?                  @relation("UserReporting")
   directReports                                     ReportingStructure[]                 @relation("ManagerReporting")
   sentInvitations                                    EventTeamInvitation[]                @relation("InvitationInviter")
@@ -126,7 +134,6 @@ model EmployeeDetails {
   photo                     String?                     @db.VarChar(64)
   empId                     String?                     @unique @map("emp_id") @db.VarChar(64)
   designation               String?                     @db.VarChar(128)
-  officerLevel              String?                     @map("officer_level") @db.VarChar(10)
   joinDate                  DateTime?                   @map("join_date") @db.Date
   isActive                  Boolean                     @default(true) @map("is_active")
   metadata                  Json                        @default("{}")
@@ -137,6 +144,7 @@ model EmployeeDetails {
   email                     String?                     @db.VarChar(256)
   phoneNumber               String?                     @map("phone_number") @db.VarChar(20)
   primarySchoolId           String?                     @map("primary_school_id") @db.Uuid
+  officerLevel              String?                     @map("officer_level") @db.VarChar(10)
   admissionFacultyStaff     AdmissionFacultyStaff[]
   admissionStaffDetails     AdmissionStaffDetails[]
   admissionStaffRoles       AdmissionStaffRoles[]
@@ -597,33 +605,20 @@ model CentralDepartment {
   @@map("central_department")
 }
 
-// ===========================================
-// Role-Based Permission Template System
-// Roles are named clusters of permissions that can be applied to users
-// ===========================================
 model Role {
-  id                            String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  roleCode                      String           @unique @map("role_code") @db.VarChar(32)
-  name                          String           @unique @db.VarChar(128)
-  description                   String?
-  // SCHOOL = school department permissions, CENTRAL = central department permissions, BOTH = both types
-  departmentType                RoleDepartmentType @default(BOTH) @map("department_type")
-  // JSON object containing permission keys: { schoolDeptPermissions: {...}, centralDeptPermissions: {...} }
-  permissions                   Json             @default("{}")
-  // If false, users with this role don't require school/department assignment (for VC, Pro-VC, etc.)
-  requiresDepartmentAssignment  Boolean          @default(true) @map("requires_department_assignment")
-  isActive                      Boolean          @default(true) @map("is_active")
-  createdBy                     String?          @map("created_by") @db.Uuid
-  createdAt                     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                     DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                           String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roleCode                     String             @unique @map("role_code") @db.VarChar(32)
+  name                         String             @unique @db.VarChar(128)
+  description                  String?
+  departmentType               RoleDepartmentType @default(BOTH) @map("department_type")
+  permissions                  Json               @default("{}")
+  requiresDepartmentAssignment Boolean            @default(true) @map("requires_department_assignment")
+  isActive                     Boolean            @default(true) @map("is_active")
+  createdBy                    String?            @map("created_by") @db.Uuid
+  createdAt                    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("role")
-}
-
-enum RoleDepartmentType {
-  SCHOOL
-  CENTRAL
-  BOTH
 }
 
 model Program {
@@ -1829,31 +1824,31 @@ model GrantApplicationEditSuggestion {
 }
 
 model Note {
-  id                  String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  notingId            String                      @unique @map("noting_id") @db.VarChar(64)
-  category            NoteCategoryEnum
-  subcategory         String                      @map("subcategory") @db.VarChar(64)
-  description         String
-  approvalPeriod      NoteApprovalPeriodEnum      @map("approval_period")
-  recurringFrequency  NoteRecurringFrequencyEnum? @map("recurring_frequency")
-  policyWithinSgtu    Boolean?                    @map("policy_within_sgtu")
-  policyOutsideSgtu   Boolean?                    @map("policy_outside_sgtu")
-  policyBoth          Boolean?                    @map("policy_both")
-  policyJustification String?                     @map("policy_justification")
-  amountRequired      Boolean                     @default(false) @map("amount_required")
-  amount              Decimal?                    @db.Decimal(12, 2)
-  status              NoteStatusEnum              @default(draft)
-  createdById         String                      @map("created_by_id") @db.Uuid
-  currentHolderId     String?                     @map("current_holder_id") @db.Uuid
-  createdAt           DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  policyCompliant     Boolean?                    @map("policy_compliant")
-  currentFlowIndex    Int?                        @map("current_flow_index")
-  eventName           String?
-  eventType           EventType?
-  eventStartDate      DateTime?
-  eventEndDate        DateTime?
-  eventPaymentType    EventPaymentType?
+  id                               String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  notingId                         String                      @unique @map("noting_id") @db.VarChar(64)
+  category                         NoteCategoryEnum
+  subcategory                      String                      @map("subcategory") @db.VarChar(64)
+  description                      String
+  approvalPeriod                   NoteApprovalPeriodEnum      @map("approval_period")
+  recurringFrequency               NoteRecurringFrequencyEnum? @map("recurring_frequency")
+  policyWithinSgtu                 Boolean?                    @map("policy_within_sgtu")
+  policyOutsideSgtu                Boolean?                    @map("policy_outside_sgtu")
+  policyBoth                       Boolean?                    @map("policy_both")
+  policyJustification              String?                     @map("policy_justification")
+  amountRequired                   Boolean                     @default(false) @map("amount_required")
+  amount                           Decimal?                    @db.Decimal(12, 2)
+  status                           NoteStatusEnum              @default(draft)
+  createdById                      String                      @map("created_by_id") @db.Uuid
+  currentHolderId                  String?                     @map("current_holder_id") @db.Uuid
+  createdAt                        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                        DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  policyCompliant                  Boolean?                    @map("policy_compliant")
+  currentFlowIndex                 Int?                        @map("current_flow_index")
+  eventName                        String?
+  eventType                        EventType?
+  eventStartDate                   DateTime?
+  eventEndDate                     DateTime?
+  eventPaymentType                 EventPaymentType?
   eventParticipationType ParticipationType?       @map("event_participation_type")
   eventRegistrationFeeIndividual Float?            @map("event_registration_fee_individual")
   eventRegistrationFeeTeam       Float?            @map("event_registration_fee_team")
@@ -1867,33 +1862,36 @@ model Note {
   eventCertification  Boolean?                    @map("event_certification") // Certificate milega ya nahi
   eventCapacityFixed  Int?                        @map("event_capacity_fixed") // Internal capacity fixed (different from approx)
   eventPrizesAwards   Json?                       @map("event_prizes_awards") // [{position, rank, title, prizeType, prizeAmount?, additionalPerks?, sortOrder}] - matches EventPrize
-  clubName            String?                     @map("club_name") @db.VarChar(256)
-  clubCategoryId      String?                     @map("club_category_id") @db.Uuid
-  clubPurpose         String?                     @map("club_purpose") @db.Text
-  clubAcademicSession String?                     @map("club_academic_session") @db.VarChar(64)
-  clubTargetStudentGroup ClubTargetGroupEnum?     @map("club_target_student_group")
-  clubMeetingFrequency   ClubMeetingFrequencyEnum? @map("club_meeting_frequency")
-  clubFundingRequired    Boolean?                 @map("club_funding_required")
-  clubEstimatedFundingAmount Decimal?             @map("club_estimated_funding_amount") @db.Decimal(12, 2)
-  clubVisibility         ClubVisibilityEnum?      @map("club_visibility")
-  clubExpectedActivityTypes String[]              @default([]) @map("club_expected_activity_types")
-  clubInfrastructureRequirements String[]         @default([]) @map("club_infrastructure_requirements")
-  clubEstimatedAnnualActivityCount Int?           @map("club_estimated_annual_activity_count")
-  clubExpectedStudentStrength Int?                @map("club_expected_student_strength")
-  clubFacultyFacilitatorId String?                @map("club_faculty_facilitator_id") @db.Uuid
-  clubViceChairpersonId    String?                @map("club_vice_chairperson_id") @db.Uuid
-  clubInitialMembers       String[]               @default([]) @map("club_initial_members")
+  clubAcademicSession              String?                     @map("club_academic_session") @db.VarChar(64)
+  clubCategoryId                   String?                     @map("club_category_id") @db.Uuid
+  clubEstimatedAnnualActivityCount Int?                        @map("club_estimated_annual_activity_count")
+  clubEstimatedFundingAmount       Decimal?                    @map("club_estimated_funding_amount") @db.Decimal(12, 2)
+  clubExpectedActivityTypes        String[]                    @default([]) @map("club_expected_activity_types")
+  clubExpectedStudentStrength      Int?                        @map("club_expected_student_strength")
+  clubFacultyFacilitatorId         String?                     @map("club_faculty_facilitator_id") @db.Uuid
+  clubFundingRequired              Boolean?                    @map("club_funding_required")
+  clubInfrastructureRequirements   String[]                    @default([]) @map("club_infrastructure_requirements")
+  clubMeetingFrequency             ClubMeetingFrequencyEnum?   @map("club_meeting_frequency")
+  clubName                         String?                     @map("club_name") @db.VarChar(256)
+  clubPurpose                      String?                     @map("club_purpose")
+  clubTargetStudentGroup           ClubTargetGroupEnum?        @map("club_target_student_group")
+  clubViceChairpersonId            String?                     @map("club_vice_chairperson_id") @db.Uuid
+  clubVisibility                   ClubVisibilityEnum?         @map("club_visibility")
+  clubInitialMembers               String[]                    @default([]) @map("club_initial_members")
   autoForwardedToManager   Boolean                @default(false) @map("auto_forwarded_to_manager")
   manualForwardReason      String?                @map("manual_forward_reason") @db.Text
   reportingChainHistory    Json?                  @map("reporting_chain_history")
-  Event               Event?
-  createdBy           UserLogin                   @relation("NoteCreatedBy", fields: [createdById], references: [id])
-  currentHolder       UserLogin?                  @relation("NoteCurrentHolder", fields: [currentHolderId], references: [id])
-  attachments         NoteAttachment[]
-  history             NoteHistory[]
-  points              NotePoint[]
-  clubCreation        Club?                       @relation("ClubCreationNoting")
-  clubChangeRequest   ClubChangeRequest?          @relation("ClubChangeRequestNoting")
+  auto_forwarded_to_manager        Boolean                     @default(false)
+  manual_forward_reason            String?
+  reporting_chain_history          Json?
+  Event                            Event?
+  clubCreation                     Club?                       @relation("ClubCreationNoting")
+  clubChangeRequest                ClubChangeRequest?          @relation("ClubChangeRequestNoting")
+  createdBy                        UserLogin                   @relation("NoteCreatedBy", fields: [createdById], references: [id])
+  currentHolder                    UserLogin?                  @relation("NoteCurrentHolder", fields: [currentHolderId], references: [id])
+  attachments                      NoteAttachment[]
+  history                          NoteHistory[]
+  points                           NotePoint[]
 
   @@index([status])
   @@index([category, subcategory])
@@ -2003,7 +2001,7 @@ model gate_pass {
   person_to_meet_name                                String?                  @db.VarChar(255)
   visit_date                                         DateTime                 @db.Date
   expected_entry_time                                String                   @db.VarChar(10)
-  expected_exit_time                                 String                   @db.VarChar(10)
+  expected_exit_time                                 String?                  @db.VarChar(10)
   has_vehicle                                        Boolean                  @default(false)
   vehicle_type                                       vehicle_type_enum?
   vehicle_number                                     String?                  @db.VarChar(50)
@@ -2011,9 +2009,6 @@ model gate_pass {
   number_of_persons                                  Int                      @default(1)
   items_carrying                                     String?
   special_instructions                               String?
-  stay_required                                      Boolean?                 @default(false)
-  verification_code                                  String?                  @db.VarChar(10)
-  visitor_relation                                   String?                  @db.VarChar(100)
   status                                             gate_pass_status_enum    @default(active)
   qr_code                                            String?
   actual_entry_time                                  DateTime?                @db.Timestamptz(6)
@@ -2028,6 +2023,25 @@ model gate_pass {
   created_by_id                                      String                   @db.Uuid
   created_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
+  stay_required                                      Boolean?                 @default(false)
+  verification_code                                  String?                  @db.VarChar(10)
+  visitor_relation                                   String?                  @db.VarChar(100)
+  visit_end_date                                     DateTime?                @db.Date
+  entry_time                                         String?                  @db.VarChar(10)
+  qr_status                                          qr_status_enum?          @default(inactive)
+  pass_status                                        pass_status_enum?        @default(created)
+  qr_activation_time                                 DateTime?                @db.Timestamptz(6)
+  extension_count                                    Int                      @default(0)
+  extension_reason                                   String?
+  cancellation_time                                  DateTime?                @db.Timestamptz(6)
+  checkout_unique_id                                 String?                  @unique
+  checkout_verification_code                         String?
+  checkout_qr_code                                   String?
+  checkout_qr_expires_at                             DateTime?                @db.Timestamptz(6)
+  linked_pass_id                                     String?                  @db.Uuid
+  hostel_booking                                     HostelBooking?
+  linked_pass                                        gate_pass?               @relation("PassExtension", fields: [linked_pass_id], references: [id])
+  extended_passes                                    gate_pass[]              @relation("PassExtension")
   user_login_gate_pass_created_by_idTouser_login     UserLogin                @relation("gate_pass_created_by_idTouser_login", fields: [created_by_id], references: [id])
   user_login_gate_pass_entry_guard_idTouser_login    UserLogin?               @relation("gate_pass_entry_guard_idTouser_login", fields: [entry_guard_id], references: [id])
   user_login_gate_pass_exit_guard_idTouser_login     UserLogin?               @relation("gate_pass_exit_guard_idTouser_login", fields: [exit_guard_id], references: [id])
@@ -2181,6 +2195,8 @@ model Event {
   @@index([status, startDate], map: "event_status_startDate_idx")
   @@index([opportunityMode])
   @@index([participationType])
+  @@index([opportunityMode])
+  @@index([participationType])
 }
 
 model EventEntry {
@@ -2204,20 +2220,20 @@ model EventEntry {
 }
 
 model EventRegistration {
-  id                    String                       @id
-  registrationId        String                       @unique
-  eventId               String
-  userId                String                       @db.Uuid
+  id                          String                           @id
+  registrationId              String                           @unique
+  eventId                     String
+  userId                      String                           @db.Uuid
   teamId                String?                      @db.Uuid                    // Team association for team events
-  status                RegistrationStatus           @default(pending)
-  qrCode                String                       @unique
-  paymentStatus         PaymentStatus?
-  paymentId             String?
-  amountPaid            Float?
-  hasEntered            Boolean                      @default(false)
-  enteredAt             DateTime?
-  registeredAt          DateTime                     @default(now())
-  updatedAt             DateTime
+  status                      RegistrationStatus               @default(pending)
+  qrCode                      String                           @unique
+  paymentStatus               PaymentStatus?
+  paymentId                   String?
+  amountPaid                  Float?
+  hasEntered                  Boolean                          @default(false)
+  enteredAt                   DateTime?
+  registeredAt                DateTime                         @default(now())
+  updatedAt                   DateTime
   
   // Form submission data
   formData              Json?                                                      // Store form field responses
@@ -2227,11 +2243,18 @@ model EventRegistration {
   isTeamLeader          Boolean                      @default(false)              // Is this user the team leader
   lookingForTeammates   Boolean                      @default(false)              // User is seeking teammates
   
-  EventEntry            EventEntry[]
-  Event                 Event                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formData             Json?
+  formSubmittedAt      DateTime?
+  isTeamLeader         Boolean                @default(false)
+  lookingForTeammates  Boolean                @default(false)
+  teamId               String?                @db.Uuid
+  EventEntry                  EventEntry[]
+  Event                       Event                            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event_team           event_team?            @relation(fields: [teamId], references: [id])
+  user_login                  UserLogin                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
   EventFieldResponse    EventFieldResponse[]
+  event_field_response event_field_response[]
 
   @@unique([eventId, userId])
   @@index([eventId])
@@ -2241,6 +2264,8 @@ model EventRegistration {
   @@index([userId])
   @@index([teamId])
   @@index([lookingForTeammates])
+  @@index([lookingForTeammates])
+  @@index([teamId])
 }
 
 model EventVolunteer {
@@ -2506,6 +2531,317 @@ enum EventRequestStatus {
   cancelled
 
   @@map("event_request_status_enum")
+}
+
+model ClubCategory {
+  id          String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String         @db.VarChar(128)
+  description String?
+  isActive    Boolean        @default(true) @map("is_active")
+  sortOrder   Int            @default(0) @map("sort_order")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  icon        String?        @db.VarChar(64)
+  parentId    String?        @map("parent_id") @db.Uuid
+  clubs       Club[]
+  parent      ClubCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ClubCategory[] @relation("CategoryHierarchy")
+
+  @@unique([name, parentId])
+  @@index([parentId])
+  @@index([isActive])
+  @@map("club_category")
+}
+
+model Club {
+  id                           String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId                       String                   @unique @map("club_id") @db.VarChar(64)
+  name                         String                   @unique @db.VarChar(256)
+  categoryId                   String                   @map("category_id") @db.Uuid
+  purpose                      String
+  academicSession              String                   @map("academic_session") @db.VarChar(64)
+  facultyFacilitatorId         String                   @map("faculty_facilitator_id") @db.Uuid
+  viceChairpersonId            String                   @map("vice_chairperson_id") @db.Uuid
+  targetStudentGroup           ClubTargetGroupEnum      @map("target_student_group")
+  expectedActivityTypes        String[]                 @map("expected_activity_types")
+  codeOfConductAccepted        Boolean                  @map("code_of_conduct_accepted")
+  antiDiscriminationAccepted   Boolean                  @map("anti_discrimination_accepted")
+  meetingFrequency             ClubMeetingFrequencyEnum @map("meeting_frequency")
+  estimatedAnnualActivityCount Int                      @map("estimated_annual_activity_count")
+  infrastructureRequirements   String[]                 @map("infrastructure_requirements")
+  fundingRequired              Boolean                  @map("funding_required")
+  estimatedFundingAmount       Decimal?                 @map("estimated_funding_amount") @db.Decimal(12, 2)
+  visibility                   ClubVisibilityEnum
+  allowInternalCollaboration   Boolean                  @default(true) @map("allow_internal_collaboration")
+  allowExternalCollaboration   Boolean                  @default(false) @map("allow_external_collaboration")
+  proposedEmail                String?                  @map("proposed_email") @db.VarChar(256)
+  socialMediaHandles           Json?                    @map("social_media_handles")
+  expectedStudentStrength      Int?                     @map("expected_student_strength")
+  status                       ClubStatusEnum           @default(draft)
+  lifecycleState               ClubLifecycleStateEnum   @default(draft) @map("lifecycle_state")
+  notingId                     String?                  @unique @map("noting_id") @db.Uuid
+  approvedAt                   DateTime?                @map("approved_at") @db.Timestamptz(6)
+  createdAt                    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata                     Json                     @default("{}")
+  category                     ClubCategory             @relation(fields: [categoryId], references: [id])
+  facultyFacilitator           UserLogin                @relation("ClubFacultyFacilitator", fields: [facultyFacilitatorId], references: [id])
+  noting                       Note?                    @relation("ClubCreationNoting", fields: [notingId], references: [id])
+  viceChairperson              UserLogin                @relation("ClubViceChairperson", fields: [viceChairpersonId], references: [id])
+  auditLogs                    ClubAuditLog[]
+  changeRequests               ClubChangeRequest[]
+  members                      ClubMember[]
+
+  @@index([status])
+  @@index([lifecycleState])
+  @@index([categoryId])
+  @@index([facultyFacilitatorId])
+  @@index([viceChairpersonId])
+  @@index([academicSession])
+  @@index([createdAt])
+  @@map("club")
+}
+
+model ClubMember {
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId      String     @map("club_id") @db.Uuid
+  studentId   String     @map("student_id") @db.Uuid
+  joinedAt    DateTime   @default(now()) @map("joined_at") @db.Timestamptz(6)
+  isActive    Boolean    @default(true) @map("is_active")
+  addedById   String     @map("added_by_id") @db.Uuid
+  removedAt   DateTime?  @map("removed_at") @db.Timestamptz(6)
+  removedById String?    @map("removed_by_id") @db.Uuid
+  metadata    Json       @default("{}")
+  addedBy     UserLogin  @relation("ClubMemberAddedBy", fields: [addedById], references: [id])
+  club        Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  removedBy   UserLogin? @relation("ClubMemberRemovedBy", fields: [removedById], references: [id])
+  student     UserLogin  @relation("ClubMemberStudent", fields: [studentId], references: [id])
+
+  @@unique([clubId, studentId])
+  @@index([clubId])
+  @@index([studentId])
+  @@index([isActive])
+  @@map("club_member")
+}
+
+model ClubChangeRequest {
+  id               String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId           String                      @map("club_id") @db.Uuid
+  notingId         String                      @unique @map("noting_id") @db.Uuid
+  changeType       ClubChangeTypeEnum          @map("change_type")
+  requestedChanges Json                        @map("requested_changes")
+  justification    String
+  status           ClubChangeRequestStatusEnum @default(pending)
+  requestedById    String                      @map("requested_by_id") @db.Uuid
+  approvedById     String?                     @map("approved_by_id") @db.Uuid
+  rejectedById     String?                     @map("rejected_by_id") @db.Uuid
+  approvedAt       DateTime?                   @map("approved_at") @db.Timestamptz(6)
+  rejectedAt       DateTime?                   @map("rejected_at") @db.Timestamptz(6)
+  rejectionReason  String?                     @map("rejection_reason")
+  createdAt        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  approvedBy       UserLogin?                  @relation("ClubChangeApprovedBy", fields: [approvedById], references: [id])
+  club             Club                        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  noting           Note                        @relation("ClubChangeRequestNoting", fields: [notingId], references: [id])
+  rejectedBy       UserLogin?                  @relation("ClubChangeRejectedBy", fields: [rejectedById], references: [id])
+  requestedBy      UserLogin                   @relation("ClubChangeRequestedBy", fields: [requestedById], references: [id])
+
+  @@index([clubId])
+  @@index([status])
+  @@index([changeType])
+  @@index([createdAt])
+  @@map("club_change_request")
+}
+
+model ClubAuditLog {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId        String    @map("club_id") @db.Uuid
+  action        String    @db.VarChar(128)
+  performedById String    @map("performed_by_id") @db.Uuid
+  previousState Json?     @map("previous_state")
+  newState      Json?     @map("new_state")
+  changes       Json?
+  source        String    @default("dsw_ui") @db.VarChar(64)
+  ipAddress     String?   @map("ip_address") @db.VarChar(64)
+  userAgent     String?   @map("user_agent") @db.VarChar(512)
+  metadata      Json      @default("{}")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  club          Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  performedBy   UserLogin @relation("ClubAuditLogPerformedBy", fields: [performedById], references: [id])
+
+  @@index([clubId])
+  @@index([action])
+  @@index([performedById])
+  @@index([createdAt])
+  @@map("club_audit_log")
+}
+
+model event_custom_field {
+  id                   String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId              String
+  field_name           String                 @db.VarChar(128)
+  field_label          String                 @db.VarChar(256)
+  field_type           event_field_type_enum
+  is_required          Boolean                @default(false)
+  placeholder          String?                @db.VarChar(256)
+  help_text            String?                @db.VarChar(512)
+  options              Json?
+  validation_rules     Json?
+  default_value        String?
+  sort_order           Int                    @default(0)
+  is_active            Boolean                @default(true)
+  created_at           DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime               @default(now()) @db.Timestamptz(6)
+  Event                Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event_field_response event_field_response[]
+
+  @@index([eventId])
+  @@index([sort_order])
+}
+
+model event_field_response {
+  id                 String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  registrationId     String
+  fieldId            String             @db.Uuid
+  value              String?
+  file_url           String?
+  created_at         DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime           @default(now()) @db.Timestamptz(6)
+  event_custom_field event_custom_field @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  EventRegistration  EventRegistration  @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, fieldId])
+  @@index([fieldId])
+  @@index([registrationId])
+}
+
+model event_prize {
+  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId          String
+  position         Int             @default(1)
+  rank             String          @db.VarChar(64)
+  title            String          @db.VarChar(128)
+  description      String?         @db.VarChar(512)
+  prize_type       prize_type_enum @default(certificate)
+  prize_amount     Float?
+  additional_perks Json?
+  sort_order       Int             @default(0)
+  is_active        Boolean         @default(true)
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @default(now()) @db.Timestamptz(6)
+  Event            Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([sort_order])
+}
+
+model event_team {
+  id                    String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId               String
+  team_id               String                  @unique @db.VarChar(64)
+  name                  String                  @db.VarChar(256)
+  leader_id             String                  @db.Uuid
+  status                event_team_status_enum  @default(forming)
+  looking_for_members   Boolean                 @default(true)
+  is_complete           Boolean                 @default(false)
+  is_locked             Boolean                 @default(false)
+  metadata              Json                    @default("{}")
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  EventRegistration     EventRegistration[]
+  Event                 Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event_team_invitation event_team_invitation[]
+  event_team_member     event_team_member[]
+  event_team_request    event_team_request[]
+
+  @@unique([eventId, name])
+  @@index([eventId])
+  @@index([leader_id])
+  @@index([looking_for_members])
+  @@index([status])
+}
+
+model event_team_invitation {
+  id                                                      String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId                                                  String                       @db.Uuid
+  inviter_id                                              String                       @db.Uuid
+  invitee_id                                              String                       @db.Uuid
+  status                                                  event_invitation_status_enum @default(pending)
+  message                                                 String?                      @db.VarChar(500)
+  expires_at                                              DateTime?                    @db.Timestamptz(6)
+  responded_at                                            DateTime?                    @db.Timestamptz(6)
+  created_at                                              DateTime                     @default(now()) @db.Timestamptz(6)
+  user_login_event_team_invitation_invitee_idTouser_login UserLogin                    @relation("event_team_invitation_invitee_idTouser_login", fields: [invitee_id], references: [id])
+  user_login_event_team_invitation_inviter_idTouser_login UserLogin                    @relation("event_team_invitation_inviter_idTouser_login", fields: [inviter_id], references: [id])
+  event_team                                              event_team                   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, invitee_id])
+  @@index([invitee_id])
+  @@index([inviter_id])
+  @@index([status])
+  @@index([teamId])
+}
+
+model event_team_member {
+  id         String                        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId     String                        @db.Uuid
+  userId     String                        @db.Uuid
+  role       event_team_member_role_enum   @default(member)
+  status     event_team_member_status_enum @default(confirmed)
+  joined_at  DateTime                      @default(now()) @db.Timestamptz(6)
+  left_at    DateTime?                     @db.Timestamptz(6)
+  event_team event_team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user_login UserLogin                     @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+  @@index([status])
+  @@index([teamId])
+  @@index([userId])
+}
+
+model event_team_request {
+  id              String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId          String                    @db.Uuid
+  requester_id    String                    @db.Uuid
+  status          event_request_status_enum @default(pending)
+  message         String?                   @db.VarChar(500)
+  responded_by_id String?                   @db.Uuid
+  responded_at    DateTime?                 @db.Timestamptz(6)
+  created_at      DateTime                  @default(now()) @db.Timestamptz(6)
+  user_login      UserLogin                 @relation(fields: [requester_id], references: [id])
+  event_team      event_team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, requester_id])
+  @@index([requester_id])
+  @@index([status])
+  @@index([teamId])
+}
+
+model reporting_structure {
+  id                                                    String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id                                               String     @unique @db.Uuid
+  manager_id                                            String?    @db.Uuid
+  hierarchy_depth                                       Int        @default(0)
+  hierarchy_path                                        String?
+  is_active                                             Boolean    @default(true)
+  created_at                                            DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at                                            DateTime   @default(now()) @db.Timestamptz(6)
+  created_by_id                                         String     @db.Uuid
+  user_login_reporting_structure_manager_idTouser_login UserLogin? @relation("reporting_structure_manager_idTouser_login", fields: [manager_id], references: [id])
+  user_login_reporting_structure_user_idTouser_login    UserLogin  @relation("reporting_structure_user_idTouser_login", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([hierarchy_depth])
+  @@index([is_active, hierarchy_depth])
+  @@index([is_active])
+  @@index([is_active, manager_id])
+  @@index([manager_id])
+  @@index([user_id])
+}
+
+enum RoleDepartmentType {
+  SCHOOL
+  CENTRAL
+  BOTH
 }
 
 enum AuditActionType {
@@ -2911,6 +3247,7 @@ enum visit_purpose_enum {
   interview
   personal
   other
+  personal
 }
 
 enum EntryType {
@@ -3189,3 +3526,171 @@ enum ClubChangeRequestStatusEnum {
   @@map("club_change_request_status_enum")
 }
 
+enum OpportunityMode {
+  online
+  offline
+  hybrid
+}
+
+enum ParticipationType {
+  individual
+  team
+}
+
+enum event_field_type_enum {
+  text
+  textarea
+  number
+  email
+  phone
+  url
+  date
+  time
+  datetime
+  dropdown
+  radio
+  checkbox
+  file
+  image
+}
+
+enum event_invitation_status_enum {
+  pending
+  accepted
+  declined
+  expired
+  cancelled
+}
+
+enum event_request_status_enum {
+  pending
+  accepted
+  rejected
+  cancelled
+}
+
+enum event_team_member_role_enum {
+  leader
+  member
+}
+
+enum event_team_member_status_enum {
+  pending
+  confirmed
+  removed
+  left
+}
+
+enum event_team_status_enum {
+  forming
+  complete
+  confirmed
+  disqualified
+  withdrawn
+}
+
+enum prize_type_enum {
+  cash
+  certificate
+  internship
+  merchandise
+  trophy
+  scholarship
+  voucher
+  custom
+}
+enum qr_status_enum {
+  inactive
+  active
+  cancelled
+  expired
+  @@map("qr_status_enum")
+}
+enum pass_status_enum {
+  created
+  checked_in
+  cancelled
+  checked_out
+  expired
+  @@map("pass_status_enum")
+}
+enum hostel_type_enum {
+  boys
+  girls
+  coed
+  @@map("hostel_type_enum")
+}
+enum room_type_enum {
+  single
+  double
+  triple
+  suite
+  @@map("room_type_enum")
+}
+enum booking_status_enum {
+  pending
+  confirmed
+  cancelled
+  completed
+  @@map("booking_status_enum")
+}
+enum payment_status_enum {
+  pending
+  completed
+  failed
+  refunded
+  @@map("payment_status_enum")
+}model Hostel {
+  id          String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String           @db.VarChar(255)
+  hostel_type hostel_type_enum
+  total_rooms Int
+  address     String?
+  facilities  String?          @db.Text
+  is_active   Boolean          @default(true)
+  created_at  DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  rooms       HostelRoom[]
+  @@map("hostels")
+}
+model HostelRoom {
+  id              String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  hostel_id       String          @db.Uuid
+  room_number     String          @db.VarChar(50)
+  room_type       room_type_enum
+  floor           Int?
+  max_occupancy   Int
+  price_per_night Float
+  is_available    Boolean         @default(true)
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
+  hostel          Hostel          @relation(fields: [hostel_id], references: [id], onDelete: Cascade)
+  bookings        HostelBooking[]
+  @@unique([hostel_id, room_number])
+  @@index([hostel_id])
+  @@map("hostel_rooms")
+}
+model HostelBooking {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  room_id           String              @db.Uuid
+  linked_pass_id    String              @unique @db.Uuid
+  check_in_date     DateTime            @db.Date
+  check_out_date    DateTime            @db.Date
+  guest_count       Int
+  total_price       Float
+  booking_status    booking_status_enum @default(pending)
+  payment_status    payment_status_enum @default(pending)
+  payment_qr_code   String?
+  payment_reference String?             @db.VarChar(100)
+  verified_by_id    String?             @db.Uuid
+  created_by_id     String              @db.Uuid
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  room              HostelRoom          @relation(fields: [room_id], references: [id])
+  gate_pass         gate_pass           @relation(fields: [linked_pass_id], references: [id])
+  verified_by       UserLogin?          @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
+  created_by        UserLogin           @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  @@index([room_id])
+  @@index([check_in_date, check_out_date])
+  @@map("hostel_bookings")
+}

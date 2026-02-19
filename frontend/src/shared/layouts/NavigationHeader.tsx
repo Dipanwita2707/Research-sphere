@@ -2,7 +2,7 @@
 
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle, Menu, X } from 'lucide-react';
+import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle, Menu, X, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '@/shared/services/notification.service';
 import { useTheme } from '@/shared/providers/ThemeProvider';
@@ -78,13 +78,15 @@ export default function NavigationHeader() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [activeSubmenu2, setActiveSubmenu2] = useState<string | null>(null); // Third level submenu
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileExpandedMenu, setMobileExpandedMenu] = useState<string | null>(null);
+  const [mobileExpandedSubmenu, setMobileExpandedSubmenu] = useState<string | null>(null);
   const [activeSubmenu3, setActiveSubmenu3] = useState<string | null>(null); // Fourth level submenu
   const [unreadCount, setUnreadCount] = useState(0);
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{name: string, href?: string, description?: string}>>([]);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -93,6 +95,12 @@ export default function NavigationHeader() {
   const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
   const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+
+  // Gate Entry Access Control based on designation
+  const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
+  const isGuard = userDesignation.includes('guard') || userDesignation.includes('security');
+  const hasFullGateEntryAccess = isAdmin || isGuard;
+  const showGateEntryModule = true; // All users including students can now create passes
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
@@ -465,17 +473,37 @@ export default function NavigationHeader() {
   });
 
   // ============================================
-  // ADMINISTRATION - For system admins only
+  // ADMINISTRATION - Gate Entry module always inside Administration
+  // Admin & Guard: Full access (Create, All Passes, Verify Pass)
+  // Others (Faculty/Staff/Students): Limited access (Create & All Passes only - shows only their own passes)
   // ============================================
-  if (isAdmin) {
-    menuItems.push({
-      name: 'Administration',
-      subItems: [
-        // Analytics & Reports
+  if (showGateEntryModule) {
+    const gateEntryChildren: SubMenuItem[] = [];
+    
+    // Everyone gets Create Pass
+    gateEntryChildren.push(
+      { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' }
+    );
+    
+    // Everyone gets All Passes view (backend filters to show only own passes for non-admin/guard)
+    gateEntryChildren.push(
+      { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' }
+    );
+
+    // Admin and Guard get Verify Pass feature
+    if (hasFullGateEntryAccess) {
+      gateEntryChildren.push(
+        { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' }
+      );
+    }
+
+    const administrationSubItems: SubMenuItem[] = [];
+
+    // Only Admin gets other Administration features
+    if (isAdmin) {
+      administrationSubItems.push(
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
-        
-        // Organization Management
         {
           name: '🏛️ Organization Structure',
           description: 'Schools, Departments & Programs',
@@ -486,8 +514,6 @@ export default function NavigationHeader() {
             { name: '🏛️ Central Departments', href: '/admin/central-departments', description: 'Admin & support departments' },
           ],
         },
-        
-        // User Management
         {
           name: '👥 User Management',
           description: 'Employees, Students & Permissions',
@@ -498,8 +524,20 @@ export default function NavigationHeader() {
             { name: '� Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
             { name: '�📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
           ],
-        },
-      ],
+        }
+      );
+    }
+
+    // Gate Entry - Always present for everyone (Admin, Guard, Others)
+    administrationSubItems.push({
+      name: '🚪 Gate Entry',
+      description: 'Manage campus gate entries',
+      children: gateEntryChildren,
+    });
+
+    menuItems.push({
+      name: 'Administration',
+      subItems: administrationSubItems,
     });
   }
 
@@ -525,7 +563,15 @@ export default function NavigationHeader() {
       }}
     >
       {/* Single Line Header */}
-      <div className="h-14 sm:h-16 px-4 sm:px-6 flex items-center justify-between gap-4">
+      <div className="h-14 sm:h-14 sm:h-16 px-3 sm:px-4 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="lg:hidden p-2 text-white/90 hover:bg-white/10 rounded-lg transition-colors"
+        >
+          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+
         {/* Mobile Menu Button */}
         <button
           onClick={() => { setMobileMenuOpen(!mobileMenuOpen); if (mobileMenuOpen) setExpandedMobileSection(null); }}
@@ -536,11 +582,11 @@ export default function NavigationHeader() {
         </button>
 
         {/* Logo Section */}
-        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
+        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
           <img 
             src="/images/new-header-logo.png" 
             alt="SGT University" 
-            className="h-10 sm:h-12 object-contain brightness-0 invert"
+            className="h-10 sm:h-8 sm:h-12 object-contain brightness-0 invert"
           />
           <div className="hidden sm:block xl:block">
             <div className="text-white font-bold text-xs sm:text-sm leading-tight">UNIVERSITY</div>
@@ -548,8 +594,8 @@ export default function NavigationHeader() {
           </div>
         </Link>
 
-        {/* Navigation Section - Center (Desktop only) */}
-        <nav className="hidden lg:flex items-center gap-2 flex-1 justify-center">
+        {/* Navigation Section - Center (Desktop only) (Hidden on Mobile) */}
+        <nav className="hidden lg:hidden lg:flex items-center gap-2 flex-1 justify-center">
           {/* Dashboard Link */}
           <Link
             href="/dashboard"
@@ -1353,6 +1399,140 @@ export default function NavigationHeader() {
               </div>
             ))}
           </nav>
+        </div>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-40 top-14"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Drawer */}
+      <div 
+        className={`lg:hidden fixed left-0 top-14 bottom-0 w-[280px] z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ 
+          background: 'linear-gradient(180deg, #005b96 0%, #003d6b 100%)',
+        }}
+      >
+        {/* Dashboard Link */}
+        <Link
+          href="/dashboard"
+          onClick={() => setMobileMenuOpen(false)}
+          className={`flex items-center gap-3 px-4 py-3 mx-2 mt-2 rounded-lg transition-all ${
+            pathname === '/dashboard'
+              ? 'bg-white/20 text-white'
+              : 'text-white/90 hover:bg-white/10'
+          }`}
+        >
+          <span className="font-medium">Dashboard</span>
+        </Link>
+
+        {/* Mobile Menu Items */}
+        {menuItems.map((item) => (
+          <div key={item.name} className="border-t border-white/10">
+            <button
+              onClick={() => setMobileExpandedMenu(mobileExpandedMenu === item.name ? null : item.name)}
+              className="w-full flex items-center justify-between px-4 py-3 text-white/90 hover:bg-white/10 transition-all"
+            >
+              <span className="font-medium text-sm">{item.name}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${mobileExpandedMenu === item.name ? 'rotate-180' : ''}`} />
+            </button>
+
+            {mobileExpandedMenu === item.name && item.subItems && (
+              <div className="bg-black/10 pb-2">
+                {item.subItems.map((subItem) => (
+                  <div key={subItem.name}>
+                    {subItem.href ? (
+                      <Link
+                        href={subItem.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-6 py-2.5 text-white/80 hover:text-white hover:bg-white/10 text-sm transition-all"
+                      >
+                        {subItem.name}
+                      </Link>
+                    ) : subItem.children ? (
+                      <>
+                        <button
+                          onClick={() => setMobileExpandedSubmenu(mobileExpandedSubmenu === subItem.name ? null : subItem.name)}
+                          className="w-full flex items-center justify-between px-6 py-2.5 text-white/80 hover:text-white hover:bg-white/10 text-sm transition-all"
+                        >
+                          <span>{subItem.name}</span>
+                          <ChevronRight className={`w-4 h-4 transition-transform ${mobileExpandedSubmenu === subItem.name ? 'rotate-90' : ''}`} />
+                        </button>
+                        {mobileExpandedSubmenu === subItem.name && (
+                          <div className="bg-black/10">
+                            {subItem.children.map((child) => (
+                              child.href ? (
+                                <Link
+                                  key={child.name}
+                                  href={child.href}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="flex items-center gap-2 px-8 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
+                                >
+                                  {child.name}
+                                </Link>
+                              ) : child.children ? (
+                                <div key={child.name}>
+                                  <div className="px-8 py-2 text-white/60 text-xs font-medium">{child.name}</div>
+                                  {child.children.map((grandChild) => (
+                                    grandChild.href && (
+                                      <Link
+                                        key={grandChild.name}
+                                        href={grandChild.href}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex items-center gap-2 px-10 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
+                                      >
+                                        {grandChild.name}
+                                      </Link>
+                                    )
+                                  ))}
+                                </div>
+                              ) : null
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Mobile Quick Actions */}
+        <div className="border-t border-white/10 mt-4 pt-4 px-4 space-y-2">
+          <Link
+            href="/notifications"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+          >
+            <Bell className="w-4 h-4" />
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
+            )}
+          </Link>
+          <Link
+            href="/settings"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+          >
+            <User className="w-4 h-4" />
+            <span>Profile Settings</span>
+          </Link>
+          <button
+            onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-red-300 hover:text-red-200 hover:bg-red-500/20 rounded-lg text-sm transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
     </header>

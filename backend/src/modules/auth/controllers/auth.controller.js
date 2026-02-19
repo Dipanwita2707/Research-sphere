@@ -51,7 +51,6 @@ exports.login = async (req, res) => {
             phoneNumber: true,
             email: true,
             primaryDepartmentId: true,
-            primarySchoolId: true,
             primaryCentralDeptId: true,
             primaryDepartment: {
               select: {
@@ -59,13 +58,6 @@ exports.login = async (req, res) => {
                 departmentName: true,
                 departmentCode: true,
                 facultyId: true,
-              }
-            },
-            primarySchool: {
-              select: {
-                id: true,
-                facultyName: true,
-                facultyCode: true,
               }
             },
             primaryCentralDept: {
