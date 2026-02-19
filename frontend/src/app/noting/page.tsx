@@ -2,27 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FileText, Plus, Inbox, Send, Loader2, Clock, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2, History, Pencil, Search, X, Filter, RotateCcw } from 'lucide-react';
+import { FileText, Plus, Inbox, Send, Clock, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2, History, Pencil, Search, X, Filter, RotateCcw } from 'lucide-react';
+import { useNotingList, useDeleteDraft, NOTING_QUERY_KEYS } from '@/features/noting-management/hooks/useNoting';
+import { useQueryClient } from '@tanstack/react-query';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Note } from '@/features/noting-management/types/noting.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter } from 'next/navigation';
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  draft: { label: 'Draft', color: 'bg-gray-100 text-gray-600 border border-gray-200', icon: FileText },
-  pending: { label: 'In Review', color: 'bg-amber-50 text-amber-700 border border-amber-200', icon: Clock },
-  approved: { label: 'Approved', color: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: CheckCircle },
-  rejected: { label: 'Rejected', color: 'bg-red-50 text-red-700 border border-red-200', icon: XCircle },
-  reverted: { label: 'Reverted', color: 'bg-orange-50 text-orange-700 border border-orange-200', icon: RotateCcw },
-};
-
-const MY_ACTION_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  approved: { label: 'Approved by you', color: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: CheckCircle },
-  rejected: { label: 'Rejected by you', color: 'bg-red-50 text-red-700 border border-red-200', icon: XCircle },
-  forwarded: { label: 'Forwarded by you', color: 'bg-blue-50 text-blue-700 border border-blue-200', icon: Send },
-  reverted: { label: 'Reverted by you', color: 'bg-orange-50 text-orange-700 border border-orange-200', icon: RotateCcw },
-};
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { STATUS_CONFIG, MY_ACTION_CONFIG, PAGE_SIZE } from '@/features/noting-management/constants';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 
 function getDisplayName(note: Note): string {
   const c = note.createdBy;
@@ -34,31 +24,18 @@ function getDisplayName(note: Note): string {
   return c?.uid ?? '—';
 }
 
-const PAGE_SIZE = 20;
+const stripHtml = (html: string) => {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').trim();
+};
 
 export default function NotingListPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [filter, setFilter] = useState<'mine' | 'pending' | 'handled'>('mine');
   const [page, setPage] = useState(1);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  
-  // Block students from accessing noting system
-  useEffect(() => {
-    if (user && user.role === 'student') {
-      toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
-      router.push('/dashboard');
-    }
-  }, [user, router, toast]);
-  
-  // Counts for badges
-  const [counts, setCounts] = useState({ mine: 0, pending: 0, handled: 0 });
-  
-  // Search and filters
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [status, setStatus] = useState('');
@@ -67,48 +44,66 @@ export default function NotingListPage() {
   const [endDate, setEndDate] = useState('');
   const [showFilters, setShowFilters] = useState(false);
 
+  const listParams = {
+    filter,
+    page,
+    limit: PAGE_SIZE,
+    search: search || undefined,
+    status: status || undefined,
+    category: category || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
+  };
+
+  const { data: listResult, isLoading } = useNotingList(listParams);
+  const deleteMutation = useDeleteDraft();
+
+  const notes = listResult?.data ?? [];
+  const pagination = listResult?.pagination ?? { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 };
+  // Counts come from list response when includeCounts=true (avoids separate /counts call)
+  const counts = listResult?.counts ?? { mine: 0, pending: 0, handled: 0 };
+
+  // Block students from accessing noting system
+  useEffect(() => {
+    if (user && user.role === 'student') {
+      toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
+      router.push('/dashboard');
+    }
+  }, [user, router, toast]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filter, search, status, category, startDate, endDate]);
+
   const handleDeleteDraft = (e: React.MouseEvent, note: Note) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    // Check if any approver has taken action
-    const approverActions = note.history?.filter(h => h.performedById !== note.createdById) || [];
+
+    const approverActions = note.history?.filter((h) => h.performedById !== note.createdById) || [];
     if (approverActions.length > 0) {
       toast({ type: 'error', message: 'Cannot delete note after an approver has taken action' });
       return;
     }
-    
+
     if (!window.confirm('Delete this note? This cannot be undone.')) return;
-    setDeletingId(note.id);
-    notingService
-      .deleteDraft(note.id)
-      .then(() => {
-        setNotes((prev) => prev.filter((n) => n.id !== note.id));
-        setPagination((p) => ({ ...p, total: Math.max(0, p.total - 1) }));
+
+    deleteMutation.mutate(note.id, {
+      onSuccess: () => {
         toast({ type: 'success', message: 'Note deleted' });
-      })
-      .catch((err) => {
-        const message = err.response?.data?.message || 'Failed to delete note';
-        toast({ type: 'error', message });
-      })
-      .finally(() => setDeletingId(null));
+      },
+      onError: (err) => {
+        toast({ type: 'error', message: getErrorMessage(err) });
+      },
+    });
   };
 
-  // Fetch counts for badges
-  useEffect(() => {
-    notingService.getCounts()
-      .then(setCounts)
-      .catch(() => setCounts({ mine: 0, pending: 0, handled: 0 }));
-  }, [notes]); // Refresh counts when notes change
-
-  // Handle search submission
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setSearch(searchInput);
     setPage(1);
   };
 
-  // Reset all filters
   const resetFilters = () => {
     setSearchInput('');
     setSearch('');
@@ -119,51 +114,19 @@ export default function NotingListPage() {
     setPage(1);
   };
 
-  useEffect(() => {
-    setPage(1);
-  }, [filter, search, status, category, startDate, endDate]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    
-    const params: any = { filter, page, limit: PAGE_SIZE };
-    if (search) params.search = search;
-    if (status) params.status = status;
-    if (category) params.category = category;
-    if (startDate) params.startDate = startDate;
-    if (endDate) params.endDate = endDate;
-    
-    notingService
-      .list(params)
-      .then(({ data, pagination: p }) => {
-        if (!cancelled) {
-          setNotes(data);
-          setPagination(p);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setNotes([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [filter, page, search, status, category, startDate, endDate]);
-
   const TABS = [
     { key: 'mine' as const, label: 'My Notes', desc: 'Notes created by you', icon: Send, count: counts.mine },
     { key: 'pending' as const, label: 'Pending for Me', desc: 'Awaiting your review', icon: Inbox, count: counts.pending },
-    { key: 'handled' as const, label: 'Handled by Me', desc: 'Actions you\'ve taken', icon: History, count: counts.handled },
+    { key: 'handled' as const, label: 'Handled by Me', desc: "Actions you've taken", icon: History, count: counts.handled },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-sgt-700 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-bold text-sgt-700 dark:text-white">
               Noting & Approval System
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -172,15 +135,15 @@ export default function NotingListPage() {
           </div>
           <Link
             href="/noting/new"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm w-full sm:w-auto"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 flex-shrink-0" />
             Create New Note
           </Link>
         </div>
 
-        {/* Tab Filters */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700 mb-5">
+        {/* Tab Filters - scrollable on mobile */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700 mb-5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = filter === tab.key;
@@ -188,7 +151,7 @@ export default function NotingListPage() {
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                className={`flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px flex-shrink-0 whitespace-nowrap ${
                   isActive
                     ? 'border-sgt-600 text-sgt-700 dark:text-sgt-300'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
@@ -197,11 +160,13 @@ export default function NotingListPage() {
                 <Icon className="w-4 h-4" />
                 {tab.label}
                 {tab.count > 0 && (
-                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                    isActive
-                      ? 'bg-sgt-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                  }`}>
+                  <span
+                    className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      isActive
+                        ? 'bg-sgt-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    }`}
+                  >
                     {tab.count}
                   </span>
                 )}
@@ -212,8 +177,8 @@ export default function NotingListPage() {
 
         {/* Search and Filters */}
         <div className="mb-5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="flex-1 relative">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+            <div className="flex-1 relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
@@ -225,16 +190,20 @@ export default function NotingListPage() {
               {searchInput && (
                 <button
                   type="button"
-                  onClick={() => { setSearchInput(''); setSearch(''); }}
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                  }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
+            <div className="flex gap-2 flex-shrink-0">
             <button
               type="submit"
-              className="px-4 py-2 bg-sgt-600 text-white text-sm rounded-lg hover:bg-sgt-700 font-medium flex items-center gap-1.5 transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2 bg-sgt-600 text-white text-sm rounded-lg hover:bg-sgt-700 font-medium flex items-center justify-center gap-1.5 transition-colors"
             >
               <Search className="w-3.5 h-3.5" />
               Search
@@ -242,7 +211,7 @@ export default function NotingListPage() {
             <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition-colors ${
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg border text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
                 showFilters
                   ? 'bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 border-sgt-300'
                   : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
@@ -251,6 +220,7 @@ export default function NotingListPage() {
               <Filter className="w-3.5 h-3.5" />
               Filters
             </button>
+            </div>
           </form>
 
           {showFilters && (
@@ -315,10 +285,10 @@ export default function NotingListPage() {
         </div>
 
         {/* Content */}
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center py-20">
             <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-sgt-600 mx-auto mb-3" />
+              <LoadingSpinner size="lg" className="mx-auto mb-3" />
               <p className="text-sm text-gray-500 dark:text-gray-400">Loading notes...</p>
             </div>
           </div>
@@ -339,8 +309,8 @@ export default function NotingListPage() {
                 {filter === 'handled' && 'Notes you have acted upon will appear here.'}
               </p>
               {filter === 'mine' && (
-                <Link 
-                  href="/noting/new" 
+                <Link
+                  href="/noting/new"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
@@ -354,22 +324,33 @@ export default function NotingListPage() {
             {notes.map((note) => {
               const statusConf = STATUS_CONFIG[note.status] || STATUS_CONFIG.draft;
               const StatusIcon = statusConf.icon;
-              const isDeleting = deletingId === note.id;
-              
-              // Can edit/delete only if user is creator and no approver has taken action
-              const approverActions = note.history?.filter(h => h.performedById !== note.createdById) || [];
+              const isDeleting = deleteMutation.isPending && deleteMutation.variables === note.id;
+
+              const approverActions = note.history?.filter((h) => h.performedById !== note.createdById) || [];
               const canEditOrDelete = filter === 'mine' && approverActions.length === 0;
-              
+
               return (
                 <Link
                   key={note.id}
-                  href={note.status === 'draft' || note.status === 'reverted' ? `/noting/new?draft=${note.id}` : `/noting/${note.id}`}
+                  href={
+                    note.status === 'draft' || note.status === 'reverted'
+                      ? `/noting/new?draft=${note.id}`
+                      : `/noting/${note.id}`
+                  }
                   className="group block"
+                  onMouseEnter={() => {
+                    if (note.status !== 'draft' && note.status !== 'reverted') {
+                      queryClient.prefetchQuery({
+                        queryKey: NOTING_QUERY_KEYS.detail(note.id),
+                        queryFn: () => notingService.getById(note.id),
+                        staleTime: 2 * 60 * 1000,
+                      });
+                    }
+                  }}
                 >
                   <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-sgt-300 dark:hover:border-sgt-700 hover:shadow-sm transition-all duration-150">
-                    <div className="px-5 py-4">
-                      <div className="flex items-start justify-between gap-4">
-                        {/* Left side */}
+                    <div className="px-4 sm:px-5 py-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2.5 mb-1.5">
                             <span className="font-mono text-xs font-semibold text-sgt-600 dark:text-sgt-400">
@@ -377,8 +358,10 @@ export default function NotingListPage() {
                             </span>
                             <span className="text-gray-300 dark:text-gray-600">•</span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(note.createdAt).toLocaleDateString('en-US', { 
-                                year: 'numeric', month: 'short', day: 'numeric'
+                              {new Date(note.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
                               })}
                             </span>
                           </div>
@@ -387,10 +370,9 @@ export default function NotingListPage() {
                           </h3>
                           {note.description && (
                             <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
-                              {note.description}
+                              {stripHtml(note.description)}
                             </p>
                           )}
-                          {/* Footer info */}
                           <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-500 dark:text-gray-400">
                             <span className="flex items-center gap-1.5">
                               <span className="w-5 h-5 rounded-full bg-sgt-100 dark:bg-sgt-900/30 flex items-center justify-center text-sgt-700 dark:text-sgt-400 text-[10px] font-bold">
@@ -404,41 +386,46 @@ export default function NotingListPage() {
                                 With {note.currentHolder.employeeDetails?.displayName || note.currentHolder.uid}
                               </span>
                             )}
-                            {note.history && note.history.length > 0 && (
+                            {(note._count?.history ?? 0) > 0 && (
                               <span className="flex items-center gap-1">
                                 <History className="w-3 h-3" />
-                                {note.history.length} {note.history.length === 1 ? 'action' : 'actions'}
+                                {note._count!.history} {note._count!.history === 1 ? 'action' : 'actions'}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Right side — Status + Actions */}
-                        <div className="flex flex-col items-end gap-2 shrink-0">
+                        <div className="flex flex-row flex-wrap items-center justify-end gap-2 shrink-0">
                           {filter === 'handled' && note.myAction ? (
                             <div className="flex flex-col items-end gap-1.5">
                               {(() => {
                                 const actionConf = MY_ACTION_CONFIG[note.myAction.action] || MY_ACTION_CONFIG.forwarded;
                                 const ActionIcon = actionConf.icon;
                                 return (
-                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium ${actionConf.color}`}>
+                                  <span
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium ${actionConf.color}`}
+                                  >
                                     <ActionIcon className="w-3 h-3" />
                                     {actionConf.label}
                                   </span>
                                 );
                               })()}
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${statusConf.color}`}>
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${statusConf.color}`}
+                              >
                                 <StatusIcon className="w-3 h-3" />
                                 {statusConf.label}
                               </span>
                             </div>
                           ) : (
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium ${statusConf.color}`}>
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium ${statusConf.color}`}
+                            >
                               <StatusIcon className="w-3 h-3" />
                               {statusConf.label}
                             </span>
                           )}
-                          
+
                           <div className="flex items-center gap-0.5" onClick={(e) => e.preventDefault()}>
                             {canEditOrDelete && note.status !== 'approved' && note.status !== 'rejected' && (
                               <Link
@@ -458,7 +445,11 @@ export default function NotingListPage() {
                                 className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors disabled:opacity-50"
                                 title="Delete note"
                               >
-                                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                {isDeleting ? (
+                                  <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                )}
                               </button>
                             )}
                           </div>
@@ -471,19 +462,27 @@ export default function NotingListPage() {
             })}
           </div>
         )}
-        
+
         {/* Pagination */}
         {pagination.totalPages > 0 && (
           <div className="mt-5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Showing <span className="font-medium text-gray-700 dark:text-gray-200">{((pagination.page - 1) * PAGE_SIZE) + 1}</span> to <span className="font-medium text-gray-700 dark:text-gray-200">{Math.min(pagination.page * PAGE_SIZE, pagination.total)}</span> of <span className="font-medium text-gray-700 dark:text-gray-200">{pagination.total}</span>
+                Showing{' '}
+                <span className="font-medium text-gray-700 dark:text-gray-200">
+                  {(pagination.page - 1) * PAGE_SIZE + 1}
+                </span>{' '}
+                to{' '}
+                <span className="font-medium text-gray-700 dark:text-gray-200">
+                  {Math.min(pagination.page * PAGE_SIZE, pagination.total)}
+                </span>{' '}
+                of <span className="font-medium text-gray-700 dark:text-gray-200">{pagination.total}</span>
               </p>
               <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={pagination.page <= 1 || loading}
+                  disabled={pagination.page <= 1 || isLoading}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
@@ -506,7 +505,7 @@ export default function NotingListPage() {
                         key={i}
                         type="button"
                         onClick={() => setPage(pageNum)}
-                        disabled={loading}
+                        disabled={isLoading}
                         className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${
                           pagination.page === pageNum
                             ? 'bg-sgt-600 text-white'
@@ -521,7 +520,7 @@ export default function NotingListPage() {
                 <button
                   type="button"
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={pagination.page >= pagination.totalPages || loading}
+                  disabled={pagination.page >= pagination.totalPages || isLoading}
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next

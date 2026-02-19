@@ -3,8 +3,7 @@
  * Provides comprehensive audit trail for all DSW operations
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../../shared/config/database');
 const { AuditActions } = require('../constants');
 
 /**

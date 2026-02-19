@@ -89,12 +89,25 @@ if (config.env === 'development') {
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Health check (both at root and API level for Render)
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'ok', 
-    message: 'Server is running',
-    timestamp: new Date().toISOString()
-  });
+// Also serves as DB keep-alive to prevent Neon cold starts
+app.get('/health', async (req, res) => {
+  try {
+    const prisma = require('./shared/config/database');
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ 
+      status: 'ok', 
+      message: 'Server is running',
+      db: 'connected',
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(200).json({ 
+      status: 'ok', 
+      message: 'Server is running',
+      db: 'reconnecting',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 app.get('/api/v1/health', (req, res) => {
@@ -138,6 +151,26 @@ app.post('/cache/flush', async (req, res) => {
       message: error.message 
     });
   }
+});
+
+// DB keep-alive: ping every 4 minutes to prevent Neon serverless cold starts
+setInterval(async () => {
+  try {
+    const prisma = require('./shared/config/database');
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (e) {
+    console.warn('⚠️ DB keep-alive ping failed:', e.message);
+  }
+}, 4 * 60 * 1000);
+
+// HTTP Cache headers for static/rarely-changing data
+app.use('/api/v1/noting/config', (req, res, next) => {
+  res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  next();
+});
+app.use('/api/v1/dsw/categories', (req, res, next) => {
+  res.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=86400');
+  next();
 });
 
 // API routes

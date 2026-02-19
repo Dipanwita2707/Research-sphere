@@ -6,6 +6,7 @@
 
 const prisma = require('../../../shared/config/database');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
+const { sanitizeSponsors } = require('../../../shared/utils/validators');
 const { ERRORS, EVENT_STATUS, REGISTRATION_STATUS, PAYMENT_STATUS } = require('../constants/event.constants');
 const {
   generateEventId,
@@ -30,38 +31,47 @@ const createEventFromNoting = async (noteId, userId) => {
       createdBy: true,
     },
   });
-  
+
   if (!noting) {
     throw new NotFoundError('Noting not found');
   }
-  
+
   // Verify noting is approved
   if (noting.status !== 'approved') {
     throw new ValidationError(ERRORS.NOTING_NOT_APPROVED);
   }
-  
+
   // Check if event already exists for this noting (using noting's ID, not notingId string)
   const existingEvent = await prisma.event.findUnique({
     where: { notingId: noting.id }, // noting.id is the UUID
   });
-  
+
   if (existingEvent) {
     throw new ValidationError(ERRORS.NOTING_ALREADY_HAS_EVENT);
   }
-  
+
   // Validate event fields
   if (!noting.eventName || !noting.eventType || !noting.eventStartDate || !noting.eventEndDate || !noting.eventPaymentType) {
     throw new ValidationError('Noting must have all required event fields (name, type, dates, payment type)');
   }
-  
+
   // Validate dates
   if (noting.eventEndDate < noting.eventStartDate) {
     throw new ValidationError(ERRORS.INVALID_EVENT_DATES);
   }
-  
+
+  // Determine registration fee from noting (individual vs team)
+  const participationType = noting.eventParticipationType || 'individual';
+  const registrationFee = noting.eventPaymentType === 'paid'
+    ? (participationType === 'team' ? noting.eventRegistrationFeeTeam : noting.eventRegistrationFeeIndividual)
+    : null;
+  const teamRegistrationFee = (noting.eventPaymentType === 'paid' && participationType === 'team')
+    ? noting.eventRegistrationFeeTeam
+    : null;
+
   // Generate event ID
   const eventId = await generateEventId(prisma);
-  
+
   // Create event in DRAFT status (creator needs to add details and publish)
   const event = await prisma.event.create({
     data: {
@@ -73,6 +83,18 @@ const createEventFromNoting = async (noteId, userId) => {
       startDate: noting.eventStartDate,
       endDate: noting.eventEndDate,
       paymentType: noting.eventPaymentType,
+      participationType,
+      registrationFee: registrationFee ?? null,
+      teamRegistrationFee: teamRegistrationFee ?? null,
+      approxCapacity: noting.eventApproxCapacity ?? null,
+      dutyLeaveAvailable: noting.eventDutyLeaveAvailable ?? null,
+      dutyLeaveEligibility: noting.eventDutyLeaveEligibility ?? null,
+      hasSponsorship: noting.eventHasSponsorship ?? null,
+      sponsors: noting.eventSponsors ?? null,
+      hasResources: noting.eventHasResources ?? null,
+      resources: noting.eventResources ?? null,
+      certificateAvailable: noting.eventCertification ?? false,
+      capacityFixed: noting.eventCapacityFixed ?? null,
       description: noting.description,
       status: 'draft', // Creator will add more details and then publish
       createdById: noting.createdById, // Event creator is the noting creator
@@ -96,7 +118,26 @@ const createEventFromNoting = async (noteId, userId) => {
       note: true,
     },
   });
-  
+
+  // Create EventPrize rows from noting prizes data (matches EventPrize table structure)
+  if (Array.isArray(noting.eventPrizesAwards) && noting.eventPrizesAwards.length > 0) {
+    const prizeRows = noting.eventPrizesAwards.map((p, idx) => ({
+      eventId: event.id,
+      position: p.position ?? idx + 1,
+      rank: p.rank || `Position ${idx + 1}`,
+      title: p.title || '',
+      description: p.description || null,
+      prizeType: p.prizeType || 'certificate',
+      prizeAmount: p.prizeAmount ?? null,
+      additionalPerks: Array.isArray(p.additionalPerks) ? p.additionalPerks : null,
+      sortOrder: p.sortOrder ?? idx,
+      isActive: true,
+    }));
+    await prisma.eventPrize.createMany({ data: prizeRows });
+    // Also enable prizesEnabled on the event
+    await prisma.event.update({ where: { id: event.id }, data: { prizesEnabled: true } });
+  }
+
   return event;
 };
 
@@ -104,55 +145,84 @@ const createEventFromNoting = async (noteId, userId) => {
  * Get event by ID with full details
  */
 const getEventDetails = async (eventId, userId) => {
-  const event = await getEventById(prisma, eventId, {
-    EventRegistration: {
-      select: {
-        id: true,
-        registrationId: true,
-        status: true,
-        hasEntered: true,
-        userId: true,
-      },
-    },
-    EventVolunteer: {
-      include: {
-        user_login: {
-          select: {
-            id: true,
-            uid: true,
-            email: true,
-            employeeDetails: {
-              select: {
-                firstName: true,
-                lastName: true,
-                displayName: true,
+  // Don't include ALL EventRegistration - detail view only needs count + user's own registration
+  const [event, currentRegistrations, userRegistration] = await Promise.all([
+    getEventById(prisma, eventId, {
+      EventVolunteer: {
+        take: 20,
+        include: {
+          user_login: {
+            select: {
+              id: true,
+              uid: true,
+              email: true,
+              employeeDetails: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                },
+              },
+              studentLogin: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                  displayName: true,
+                },
               },
             },
           },
         },
       },
-    },
-  });
-  
-  // Check if the current user has registered for this event
-  const userRegistration = await prisma.eventRegistration.findFirst({
-    where: {
-      eventId: event.id,
-      userId: userId,
-    },
-    select: {
-      id: true,
-      registrationId: true,
-      qrCode: true,
-      status: true,
-      hasEntered: true,
-      registeredAt: true,
-    },
-  });
-  
-  // Add user registration to event object
+      EventCustomField: {
+        where: { isActive: true },
+        orderBy: { sortOrder: 'asc' },
+        select: {
+          id: true,
+          fieldName: true,
+          fieldLabel: true,
+          fieldType: true,
+          isRequired: true,
+          placeholder: true,
+          helpText: true,
+          options: true,
+          sortOrder: true,
+        },
+      },
+      EventPrize: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' }, { position: 'asc' }],
+        select: {
+          id: true,
+          position: true,
+          rank: true,
+          title: true,
+          description: true,
+          prizeType: true,
+          prizeAmount: true,
+          additionalPerks: true,
+          sortOrder: true,
+        },
+      },
+    }),
+    prisma.eventRegistration.count({
+      where: { eventId, status: 'confirmed' },
+    }),
+    prisma.eventRegistration.findFirst({
+      where: { eventId, userId },
+      select: {
+        id: true,
+        registrationId: true,
+        qrCode: true,
+        status: true,
+        hasEntered: true,
+        registeredAt: true,
+      },
+    }),
+  ]);
+
+  event.currentRegistrations = currentRegistrations;
   event.userRegistration = userRegistration;
-  
   return event;
 };
 
@@ -161,38 +231,61 @@ const getEventDetails = async (eventId, userId) => {
  */
 const updateEvent = async (eventId, userId, updateData) => {
   const event = await getEventById(prisma, eventId);
-  
+
   // Verify user is the event creator
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can update the event');
   }
-  
+
   // Locked fields cannot be updated (they come from the noting)
-  const lockedFields = ['name', 'eventType', 'startDate', 'endDate', 'paymentType', 'isPaid', 'notingId'];
+  const lockedFields = ['name', 'eventType', 'startDate', 'endDate', 'paymentType', 'participationType', 'isPaid', 'notingId'];
+  // When event is from noting, also lock: sponsorship, duty leave, resources. Capacity (approxCapacity) stays editable.
+  if (event.notingId) {
+    lockedFields.push('dutyLeaveAvailable', 'dutyLeaveEligibility', 'hasSponsorship', 'sponsors', 'hasResources', 'resources', 'certificateAvailable', 'capacityFixed', 'prizesEnabled');
+  }
   lockedFields.forEach(field => {
     if (updateData.hasOwnProperty(field)) {
       delete updateData[field];
     }
   });
-  
+
   // Validate registration dates if provided
   if (updateData.registrationStartDate || updateData.registrationEndDate) {
     const startDate = updateData.registrationStartDate ? new Date(updateData.registrationStartDate) : event.registrationStartDate;
     const endDate = updateData.registrationEndDate ? new Date(updateData.registrationEndDate) : event.registrationEndDate;
-    
+
     if (startDate && endDate && endDate < startDate) {
       throw new ValidationError('Registration end date must be after start date');
     }
-    
-    // Ensure registration dates are within event dates
-    if (startDate && startDate < event.startDate) {
-      throw new ValidationError('Registration start date must be after event start date');
+
+    // Ensure registration dates are before event start (registration opens before the event)
+    if (startDate && startDate > event.startDate) {
+      throw new ValidationError('Registration start date must be before the event starts');
     }
-    if (endDate && endDate > event.endDate) {
-      throw new ValidationError('Registration end date must be before event end date');
+    if (endDate && endDate > event.startDate) {
+      throw new ValidationError('Registration end date must be before the event starts');
     }
   }
-  
+
+  // Convert date strings to proper ISO DateTime for Prisma
+  if (updateData.registrationStartDate) {
+    updateData.registrationStartDate = new Date(updateData.registrationStartDate);
+  }
+  if (updateData.registrationEndDate) {
+    updateData.registrationEndDate = new Date(updateData.registrationEndDate);
+  }
+
+  // Sanitize sponsors (Cash: amount, In-kind: notes/description)
+  if (updateData.sponsors !== undefined) {
+    updateData.sponsors = (updateData.hasSponsorship === false) ? null : sanitizeSponsors(updateData.sponsors || []);
+  }
+
+  // Prisma rejects null for required Boolean fields - omit them so existing value is kept
+  const requiredBooleanFields = ['autoApproveRegistration', 'allowEditAfterSubmission', 'lookingForTeammatesEnabled', 'allowCrossInstituteTeams', 'allowTeamEditAfterSubmission', 'autoApproveTeams', 'showParticipantsPublicly', 'allowWithdrawRegistration', 'lockTeamAfterDeadline', 'allowPublicTeamListing', 'allowJoinRequests', 'allowInviteSystem', 'prizesEnabled', 'requireFormSubmission'];
+  requiredBooleanFields.forEach((key) => {
+    if (updateData[key] === null) delete updateData[key];
+  });
+
   // Update event
   const updatedEvent = await prisma.event.update({
     where: { id: eventId },
@@ -218,7 +311,7 @@ const updateEvent = async (eventId, userId, updateData) => {
       note: true,
     },
   });
-  
+
   return updatedEvent;
 };
 
@@ -227,33 +320,41 @@ const updateEvent = async (eventId, userId, updateData) => {
  */
 const publishEvent = async (eventId, userId) => {
   const event = await getEventById(prisma, eventId);
-  
+
   // Verify user is the event creator
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can publish the event');
   }
-  
-  // Verify event is in draft status
-  if (event.status !== EVENT_STATUS.DRAFT) {
-    throw new ValidationError('Only draft events can be published');
+
+  // Allow publishing/republishing for draft and already published events
+  // (published events can be republished after editing)
+  if (event.status !== EVENT_STATUS.DRAFT && event.status !== EVENT_STATUS.PUBLISHED) {
+    throw new ValidationError('Only draft or published events can be (re)published');
   }
-  
+
   // Validate event has all required details
   if (!event.venue) {
     throw new ValidationError('Event must have a venue before publishing');
   }
-  
+
   if (!event.registrationStartDate || !event.registrationEndDate) {
     throw new ValidationError('Event must have registration dates before publishing');
   }
-  
-  // Update event status
+
+  // Update event status and published timestamp
+  const updateData = {
+    status: EVENT_STATUS.PUBLISHED,
+  };
+
+  // Only set publishedAt on first publish (not on republish)
+  if (event.status !== EVENT_STATUS.PUBLISHED) {
+    updateData.publishedAt = new Date();
+  }
+
+  // Update event
   const publishedEvent = await prisma.event.update({
     where: { id: eventId },
-    data: {
-      status: EVENT_STATUS.PUBLISHED,
-      publishedAt: new Date(),
-    },
+    data: updateData,
     include: {
       user_login: {
         select: {
@@ -272,7 +373,7 @@ const publishEvent = async (eventId, userId) => {
       note: true,
     },
   });
-  
+
   return publishedEvent;
 };
 
@@ -282,9 +383,9 @@ const publishEvent = async (eventId, userId) => {
 const listEvents = async (filters, pagination, userId) => {
   const { page = 1, limit = 20 } = pagination;
   const { status, eventType, search, myEvents } = filters;
-  
+
   const where = {};
-  
+
   // Draft events are only visible to their creator
   // Published/Ongoing/Completed events are visible to everyone
   if (myEvents) {
@@ -309,7 +410,7 @@ const listEvents = async (filters, pagination, userId) => {
         ],
       },
     ];
-    
+
     // If status filter is provided, apply it
     if (status) {
       // If filtering for draft, only show user's own drafts
@@ -326,11 +427,11 @@ const listEvents = async (filters, pagination, userId) => {
       }
     }
   }
-  
+
   if (eventType) {
     where.eventType = eventType;
   }
-  
+
   if (search) {
     where.OR = where.OR || [];
     const searchConditions = [
@@ -338,7 +439,7 @@ const listEvents = async (filters, pagination, userId) => {
       { description: { contains: search, mode: 'insensitive' } },
       { eventId: { contains: search, mode: 'insensitive' } },
     ];
-    
+
     // If OR already exists (from status filtering), merge with AND
     if (where.OR.length > 0) {
       where.AND = where.AND || [];
@@ -349,7 +450,7 @@ const listEvents = async (filters, pagination, userId) => {
       where.OR = searchConditions;
     }
   }
-  
+
   const [events, total] = await Promise.all([
     prisma.event.findMany({
       where,
@@ -368,17 +469,6 @@ const listEvents = async (filters, pagination, userId) => {
             },
           },
         },
-        note: {
-          select: {
-            notingId: true,
-            status: true,
-          },
-        },
-        _count: {
-          select: {
-            EventRegistration: true,
-          },
-        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -388,9 +478,26 @@ const listEvents = async (filters, pagination, userId) => {
     }),
     prisma.event.count({ where }),
   ]);
-  
+
+  let countMap = new Map();
+  if (events.length > 0) {
+    const counts = await prisma.eventRegistration.groupBy({
+      by: ['eventId'],
+      where: {
+        eventId: { in: events.map((e) => e.id) },
+        status: 'confirmed',
+      },
+      _count: { id: true },
+    });
+    countMap = new Map(counts.map((c) => [c.eventId, c._count?.id ?? 0]));
+  }
+  const eventsWithCount = events.map((event) => ({
+    ...event,
+    currentRegistrations: countMap.get(event.id) ?? 0,
+  }));
+
   return {
-    events,
+    events: eventsWithCount,
     pagination: {
       page,
       limit,
@@ -405,18 +512,18 @@ const listEvents = async (filters, pagination, userId) => {
  */
 const registerForEvent = async (eventId, userId) => {
   const event = await getEventById(prisma, eventId);
-  
+
   // Validate registration eligibility
   await canRegisterForEvent(prisma, event, userId);
-  
+
   // Generate registration ID and QR code
   const registrationId = await generateRegistrationId(prisma, event.eventId);
   const qrCode = generateQRCode(event.eventId, userId);
-  
+
   // Determine payment status
   const paymentStatus = event.isPaid ? PAYMENT_STATUS.PENDING : PAYMENT_STATUS.COMPLETED;
   const registrationStatus = event.isPaid ? REGISTRATION_STATUS.PENDING : REGISTRATION_STATUS.CONFIRMED;
-  
+
   // Create registration
   const registration = await prisma.$transaction(async (tx) => {
     const reg = await tx.eventRegistration.create({
@@ -467,10 +574,10 @@ const registerForEvent = async (eventId, userId) => {
         },
       },
     });
-    
+
     return reg;
   });
-  
+
   return registration;
 };
 
@@ -480,13 +587,13 @@ const registerForEvent = async (eventId, userId) => {
 const getUserRegistrations = async (userId, filters, pagination) => {
   const { page = 1, limit = 20 } = pagination;
   const { status } = filters;
-  
+
   const where = { userId };
-  
+
   if (status) {
     where.status = status;
   }
-  
+
   const [registrations, total] = await Promise.all([
     prisma.eventRegistration.findMany({
       where,
@@ -512,7 +619,7 @@ const getUserRegistrations = async (userId, filters, pagination) => {
     }),
     prisma.eventRegistration.count({ where }),
   ]);
-  
+
   return {
     registrations,
     pagination: {
@@ -529,12 +636,12 @@ const getUserRegistrations = async (userId, filters, pagination) => {
  */
 const assignVolunteer = async (eventId, userId, volunteerData, assignedBy) => {
   const event = await getEventById(prisma, eventId);
-  
+
   // Verify user is the event creator
   if (event.createdById !== assignedBy) {
     throw new ForbiddenError('Only the event creator can assign volunteers');
   }
-  
+
   // Check if volunteer already assigned
   const existing = await prisma.eventVolunteer.findFirst({
     where: {
@@ -542,11 +649,11 @@ const assignVolunteer = async (eventId, userId, volunteerData, assignedBy) => {
       userId,
     },
   });
-  
+
   if (existing) {
     throw new ValidationError('User is already assigned as a volunteer for this event');
   }
-  
+
   // Create volunteer assignment
   const volunteer = await prisma.eventVolunteer.create({
     data: {
@@ -574,7 +681,7 @@ const assignVolunteer = async (eventId, userId, volunteerData, assignedBy) => {
       },
     },
   });
-  
+
   return volunteer;
 };
 
@@ -587,15 +694,19 @@ const scanQRCode = async (eventId, qrCode, entryType, volunteerId, scanData) => 
   if (!canScan) {
     throw new ForbiddenError(ERRORS.NOT_A_VOLUNTEER);
   }
-  
+
   // Validate QR code and get registration
   const registration = await validateQRCodeAndGetRegistration(prisma, qrCode, eventId);
-  
-  // Check if already entered
+
+  // Entry: block if already checked in (must checkout first)
   if (entryType === 'entry' && registration.hasEntered) {
     throw new ValidationError(ERRORS.ALREADY_ENTERED);
   }
-  
+  // Exit: block if not checked in (must checkin first)
+  if (entryType === 'exit' && !registration.hasEntered) {
+    throw new ValidationError(ERRORS.NOT_CHECKED_IN);
+  }
+
   // Get volunteer details
   const volunteer = await prisma.eventVolunteer.findFirst({
     where: {
@@ -603,7 +714,7 @@ const scanQRCode = async (eventId, qrCode, entryType, volunteerId, scanData) => 
       userId: volunteerId,
     },
   });
-  
+
   // Create entry log
   const entry = await prisma.$transaction(async (tx) => {
     const entryLog = await tx.eventEntry.create({
@@ -663,7 +774,7 @@ const scanQRCode = async (eventId, qrCode, entryType, volunteerId, scanData) => 
         },
       },
     });
-    
+
     // Update registration entry status
     if (entryType === 'entry') {
       await tx.eventRegistration.update({
@@ -673,56 +784,437 @@ const scanQRCode = async (eventId, qrCode, entryType, volunteerId, scanData) => 
           enteredAt: new Date(),
         },
       });
+    } else if (entryType === 'exit') {
+      await tx.eventRegistration.update({
+        where: { id: registration.id },
+        data: {
+          hasEntered: false,
+        },
+      });
     }
-    
+
     return entryLog;
   });
-  
+
   return entry;
 };
 
 /**
- * Get event statistics
+ * Get event statistics (comprehensive)
+ * Optimized: Single raw SQL for counts + date grouping, separate query for recent registrations
  */
 const getEventStatistics = async (eventId, userId) => {
   const event = await getEventById(prisma, eventId);
-  
+
   // Verify user is the event creator
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can view statistics');
   }
-  
+
+  // Single raw SQL for all registration counts + revenue (replaces 6 count + 1 aggregate queries)
+  const statsResult = await prisma.$queryRaw`
+    SELECT
+      COUNT(*)::int as total,
+      COUNT(*) FILTER (WHERE status = 'confirmed')::int as confirmed,
+      COUNT(*) FILTER (WHERE status = 'pending')::int as pending,
+      COUNT(*) FILTER (WHERE status = 'cancelled')::int as cancelled,
+      COUNT(*) FILTER (WHERE status = 'waitlisted')::int as waitlisted,
+      COUNT(*) FILTER (WHERE "hasEntered" = true)::int as attended,
+      COALESCE(SUM("amountPaid") FILTER (WHERE "paymentStatus" = 'completed'), 0)::float as revenue
+    FROM "EventRegistration"
+    WHERE "eventId" = ${eventId}
+  `;
+  const stats = statsResult[0] || {};
+
+  // Date grouping via SQL (replaces full table scan findMany)
+  const dateGroups = await prisma.$queryRaw`
+    SELECT DATE("registeredAt")::text as date, COUNT(*)::int as count
+    FROM "EventRegistration"
+    WHERE "eventId" = ${eventId}
+    GROUP BY DATE("registeredAt")
+    ORDER BY date ASC
+  `;
+
   const [
-    totalRegistrations,
-    confirmedRegistrations,
-    attendedCount,
     volunteerCount,
-    entryLogs,
+    totalEntries,
+    totalExits,
+    recentRegistrations,
   ] = await Promise.all([
-    prisma.eventRegistration.count({
+    prisma.eventVolunteer.count({ where: { eventId } }),
+    prisma.eventEntry.count({ where: { eventId, entryType: 'entry' } }),
+    prisma.eventEntry.count({ where: { eventId, entryType: 'exit' } }),
+    prisma.eventRegistration.findMany({
       where: { eventId },
-    }),
-    prisma.eventRegistration.count({
-      where: { eventId, status: REGISTRATION_STATUS.CONFIRMED },
-    }),
-    prisma.eventRegistration.count({
-      where: { eventId, hasEntered: true },
-    }),
-    prisma.eventVolunteer.count({
-      where: { eventId },
-    }),
-    prisma.eventEntry.count({
-      where: { eventId },
+      include: {
+        user_login: {
+          select: {
+            id: true,
+            uid: true,
+            email: true,
+            employeeDetails: {
+              select: {
+                firstName: true,
+                lastName: true,
+                displayName: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { registeredAt: 'desc' },
+      take: 50,
     }),
   ]);
-  
+
+  const registrationsByDate = dateGroups.map((r) => ({ date: r.date, count: Number(r.count) }));
+  const currentlyInside = Math.max(0, (totalEntries || 0) - (totalExits || 0));
+  const totalRevenue = Number(stats.revenue) || 0;
+
   return {
-    totalRegistrations,
-    confirmedRegistrations,
-    attendedCount,
+    totalRegistrations: stats.total || 0,
+    confirmedRegistrations: stats.confirmed || 0,
+    pendingRegistrations: stats.pending || 0,
+    cancelledRegistrations: stats.cancelled || 0,
+    waitlistedRegistrations: stats.waitlisted || 0,
+    totalAttended: stats.attended || 0,
+    totalEntries,
+    totalExits,
+    currentlyInside,
     volunteerCount,
-    entryLogs,
-    attendanceRate: confirmedRegistrations > 0 ? (attendedCount / confirmedRegistrations) * 100 : 0,
+    totalRevenue,
+    revenueCollected: totalRevenue,
+    registrationsByDate,
+    recentRegistrations: recentRegistrations.map((r) => ({
+      id: r.id,
+      registrationId: r.registrationId,
+      status: r.status,
+      paymentStatus: r.paymentStatus,
+      amountPaid: r.amountPaid,
+      hasEntered: r.hasEntered,
+      registeredAt: r.registeredAt,
+      user: r.user_login ? {
+        id: r.user_login.id,
+        uid: r.user_login.uid,
+        email: r.user_login.email,
+        name: r.user_login.employeeDetails?.displayName ||
+          `${r.user_login.employeeDetails?.firstName || ''} ${r.user_login.employeeDetails?.lastName || ''}`.trim() ||
+          r.user_login.uid,
+      } : null,
+    })),
+  };
+};
+
+/**
+ * Get events where the current user is assigned as a volunteer
+ */
+const getMyVolunteerAssignments = async (userId) => {
+  const assignments = await prisma.eventVolunteer.findMany({
+    where: { userId },
+    include: {
+      Event: {
+        select: {
+          id: true,
+          eventId: true,
+          name: true,
+          eventType: true,
+          description: true,
+          startDate: true,
+          endDate: true,
+          venue: true,
+          status: true,
+          bannerImageUrl: true,
+          maxCapacity: true,
+          _count: {
+            select: { EventRegistration: true },
+          },
+        },
+      },
+    },
+    orderBy: { assignedAt: 'desc' },
+  });
+
+  return assignments.map((a) => ({
+    id: a.id,
+    eventId: a.eventId,
+    role: a.role,
+    canScanQr: a.canScanQr,
+    assignedGate: a.assignedGate,
+    assignedAt: a.assignedAt,
+    event: a.Event
+      ? {
+        id: a.Event.id,
+        eventId: a.Event.eventId,
+        name: a.Event.name,
+        eventType: a.Event.eventType,
+        description: a.Event.description,
+        startDate: a.Event.startDate,
+        endDate: a.Event.endDate,
+        venue: a.Event.venue,
+        status: a.Event.status,
+        bannerImageUrl: a.Event.bannerImageUrl,
+        currentRegistrations: a.Event._count?.EventRegistration || 0,
+        maxCapacity: a.Event.maxCapacity,
+      }
+      : null,
+  }));
+};
+
+/**
+ * Get volunteer scan activity history for the current user
+ */
+const getMyVolunteerActivity = async (userId, filters = {}) => {
+  const { page = 1, limit = 30, eventId, search, startDate, endDate } = filters;
+
+  // First get volunteer IDs for this user
+  const volunteerRecords = await prisma.eventVolunteer.findMany({
+    where: { userId },
+    select: { id: true, eventId: true },
+  });
+
+  if (volunteerRecords.length === 0) {
+    return { entries: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+  }
+
+  const volunteerIds = volunteerRecords.map((v) => v.id);
+  const volunteerEventIds = volunteerRecords.map((v) => v.eventId);
+
+  const where = {
+    volunteerId: { in: volunteerIds },
+  };
+
+  if (eventId) {
+    where.eventId = eventId;
+  }
+
+  if (startDate || endDate) {
+    where.scannedAt = {};
+    if (startDate) where.scannedAt.gte = new Date(startDate);
+    if (endDate) where.scannedAt.lte = new Date(endDate);
+  }
+
+  const [entries, total] = await Promise.all([
+    prisma.eventEntry.findMany({
+      where,
+      include: {
+        EventRegistration: {
+          include: {
+            user_login: {
+              select: {
+                id: true,
+                uid: true,
+                email: true,
+                employeeDetails: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    displayName: true,
+                  },
+                },
+                studentLogin: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    displayName: true,
+                    registrationNo: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        Event: {
+          select: {
+            id: true,
+            eventId: true,
+            name: true,
+            eventType: true,
+            venue: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+      },
+      orderBy: { scannedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.eventEntry.count({ where }),
+  ]);
+
+  // Format entries with user names
+  const formattedEntries = entries.map((e) => {
+    const userLogin = e.EventRegistration?.user_login;
+    const empDetails = userLogin?.employeeDetails;
+    const studentDetails = userLogin?.studentLogin;
+    const userName =
+      empDetails?.displayName ||
+      `${empDetails?.firstName || ''} ${empDetails?.lastName || ''}`.trim() ||
+      studentDetails?.displayName ||
+      `${studentDetails?.firstName || ''} ${studentDetails?.lastName || ''}`.trim() ||
+      userLogin?.uid ||
+      'Unknown';
+
+    return {
+      id: e.id,
+      eventId: e.eventId,
+      registrationId: e.registrationId,
+      entryType: e.entryType,
+      scannedAt: e.scannedAt,
+      gateLocation: e.gateLocation,
+      remarks: e.remarks,
+      event: e.Event
+        ? {
+          id: e.Event.id,
+          eventId: e.Event.eventId,
+          name: e.Event.name,
+          eventType: e.Event.eventType,
+          venue: e.Event.venue,
+          startDate: e.Event.startDate,
+          endDate: e.Event.endDate,
+        }
+        : null,
+      participant: {
+        id: userLogin?.id || null,
+        uid: userLogin?.uid || null,
+        email: userLogin?.email || null,
+        name: userName,
+        registrationNo: studentDetails?.registrationNo || null,
+      },
+    };
+  });
+
+  return {
+    entries: formattedEntries,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+/**
+ * Get volunteer activity for a specific volunteer (event creator view)
+ */
+const getVolunteerActivity = async (eventId, volunteerId, userId, filters = {}) => {
+  const event = await getEventById(prisma, eventId);
+  if (event.createdById !== userId) {
+    throw new ForbiddenError('Only the event creator can view volunteer activity');
+  }
+
+  const volunteer = await prisma.eventVolunteer.findFirst({
+    where: { id: volunteerId, eventId },
+    include: {
+      user_login: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          employeeDetails: { select: { firstName: true, lastName: true, displayName: true } },
+          studentLogin: { select: { firstName: true, lastName: true, displayName: true, registrationNo: true } },
+        },
+      },
+    },
+  });
+
+  if (!volunteer) {
+    throw new NotFoundError('Volunteer not found for this event');
+  }
+
+  const { page = 1, limit = 50, startDate, endDate } = filters;
+  const where = { eventId, volunteerId };
+
+  if (startDate || endDate) {
+    where.scannedAt = {};
+    if (startDate) where.scannedAt.gte = new Date(startDate);
+    if (endDate) where.scannedAt.lte = new Date(endDate);
+  }
+
+  const [entries, total] = await Promise.all([
+    prisma.eventEntry.findMany({
+      where,
+      include: {
+        EventRegistration: {
+          include: {
+            user_login: {
+              select: {
+                id: true,
+                uid: true,
+                email: true,
+                employeeDetails: { select: { firstName: true, lastName: true, displayName: true } },
+                studentLogin: { select: { firstName: true, lastName: true, displayName: true, registrationNo: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { scannedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.eventEntry.count({ where }),
+  ]);
+
+  const ul = volunteer.user_login;
+  const emp = ul?.employeeDetails;
+  const stu = ul?.studentLogin;
+  const volunteerName =
+    emp?.displayName ||
+    (emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : null) ||
+    stu?.displayName ||
+    (stu ? `${stu.firstName || ''} ${stu.lastName || ''}`.trim() : null) ||
+    ul?.uid ||
+    'Unknown';
+
+  const formattedEntries = entries.map((e) => {
+    const userLogin = e.EventRegistration?.user_login;
+    const empDetails = userLogin?.employeeDetails;
+    const studentDetails = userLogin?.studentLogin;
+    const userName =
+      empDetails?.displayName ||
+      `${empDetails?.firstName || ''} ${empDetails?.lastName || ''}`.trim() ||
+      studentDetails?.displayName ||
+      `${studentDetails?.firstName || ''} ${studentDetails?.lastName || ''}`.trim() ||
+      userLogin?.uid ||
+      'Unknown';
+
+    return {
+      id: e.id,
+      eventId: e.eventId,
+      registrationId: e.registrationId,
+      entryType: e.entryType,
+      scannedAt: e.scannedAt,
+      gateLocation: e.gateLocation,
+      remarks: e.remarks,
+      participant: {
+        id: userLogin?.id || null,
+        uid: userLogin?.uid || null,
+        email: userLogin?.email || null,
+        name: userName,
+        registrationNo: studentDetails?.registrationNo || null,
+      },
+    };
+  });
+
+  return {
+    volunteer: {
+      id: volunteer.id,
+      role: volunteer.role,
+      assignedGate: volunteer.assignedGate,
+      canScanQr: volunteer.canScanQr,
+      assignedAt: volunteer.assignedAt,
+      user: ul ? { id: ul.id, uid: ul.uid, email: ul.email, name: volunteerName } : null,
+    },
+    event: { id: event.id, eventId: event.eventId, name: event.name, venue: event.venue, startDate: event.startDate, endDate: event.endDate },
+    entries: formattedEntries,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
   };
 };
 
@@ -737,4 +1229,7 @@ module.exports = {
   assignVolunteer,
   scanQRCode,
   getEventStatistics,
+  getMyVolunteerAssignments,
+  getMyVolunteerActivity,
+  getVolunteerActivity,
 };

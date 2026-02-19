@@ -3,8 +3,9 @@ import { logger } from '@/shared/utils/logger';
 
 // Configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
-const TIMEOUT = 30000; // 30 seconds
-const MAX_RETRIES = 3;
+const isDev = process.env.NODE_ENV === 'development';
+const TIMEOUT = isDev ? 10000 : 12000; // 10s dev, 12s prod (no API call should take longer)
+const MAX_RETRIES = isDev ? 0 : 1; // 0 retries in dev, 1 in prod (fail fast)
 const RETRY_DELAY = 1000; // 1 second
 
 // Helper to get host URL (without /api/v1)
@@ -46,14 +47,23 @@ interface RetryConfig {
   retryCondition?: (error: AxiosError) => boolean;
 }
 
-// Default retry condition - retry on network errors and 5xx server errors
+// Default retry condition - retry on 5xx server errors (not on timeout/network)
 const defaultRetryCondition = (error: AxiosError): boolean => {
+  // Don't retry on timeout - server overloaded, retries make it worse
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return false;
+  }
   // Don't retry on client errors (4xx) except 429 (rate limit)
   if (error.response?.status && error.response.status >= 400 && error.response.status < 500) {
     return error.response.status === 429;
   }
-  // Retry on network errors and server errors (5xx)
-  return !error.response || (error.response.status >= 500 && error.response.status < 600);
+  // In dev: don't retry network errors (CORS, connection refused) - fail fast
+  if (isDev && !error.response) {
+    logger.debug('[API] Network error (no response) - skipping retry in dev', error.code || error.message);
+    return false;
+  }
+  // Retry on server errors (5xx) only
+  return !!(error.response && error.response.status >= 500 && error.response.status < 600);
 };
 
 // Sleep helper for retry delay
@@ -143,9 +153,11 @@ api.interceptors.response.use(
       return api(config);
     }
 
-    // Log error in development
+    // Log error in development - help debug dashboard/API issues
     if (process.env.NODE_ENV === 'development') {
-      logger.debug(`[API] Error: ${error.response?.status || 'Network Error'}`, error.config?.url);
+      const status = error.response?.status || 'Network';
+      const msg = (error.response?.data as any)?.message || error.message;
+      logger.error(`[API] Request failed: ${config.method?.toUpperCase()} ${config.url} - ${status}`, { message: msg, code: (error as any).code });
     }
     
     return Promise.reject(error);

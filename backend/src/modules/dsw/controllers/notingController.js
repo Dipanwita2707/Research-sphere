@@ -3,6 +3,7 @@
  * Handles HTTP requests for DSW-Noting integration
  */
 
+const prisma = require('../../../shared/config/database');
 const notingIntegrationService = require('../services/notingIntegrationService');
 const { SuccessMessages } = require('../constants');
 
@@ -100,9 +101,6 @@ async function processApprovedNoting(req, res) {
     const { notingId, approvedById } = req.body;
 
     // Fetch the noting
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    
     const noting = await prisma.note.findUnique({
       where: { id: notingId },
     });

@@ -3,12 +3,10 @@
  * Handles integration between DSW and Noting system
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../../shared/config/database');
 const clubService = require('./clubService');
 const { DSWNotingConfig } = require('../constants');
 const approvalFlowService = require('../../noting/services/approvalFlow.service');
-const { isCentralDepartmentRole } = require('../../noting/config/noting.config');
 
 /**
  * Process approved Club Creation noting
@@ -273,32 +271,24 @@ async function createClubCreationNoting(clubData, createdById) {
 
     console.log(`✅ Club creation noting created: ${notingId} - ${clubData.name}`);
 
-    // Initialize workflow - Determine first approver and create history
-    const noteContext = { amountRequired: clubData.fundingRequired || false };
-    const steps = await approvalFlowService.getFullFlowSteps(
-      DSWNotingConfig.CATEGORY,
-      DSWNotingConfig.SUBCATEGORY,
-      createdById,
-      noteContext
+    // Initialize workflow using reporting structure
+    const modulePermissionKey = approvalFlowService.getModulePermissionKey(noting);
+    const autoForwardResult = await approvalFlowService.determineNextApproverByReporting(
+      noting,
+      modulePermissionKey
     );
 
-    let currentFlowIndex = null;
     let currentHolderId = null;
 
-    if (steps && steps.length > 0) {
-      const firstStep = steps[0];
-      currentFlowIndex = 0;
-      
-      // Check if first step is a group (like DSW or CENTRAL_TEAM) - any member can approve
-      const isGroupStep = isCentralDepartmentRole(firstStep.authorityType) && firstStep.userIds.length > 0;
-      currentHolderId = isGroupStep ? null : (firstStep.userIds[0] ?? null);
+    if (autoForwardResult.canAutoForward && autoForwardResult.nextApproverId) {
+      currentHolderId = autoForwardResult.nextApproverId;
 
       // Update noting with workflow fields
       await prisma.note.update({
         where: { id: noting.id },
         data: {
-          currentFlowIndex,
           currentHolderId,
+          autoForwardedToManager: true,
         },
       });
 
@@ -313,9 +303,27 @@ async function createClubCreationNoting(clubData, createdById) {
         },
       });
 
-      console.log(`✅ Workflow initialized: Flow index ${currentFlowIndex}, First approver: ${firstStep.authorityType}`);
+      console.log(`✅ Workflow initialized: Auto-forwarded to manager ${currentHolderId}`);
     } else {
-      console.warn(`⚠️ No approval flow found for club creation noting: ${notingId}`);
+      // Update with manual forward reason
+      await prisma.note.update({
+        where: { id: noting.id },
+        data: {
+          manualForwardReason: autoForwardResult.reason,
+        },
+      });
+
+      // Create history entry for submission
+      await prisma.noteHistory.create({
+        data: {
+          noteId: noting.id,
+          action: 'SUBMITTED',
+          performedById: createdById,
+          remarks: 'Club creation noting submitted - manual forward required',
+        },
+      });
+
+      console.warn(`⚠️ Manual forward required: ${autoForwardResult.reason}`);
     }
 
     return noting;

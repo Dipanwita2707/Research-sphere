@@ -23,6 +23,7 @@ const programRoutes = require('./program.routes');
 const employeeRoutes = require('./employee.routes');
 const studentRoutes = require('./student.routes');
 const bulkUploadRoutes = require('./bulkUpload.routes');
+const reportingStructureRoutes = require('./reportingStructure.routes');
 
 // ============================================
 // MODULAR IMPORTS (Domain Modules)
@@ -55,6 +56,7 @@ router.use('/programs', programRoutes);
 router.use('/employees', employeeRoutes);
 router.use('/students', studentRoutes);
 router.use('/bulk-upload', bulkUploadRoutes);
+router.use('/reporting-structure', reportingStructureRoutes);
 router.use('/analytics', analyticsModule);
 router.use('/notifications', notificationsModule);
 router.use('/file-upload', require('./fileUpload.routes'));

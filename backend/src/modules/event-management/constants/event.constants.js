@@ -30,10 +30,13 @@ const PAYMENT_TYPE = {
 };
 
 const REGISTRATION_STATUS = {
+  DRAFT: 'draft',
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
   WAITLISTED: 'waitlisted',
+  REJECTED: 'rejected',
+  INCOMPLETE_TEAM: 'incomplete_team',
 };
 
 const PAYMENT_STATUS = {
@@ -66,7 +69,8 @@ const ERRORS = {
   EVENT_FULL: 'Event has reached maximum capacity',
   REGISTRATION_NOT_FOUND: 'Registration not found',
   INVALID_QR_CODE: 'Invalid QR code',
-  ALREADY_ENTERED: 'User has already entered the event',
+  ALREADY_ENTERED: 'User has already entered. Check out first before checking in again.',
+  NOT_CHECKED_IN: 'User has not checked in yet. Check in first before checking out.',
   NOT_A_VOLUNTEER: 'You are not authorized as a volunteer for this event',
   INVALID_EVENT_DATES: 'Event end date must be after start date',
   REGISTRATION_DATES_INVALID: 'Registration dates must be within event dates',

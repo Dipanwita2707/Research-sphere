@@ -87,6 +87,7 @@ export default function NavigationHeader() {
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{name: string, href?: string, description?: string}>>([]);
+  const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -118,11 +119,18 @@ export default function NavigationHeader() {
   const canReviewGrant = hasPermission(userPermissions, 'grant_review');
   const canApproveGrant = hasPermission(userPermissions, 'grant_approve');
 
+  // Defer non-critical API calls until after first paint to improve initial page load
   useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-      fetchUserPermissions();
-    }
+    if (!user) return;
+    const defer = (fn: () => void) => {
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => fn(), { timeout: 100 });
+      } else {
+        setTimeout(fn, 0);
+      }
+    };
+    defer(() => fetchUnreadCount());
+    defer(() => fetchUserPermissions());
   }, [user]);
 
   const fetchUnreadCount = useCallback(async () => {
@@ -168,6 +176,16 @@ export default function NavigationHeader() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
 
   // Search through all menu items
   const searchMenuItems = (query: string) => {
@@ -419,6 +437,7 @@ export default function NavigationHeader() {
       { name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' },
       { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' },
       { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
+      { name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' },
     ],
   });
 
@@ -502,7 +521,8 @@ export default function NavigationHeader() {
             { name: '👨‍🏫 Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
             { name: '👨‍🎓 Students', href: '/admin/students', description: 'Manage student records' },
             { name: '🛡️ User & Role Management', href: '/admin/roles', description: 'Assign permissions & create role templates' },
-            { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+            { name: '� Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
+            { name: '�📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
           ],
         }
       );
@@ -543,7 +563,7 @@ export default function NavigationHeader() {
       }}
     >
       {/* Single Line Header */}
-      <div className="h-14 sm:h-16 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-8">
+      <div className="h-14 sm:h-14 sm:h-16 px-3 sm:px-4 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Mobile Menu Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -552,21 +572,30 @@ export default function NavigationHeader() {
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
 
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => { setMobileMenuOpen(!mobileMenuOpen); if (mobileMenuOpen) setExpandedMobileSection(null); }}
+          className="lg:hidden p-2 text-white/90 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+
         {/* Logo Section */}
-        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
           <img 
             src="/images/new-header-logo.png" 
             alt="SGT University" 
-            className="h-8 sm:h-12 object-contain brightness-0 invert"
+            className="h-10 sm:h-8 sm:h-12 object-contain brightness-0 invert"
           />
-          <div className="hidden xl:block">
-            <div className="text-white font-bold text-sm leading-tight">UNIVERSITY</div>
-            <div className="text-white/70 text-xs leading-tight">MANAGEMENT SYSTEM</div>
+          <div className="hidden sm:block xl:block">
+            <div className="text-white font-bold text-xs sm:text-sm leading-tight">UNIVERSITY</div>
+            <div className="text-white/70 text-[10px] sm:text-xs leading-tight">MANAGEMENT SYSTEM</div>
           </div>
         </Link>
 
-        {/* Navigation Section - Center (Hidden on Mobile) */}
-        <nav className="hidden lg:flex items-center gap-2 flex-1 justify-center">
+        {/* Navigation Section - Center (Desktop only) (Hidden on Mobile) */}
+        <nav className="hidden lg:hidden lg:flex items-center gap-2 flex-1 justify-center">
           {/* Dashboard Link */}
           <Link
             href="/dashboard"
@@ -1017,7 +1046,7 @@ export default function NavigationHeader() {
         </nav>
 
         {/* Right Section - Actions */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           {/* Search */}
           <div className="relative" ref={searchRef}>
             <button 
@@ -1028,7 +1057,7 @@ export default function NavigationHeader() {
             </button>
 
             {showSearch && (
-              <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
                 <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                   <div className="relative">
                     <input
@@ -1244,6 +1273,132 @@ export default function NavigationHeader() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Slide-out Menu */}
+      <div
+        className={`lg:hidden fixed inset-0 z-40 transition-opacity duration-300 ${
+          mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
+          aria-hidden="true"
+        />
+        {/* Drawer */}
+        <div
+          className={`absolute top-0 left-0 h-full w-[min(320px,85vw)] max-w-sm bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 ease-out overflow-y-auto ${
+            mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="sticky top-0 z-10 px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between">
+            <span className="font-semibold text-gray-900 dark:text-white">Menu</span>
+            <button
+              onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <nav className="p-4 space-y-1">
+            <Link
+              href="/dashboard"
+              onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
+              className={`block px-4 py-3 rounded-lg text-sm font-medium ${
+                pathname === '/dashboard'
+                  ? 'bg-[#005b96]/15 text-[#005b96] dark:text-blue-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              Dashboard
+            </Link>
+            {menuItems.map((item) => (
+              <div key={item.name} className="space-y-1">
+                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  {item.name}
+                </div>
+                {item.subItems?.map((subItem) => {
+                  const sectionKey = `${item.name}-${subItem.name}`;
+                  const isExpanded = expandedMobileSection === sectionKey;
+
+                  if (subItem.href) {
+                    return (
+                      <Link
+                        key={subItem.href}
+                        href={subItem.href}
+                        onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
+                        className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        {subItem.name}
+                      </Link>
+                    );
+                  }
+
+                  if (subItem.children) {
+                    return (
+                      <div key={subItem.name} className="space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedMobileSection(isExpanded ? null : sectionKey)}
+                          className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                        >
+                          {subItem.name}
+                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isExpanded && (
+                          <div className="pl-4 space-y-0.5 border-l-2 border-gray-200 dark:border-gray-600 ml-2">
+                            {subItem.children.map((child) =>
+                              child.href && child.href !== '#' ? (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
+                                  className="block px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                >
+                                  {child.name}
+                                </Link>
+                              ) : child.children?.length ? (
+                                <div key={child.name} className="space-y-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedMobileSection(expandedMobileSection === `${sectionKey}-${child.name}` ? sectionKey : `${sectionKey}-${child.name}`)}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
+                                  >
+                                    {child.name}
+                                    <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 shrink-0 ${expandedMobileSection === `${sectionKey}-${child.name}` ? 'rotate-180' : ''}`} />
+                                  </button>
+                                  {expandedMobileSection === `${sectionKey}-${child.name}` && (
+                                    <div className="pl-4 space-y-0.5 border-l-2 border-gray-100 dark:border-gray-700 ml-2">
+                                      {child.children.map((gc) =>
+                                        gc.href && gc.href !== '#' ? (
+                                          <Link
+                                            key={gc.href}
+                                            href={gc.href}
+                                            onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
+                                            className="block px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                          >
+                                            {gc.name}
+                                          </Link>
+                                        ) : null
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : null
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            ))}
+          </nav>
         </div>
       </div>
 

@@ -450,6 +450,228 @@ const checkResearchFilePermission = (req, res, next) => {
   }
 };
 
+// ===========================================
+// CENTRALIZED PERMISSION MIDDLEWARE
+// Unified permission checks for all modules: DSW, Noting, Events, DRD
+// ===========================================
+
+const { getDefaultPermissions } = require('../config/permissions.config');
+
+/**
+ * Check if user has a specific permission - combines default (inherent) + explicit permissions
+ * @param {string} permissionKey - The permission key to check (e.g., 'dsw_create_club_noting')
+ * @param {Object} options - Options for permission check
+ * @param {boolean} options.checkDefaultPermissions - Whether to check role-based defaults (default: true)
+ * @param {string} options.departmentType - 'central-department' or 'school-department' (default: 'central-department')
+ * @param {string} options.errorMessage - Custom error message
+ */
+const checkPermission = (permissionKey, options = {}) => {
+  const {
+    checkDefaultPermissions = true,
+    departmentType = 'central-department',
+    errorMessage = null
+  } = options;
+
+  return (req, res, next) => {
+    try {
+      const user = req.user;
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      // Check 1: Role-based default permissions (inherent rights)
+      if (checkDefaultPermissions) {
+        const defaultPerms = getDefaultPermissions(user.role);
+        if (defaultPerms[permissionKey] === true) {
+          return next();
+        }
+      }
+
+      // Check 2: Explicit permissions from central/school department assignments
+      let hasExplicitPermission = false;
+      const permissionVariants = [permissionKey, `${permissionKey.split('_')[0]}_${permissionKey}`];
+
+      if (departmentType === 'central-department') {
+        hasExplicitPermission = user.centralDeptPermissions?.some(deptPerm =>
+          deptPerm.permissions && permissionVariants.some(variant =>
+            deptPerm.permissions[variant] === true
+          )
+        );
+      } else if (departmentType === 'school-department') {
+        hasExplicitPermission = user.schoolDeptPermissions?.some(deptPerm =>
+          deptPerm.permissions && permissionVariants.some(variant =>
+            deptPerm.permissions[variant] === true
+          )
+        );
+      }
+
+      if (hasExplicitPermission) {
+        return next();
+      }
+
+      // Access denied
+      return res.status(403).json({
+        success: false,
+        message: errorMessage || `Access denied - '${permissionKey}' permission required`,
+        requiredPermission: permissionKey
+      });
+    } catch (error) {
+      console.error('Permission check error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Permission check failed'
+      });
+    }
+  };
+};
+
+/**
+ * Check if user has any of the specified permissions
+ * @param {string[]} permissionKeys - Array of permission keys (OR logic)
+ * @param {Object} options - Same options as checkPermission
+ */
+const checkAnyPermission = (permissionKeys, options = {}) => {
+  const {
+    checkDefaultPermissions = true,
+    departmentType = 'central-department',
+    errorMessage = null
+  } = options;
+
+  return (req, res, next) => {
+    try {
+      const user = req.user;
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      // Check 1: Role-based default permissions
+      if (checkDefaultPermissions) {
+        const defaultPerms = getDefaultPermissions(user.role);
+        const hasDefaultPerm = permissionKeys.some(key => defaultPerms[key] === true);
+        if (hasDefaultPerm) {
+          return next();
+        }
+      }
+
+      // Check 2: Explicit permissions
+      const allVariants = permissionKeys.flatMap(key => [key, `${key.split('_')[0]}_${key}`]);
+
+      let hasExplicitPermission = false;
+      if (departmentType === 'central-department') {
+        hasExplicitPermission = user.centralDeptPermissions?.some(deptPerm =>
+          deptPerm.permissions && allVariants.some(variant =>
+            deptPerm.permissions[variant] === true
+          )
+        );
+      } else if (departmentType === 'school-department') {
+        hasExplicitPermission = user.schoolDeptPermissions?.some(deptPerm =>
+          deptPerm.permissions && allVariants.some(variant =>
+            deptPerm.permissions[variant] === true
+          )
+        );
+      }
+
+      if (hasExplicitPermission) {
+        return next();
+      }
+
+      return res.status(403).json({
+        success: false,
+        message: errorMessage || `Access denied - one of [${permissionKeys.join(', ')}] permissions required`,
+        requiredPermissions: permissionKeys
+      });
+    } catch (error) {
+      console.error('Permission check error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Permission check failed'
+      });
+    }
+  };
+};
+
+/**
+ * DSW Permission Middleware
+ * Checks DSW-specific permissions with role defaults
+ */
+const requireDSWPermission = (permissionKey) => {
+  return checkPermission(permissionKey, {
+    checkDefaultPermissions: true,
+    departmentType: 'central-department',
+    errorMessage: `DSW access denied - '${permissionKey}' permission required`
+  });
+};
+
+/**
+ * Noting Permission Middleware
+ * Checks noting-specific permissions - NO defaults except for faculty
+ */
+const requireNotingPermission = (permissionKey) => {
+  return checkPermission(permissionKey, {
+    checkDefaultPermissions: true,
+    departmentType: 'central-department',
+    errorMessage: `Noting access denied - '${permissionKey}' permission required`
+  });
+};
+
+/**
+ * Event Permission Middleware
+ * Checks event-specific permissions
+ */
+const requireEventPermission = (permissionKey) => {
+  return checkPermission(permissionKey, {
+    checkDefaultPermissions: true,
+    departmentType: 'central-department',
+    errorMessage: `Event access denied - '${permissionKey}' permission required`
+  });
+};
+
+/**
+ * Combined ownership + permission check
+ * First checks if user owns the resource, then falls back to permission check
+ * @param {Function} ownershipCheck - Async function that returns true if user owns resource
+ * @param {string} permissionKey - Fallback permission to check if not owner
+ */
+const requireOwnershipOrPermission = (ownershipCheck, permissionKey, options = {}) => {
+  return async (req, res, next) => {
+    try {
+      const user = req.user;
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      // Check 1: Ownership
+      const isOwner = await ownershipCheck(req, user);
+      if (isOwner) {
+        req.isResourceOwner = true;
+        return next();
+      }
+
+      // Check 2: Permission fallback
+      const permissionMiddleware = checkPermission(permissionKey, options);
+      return permissionMiddleware(req, res, next);
+    } catch (error) {
+      console.error('Ownership/permission check error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Authorization check failed'
+      });
+    }
+  };
+};
+
 /**
  * Check Gate Entry access based on user designation
  * Admin & Guard: Full access (all features including verify)
@@ -529,5 +751,12 @@ module.exports = {
   requireAnyPermission,
   checkIprFilePermission,
   checkResearchFilePermission,
-  checkGateEntryAccess
+  checkGateEntryAccess,
+  // New centralized permission middleware
+  checkPermission,
+  checkAnyPermission,
+  requireDSWPermission,
+  requireNotingPermission,
+  requireEventPermission,
+  requireOwnershipOrPermission
 };

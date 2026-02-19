@@ -1,29 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BarChart3, TrendingUp, Users, Calendar, Award, Activity } from 'lucide-react';
-import { dswAPI } from '@/features/dsw/services/api';
-import { DSWStatistics } from '@/features/dsw/types';
+import { useStatistics } from '@/features/dsw/hooks';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 export default function StatisticsPage() {
-  const [stats, setStats] = useState<DSWStatistics | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchStatistics();
-  }, []);
-
-  const fetchStatistics = async () => {
-    try {
-      setLoading(true);
-      const response = await dswAPI.getStatistics();
-      if (response.success) {
-        setStats(response.data);
-      }
-    } catch (err: any) {
-      console.error('Error fetching statistics:', err);
-      // Set default stats on error so page still shows
-      setStats({
+  const { data: response, isLoading, error } = useStatistics();
+  const stats = response?.success
+    ? response.data
+    : {
         totalClubs: 0,
         activeClubs: 0,
         totalMembers: 0,
@@ -31,28 +18,18 @@ export default function StatisticsPage() {
         pendingApprovals: 0,
         clubsByCategory: [],
         clubsByStatus: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+      };
+  const errorMessage = error ? getErrorMessage(error) : null;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading statistics...</p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <PageSkeleton message="Loading statistics..." />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
           Club Statistics
         </h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
@@ -60,8 +37,14 @@ export default function StatisticsPage() {
         </p>
       </div>
 
+      {errorMessage && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <p className="text-red-800 dark:text-red-200">{errorMessage}</p>
+        </div>
+      )}
+
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
@@ -146,7 +129,7 @@ export default function StatisticsPage() {
             Clubs by Category
           </h2>
           <div className="space-y-3">
-            {stats.clubsByCategory.map((category: any) => (
+            {stats.clubsByCategory.map((category: { categoryId: string; categoryName: string; _count: number }) => (
               <div key={category.categoryId} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400"></div>
@@ -170,7 +153,7 @@ export default function StatisticsPage() {
             Clubs by Status
           </h2>
           <div className="space-y-3">
-            {stats.clubsByStatus.map((status: any) => (
+            {stats.clubsByStatus.map((status: { status: string; _count: number }) => (
               <div key={status.status} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Activity className="w-4 h-4 text-gray-400" />

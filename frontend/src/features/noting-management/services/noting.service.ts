@@ -26,8 +26,13 @@ export const notingService = {
     endDate?: string;
     page?: number; 
     limit?: number;
+    includeCounts?: boolean;
   }) =>
-    api.get(BASE, { params }).then((res) => ({ data: res.data.data, pagination: res.data.pagination })),
+    api.get(BASE, { params }).then((res) => ({
+      data: res.data.data,
+      pagination: res.data.pagination,
+      counts: res.data.counts as { mine: number; pending: number; handled: number } | undefined,
+    })),
 
   getById: (id: string): Promise<Note> =>
     api.get(`${BASE}/${id}`).then((res) => res.data.data),
@@ -66,6 +71,15 @@ export const notingService = {
 
   forward: (id: string, payload: { remarks: string; automated?: boolean; nextHolderId?: string }) =>
     api.post(`${BASE}/${id}/forward`, payload).then((res) => res.data),
+
+  autoForward: (id: string, remarks?: string) =>
+    api.post(`${BASE}/${id}/auto-forward`, { remarks: remarks || 'Auto-forwarded to reporting manager' }).then((res) => res.data),
+
+  searchEmployees: (q: string) =>
+    api.get(`${BASE}/search-employees`, { params: { q } }).then((res) => res.data.data as { id: string; uid: string; role: string; displayName: string; empId: string; department: string; school: string }[]),
+
+  getMyManager: () =>
+    api.get(`${BASE}/my-manager`).then((res) => res.data.data as { id: string; uid: string; displayName: string; empId: string; department: string; school: string } | null),
 
   getForwardPrograms: (departmentId: string) =>
     api.get(`${BASE}/forward-options/programs`, { params: { departmentId } }).then((res) => res.data.data as { id: string; programName: string; programCode?: string }[]),

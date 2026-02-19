@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -12,98 +12,25 @@ import {
   Shield,
   Activity,
 } from 'lucide-react';
-import { clubAPI } from '@/features/dsw/services/api';
-import { Club } from '@/features/dsw/types';
+import { useClub } from '@/features/dsw/hooks';
+import { ClubStatusBadge } from '@/features/dsw/components/ClubStatusBadge';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 export default function ClubDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const clubId = params.id as string;
 
-  const [club, setClub] = useState<Club | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: response, isLoading, error } = useClub(clubId);
+  const club = response?.success ? response.data : null;
+  const errorMessage = error ? getErrorMessage(error) : null;
 
-  useEffect(() => {
-    if (clubId) {
-      fetchClubDetails();
-    }
-  }, [clubId]);
-
-  const fetchClubDetails = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await clubAPI.getClubById(clubId);
-      if (response.success) {
-        setClub(response.data || null);
-      } else {
-        setError('Failed to load club details');
-      }
-    } catch (err: any) {
-      console.error('Error fetching club details:', err);
-      setError(err.response?.data?.message || 'Failed to load club details');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<
-      string,
-      { label: string; className: string }
-    > = {
-      active: {
-        label: 'Active',
-        className:
-          'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-      },
-      pending_approval: {
-        label: 'Pending',
-        className:
-          'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
-      },
-      approved: {
-        label: 'Approved',
-        className:
-          'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-      },
-      suspended: {
-        label: 'Suspended',
-        className:
-          'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
-      },
-      archived: {
-        label: 'Archived',
-        className:
-          'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400',
-      },
-    };
-
-    const config = statusConfig[status] || statusConfig.active;
-    return (
-      <span
-        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${config.className}`}
-      >
-        {config.label}
-      </span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">
-            Loading club details...
-          </p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <PageSkeleton message="Loading club details..." />;
   }
 
-  if (error || !club) {
+  if (errorMessage || !club) {
     return (
       <div className="max-w-4xl mx-auto">
         <button
@@ -116,10 +43,10 @@ export default function ClubDetailsPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
           <div className="text-red-500 text-6xl mb-4">⚠️</div>
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            {error || 'Club Not Found'}
+            {errorMessage || 'Club Not Found'}
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            The club you're looking for doesn't exist or you don't have
+            The club you&apos;re looking for doesn&apos;t exist or you don&apos;t have
             permission to view it.
           </p>
         </div>
@@ -139,14 +66,14 @@ export default function ClubDetailsPage() {
       </button>
 
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                 {club.name}
               </h1>
-              {getStatusBadge(club.status)}
+              <ClubStatusBadge status={club.status} size="md" />
             </div>
             <p className="text-gray-500 dark:text-gray-400 mb-4">
               Club ID: {club.clubId}
@@ -173,9 +100,9 @@ export default function ClubDetailsPage() {
       </div>
 
       {/* Club Details Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {/* Purpose */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
             <FileText className="w-5 h-5" />
             Purpose
@@ -186,7 +113,7 @@ export default function ClubDetailsPage() {
         </div>
 
         {/* Faculty Facilitator */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <UserCheck className="w-5 h-5" />
             Faculty Facilitator
@@ -229,7 +156,7 @@ export default function ClubDetailsPage() {
         </div>
 
         {/* Vice Chairperson */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Shield className="w-5 h-5" />
             Vice Chairperson
@@ -272,7 +199,7 @@ export default function ClubDetailsPage() {
         </div>
 
         {/* Members */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Users className="w-5 h-5" />
             Members
@@ -284,7 +211,7 @@ export default function ClubDetailsPage() {
           </h2>
           {club.members && club.members.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {club.members.map((member: any) => (
+              {club.members.map((member: { id: string; student?: { studentLogin?: { displayName?: string; firstName?: string }; email?: string }; role?: string }) => (
                 <div
                   key={member.id}
                   className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
@@ -311,7 +238,7 @@ export default function ClubDetailsPage() {
         </div>
 
         {/* Metadata */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
             <Activity className="w-5 h-5" />
             Activity

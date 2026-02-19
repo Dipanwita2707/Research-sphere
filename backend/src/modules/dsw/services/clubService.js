@@ -3,8 +3,7 @@
  * Business logic for club management operations
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../../shared/config/database');
 const {
   ClubStatus,
   ClubLifecycleState,
@@ -517,6 +516,7 @@ async function getClubById(clubId, user = null) {
         where: {
           isActive: true,
         },
+        take: 10,
         include: {
           student: {
             select: {
@@ -915,12 +915,23 @@ async function getClubStatistics() {
     totalClubs,
     activeClubs,
     totalMembers,
+    totalCategories,
+    pendingApprovals,
     clubsByCategory,
     clubsBySession,
+    clubsByStatus,
   ] = await Promise.all([
     prisma.club.count(),
     prisma.club.count({ where: { status: ClubStatus.ACTIVE } }),
     prisma.clubMember.count({ where: { isActive: true } }),
+    prisma.clubCategory.count(),
+    prisma.note.count({
+      where: {
+        category: 'administrative',
+        subcategory: 'dsw_club_creation',
+        status: 'pending',
+      },
+    }),
     prisma.club.groupBy({
       by: ['categoryId'],
       _count: true,
@@ -932,29 +943,44 @@ async function getClubStatistics() {
         academicSession: 'desc',
       },
     }),
+    prisma.club.groupBy({
+      by: ['status'],
+      _count: true,
+    }),
   ]);
 
-  // Fetch category names
-  const categoriesWithCount = await Promise.all(
-    clubsByCategory.map(async (item) => {
-      const category = await prisma.clubCategory.findUnique({
-        where: { id: item.categoryId },
-        select: { name: true },
-      });
-      return {
-        categoryId: item.categoryId,
-        categoryName: category?.name || 'Unknown',
-        count: item._count,
-      };
-    })
-  );
+  const categoryIds = clubsByCategory.map((i) => i.categoryId).filter(Boolean);
+
+  // Fetch all category names in one query (avoid N+1)
+  const categoryMap = new Map();
+  if (categoryIds.length > 0) {
+    const categories = await prisma.clubCategory.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true, name: true },
+    });
+    categories.forEach((c) => categoryMap.set(c.id, c.name));
+  }
+
+  const countVal = (item) => (typeof item._count === 'number' ? item._count : (item._count?._all ?? item._count?.categoryId ?? item._count?.status ?? 0));
+
+  const clubsByCategoryWithNames = clubsByCategory.map((item) => ({
+    categoryId: item.categoryId,
+    categoryName: categoryMap.get(item.categoryId) || 'Unknown',
+    _count: countVal(item),
+  }));
 
   return {
     totalClubs,
     activeClubs,
     totalMembers,
-    clubsByCategory: categoriesWithCount,
+    totalCategories,
+    pendingApprovals,
+    clubsByCategory: clubsByCategoryWithNames,
     clubsBySession,
+    clubsByStatus: clubsByStatus.map((item) => ({
+      status: item.status,
+      _count: countVal(item),
+    })),
   };
 }
 
