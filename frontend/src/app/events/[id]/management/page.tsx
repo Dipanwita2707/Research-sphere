@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
- ArrowLeft, TrendingUp, TrendingDown, Users, UserCheck, UserX, UserMinus, Clock,
+  ArrowLeft, TrendingUp, TrendingDown, Users, UserCheck, UserX, UserMinus, Clock,
   Calendar, Loader2, AlertCircle, Download, BarChart3, PieChart, Activity,
   IndianRupee, Search, Filter, RefreshCw, Eye, LogIn, LogOut, Shield,
   ChevronDown, ChevronUp, FileSpreadsheet, Percent, Target, Zap, CheckCircle2,
@@ -95,14 +95,39 @@ export default function EventManagementPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [eventData, statsData, volunteersData] = await Promise.all([
-        eventService.getEventById(eventId),
+      const eventData = await eventService.getEventById(eventId);
+      setEvent(eventData);
+
+      // Load stats and volunteers in parallel - stats may fail for draft events
+      const [statsData, volunteersData] = await Promise.allSettled([
         eventService.getStatistics(eventId),
         eventService.getVolunteers(eventId)
       ]);
-      setEvent(eventData);
-      setStatistics(statsData);
-      setVolunteers(volunteersData);
+
+      if (statsData.status === 'fulfilled') {
+        setStatistics(statsData.value);
+      } else {
+        // Provide empty statistics for draft events
+        setStatistics({
+          totalRegistrations: 0,
+          confirmedRegistrations: 0,
+          pendingRegistrations: 0,
+          cancelledRegistrations: 0,
+          waitlistedRegistrations: 0,
+          totalAttended: 0,
+          totalEntries: 0,
+          totalExits: 0,
+          currentlyInside: 0,
+          totalRevenue: 0,
+          volunteerCount: 0,
+          recentRegistrations: [],
+          registrationsByDate: [],
+        } as unknown as EventStatistics);
+      }
+
+      if (volunteersData.status === 'fulfilled') {
+        setVolunteers(volunteersData.value);
+      }
     } catch (error: any) {
       toast({
         type: 'error',
@@ -244,14 +269,14 @@ export default function EventManagementPage() {
       });
 
       toast({ type: 'success', message: 'Volunteer assigned successfully' });
-      
+
       // Reset form
       setSelectedUserId('');
       setSelectedUserName('');
       setVolunteerRole('');
       setAssignedGate('');
       setCanScanQr(false);
-      
+
       // Reload volunteers
       const volunteersData = await eventService.getVolunteers(eventId);
       setVolunteers(volunteersData);
@@ -288,9 +313,9 @@ export default function EventManagementPage() {
       await eventService.updateVolunteer(eventId, volunteerId, {
         canScanQr: !currentStatus
       });
-      toast({ 
-        type: 'success', 
-        message: `QR scanning permission ${!currentStatus ? 'granted' : 'revoked'}` 
+      toast({
+        type: 'success',
+        message: `QR scanning permission ${!currentStatus ? 'granted' : 'revoked'}`
       });
       const volunteersData = await eventService.getVolunteers(eventId);
       setVolunteers(volunteersData);
@@ -474,11 +499,10 @@ export default function EventManagementPage() {
                   setActiveTab(tab.id);
                   router.replace(`/events/${eventId}/management?tab=${tab.id}`, { scroll: false });
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-sgt-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${activeTab === tab.id
+                  ? 'bg-sgt-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
@@ -490,6 +514,18 @@ export default function EventManagementPage() {
 
       {/* ── Tab Content ───────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Draft Mode Banner */}
+        {event.status === 'draft' && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-300">Draft Event</h4>
+              <p className="text-xs text-amber-800 dark:text-amber-400 mt-0.5">
+                You can assign volunteers now. Registrations & analytics will be available after publishing.
+              </p>
+            </div>
+          </div>
+        )}
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
@@ -1134,11 +1170,10 @@ export default function EventManagementPage() {
                                 <div className="flex items-center gap-2 mt-2">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleToggleQrPermission(volunteer.id, volunteer.canScanQr); }}
-                                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                                      volunteer.canScanQr
-                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-200'
-                                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
-                                    }`}
+                                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${volunteer.canScanQr
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-200'
+                                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
+                                      }`}
                                   >
                                     {volunteer.canScanQr ? (
                                       <>

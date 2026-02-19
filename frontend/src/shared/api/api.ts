@@ -4,8 +4,8 @@ import { logger } from '@/shared/utils/logger';
 // Configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
 const isDev = process.env.NODE_ENV === 'development';
-const TIMEOUT = isDev ? 15000 : 30000; // 15s dev (faster fail), 30s prod
-const MAX_RETRIES = isDev ? 1 : 3; // 1 retry in dev to fail faster, 3 in prod
+const TIMEOUT = isDev ? 10000 : 12000; // 10s dev, 12s prod (no API call should take longer)
+const MAX_RETRIES = isDev ? 0 : 1; // 0 retries in dev, 1 in prod (fail fast)
 const RETRY_DELAY = 1000; // 1 second
 
 // Helper to get host URL (without /api/v1)
@@ -47,8 +47,12 @@ interface RetryConfig {
   retryCondition?: (error: AxiosError) => boolean;
 }
 
-// Default retry condition - retry on 5xx server errors (not on network/CORS errors in dev)
+// Default retry condition - retry on 5xx server errors (not on timeout/network)
 const defaultRetryCondition = (error: AxiosError): boolean => {
+  // Don't retry on timeout - server overloaded, retries make it worse
+  if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+    return false;
+  }
   // Don't retry on client errors (4xx) except 429 (rate limit)
   if (error.response?.status && error.response.status >= 400 && error.response.status < 500) {
     return error.response.status === 429;

@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { FileText, Plus, Inbox, Send, Clock, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2, History, Pencil, Search, X, Filter, RotateCcw } from 'lucide-react';
-import { useNotingList, useDeleteDraft } from '@/features/noting-management/hooks/useNoting';
+import { useNotingList, useDeleteDraft, NOTING_QUERY_KEYS } from '@/features/noting-management/hooks/useNoting';
+import { useQueryClient } from '@tanstack/react-query';
+import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Note } from '@/features/noting-management/types/noting.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useAuthStore } from '@/shared/auth/authStore';
@@ -24,15 +26,13 @@ function getDisplayName(note: Note): string {
 
 const stripHtml = (html: string) => {
   if (!html) return '';
-  if (typeof window === 'undefined') return html.replace(/<[^>]*>/g, '');
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
+  return html.replace(/<[^>]*>/g, '').trim();
 };
 
 export default function NotingListPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const [filter, setFilter] = useState<'mine' | 'pending' | 'handled'>('mine');
   const [page, setPage] = useState(1);
@@ -338,6 +338,15 @@ export default function NotingListPage() {
                       : `/noting/${note.id}`
                   }
                   className="group block"
+                  onMouseEnter={() => {
+                    if (note.status !== 'draft' && note.status !== 'reverted') {
+                      queryClient.prefetchQuery({
+                        queryKey: NOTING_QUERY_KEYS.detail(note.id),
+                        queryFn: () => notingService.getById(note.id),
+                        staleTime: 2 * 60 * 1000,
+                      });
+                    }
+                  }}
                 >
                   <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-sgt-300 dark:hover:border-sgt-700 hover:shadow-sm transition-all duration-150">
                     <div className="px-4 sm:px-5 py-4">

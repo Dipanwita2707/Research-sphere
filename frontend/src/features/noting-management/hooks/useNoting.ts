@@ -68,6 +68,7 @@ export function useNote(id: string) {
     queryKey: NOTING_QUERY_KEYS.detail(id),
     queryFn: () => notingService.getById(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 

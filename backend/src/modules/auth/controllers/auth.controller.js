@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../../../shared/config/app.config');
 const cache = require('../../../shared/config/redis');
+const { prewarmAuthCache } = require('../../../shared/utils/authCache');
 const { isValidEmail, sanitizeInput } = require('../../../shared/utils/validators');
 const { auditService, AuditActionType, AuditSeverity, AuditModule } = require('../../audit/services/audit.service');
 const { getClientIp } = require('../../../shared/middleware/audit.middleware');
@@ -229,6 +230,9 @@ exports.login = async (req, res) => {
 
     // Generate token
     const token = generateToken(user.id);
+
+    // Pre-warm auth cache so first request after login doesn't hit DB
+    prewarmAuthCache(user.id).catch(() => {});
 
     // Set cookie with appropriate sameSite setting for cross-origin
     // sameSite: 'none' REQUIRES secure: true for cross-origin cookies

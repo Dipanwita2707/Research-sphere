@@ -1863,7 +1863,10 @@ model Note {
   eventHasSponsorship Boolean?                    @map("event_has_sponsorship")
   eventSponsors       Json?                       @map("event_sponsors") // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
   eventHasResources   Boolean?                    @map("event_has_resources")
-  eventResources      Json?                       @map("event_resources")
+  eventResources      Json?                       @map("event_resources") // [{type, description, pricePerPiece, quantity, cost, totalCost}]
+  eventCertification  Boolean?                    @map("event_certification") // Certificate milega ya nahi
+  eventCapacityFixed  Int?                        @map("event_capacity_fixed") // Internal capacity fixed (different from approx)
+  eventPrizesAwards   Json?                       @map("event_prizes_awards") // [{position, rank, title, prizeType, prizeAmount?, additionalPerks?, sortOrder}] - matches EventPrize
   clubName            String?                     @map("club_name") @db.VarChar(256)
   clubCategoryId      String?                     @map("club_category_id") @db.Uuid
   clubPurpose         String?                     @map("club_purpose") @db.Text
@@ -2115,8 +2118,10 @@ model Event {
   dutyLeaveEligibility        Json?                       @map("duty_leave_eligibility")
   hasSponsorship             Boolean?                    @map("has_sponsorship")
   sponsors                   Json?                       // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  showSponsorshipPublicly    Boolean?            @default(false)  @map("show_sponsorship_publicly")  // Creator decides at publish: show sponsorship to users
   hasResources               Boolean?                    @map("has_resources")
   resources                  Json?
+  capacityFixed              Int?                        @map("capacity_fixed")  // Internal capacity fixed from noting
 
   // Additional Information
   eligibilityCriteria        String?

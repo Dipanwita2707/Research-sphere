@@ -273,6 +273,7 @@ const formatEventResponse = (event) => {
     dutyLeaveEligibility,
     hasSponsorship,
     sponsors: sponsors.length > 0 ? sponsors : null,
+    showSponsorshipPublicly: event.showSponsorshipPublicly ?? false,
     hasResources: hasResourcesResolved,
     resources: resources.length > 0 ? resources : null,
     currentRegistrations: event.currentRegistrations,

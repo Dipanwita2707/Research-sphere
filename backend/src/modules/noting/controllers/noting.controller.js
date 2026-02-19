@@ -113,10 +113,10 @@ const getConfig = asyncHandler(async (req, res) => {
  */
 const previewNotingId = asyncHandler(async (req, res) => {
   const { category, subcategory } = req.query;
-  
+
   // Validation is handled by validator middleware
   const notingId = generateNotingId(category, subcategory);
-  
+
   return ApiResponse.success(res, { notingId }, 'Noting ID generated');
 });
 
@@ -160,6 +160,9 @@ const create = asyncHandler(async (req, res) => {
     eventSponsors,
     eventHasResources,
     eventResources,
+    eventCertification,
+    eventCapacityFixed,
+    eventPrizesAwards,
   } = req.body;
 
   // Validate category and subcategory
@@ -180,17 +183,17 @@ const create = asyncHandler(async (req, res) => {
         'For event approval requests, all event details are required: Event Name, Event Type, Start Date, End Date, and Payment Type. Please fill in all fields.'
       );
     }
-    
+
     // Validate dates
     const startDate = new Date(eventStartDate);
     const endDate = new Date(eventEndDate);
-    
+
     if (endDate < startDate) {
       throw new ValidationError(
         'Event end date cannot be before the start date. Please correct the dates.'
       );
     }
-    
+
     // Validate fee for paid events
     if (eventPaymentType === 'paid') {
       const isTeam = eventParticipationType === 'team';
@@ -217,7 +220,7 @@ const create = asyncHandler(async (req, res) => {
   const validAttachments = sanitizeAttachments(attachmentsPayload);
   const validPoints = sanitizePoints(points);
 
-  // Create note in database
+  // Create note in database (lean create — no include, fetch full data at end)
   const note = await prisma.note.create({
     data: {
       notingId,
@@ -249,6 +252,9 @@ const create = asyncHandler(async (req, res) => {
       eventSponsors: eventHasSponsorship ? sanitizeEventSponsors(eventSponsors) : null,
       eventHasResources: eventHasResources != null ? !!eventHasResources : null,
       eventResources: Array.isArray(eventResources) ? eventResources : null,
+      eventCertification: eventCertification != null ? !!eventCertification : null,
+      eventCapacityFixed: eventCapacityFixed != null ? parseInt(eventCapacityFixed, 10) : null,
+      eventPrizesAwards: Array.isArray(eventPrizesAwards) ? eventPrizesAwards : null,
       status,
       createdById: userId,
       currentHolderId,
@@ -259,7 +265,6 @@ const create = asyncHandler(async (req, res) => {
         ? { create: validAttachments }
         : undefined,
     },
-    include: getFullNoteInclude(),
   });
 
   // ==========================================
@@ -272,7 +277,7 @@ const create = asyncHandler(async (req, res) => {
   if (submit) {
     // Get module permission key based on subcategory
     const modulePermissionKey = approvalFlowService.getModulePermissionKey(note);
-    
+
     // Check user's reporting structure and manager's permissions
     const autoForwardResult = await approvalFlowService.determineNextApproverByReporting(
       note,
@@ -332,15 +337,15 @@ const create = asyncHandler(async (req, res) => {
     });
   }
 
-  // Fetch updated note with all relations
-  const updatedNote = await prisma.note.findUnique({
+  // Single fetch with full relations at the end (avoids double-fetch)
+  const finalNote = await prisma.note.findUnique({
     where: { id: note.id },
     include: getFullNoteInclude(),
   });
 
   return ApiResponse.created(
     res,
-    updatedNote,
+    finalNote,
     submit
       ? 'Note submitted and forwarded to your manager successfully'
       : 'Draft saved successfully'
@@ -382,6 +387,9 @@ const updateDraft = asyncHandler(async (req, res) => {
     eventSponsors,
     eventHasResources,
     eventResources,
+    eventCertification,
+    eventCapacityFixed,
+    eventPrizesAwards,
   } = req.body;
 
   // Load note with history to check if approver has acted
@@ -394,7 +402,7 @@ const updateDraft = asyncHandler(async (req, res) => {
       },
     },
   });
-  
+
   // Verify creator can still edit (no approver actions yet)
   await verifyCanEditNote(note, userId);
 
@@ -444,6 +452,9 @@ const updateDraft = asyncHandler(async (req, res) => {
   if (eventSponsors !== undefined) updateData.eventSponsors = (eventHasSponsorship === false) ? null : sanitizeEventSponsors(eventSponsors || []);
   if (eventHasResources !== undefined) updateData.eventHasResources = eventHasResources != null ? !!eventHasResources : null;
   if (eventResources !== undefined) updateData.eventResources = Array.isArray(eventResources) ? eventResources : null;
+  if (eventCertification !== undefined) updateData.eventCertification = eventCertification != null ? !!eventCertification : null;
+  if (eventCapacityFixed !== undefined) updateData.eventCapacityFixed = eventCapacityFixed != null ? parseInt(eventCapacityFixed, 10) : null;
+  if (eventPrizesAwards !== undefined) updateData.eventPrizesAwards = Array.isArray(eventPrizesAwards) ? eventPrizesAwards : null;
 
   // Update in transaction
   await prisma.$transaction(async (tx) => {
@@ -553,7 +564,7 @@ const submitDraft = asyncHandler(async (req, res) => {
 
   // Get module permission key
   const modulePermissionKey = approvalFlowService.getModulePermissionKey(note);
-  
+
   // Check reporting structure for auto-forward
   const autoForwardResult = await approvalFlowService.determineNextApproverByReporting(
     note,
@@ -641,9 +652,9 @@ const getById = asyncHandler(async (req, res) => {
  */
 const list = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { 
-    filter = 'mine', 
-    status, 
+  const {
+    filter = 'mine',
+    status,
     category,
     search,        // Search by notingId or description
     createdById,   // Filter by creator ID
@@ -718,7 +729,7 @@ const list = asyncHandler(async (req, res) => {
     if (status) where.status = status;
     if (category) where.category = category;
     if (createdById) where.createdById = createdById;
-    
+
     // Search by notingId or description
     if (search) {
       where.OR = [
@@ -726,7 +737,7 @@ const list = asyncHandler(async (req, res) => {
         { description: { contains: search, mode: 'insensitive' } },
       ];
     }
-    
+
     // Date range filter
     if (startDate || endDate) {
       where.createdAt = {};
@@ -840,8 +851,8 @@ const approve = asyncHandler(async (req, res) => {
   await verifyCanActOnNote(note, userId);
 
   // Approve = Final endpoint, workflow ends here
-  // Update note and create history in transaction
-  await prisma.$transaction([
+  // Update note and create history in transaction, return updated note directly
+  const [, updated] = await prisma.$transaction([
     prisma.noteHistory.create({
       data: {
         noteId: note.id,
@@ -857,22 +868,17 @@ const approve = asyncHandler(async (req, res) => {
         currentHolderId: null,
         status: NOTE_STATUS.APPROVED,
       },
-    }),
-  ]);
-
-  // Fetch updated note
-  const updated = await prisma.note.findUnique({
-    where: { id },
-    include: {
-      currentHolder: {
-        select: {
-          id: true,
-          uid: true,
-          employeeDetails: { select: { displayName: true } },
+      include: {
+        currentHolder: {
+          select: {
+            id: true,
+            uid: true,
+            employeeDetails: { select: { displayName: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   // Auto-create event if this is an event noting
   let eventCreated = false;
@@ -1062,8 +1068,8 @@ const forward = asyncHandler(async (req, res) => {
     throw new ValidationError('You cannot forward a note to yourself.');
   }
 
-  // Update note and create history in transaction
-  await prisma.$transaction([
+  // Update note and create history in transaction, return updated note directly
+  const [, updated] = await prisma.$transaction([
     prisma.noteHistory.create({
       data: {
         noteId: note.id,
@@ -1077,7 +1083,6 @@ const forward = asyncHandler(async (req, res) => {
       where: { id },
       data: {
         currentHolderId: targetHolderId,
-        // Track reporting chain history
         reportingChainHistory: {
           push: {
             timestamp: new Date().toISOString(),
@@ -1087,22 +1092,17 @@ const forward = asyncHandler(async (req, res) => {
           },
         },
       },
-    }),
-  ]);
-
-  // Fetch updated note
-  const updated = await prisma.note.findUnique({
-    where: { id },
-    include: {
-      currentHolder: {
-        select: {
-          id: true,
-          uid: true,
-          employeeDetails: { select: { displayName: true } },
+      include: {
+        currentHolder: {
+          select: {
+            id: true,
+            uid: true,
+            employeeDetails: { select: { displayName: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   return ApiResponse.success(res, updated, 'Note forwarded successfully');
 });
@@ -1383,8 +1383,8 @@ const autoForward = asyncHandler(async (req, res) => {
     );
   }
 
-  // Update note and create history
-  await prisma.$transaction([
+  // Update note and create history, return updated note directly
+  const [, updated] = await prisma.$transaction([
     prisma.noteHistory.create({
       data: {
         noteId: note.id,
@@ -1407,21 +1407,17 @@ const autoForward = asyncHandler(async (req, res) => {
           },
         },
       },
-    }),
-  ]);
-
-  const updated = await prisma.note.findUnique({
-    where: { id },
-    include: {
-      currentHolder: {
-        select: {
-          id: true,
-          uid: true,
-          employeeDetails: { select: { displayName: true } },
+      include: {
+        currentHolder: {
+          select: {
+            id: true,
+            uid: true,
+            employeeDetails: { select: { displayName: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   const managerName = manager.employeeDetails?.displayName || manager.uid || manager.email;
   return ApiResponse.success(res, updated, `Note forwarded to ${managerName} (your reporting manager)`);

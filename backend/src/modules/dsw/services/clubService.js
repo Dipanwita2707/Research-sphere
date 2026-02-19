@@ -516,6 +516,7 @@ async function getClubById(clubId, user = null) {
         where: {
           isActive: true,
         },
+        take: 10,
         include: {
           student: {
             select: {

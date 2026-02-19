@@ -98,6 +98,7 @@ export interface Event {
   dutyLeaveEligibility?: string[];
   hasSponsorship?: boolean;
   sponsors?: Array<{ name: string; amount: number; type: string; notes?: string }>;
+  showSponsorshipPublicly?: boolean;  // Creator decides at publish: show sponsorship to users
   hasResources?: boolean;
   resources?: Array<{ category: string; type: string; description: string; estimatedCost?: number }>;
   currentRegistrations: number;

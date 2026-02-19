@@ -31,33 +31,20 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 
 export default function MyCreatedEventsPage() {
   const { toast } = useToast();
-  const [events, setEvents] = useState<Event[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
   const [activeTab, setActiveTab] = useState<'draft' | 'published' | 'past'>('published');
 
+  // Fetch ALL my events once - used for both summary boxes and tab-filtered list
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const filters: EventFilters = {
-        myEvents: true, // Only show events created by the logged-in user
-      };
-
-      // Apply status filter based on active tab
-      if (activeTab === 'draft') {
-        filters.status = 'draft';
-      } else if (activeTab === 'published') {
-        filters.status = 'published';
-      } else if (activeTab === 'past') {
-        // Show both completed and cancelled
-        // Note: Backend may need to support multiple statuses
-        filters.status = 'completed';
-      }
-
-      const result = await eventService.getEvents(filters, page, 20);
-      setEvents(result.events);
-      setPagination(result.pagination);
+      const result = await eventService.getEvents(
+        { myEvents: true },
+        1,
+        100
+      );
+      setAllEvents(result.events);
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
@@ -66,12 +53,15 @@ export default function MyCreatedEventsPage() {
   };
 
   useEffect(() => {
-    setPage(1); // Reset to page 1 when tab changes
-  }, [activeTab]);
-
-  useEffect(() => {
     fetchEvents();
-  }, [page, activeTab]);
+  }, []);
+
+  // Filter events by active tab (client-side - no refetch, data persists)
+  const events = React.useMemo(() => {
+    if (activeTab === 'draft') return allEvents.filter((e) => e.status === 'draft');
+    if (activeTab === 'published') return allEvents.filter((e) => e.status === 'published' || e.status === 'ongoing');
+    return allEvents.filter((e) => e.status === 'completed' || e.status === 'cancelled');
+  }, [allEvents, activeTab]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -86,16 +76,18 @@ export default function MyCreatedEventsPage() {
     if (!event.venue) missingFields.push('Venue');
     if (!event.registrationStartDate) missingFields.push('Registration Start Date');
     if (!event.registrationEndDate) missingFields.push('Registration End Date');
-    
+
     return {
       isComplete: missingFields.length === 0,
       missingFields
     };
   };
 
-  const draftCount = events.filter(e => e.status === 'draft').length;
-  const publishedCount = events.filter(e => e.status === 'published').length;
-  const pastCount = events.filter(e => ['completed', 'cancelled'].includes(e.status)).length;
+  // Summary counts from ALL events (not filtered by tab)
+  const draftCount = allEvents.filter((e) => e.status === 'draft').length;
+  const publishedCount = allEvents.filter((e) => e.status === 'published' || e.status === 'ongoing').length;
+  const pastCount = allEvents.filter((e) => e.status === 'completed' || e.status === 'cancelled').length;
+  const totalRegistrations = allEvents.reduce((sum, e) => sum + (e.currentRegistrations || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -106,82 +98,60 @@ export default function MyCreatedEventsPage() {
           <p className="text-gray-600 dark:text-gray-400">Events you organized through approved noting requests</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 sm:mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Draft Events</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{draftCount}</p>
-              </div>
-              <AlertCircle className="h-8 w-8 text-yellow-500" />
+        {/* Stats Cards - compact */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-sgt-200 dark:border-sgt-700 p-3 flex items-center gap-3">
+            <AlertCircle className="h-6 w-6 text-yellow-500 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">Drafts</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">{draftCount}</p>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Complete details & publish
-            </p>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Published Events</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">{publishedCount}</p>
-              </div>
-              <CheckCircle className="h-8 w-8 text-blue-500" />
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-sgt-200 dark:border-sgt-700 p-3 flex items-center gap-3">
+            <CheckCircle className="h-6 w-6 text-blue-500 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">Published</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">{publishedCount}</p>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Live and accepting registrations
-            </p>
           </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Registrations</p>
-                <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {events.reduce((sum, e) => sum + (e.currentRegistrations || 0), 0)}
-                </p>
-              </div>
-              <Users className="h-8 w-8 text-green-500" />
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-sgt-200 dark:border-sgt-700 p-3 flex items-center gap-3">
+            <Users className="h-6 w-6 text-green-500 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wide">Registrations</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white">{totalRegistrations}</p>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              Across all your events
-            </p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="mb-4 sm:mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
+        <div className="mb-4 border-b border-gray-200 dark:border-gray-700 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          <nav className="-mb-px flex space-x-4 min-w-max">
             <button
               onClick={() => setActiveTab('published')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${
-                activeTab === 'published'
+              className={`py-3 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${activeTab === 'published'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Published
             </button>
             <button
               onClick={() => setActiveTab('draft')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${
-                activeTab === 'draft'
+              className={`py-3 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${activeTab === 'draft'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Drafts {draftCount > 0 && `(${draftCount})`}
             </button>
             <button
               onClick={() => setActiveTab('past')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${
-                activeTab === 'past'
+              className={`py-3 px-1 border-b-2 font-medium text-sm flex-shrink-0 whitespace-nowrap ${activeTab === 'past'
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
-              Past Events
+              Past Events {pastCount > 0 && `(${pastCount})`}
             </button>
           </nav>
         </div>
@@ -227,7 +197,7 @@ export default function MyCreatedEventsPage() {
               {events.map((event) => {
                 const StatusIcon = STATUS_CONFIG[event.status]?.icon;
                 const { isComplete, missingFields } = getDraftCompletionStatus(event);
-                
+
                 return (
                   <div
                     key={event.id}
@@ -268,7 +238,7 @@ export default function MyCreatedEventsPage() {
                             <Calendar className="h-4 w-4" />
                             <span>{formatDate(event.startDate)} - {formatDate(event.endDate)}</span>
                           </div>
-                          
+
                           {event.venue ? (
                             <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                               <MapPin className="h-4 w-4" />
@@ -292,12 +262,11 @@ export default function MyCreatedEventsPage() {
                             </span>
                             <span className="text-gray-500">registered</span>
                           </div>
-                          
-                          <div className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            event.paymentType === 'free'
+
+                          <div className={`px-2 py-1 text-xs font-medium rounded-full ${event.paymentType === 'free'
                               ? 'bg-green-100 text-green-800'
                               : 'bg-blue-100 text-blue-800'
-                          }`}>
+                            }`}>
                             {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
                           </div>
                         </div>
@@ -337,15 +306,16 @@ export default function MyCreatedEventsPage() {
                           </Link>
                         )}
 
+                        <Link
+                          href={`/events/${event.id}/management`}
+                          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors shadow-sm"
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                          Event Management
+                        </Link>
+
                         {event.status !== 'draft' && (
                           <>
-                            <Link
-                              href={`/events/${event.id}/management`}
-                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors shadow-sm"
-                            >
-                              <BarChart3 className="h-4 w-4" />
-                              Event Management
-                            </Link>
                             <Link
                               href={`/events/${event.id}/manage`}
                               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
@@ -369,30 +339,6 @@ export default function MyCreatedEventsPage() {
               })}
             </div>
 
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
-                
-                <button
-                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-                  disabled={page === pagination.totalPages}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
           </>
         )}
       </div>
