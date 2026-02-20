@@ -14,10 +14,7 @@
     "axios": "^1.6.2",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.27.1",
-<<<<<<< HEAD
-=======
     "html2canvas": "^1.4.1",
->>>>>>> f164062eaadf3cbb54cdc784c4a945643b4e0530
     "html5-qrcode": "^2.3.8",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.292.0",
