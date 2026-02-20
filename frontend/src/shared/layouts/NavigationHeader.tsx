@@ -563,15 +563,7 @@ export default function NavigationHeader() {
       }}
     >
       {/* Single Line Header */}
-      <div className="h-14 sm:h-14 sm:h-16 px-3 sm:px-4 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Mobile Menu Button */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 text-white/90 hover:bg-white/10 rounded-lg transition-colors"
-        >
-          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-
+      <div className="h-14 sm:h-16 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
         {/* Mobile Menu Button */}
         <button
           onClick={() => { setMobileMenuOpen(!mobileMenuOpen); if (mobileMenuOpen) setExpandedMobileSection(null); }}
@@ -582,20 +574,20 @@ export default function NavigationHeader() {
         </button>
 
         {/* Logo Section */}
-        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
+        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
           <img 
             src="/images/new-header-logo.png" 
             alt="SGT University" 
-            className="h-10 sm:h-8 sm:h-12 object-contain brightness-0 invert"
+            className="h-10 sm:h-12 object-contain brightness-0 invert"
           />
-          <div className="hidden sm:block xl:block">
+          <div className="hidden sm:block">
             <div className="text-white font-bold text-xs sm:text-sm leading-tight">UNIVERSITY</div>
             <div className="text-white/70 text-[10px] sm:text-xs leading-tight">MANAGEMENT SYSTEM</div>
           </div>
         </Link>
 
         {/* Navigation Section - Center (Desktop only) (Hidden on Mobile) */}
-        <nav className="hidden lg:hidden lg:flex items-center gap-2 flex-1 justify-center">
+        <nav className="hidden lg:flex items-center gap-2 flex-1 justify-center">
           {/* Dashboard Link */}
           <Link
             href="/dashboard"
