@@ -292,7 +292,14 @@ class HostelBookingService {
   async confirmPayment(bookingId, paymentReference, verifiedByUserId) {
     try {
       const booking = await prisma.hostelBooking.findUnique({
-        where: { id: bookingId }
+        where: { id: bookingId },
+        include: {
+          gate_pass: {
+            select: {
+              created_by_user_id: true
+            }
+          }
+        }
       });
 
       if (!booking) {
@@ -301,6 +308,19 @@ class HostelBookingService {
 
       if (booking.payment_status === 'completed') {
         throw new Error('Payment already confirmed');
+      }
+
+      // Check if user is the creator of the associated pass
+      const user = await prisma.userLogin.findUnique({
+        where: { id: verifiedByUserId },
+        select: { role: true }
+      });
+      
+      const isAdmin = user?.role?.toLowerCase() === 'admin';
+      const isCreator = booking.gate_pass?.created_by_user_id === verifiedByUserId;
+      
+      if (!isAdmin && !isCreator) {
+        throw new Error('Only the pass creator or admin can confirm payment');
       }
 
       const updatedBooking = await prisma.hostelBooking.update({
