@@ -9,9 +9,43 @@ const {
   canCancelPass,
   canExtendPass
 } = require('../../../shared/middleware/gateEntryAuth');
+const { getStudentGuardians } = require('../services/guardian.service');
 
 // All routes require authentication
 router.use(protect);
+
+/**
+ * @route GET /api/v1/gate-entry/guardians
+ * @desc Get student's guardians/parents
+ * @access Private (Students only)
+ */
+router.get('/guardians', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role?.toLowerCase();
+    
+    if (userRole !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only students can access guardian list'
+      });
+    }
+    
+    const guardians = await getStudentGuardians(userId);
+    
+    res.json({
+      success: true,
+      data: { guardians }
+    });
+  } catch (error) {
+    console.error('[GET GUARDIANS] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch guardians',
+      error: error.message
+    });
+  }
+});
 
 /**
  * @route POST /api/v1/gate-entry/create-pass

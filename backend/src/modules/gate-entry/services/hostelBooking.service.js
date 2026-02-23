@@ -162,6 +162,12 @@ class HostelBookingService {
     } = bookingData;
 
     try {
+      // Validate and convert guestCount to integer
+      const guestCountInt = parseInt(guestCount, 10);
+      if (isNaN(guestCountInt) || guestCountInt < 1) {
+        throw new Error('Invalid guest count. Please provide a valid number of guests.');
+      }
+
       // Resolve pass_id (formatted string) to UUID
       const gatePass = await prisma.gate_pass.findUnique({
         where: { pass_id: passId },
@@ -217,7 +223,7 @@ class HostelBookingService {
         throw new Error('Room is currently unavailable');
       }
 
-      if (guestCount > room.max_occupancy) {
+      if (guestCountInt > room.max_occupancy) {
         throw new Error(`Room can accommodate maximum ${room.max_occupancy} guests`);
       }
 
@@ -240,7 +246,7 @@ class HostelBookingService {
           room: { connect: { id: roomId } },
           check_in_date: checkIn,
           check_out_date: checkOut,
-          guest_count: guestCount,
+          guest_count: guestCountInt, // Use converted integer
           total_price: totalPrice,
           booking_status: 'pending',
           payment_status: 'pending',
