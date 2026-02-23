@@ -162,6 +162,12 @@ class HostelBookingService {
     } = bookingData;
 
     try {
+      // Validate and convert guestCount to integer
+      const guestCountInt = parseInt(guestCount, 10);
+      if (isNaN(guestCountInt) || guestCountInt < 1) {
+        throw new Error('Invalid guest count. Please provide a valid number of guests.');
+      }
+
       // Resolve pass_id (formatted string) to UUID
       const gatePass = await prisma.gate_pass.findUnique({
         where: { pass_id: passId },
@@ -217,7 +223,7 @@ class HostelBookingService {
         throw new Error('Room is currently unavailable');
       }
 
-      if (guestCount > room.max_occupancy) {
+      if (guestCountInt > room.max_occupancy) {
         throw new Error(`Room can accommodate maximum ${room.max_occupancy} guests`);
       }
 
@@ -240,7 +246,7 @@ class HostelBookingService {
           room: { connect: { id: roomId } },
           check_in_date: checkIn,
           check_out_date: checkOut,
-          guest_count: guestCount,
+          guest_count: guestCountInt, // Use converted integer
           total_price: totalPrice,
           booking_status: 'pending',
           payment_status: 'pending',
@@ -292,7 +298,14 @@ class HostelBookingService {
   async confirmPayment(bookingId, paymentReference, verifiedByUserId) {
     try {
       const booking = await prisma.hostelBooking.findUnique({
-        where: { id: bookingId }
+        where: { id: bookingId },
+        include: {
+          gate_pass: {
+            select: {
+              created_by_user_id: true
+            }
+          }
+        }
       });
 
       if (!booking) {
@@ -301,6 +314,19 @@ class HostelBookingService {
 
       if (booking.payment_status === 'completed') {
         throw new Error('Payment already confirmed');
+      }
+
+      // Check if user is the creator of the associated pass
+      const user = await prisma.userLogin.findUnique({
+        where: { id: verifiedByUserId },
+        select: { role: true }
+      });
+      
+      const isAdmin = user?.role?.toLowerCase() === 'admin';
+      const isCreator = booking.gate_pass?.created_by_user_id === verifiedByUserId;
+      
+      if (!isAdmin && !isCreator) {
+        throw new Error('Only the pass creator or admin can confirm payment');
       }
 
       const updatedBooking = await prisma.hostelBooking.update({

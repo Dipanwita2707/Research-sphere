@@ -583,6 +583,14 @@ class GateEntryService {
       throw error;
     }
   }
+
+  /**
+   * Get student's guardians/parents
+   */
+  async getGuardians(): Promise<any> {
+    const response = await api.get<any>('/gate-entry/guardians');
+    return response.data;
+  }
 }
 
 export const gateEntryService = new GateEntryService();

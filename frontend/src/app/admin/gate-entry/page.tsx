@@ -10,6 +10,7 @@ import { gateEntryService, type GatePass } from '@/shared/services/gateEntry.ser
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import ExtendPassModal from './components/ExtendPassModal';
+import { canExtendPass, canCancelPass } from '@/shared/utils/gateEntryPermissions';
 
 interface Pass {
   id: string;
@@ -79,6 +80,30 @@ const STATUS_CONFIG = {
 export default function AllPassesPage() {
   const { user } = useAuthStore();
   const toast = useToast();
+  
+  // Safe date formatting utilities
+  const safeFormatDate = (dateValue: any, defaultValue: string = 'N/A'): string => {
+    if (!dateValue) return defaultValue;
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return defaultValue;
+      return date.toLocaleDateString();
+    } catch {
+      return defaultValue;
+    }
+  };
+
+  const safeFormatDateTime = (dateValue: any, defaultValue: string = 'N/A', options?: Intl.DateTimeFormatOptions): string => {
+    if (!dateValue) return defaultValue;
+    try {
+      const date = new Date(dateValue);
+      if (isNaN(date.getTime())) return defaultValue;
+      return date.toLocaleString('en-US', options);
+    } catch {
+      return defaultValue;
+    }
+  };
+
   const [passes, setPasses] = useState<Pass[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -102,8 +127,40 @@ export default function AllPassesPage() {
   // Fetch passes from backend
   useEffect(() => {
     fetchPasses();
-    fetchStats();
   }, []);
+
+  // Calculate stats from passes array (no API call needed)
+  useEffect(() => {
+    try {
+      if (passes && passes.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        
+        const calculated = {
+          total: passes.length,
+          active: passes.filter(p => {
+            if (!p.check_in_time) return false;
+            try {
+              const passDate = new Date(p.check_in_time).toISOString().split('T')[0];
+              return passDate === today && p.pass_status === 'checked_in';
+            } catch {
+              return false;
+            }
+          }).length,
+          pending: passes.filter(p => p.pass_status === 'pending').length,
+          completed: passes.filter(p => p.pass_status === 'checked_out' || p.status === 'completed').length,
+          expired: passes.filter(p => p.pass_status === 'expired').length,
+        };
+        
+        setStats(calculated);
+      } else {
+        setStats({ total: 0, active: 0, pending: 0, completed: 0, expired: 0 });
+      }
+    } catch (err) {
+      console.error('Error calculating stats:', err);
+      // Fallback to zero stats on error
+      setStats({ total: 0, active: 0, pending: 0, completed: 0, expired: 0 });
+    }
+  }, [passes]);
 
   // Debug selectedPass data
   useEffect(() => {
@@ -142,14 +199,7 @@ export default function AllPassesPage() {
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const statsData = await gateEntryService.getStats();
-      setStats(statsData);
-    } catch (err) {
-      console.error('Error fetching stats:', err);
-    }
-  };
+  // Stats are now calculated from passes array, no separate API call needed
 
   const getQRStatusBadge = (qrStatus?: string) => {
     if (!qrStatus) return null;
@@ -192,14 +242,20 @@ export default function AllPassesPage() {
 
       // Date filter
       let dateMatch = true;
-      const today = new Date().toISOString().split('T')[0];
-      const passDate = (pass.visitDate || '').split('T')[0]; // Extract date part from ISO string
-      if (dateFilter === 'today') {
-        dateMatch = passDate === today;
-      } else if (dateFilter === 'upcoming') {
-        dateMatch = passDate > today;
-      } else if (dateFilter === 'past') {
-        dateMatch = passDate < today;
+      if (dateFilter !== 'all') {
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          const passDate = (pass.visitDate || '').split('T')[0]; // Extract date part from ISO string
+          if (dateFilter === 'today') {
+            dateMatch = passDate === today;
+          } else if (dateFilter === 'upcoming') {
+            dateMatch = passDate > today;
+          } else if (dateFilter === 'past') {
+            dateMatch = passDate < today;
+          }
+        } catch {
+          dateMatch = true; // On error, include the pass
+        }
       }
 
       return searchMatch && statusMatch && dateMatch;
@@ -219,15 +275,24 @@ export default function AllPassesPage() {
     setCancellingPass(true);
     try {
       const response = await gateEntryService.cancelPass(selectedPass.passId, cancelReason);
+      const cancelledPass = response.pass;
       
-      toast.success('Pass cancelled successfully. Checkout QR code sent to visitor (valid for 1 hour).', 'Pass Cancelled');
-      
-      // Close modal and refresh data
+      // Close modal first
       setShowCancelModal(false);
       setCancelReason('');
       setSelectedPass(null);
+      
+      // Show beautiful success modal with checkout details
+      toast.showSuccessModal({
+        title: 'Pass Cancelled Successfully!',
+        message: 'Emergency checkout QR and code sent to visitor (valid for 1 hour).',
+        passId: cancelledPass.passId,
+        verificationCode: cancelledPass.checkoutVerificationCode || cancelledPass.checkoutUniqueId,
+        mobile: cancelledPass.mobileNumber,
+        email: cancelledPass.email || undefined,
+      });
+      
       await fetchPasses();
-      await fetchStats();
     } catch (err: any) {
       console.error('Error cancelling pass:', err);
       toast.error(err.response?.data?.message || 'Failed to cancel pass', 'Error');
@@ -296,7 +361,6 @@ export default function AllPassesPage() {
               onClick={() => {
                 setError(null);
                 fetchPasses();
-                fetchStats();
               }}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
             >
@@ -320,9 +384,8 @@ export default function AllPassesPage() {
               <p className="text-xs md:text-sm text-gray-600 mt-1">
                 {(() => {
                   const role = (user?.role?.name || '').toLowerCase();
-                  const designation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
-                  const isAdmin = role === 'admin';
-                  const isGuard = designation.includes('guard') || designation.includes('security') || designation.includes('volunteer');
+                  const isAdmin = role === 'admin' || role === 'superadmin';
+                  const isGuard = role === 'staff';  // ✅ ROLE-BASED (Correct!)
                   
                   if (isAdmin) {
                     return '👨‍💼 Admin View: Showing all gate passes';
@@ -338,7 +401,6 @@ export default function AllPassesPage() {
               <button
                 onClick={() => {
                   fetchPasses();
-                  fetchStats();
                 }}
                 className="px-3 md:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
               >
@@ -569,7 +631,10 @@ export default function AllPassesPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            {(pass.status === 'checked_in' || pass.passStatus === 'checked_in') && (
+                            
+                            {/* Cancel button - Context-dependent (after check-in) */}
+                            {(pass.status === 'checked_in' || pass.passStatus === 'checked_in') && 
+                             canCancelPass(user, pass) && (
                               <button
                                 onClick={() => {
                                   setSelectedPass(pass);
@@ -581,7 +646,9 @@ export default function AllPassesPage() {
                                 <X className="w-4 h-4" />
                               </button>
                             )}
-                            {(pass.status === 'active' || pass.status === 'pending') && (
+                            
+                            {/* Cancel button - Before check-in (only Creator/Admin) */}
+                            {(pass.status === 'active' || pass.status === 'pending' || pass.status === 'created') && (
                               <>
                                 <button
                                   onClick={() => handleResendNotification(pass)}
@@ -590,13 +657,15 @@ export default function AllPassesPage() {
                                 >
                                   <Send className="w-4 h-4" />
                                 </button>
-                                <button
-                                  onClick={() => handleCancelPass(pass.passId)}
-                                  className="text-red-600 hover:text-red-800"
-                                  title="Cancel Pass"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
+                                {canCancelPass(user, pass) && (
+                                  <button
+                                    onClick={() => handleCancelPass(pass.passId)}
+                                    className="text-red-600 hover:text-red-800"
+                                    title="Cancel Pass"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
                               </>
                             )}
                           </div>
@@ -678,7 +747,7 @@ export default function AllPassesPage() {
                         <div><dt className="text-gray-600">Entry Time:</dt><dd className="font-medium">{selectedPass.entryTime || selectedPass.expectedEntryTime}</dd></div>
                       )}
                       {selectedPass.qrActivationTime && (
-                        <div><dt className="text-gray-600">QR Activates:</dt><dd className="font-medium text-blue-600">{new Date(selectedPass.qrActivationTime).toLocaleString()}</dd></div>
+                        <div><dt className="text-gray-600">QR Activates:</dt><dd className="font-medium text-blue-600">{safeFormatDateTime(selectedPass.qrActivationTime)}</dd></div>
                       )}
                     </dl>
                   </div>
@@ -702,8 +771,8 @@ export default function AllPassesPage() {
                     <div>
                       <h5 className="font-semibold text-gray-900 mb-3">Stay Information</h5>
                       <dl className="space-y-2 text-sm">
-                        <div><dt className="text-gray-600">Check-in Date:</dt><dd className="font-medium">{selectedPass.checkInDate ? new Date(selectedPass.checkInDate).toLocaleDateString() : (selectedPass.visitDate ? new Date(selectedPass.visitDate).toLocaleDateString() : 'N/A')}</dd></div>
-                        <div><dt className="text-gray-600">Check-out Date:</dt><dd className="font-medium">{selectedPass.checkOutDate ? new Date(selectedPass.checkOutDate).toLocaleDateString() : 'N/A'}</dd></div>
+                        <div><dt className="text-gray-600">Check-in Date:</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkInDate || selectedPass.visitDate)}</dd></div>
+                        <div><dt className="text-gray-600">Check-out Date:</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkOutDate)}</dd></div>
                         {selectedPass.hostelName && (
                           <div><dt className="text-gray-600">Hostel:</dt><dd className="font-medium">{selectedPass.hostelName}</dd></div>
                         )}
@@ -729,7 +798,7 @@ export default function AllPassesPage() {
                           />
                           <div className="text-sm space-y-2">
                             <p className="text-gray-700">
-                              <strong>Expires:</strong> {new Date(selectedPass.checkoutQrExpiresAt || '').toLocaleString()}
+                              <strong>Expires:</strong> {safeFormatDateTime(selectedPass.checkoutQrExpiresAt)}
                             </p>
                             <p className="text-orange-600 font-medium">
                               ⏰ Valid for 1 hour only. Visitor must exit within this time.
@@ -761,13 +830,13 @@ export default function AllPassesPage() {
                   <div>
                     <h5 className="font-semibold text-gray-900 mb-3">Entry/Exit Records</h5>
                     <dl className="space-y-2 text-sm">
-                      <div><dt className="text-gray-600">Created At:</dt><dd className="font-medium">{new Date(selectedPass.createdAt).toLocaleString()}</dd></div>
+                      <div><dt className="text-gray-600">Created At:</dt><dd className="font-medium">{safeFormatDateTime(selectedPass.createdAt)}</dd></div>
                       <div><dt className="text-gray-600">Created By:</dt><dd className="font-medium">{selectedPass.creator?.username || 'Unknown'}</dd></div>
                       {selectedPass.actualEntryTime && (
                         <div className="text-green-600">
                           <dt>Entry Time:</dt>
                           <dd className="font-medium">
-                            {new Date(selectedPass.actualEntryTime).toLocaleString('en-US', { 
+                            {safeFormatDateTime(selectedPass.actualEntryTime, 'N/A', { 
                               dateStyle: 'short', 
                               timeStyle: 'short',
                               hour12: true 
@@ -779,7 +848,7 @@ export default function AllPassesPage() {
                         <div className="text-gray-600">
                           <dt>Exit Time:</dt>
                           <dd className="font-medium">
-                            {new Date(selectedPass.actualExitTime).toLocaleString('en-US', { 
+                            {safeFormatDateTime(selectedPass.actualExitTime, 'N/A', { 
                               dateStyle: 'short', 
                               timeStyle: 'short',
                               hour12: true 
@@ -808,7 +877,9 @@ export default function AllPassesPage() {
               </div>
 
               <div className="border-t border-gray-200 px-6 py-4 flex flex-wrap gap-3">
-                {(selectedPass.passStatus === 'created' || selectedPass.passStatus === 'checked_in' || selectedPass.status === 'active' || selectedPass.status === 'checked_in') && (
+                {/* Extend Pass - Only show if user has permission (Creator or Admin) */}
+                {(selectedPass.passStatus === 'created' || selectedPass.passStatus === 'checked_in' || selectedPass.status === 'active' || selectedPass.status === 'checked_in') && 
+                 canExtendPass(user, selectedPass) && (
                   <button
                     onClick={() => {
                       setSelectedPassForExtend(selectedPass);
@@ -855,7 +926,6 @@ export default function AllPassesPage() {
             }}
             onSuccess={async (updatedPass?: Pass) => {
               await fetchPasses();
-              await fetchStats();
               setShowExtendModal(false);
               setSelectedPassForExtend(null);
               // Update the pass details view with the updated pass from API response

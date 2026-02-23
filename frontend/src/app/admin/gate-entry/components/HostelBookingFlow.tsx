@@ -125,7 +125,24 @@ export default function HostelBookingFlow({
       }
     } catch (error: any) {
       console.error('Error creating booking:', error);
-      showError(error.response?.data?.message || 'Failed to create booking');
+      
+      // Extract user-friendly error message
+      let errorMessage = 'Unable to create booking. Please try again.';
+      
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        // Don't show technical Prisma or database errors to users
+        if (error.message.includes('Invalid `prisma') || 
+            error.message.includes('Argument') || 
+            error.message.includes('Expected')) {
+          errorMessage = 'There was a problem with your booking details. Please check and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }

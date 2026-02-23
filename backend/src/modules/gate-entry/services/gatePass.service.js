@@ -1,6 +1,7 @@
 const prisma = require('../../../shared/config/database');
 const QRCode = require('qrcode');
 const XLSX = require('xlsx');
+const { hasViewAllPermission } = require('../../../shared/middleware/gateEntryAuth');
 
 // Simple logger
 const logger = {
@@ -50,6 +51,8 @@ class GatePassService {
       actualExitTime: formatDateForFrontend(pass.actual_exit_time),
       qrStatus: pass.qr_status,
       qrActivationTime: formatDateForFrontend(pass.qr_activation_time),
+      checkoutUniqueId: pass.checkout_unique_id,
+      checkoutVerificationCode: pass.checkout_verification_code,
       checkoutQrCode: pass.checkout_qr_code,
       checkoutQrExpiresAt: formatDateForFrontend(pass.checkout_qr_expires_at),
       extensionCount: pass.extension_count,
@@ -430,8 +433,8 @@ class GatePassService {
    */
   async getAllPasses(filters = {}) {
     try {
-      // Auto-expire past date passes before fetching
-      await this.expirePastPasses();
+      // NOTE: Not auto-expiring here to prevent timeout on frequent reads
+      // Expiry is handled by: 1) getPassStats (runs less frequently), 2) cron job, 3) individual pass checks
 
       const {
         search,
@@ -442,33 +445,22 @@ class GatePassService {
         userId
       } = filters;
 
-      // Check user role for filtering
+      // Check user role for filtering using new permission system
       let showAllPasses = false;
       if (userId) {
         const user = await prisma.userLogin.findUnique({
           where: { id: userId },
           select: {
             id: true,
-            role: true,
-            employeeDetails: {
-              select: {
-                designation: true
-              }
-            }
+            role: true
           }
         });
 
         if (user) {
-          const role = user.role?.toLowerCase() || '';
-          const designation = user.employeeDetails?.designation?.toLowerCase() || '';
+          // Use new permission system: Admin and Guard (staff) see all passes
+          showAllPasses = hasViewAllPermission(user);
           
-          const isAdmin = role === 'admin';
-          const isGuard = designation.includes('guard') || designation.includes('security') || designation.includes('volunteer');
-          
-          // Admin and Guards see all passes
-          showAllPasses = isAdmin || isGuard;
-          
-          console.log(`[PASS FILTER] User: ${userId}, Role: ${role}, Designation: ${designation}, ShowAll: ${showAllPasses}`);
+          console.log(`[PASS FILTER] User: ${userId}, Role: ${user.role}, VIEW_ALL Permission: ${showAllPasses}`);
         }
       }
 
@@ -603,33 +595,22 @@ class GatePassService {
       // Auto-expire past passes first
       await this.expirePastPasses();
 
-      // Determine if user should see all passes or only their own
+      // Determine if user should see all passes or only their own (using new permission system)
       let showAllPasses = false;
       
       if (userId) {
         const user = await prisma.userLogin.findUnique({
           where: { id: userId },
           select: {
-            role: true,
-            employeeDetails: {
-              select: {
-                designation: true
-              }
-            }
+            role: true
           }
         });
 
         if (user) {
-          const role = user.role?.toLowerCase() || '';
-          const designation = user.employeeDetails?.designation?.toLowerCase() || '';
+          // Use new permission system: Admin and Guard (staff) see all stats
+          showAllPasses = hasViewAllPermission(user);
           
-          const isAdmin = role === 'admin';
-          const isGuard = designation.includes('guard') || designation.includes('security') || designation.includes('volunteer');
-          
-          // Admin and Guards see all passes
-          showAllPasses = isAdmin || isGuard;
-          
-          console.log(`[STATS FILTER] User: ${userId}, Role: ${role}, Designation: ${designation}, ShowAll: ${showAllPasses}`);
+          console.log(`[STATS FILTER] User: ${userId}, Role: ${user.role}, VIEW_ALL Permission: ${showAllPasses}`);
         }
       }
 
@@ -687,8 +668,8 @@ class GatePassService {
    */
   async verifyPass(searchTerm, searchType) {
     try {
-      // Auto-expire past passes before verification
-      await this.expirePastPasses();
+      // NOTE: Not auto-expiring here to keep verification fast
+      // Pass expiry is checked individually after retrieval
 
       const where = {};
 
