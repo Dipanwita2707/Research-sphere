@@ -48,6 +48,59 @@ router.get('/guardians', async (req, res) => {
 });
 
 /**
+ * @route GET /api/v1/gate-entry/check-duplicate
+ * @desc Check if a duplicate pass exists for the same visitor
+ * @access Private (Authenticated users)
+ */
+router.get('/check-duplicate', async (req, res) => {
+  try {
+    const { mobile, name, visitDate, visitEndDate } = req.query;
+    
+    // Validate required parameters
+    if (!mobile || !name || !visitDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mobile number, name, and visit date are required'
+      });
+    }
+    
+    // Import service
+    const GatePassService = require('../services/gatePass.service');
+    const gatePassService = new GatePassService();
+    
+    // Check for duplicates
+    const result = await gatePassService.checkDuplicatePass(
+      mobile,
+      name,
+      visitDate,
+      visitEndDate || null
+    );
+    
+    if (result.isDuplicate) {
+      return res.json({
+        success: true,
+        isDuplicate: true,
+        message: `${name} (${mobile}) already has an active pass`,
+        conflictingPasses: result.conflictingPasses
+      });
+    }
+    
+    res.json({
+      success: true,
+      isDuplicate: false,
+      message: 'No duplicate pass found'
+    });
+  } catch (error) {
+    console.error('[CHECK DUPLICATE] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check for duplicate passes',
+      error: error.message
+    });
+  }
+});
+
+/**
  * @route POST /api/v1/gate-entry/create-pass
  * @desc Create a new gate pass
  * @access Private (Students can create, others have full access)
@@ -67,6 +120,13 @@ router.get('/passes', checkGateEntryAccess(), gatePassController.getAllPasses);
  * @access Private (Admin only - Analytics permission required)
  */
 router.get('/stats', canViewAnalytics, gatePassController.getStats);
+
+/**
+ * @route GET /api/v1/gate-entry/analytics
+ * @desc Get comprehensive analytics for Gate Entry module
+ * @access Private (Admin only - Analytics permission required)
+ */
+router.get('/analytics', canViewAnalytics, gatePassController.getAdvancedAnalytics);
 
 /**
  * @route POST /api/v1/gate-entry/verify

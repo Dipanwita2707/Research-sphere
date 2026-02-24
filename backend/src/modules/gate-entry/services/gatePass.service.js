@@ -112,6 +112,122 @@ class GatePassService {
   }
 
   /**
+   * Check for duplicate passes for same visitor
+   * @param {string} mobileNumber - Visitor's mobile number
+   * @param {string} visitorName - Visitor's name
+   * @param {Date} visitDate - Start date of visit
+   * @param {Date} visitEndDate - End date of visit (null for single-day)
+   * @returns {Object} { isDuplicate: boolean, conflictingPasses: [] }
+   */
+  async checkDuplicatePass(mobileNumber, visitorName, visitDate, visitEndDate = null) {
+    try {
+      // Normalize visitor name for case-insensitive comparison
+      const normalizedName = visitorName.trim();
+      
+      // Parse dates for comparison
+      const startDate = new Date(visitDate);
+      const endDate = visitEndDate ? new Date(visitEndDate) : startDate;
+      
+      console.log('[DUPLICATE CHECK] Checking for:', {
+        mobile: mobileNumber,
+        name: normalizedName,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+
+      // Find conflicting passes
+      // Exclude: cancelled, expired, checked_out statuses
+      const conflictingPasses = await prisma.gate_pass.findMany({
+        where: {
+          mobile_number: mobileNumber,
+          visitor_name: {
+            equals: normalizedName,
+            mode: 'insensitive' // Case-insensitive match
+          },
+          pass_status: {
+            notIn: ['cancelled', 'expired', 'checked_out']
+          },
+          // Date overlap check:
+          // Conflicts if: (existing_start <= new_end) AND (existing_end >= new_start)
+          AND: [
+            {
+              visit_date: {
+                lte: endDate
+              }
+            },
+            {
+              OR: [
+                // Single-day pass (no visit_end_date)
+                {
+                  AND: [
+                    { visit_end_date: null },
+                    { visit_date: { gte: startDate } }
+                  ]
+                },
+                // Multi-day pass with visit_end_date
+                {
+                  visit_end_date: {
+                    gte: startDate
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        select: {
+          pass_id: true,
+          visitor_name: true,
+          mobile_number: true,
+          visit_date: true,
+          visit_end_date: true,
+          entry_time: true,
+          pass_status: true,
+          qr_status: true,
+          created_at: true
+        },
+        orderBy: {
+          visit_date: 'asc'
+        }
+      });
+
+      if (conflictingPasses.length > 0) {
+        console.log('[DUPLICATE FOUND]', {
+          count: conflictingPasses.length,
+          passes: conflictingPasses.map(p => ({
+            pass_id: p.pass_id,
+            visit_date: p.visit_date,
+            visit_end_date: p.visit_end_date,
+            status: p.pass_status
+          }))
+        });
+
+        return {
+          isDuplicate: true,
+          conflictingPasses: conflictingPasses.map(pass => ({
+            passId: pass.pass_id,
+            visitorName: pass.visitor_name,
+            visitDate: pass.visit_date,
+            visitEndDate: pass.visit_end_date,
+            entryTime: pass.entry_time,
+            status: pass.pass_status,
+            qrStatus: pass.qr_status,
+            createdAt: pass.created_at
+          }))
+        };
+      }
+
+      console.log('[DUPLICATE CHECK] No conflicts found');
+      return {
+        isDuplicate: false,
+        conflictingPasses: []
+      };
+    } catch (error) {
+      logger.error('Error checking duplicate pass:', error);
+      throw new Error('Failed to check for duplicate passes');
+    }
+  }
+
+  /**
    * Generate QR Code for gate pass
    */
   async generateQRCode(pass_id) {
@@ -252,6 +368,26 @@ class GatePassService {
         throw new Error('Purpose of visit is required');
       }
 
+      // Check for duplicate passes
+      const duplicateCheck = await this.checkDuplicatePass(
+        data.mobile_number,
+        data.visitor_name,
+        data.visit_date,
+        data.visit_end_date || null
+      );
+
+      if (duplicateCheck.isDuplicate) {
+        const conflictingPass = duplicateCheck.conflictingPasses[0];
+        const dateRange = conflictingPass.visitEndDate 
+          ? `${new Date(conflictingPass.visitDate).toLocaleDateString()} to ${new Date(conflictingPass.visitEndDate).toLocaleDateString()}`
+          : new Date(conflictingPass.visitDate).toLocaleDateString();
+        
+        throw new Error(
+          `${data.visitor_name} (${data.mobile_number}) already has an active pass (${conflictingPass.passId}) for ${dateRange}. ` +
+          `Status: ${conflictingPass.status}. Please cancel or complete the existing pass before creating a new one.`
+        );
+      }
+
       // Student role validation - can only create passes for parents
       if (created_by_id) {
         const creator = await prisma.userLogin.findUnique({
@@ -314,6 +450,17 @@ class GatePassService {
       // Generate 6-digit verification code
       const verification_code = this.generateVerificationCode();
       
+      // Calculate checkout QR expiry (midnight of the day AFTER visit_end_date or visit_date)
+      const effectiveEndDate = data.visit_end_date 
+        ? new Date(new Date(data.visit_end_date).getTime() + istOffset)
+        : visit_date;
+      effectiveEndDate.setUTCHours(0, 0, 0, 0);
+      
+      // Add 1 day to get midnight of the next day (12:00 AM)
+      const checkout_qr_expires_at = new Date(effectiveEndDate.getTime() + 24 * 60 * 60 * 1000);
+      
+      console.log('[CREATE PASS] Checkout QR expires at:', checkout_qr_expires_at.toISOString());
+      
       // Create the pass
       const gatePass = await prisma.gate_pass.create({
         data: {
@@ -361,6 +508,7 @@ class GatePassService {
           status: 'active', // Legacy field
           qr_status: 'inactive', // New field - QR activates 5 hours before entry
           pass_status: 'created', // New field - replaces status
+          checkout_qr_expires_at: checkout_qr_expires_at, // Expiry at midnight after visit end date
           
           // Relations - use connect syntax for FK fields
           user_login_gate_pass_created_by_idTouser_login: {
@@ -496,38 +644,50 @@ class GatePassService {
         where.visit_date = { lt: new Date(today) };
       }
 
-      const passes = await prisma.gate_pass.findMany({
-        where,
-        orderBy: {
-          created_at: 'desc'
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-        include: {
-          user_login_gate_pass_created_by_idTouser_login: {
-            select: {
-              id: true,
-              uid: true,
-              employeeDetails: {
-                select: {
-                  displayName: true
+      // Run count and findMany in parallel for better performance
+      const [passes, total] = await Promise.all([
+        prisma.gate_pass.findMany({
+          where,
+          orderBy: {
+            created_at: 'desc'
+          },
+          skip: (page - 1) * limit,
+          take: limit,
+          include: {
+            user_login_gate_pass_created_by_idTouser_login: {
+              select: {
+                id: true,
+                uid: true,
+                employeeDetails: {
+                  select: {
+                    displayName: true
+                  }
                 }
               }
-            }
-          },
-          hostel_booking: {
-            include: {
-              room: {
-                include: {
-                  hostel: true
+            },
+            hostel_booking: {
+              select: {
+                id: true,
+                check_in_date: true,
+                check_out_date: true,
+                room: {
+                  select: {
+                    id: true,
+                    room_number: true,
+                    hostel: {
+                      select: {
+                        id: true,
+                        name: true
+                      }
+                    }
+                  }
                 }
               }
             }
           }
-        }
-      });
-
-      const total = await prisma.gate_pass.count({ where });
+        }),
+        prisma.gate_pass.count({ where })
+      ]);
 
       // Transform passes to camelCase for frontend
       const transformedPasses = passes.map(pass => this.transformPassToFrontend(pass));
@@ -561,9 +721,20 @@ class GatePassService {
       console.log('[EXPIRE CHECK] Today IST:', todayIST.toISOString());
 
       // Update all active/pending passes with past dates to expired
+      // Check visit_end_date if present, otherwise check visit_date
       const result = await prisma.gate_pass.updateMany({
         where: {
-          visit_date: { lt: todayIST },
+          OR: [
+            // Single-day passes: check visit_date
+            {
+              visit_end_date: null,
+              visit_date: { lt: todayIST }
+            },
+            // Multi-day passes: check visit_end_date
+            {
+              visit_end_date: { lt: todayIST }
+            }
+          ],
           pass_status: { notIn: ['checked_out', 'cancelled', 'expired'] }
         },
         data: {
@@ -1205,6 +1376,10 @@ class GatePassService {
         throw new Error('New end date must be after current end date');
       }
 
+      // Calculate new checkout QR expiry (midnight of the day AFTER new visit_end_date)
+      const checkout_qr_expires_at = new Date(visit_end_date.getTime() + 24 * 60 * 60 * 1000);
+      console.log('[EXTEND PASS] New checkout QR expires at:', checkout_qr_expires_at.toISOString());
+
       // Use Prisma transaction to ensure both updates commit atomically
       await prisma.$transaction(async (tx) => {
         // Update gate pass
@@ -1212,6 +1387,7 @@ class GatePassService {
           where: { pass_id },
           data: {
             visit_end_date: visit_end_date,
+            checkout_qr_expires_at: checkout_qr_expires_at,
             extension_count: { increment: 1 },
             extension_reason: extensionReason,
             updated_at: new Date()
@@ -1475,6 +1651,463 @@ class GatePassService {
       return excelBuffer;
     } catch (error) {
       logger.error('Error exporting to Excel:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get comprehensive analytics data for Gate Entry module
+   * @param {Object} filters - Filter options
+   * @param {string} filters.dateFrom - Start date (YYYY-MM-DD)
+   * @param {string} filters.dateTo - End date (YYYY-MM-DD)
+   * @param {string} filters.purpose - Purpose filter
+   * @param {string} filters.status - Status filter
+   * @param {string} filters.vehicleType - Vehicle type filter
+   * @returns {Object} Analytics data
+   */
+  async getAdvancedAnalytics(filters = {}) {
+    try {
+      const { dateFrom, dateTo, purpose, status, vehicleType } = filters;
+
+      // Build where clause based on filters
+      const whereClause = {};
+
+      if (dateFrom || dateTo) {
+        whereClause.visit_date = {};
+        if (dateFrom) whereClause.visit_date.gte = new Date(dateFrom);
+        if (dateTo) whereClause.visit_date.lte = new Date(dateTo);
+      }
+
+      if (purpose && purpose !== 'all') {
+        whereClause.purpose_of_visit = purpose;
+      }
+
+      if (status && status !== 'all') {
+        whereClause.pass_status = status;
+      }
+
+      if (vehicleType && vehicleType !== 'all') {
+        if (vehicleType === 'none') {
+          whereClause.has_vehicle = false;
+        } else {
+          whereClause.has_vehicle = true;
+          whereClause.vehicle_type = vehicleType;
+        }
+      }
+
+      // Get today's date for "today" specific stats
+      const today = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const todayIST = new Date(today.getTime() + istOffset);
+      todayIST.setUTCHours(0, 0, 0, 0);
+      const tomorrowIST = new Date(todayIST.getTime() + 24 * 60 * 60 * 1000);
+      const thirtyDaysAgo = new Date(todayIST);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      // RUN ALL QUERIES IN PARALLEL FOR MAXIMUM SPEED
+      const [
+        // Overview stats (8 counts)
+        total,
+        activeToday,
+        checkedInNow,
+        completedToday,
+        totalCompleted,
+        pending,
+        expired,
+        cancelled,
+        
+        // Grouping queries
+        byPurpose,
+        byStatus,
+        vehiclesByType,
+        
+        // Aggregate queries
+        totalWithVehicle,
+        totalWithoutVehicle,
+        extensionStats,
+        
+        // Group by queries for performance
+        guardCheckIns,
+        guardCheckOuts,
+        dailyPasses,
+        passCreators,
+        
+        // Recent data
+        recentActivity
+      ] = await Promise.all([
+        // 1-8: Overview counts
+        prisma.gate_pass.count({ where: whereClause }),
+        prisma.gate_pass.count({
+          where: {
+            ...whereClause,
+            pass_status: 'created',
+            visit_date: { gte: todayIST, lt: tomorrowIST }
+          }
+        }),
+        prisma.gate_pass.count({
+          where: { ...whereClause, pass_status: 'checked_in' }
+        }),
+        prisma.gate_pass.count({
+          where: {
+            ...whereClause,
+            pass_status: 'checked_out',
+            actual_exit_time: { gte: todayIST, lt: tomorrowIST }
+          }
+        }),
+        prisma.gate_pass.count({
+          where: { ...whereClause, pass_status: 'checked_out' }
+        }),
+        prisma.gate_pass.count({
+          where: {
+            ...whereClause,
+            pass_status: { in: ['created', 'checked_in'] }
+          }
+        }),
+        prisma.gate_pass.count({
+          where: { ...whereClause, pass_status: 'expired' }
+        }),
+        prisma.gate_pass.count({
+          where: { ...whereClause, pass_status: 'cancelled' }
+        }),
+        
+        // 8-10: Group by queries
+        prisma.gate_pass.groupBy({
+          by: ['purpose_of_visit'],
+          _count: true,
+          where: whereClause
+        }),
+        prisma.gate_pass.groupBy({
+          by: ['pass_status'],
+          _count: true,
+          where: whereClause
+        }),
+        prisma.gate_pass.groupBy({
+          by: ['vehicle_type'],
+          _count: true,
+          where: {
+            ...whereClause,
+            has_vehicle: true,
+            vehicle_type: { not: null }
+          }
+        }),
+        
+        // 11-12: Vehicle counts
+        prisma.gate_pass.count({
+          where: { ...whereClause, has_vehicle: true }
+        }),
+        prisma.gate_pass.count({
+          where: { ...whereClause, has_vehicle: false }
+        }),
+        
+        // 13: Extension stats
+        prisma.gate_pass.aggregate({
+          _sum: { extension_count: true },
+          _avg: { extension_count: true },
+          _count: { extension_count: true },
+          where: {
+            ...whereClause,
+            extension_count: { gt: 0 }
+          }
+        }),
+        
+        // 14-15: Guard performance
+        prisma.gate_pass.groupBy({
+          by: ['entry_guard_id'],
+          _count: true,
+          where: {
+            ...whereClause,
+            entry_guard_id: { not: null }
+          }
+        }),
+        prisma.gate_pass.groupBy({
+          by: ['exit_guard_id'],
+          _count: true,
+          where: {
+            ...whereClause,
+            exit_guard_id: { not: null }
+          }
+        }),
+        
+        // 16: Daily trend (last 30 days)
+        prisma.gate_pass.groupBy({
+          by: ['visit_date'],
+          _count: true,
+          where: {
+            visit_date: { gte: thirtyDaysAgo, lte: todayIST }
+          },
+          orderBy: {
+            visit_date: 'asc'
+          }
+        }),
+        
+        // 17: Top creators
+        prisma.gate_pass.groupBy({
+          by: ['created_by_id'],
+          _count: true,
+          where: whereClause,
+          orderBy: {
+            _count: {
+              created_by_id: 'desc'
+            }
+          },
+          take: 10
+        }),
+        
+        // 18: Recent activity (only last 10 for speed)
+        prisma.gate_pass_history.findMany({
+          take: 10,
+          orderBy: { created_at: 'desc' },
+          select: {
+            action: true,
+            created_at: true,
+            remarks: true,
+            gate_pass: {
+              select: {
+                pass_id: true,
+                visitor_name: true
+              }
+            },
+            user_login: {
+              select: {
+                uid: true,
+                role: true,
+                employeeDetails: {
+                  select: {
+                    displayName: true,
+                    firstName: true,
+                    lastName: true
+                  }
+                },
+                studentLogin: {
+                  select: {
+                    firstName: true,
+                    lastName: true
+                  }
+                }
+              }
+            }
+          }
+        })
+      ]);
+
+      // Process data after all queries complete
+      const purposeData = byPurpose.map(item => ({
+        purpose: item.purpose_of_visit || 'other',
+        count: item._count
+      }));
+
+      const statusData = byStatus.map(item => ({
+        status: item.pass_status || 'created',
+        count: item._count
+      }));
+
+      const vehicleStats = {
+        total: totalWithVehicle,
+        withoutVehicle: totalWithoutVehicle,
+        twoWheeler: vehiclesByType.find(v => v.vehicle_type === 'two_wheeler')?._count || 0,
+        fourWheeler: vehiclesByType.find(v => v.vehicle_type === 'four_wheeler')?._count || 0,
+        other: vehiclesByType.find(v => v.vehicle_type === 'other')?._count || 0
+      };
+
+      const totalExtensions = extensionStats._sum.extension_count || 0;
+      const avgExtensionCount = extensionStats._avg.extension_count || 0;
+      const extensionRate = total > 0 ? ((extensionStats._count.extension_count || 0) / total * 100).toFixed(2) : 0;
+
+      const dailyTrend = dailyPasses.map(item => ({
+        date: item.visit_date.toISOString().split('T')[0],
+        count: item._count
+      }));
+
+      // Process guard names (fetch separately for only top 10 guards)
+      const guardIds = [
+        ...new Set([
+          ...guardCheckIns.slice(0, 10).map(g => g.entry_guard_id),
+          ...guardCheckOuts.slice(0, 10).map(g => g.exit_guard_id)
+        ])
+      ].filter(Boolean);
+
+      const guards = guardIds.length > 0 ? await prisma.userLogin.findMany({
+        where: { id: { in: guardIds } },
+        select: {
+          id: true,
+          uid: true,
+          employeeDetails: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true
+            }
+          },
+          studentLogin: {
+            select: {
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      }) : [];
+
+      const guardMap = {};
+      guards.forEach(g => {
+        let name = 'Unknown';
+        if (g.employeeDetails) {
+          name = g.employeeDetails.displayName ||
+                 `${g.employeeDetails.firstName} ${g.employeeDetails.lastName || ''}`.trim();
+        } else if (g.studentLogin) {
+          name = `${g.studentLogin.firstName} ${g.studentLogin.lastName || ''}`.trim();
+        } else {
+          name = g.uid;
+        }
+        guardMap[g.id] = name;
+      });
+
+      const guardData = {};
+      guardCheckIns.slice(0, 10).forEach(g => {
+        if (!guardData[g.entry_guard_id]) {
+          guardData[g.entry_guard_id] = { checkIns: 0, checkOuts: 0 };
+        }
+        guardData[g.entry_guard_id].checkIns = g._count;
+      });
+
+      guardCheckOuts.slice(0, 10).forEach(g => {
+        if (!guardData[g.exit_guard_id]) {
+          guardData[g.exit_guard_id] = { checkIns: 0, checkOuts: 0 };
+        }
+        guardData[g.exit_guard_id].checkOuts = g._count;
+      });
+
+      const guardPerformance = Object.keys(guardData).map(guardId => ({
+        guardId,
+        guardName: guardMap[guardId] || 'Unknown',
+        checkIns: guardData[guardId].checkIns,
+        checkOuts: guardData[guardId].checkOuts,
+        total: guardData[guardId].checkIns + guardData[guardId].checkOuts
+      })).sort((a, b) => b.total - a.total).slice(0, 10);
+
+      // Process activity log
+      const activityLog = recentActivity.map(activity => {
+        let performedBy = 'System';
+        if (activity.user_login) {
+          if (activity.user_login.employeeDetails) {
+            performedBy = activity.user_login.employeeDetails.displayName ||
+                         `${activity.user_login.employeeDetails.firstName} ${activity.user_login.employeeDetails.lastName || ''}`.trim();
+          } else if (activity.user_login.studentLogin) {
+            performedBy = `${activity.user_login.studentLogin.firstName} ${activity.user_login.studentLogin.lastName || ''}`.trim();
+          } else {
+            performedBy = activity.user_login.uid;
+          }
+        }
+        return {
+          passId: activity.gate_pass?.pass_id || 'N/A',
+          visitorName: activity.gate_pass?.visitor_name || 'N/A',
+          action: activity.action,
+          performedBy,
+          role: activity.user_login?.role || 'system',
+          timestamp: activity.created_at,
+          remarks: activity.remarks
+        };
+      });
+
+      // Process creator info (fetch separately)
+      const creatorIds = passCreators.map(c => c.created_by_id).filter(Boolean);
+      const creators = creatorIds.length > 0 ? await prisma.userLogin.findMany({
+        where: { id: { in: creatorIds } },
+        select: {
+          id: true,
+          uid: true,
+          employeeDetails: {
+            select: {
+              firstName: true,
+              lastName: true,
+              displayName: true,
+              primaryDepartment: {
+                select: {
+                  departmentName: true
+                }
+              }
+            }
+          },
+          studentLogin: {
+            select: {
+              firstName: true,
+              lastName: true,
+              program: {
+                select: {
+                  department: {
+                    select: {
+                      departmentName: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }) : [];
+
+      const creatorMap = {};
+      creators.forEach(c => {
+        let name = 'Unknown';
+        let deptName = 'N/A';
+        
+        if (c.employeeDetails) {
+          name = c.employeeDetails.displayName ||
+                 `${c.employeeDetails.firstName} ${c.employeeDetails.lastName || ''}`.trim();
+          deptName = c.employeeDetails.primaryDepartment?.departmentName || 'N/A';
+        } else if (c.studentLogin) {
+          name = `${c.studentLogin.firstName} ${c.studentLogin.lastName || ''}`.trim();
+          deptName = c.studentLogin.program?.department?.departmentName || 'Student';
+        } else {
+          name = c.uid;
+        }
+        
+        creatorMap[c.id] = {
+          name,
+          department: deptName
+        };
+      });
+
+      const topCreators = passCreators.map(c => ({
+        creatorId: c.created_by_id,
+        creatorName: creatorMap[c.created_by_id]?.name || 'Unknown',
+        department: creatorMap[c.created_by_id]?.department || 'N/A',
+        passesCreated: c._count
+      }));
+
+      // Return comprehensive analytics
+      return {
+        overview: {
+          total,
+          activeToday,
+          checkedInNow,
+          completedToday,
+          totalCompleted,
+          pending,
+          expired,
+          cancelled
+        },
+        byPurpose: purposeData,
+        byStatus: statusData,
+        vehicleStats,
+        extensionStats: {
+          totalExtensions,
+          avgExtensionCount: parseFloat(avgExtensionCount.toFixed(2)),
+          extensionRate: parseFloat(extensionRate)
+        },
+        guardPerformance,
+        dailyTrend,
+        recentActivity: activityLog,
+        topCreators,
+        filters: {
+          dateFrom: dateFrom || null,
+          dateTo: dateTo || null,
+          purpose: purpose || 'all',
+          status: status || 'all',
+          vehicleType: vehicleType || 'all'
+        }
+      };
+    } catch (error) {
+      logger.error('Error fetching advanced analytics:', error);
       throw error;
     }
   }

@@ -207,19 +207,27 @@ export default function VerifyPassPage() {
         return;
       }
       
-      // Validate time window
+      // Validate time window (support multi-day passes)
       const now = new Date();
       const visitDate = new Date(passData.visitDate || now);
       const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const passDate = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
       
-      // Check if today is the visit date
-      if (passDate.getTime() !== todayDate.getTime()) {
+      // For multi-day passes, check if today is within visit date range
+      const visitEndDate = passData.visitEndDate ? new Date(passData.visitEndDate) : null;
+      const endPassDate = visitEndDate ? new Date(visitEndDate.getFullYear(), visitEndDate.getMonth(), visitEndDate.getDate()) : passDate;
+      
+      // Check if today is within valid date range
+      if (todayDate.getTime() < passDate.getTime() || todayDate.getTime() > endPassDate.getTime()) {
+        const dateRangeStr = visitEndDate 
+          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate.split('T')[0]}`
+          : passData.visitDate.split('T')[0];
+        
         setError(
           `❌ Invalid Visit Date\n\n` +
-          `This pass is scheduled for: ${(passData.visitDate || '').split('T')[0]}\n` +
+          `This pass is valid for: ${dateRangeStr}\n` +
           `Today's date: ${now.toISOString().split('T')[0]}\n\n` +
-          `Pass can only be used on the scheduled visit date.`
+          `Pass can only be used during the scheduled date range.`
         );
         setPass(null);
         setActiveTab('manual');
@@ -240,19 +248,26 @@ export default function VerifyPassPage() {
       
       const currentTime = now.getTime();
       
-      // Check if current time is within expected time window
-      if (currentTime < expectedEntry.getTime() || currentTime > expectedExit.getTime()) {
-        const currentTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        setError(
-          `⏰ Outside Valid Time Window\n\n` +
-          `Expected Entry: ${passData.expectedEntryTime}\n` +
-          `Expected Exit: ${passData.expectedExitTime}\n` +
-          `Current Time: ${currentTimeStr}\n\n` +
-          `Visitor can only enter during the scheduled time window.`
-        );
-        setPass(null);
-        setActiveTab('manual');
-        return;
+      // For multi-day passes, only enforce entry time on the FIRST day
+      // On subsequent days, allow entry anytime
+      const isFirstDay = todayDate.getTime() === passDate.getTime();
+      const isMultiDay = visitEndDate !== null;
+      
+      // Check time window only for single-day passes or first day of multi-day pass
+      if (!isMultiDay || isFirstDay) {
+        if (currentTime < expectedEntry.getTime() || currentTime > expectedExit.getTime()) {
+          const currentTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+          setError(
+            `⏰ Outside Valid Time Window\n\n` +
+            `Expected Entry: ${passData.expectedEntryTime}\n` +
+            `Expected Exit: ${passData.expectedExitTime}\n` +
+            `Current Time: ${currentTimeStr}\n\n` +
+            `Visitor can only enter during the scheduled time window.`
+          );
+          setPass(null);
+          setActiveTab('manual');
+          return;
+        }
       }
       
       // Time is valid - show pass details
@@ -302,16 +317,24 @@ export default function VerifyPassPage() {
         return;
       }
       
-      // For non-cancelled passes, validate time window
+      // For non-cancelled passes, validate time window (support multi-day passes)
       const now = new Date();
       const visitDate = new Date(passData.visitDate || now);
       const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const passDate = new Date(visitDate.getFullYear(), visitDate.getMonth(), visitDate.getDate());
       
-      // Check if today is the visit date
-      if (passDate.getTime() !== todayDate.getTime()) {
+      // For multi-day passes, check if today is within visit date range
+      const visitEndDate = passData.visitEndDate ? new Date(passData.visitEndDate) : null;
+      const endPassDate = visitEndDate ? new Date(visitEndDate.getFullYear(), visitEndDate.getMonth(), visitEndDate.getDate()) : passDate;
+      
+      // Check if today is within valid date range
+      if (todayDate.getTime() < passDate.getTime() || todayDate.getTime() > endPassDate.getTime()) {
+        const dateRangeStr = visitEndDate 
+          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate.split('T')[0]}`
+          : passData.visitDate.split('T')[0];
+        
         setError(
-          `❌ Invalid Visit Date - This pass is scheduled for: ${(passData.visitDate || '').split('T')[0]}. Today: ${now.toISOString().split('T')[0]}. Pass can only be used on the scheduled visit date.`
+          `❌ Invalid Visit Date - This pass is valid for: ${dateRangeStr}. Today: ${now.toISOString().split('T')[0]}. Pass can only be used during the scheduled date range.`
         );
         setPass(null);
         return;
@@ -331,14 +354,21 @@ export default function VerifyPassPage() {
       
       const currentTime = now.getTime();
       
-      // Check if current time is within expected time window
-      if (currentTime < expectedEntry.getTime() || currentTime > expectedExit.getTime()) {
-        const currentTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        setError(
-          `⏰ Outside Valid Time Window - Expected Entry: ${passData.expectedEntryTime}, Expected Exit: ${passData.expectedExitTime}. Current Time: ${currentTimeStr}. Visitor can only enter during the scheduled time window.`
-        );
-        setPass(null);
-        return;
+      // For multi-day passes, only enforce entry time on the FIRST day
+      // On subsequent days, allow entry anytime
+      const isFirstDay = todayDate.getTime() === passDate.getTime();
+      const isMultiDay = visitEndDate !== null;
+      
+      // Check time window only for single-day passes or first day of multi-day pass
+      if (!isMultiDay || isFirstDay) {
+        if (currentTime < expectedEntry.getTime() || currentTime > expectedExit.getTime()) {
+          const currentTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+          setError(
+            `⏰ Outside Valid Time Window - Expected Entry: ${passData.expectedEntryTime}, Expected Exit: ${passData.expectedExitTime}. Current Time: ${currentTimeStr}. Visitor can only enter during the scheduled time window.`
+          );
+          setPass(null);
+          return;
+        }
       }
       
       // Time is valid - show pass details
