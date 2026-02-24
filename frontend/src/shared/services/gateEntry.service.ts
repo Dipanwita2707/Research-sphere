@@ -591,6 +591,40 @@ class GateEntryService {
     const response = await api.get<any>('/gate-entry/guardians');
     return response.data;
   }
+
+  /**
+   * Check for duplicate pass
+   */
+  async checkDuplicate(mobile: string, name: string, visitDate: string, visitEndDate?: string): Promise<any> {
+    const params: any = { mobile, name, visitDate };
+    if (visitEndDate) {
+      params.visitEndDate = visitEndDate;
+    }
+    const response = await api.get<any>('/gate-entry/check-duplicate', { params });
+    return response.data;
+  }
+
+  /**
+   * Get advanced analytics for Gate Entry module
+   */
+  async getAnalytics(filters?: {
+    dateFrom?: string;
+    dateTo?: string;
+    purpose?: string;
+    status?: string;
+    vehicleType?: string;
+  }): Promise<any> {
+    const params: any = {};
+    if (filters) {
+      if (filters.dateFrom) params.dateFrom = filters.dateFrom;
+      if (filters.dateTo) params.dateTo = filters.dateTo;
+      if (filters.purpose) params.purpose = filters.purpose;
+      if (filters.status) params.status = filters.status;
+      if (filters.vehicleType) params.vehicleType = filters.vehicleType;
+    }
+    const response = await api.get<any>('/gate-entry/analytics', { params });
+    return response.data;
+  }
 }
 
 export const gateEntryService = new GateEntryService();

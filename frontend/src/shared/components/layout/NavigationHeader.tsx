@@ -398,6 +398,7 @@ export default function NavigationHeader() {
             { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' },
             { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' },
             { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' },
+            { name: '📊 Analytics', href: '/admin/gate-entry/analytics', description: 'Comprehensive analytics & insights' },
           ],
         },
       ],

@@ -75,6 +75,14 @@ export default function CreatePassPage() {
   const [selectedGuardianId, setSelectedGuardianId] = useState<string>('');
   const [loadingGuardians, setLoadingGuardians] = useState(false);
   
+  // Duplicate pass checking state
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    show: boolean;
+    message: string;
+    conflictingPasses: any[];
+  }>({ show: false, message: '', conflictingPasses: [] });
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+  
   // Accommodation flow state
   const [wantToBook, setWantToBook] = useState<boolean | null>(null);
   
@@ -138,6 +146,51 @@ export default function CreatePassPage() {
     console.log('[STATE DEBUG] loadingGuardians:', loadingGuardians);
     console.log('[STATE DEBUG] selectedGuardianId:', selectedGuardianId);
   }, [isStudentLocked, guardians, loadingGuardians, selectedGuardianId]);
+
+  // Real-time duplicate pass checking
+  useEffect(() => {
+    // Only check if we have required fields
+    if (!formData.visitorName || !formData.mobileNumber || !formData.visitDate) {
+      setDuplicateWarning({ show: false, message: '', conflictingPasses: [] });
+      return;
+    }
+
+    // Debounce the check
+    const timeoutId = setTimeout(async () => {
+      try {
+        setCheckingDuplicate(true);
+        const result = await gateEntryService.checkDuplicate(
+          formData.mobileNumber,
+          formData.visitorName,
+          formData.visitDate,
+          isMultiDay ? formData.visitEndDate : undefined
+        );
+
+        if (result.isDuplicate) {
+          const passes = result.conflictingPasses || [];
+          const firstPass = passes[0];
+          const dateRange = firstPass?.visitEndDate
+            ? `${new Date(firstPass.visitDate).toLocaleDateString()} to ${new Date(firstPass.visitEndDate).toLocaleDateString()}`
+            : new Date(firstPass.visitDate).toLocaleDateString();
+          
+          setDuplicateWarning({
+            show: true,
+            message: `⚠️ ${formData.visitorName} already has an active pass (${firstPass?.passId}) for ${dateRange}. Status: ${firstPass?.status}`,
+            conflictingPasses: passes
+          });
+        } else {
+          setDuplicateWarning({ show: false, message: '', conflictingPasses: [] });
+        }
+      } catch (error) {
+        console.error('[DUPLICATE CHECK] Error:', error);
+        // Don't show error to user for now, backend will catch it
+      } finally {
+        setCheckingDuplicate(false);
+      }
+    }, 800); // 800ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.visitorName, formData.mobileNumber, formData.visitDate, formData.visitEndDate, isMultiDay]);
 
   // Check user role on mount - students can only create passes for parents
   useEffect(() => {
@@ -409,6 +462,7 @@ export default function CreatePassPage() {
     setWantToBook(null);
     setCreatedPassId(null);
     setSelectedGuardianId(''); // Reset guardian selection
+    setDuplicateWarning({ show: false, message: '', conflictingPasses: [] }); // Reset duplicate warning
   };
 
   return (
@@ -859,6 +913,53 @@ export default function CreatePassPage() {
 
           {/* Submit Buttons Card */}
           <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
+            
+            {/* Duplicate Pass Warning - Shown at bottom near submit button */}
+            {duplicateWarning.show && (
+              <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-6 w-6 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3 flex-1">
+                    <h3 className="text-base font-bold text-red-800">
+                      ⚠️ Cannot Create Pass - Duplicate Found
+                    </h3>
+                    <div className="mt-2 text-sm text-red-700">
+                      <p className="font-semibold">{duplicateWarning.message}</p>
+                      <p className="mt-2">
+                        Please cancel or complete the existing pass before creating a new one.
+                      </p>
+                    </div>
+                    {duplicateWarning.conflictingPasses.length > 0 && (
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={() => router.push('/admin/gate-entry/all-passes')}
+                          className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition"
+                        >
+                          View & Manage Existing Passes →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Checking Duplicate Spinner */}
+            {checkingDuplicate && (
+              <div className="mb-4 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="font-medium">Checking for duplicate passes...</span>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row justify-end gap-3 md:gap-4">
               <button
                 type="button"

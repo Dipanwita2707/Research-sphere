@@ -611,6 +611,37 @@ class GatePassController {
       );
     }
   }
+
+  /**
+   * Get advanced analytics for Gate Entry module
+   * GET /api/v1/gate-entry/analytics
+   */
+  async getAdvancedAnalytics(req, res) {
+    try {
+      const { dateFrom, dateTo, purpose, status, vehicleType } = req.query;
+
+      logger.info('[ANALYTICS] Fetching analytics with filters:', { dateFrom, dateTo, purpose, status, vehicleType });
+
+      const filters = {
+        dateFrom: dateFrom || null,
+        dateTo: dateTo || null,
+        purpose: purpose || 'all',
+        status: status || 'all',
+        vehicleType: vehicleType || 'all'
+      };
+
+      const analytics = await gatePassService.getAdvancedAnalytics(filters);
+
+      return res.status(200).json(
+        formatResponse(true, 'Analytics fetched successfully', analytics)
+      );
+    } catch (error) {
+      logger.error('[ANALYTICS] Error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to fetch analytics', null, error.message)
+      );
+    }
+  }
 }
 
 module.exports = new GatePassController();

@@ -497,6 +497,13 @@ export default function NavigationHeader() {
       );
     }
 
+    // Only Admin gets Analytics Dashboard
+    if (isAdmin) {
+      gateEntryChildren.push(
+        { name: '📊 Analytics', href: '/admin/gate-entry/analytics', description: 'Comprehensive analytics & insights' }
+      );
+    }
+
     const administrationSubItems: SubMenuItem[] = [];
 
     // Only Admin gets other Administration features
