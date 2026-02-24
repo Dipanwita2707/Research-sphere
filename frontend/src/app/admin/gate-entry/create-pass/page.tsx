@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Phone, Clock, Car, FileText, CheckCircle, Loader2, AlertCircle, Hotel } from 'lucide-react';
+import { User, Phone, Clock, Car, FileText, CheckCircle, Loader2, AlertCircle, Hotel, Mail, Users, Calendar, Hash } from 'lucide-react';
 import { gateEntryService } from '@/shared/services/gateEntry.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useAuthStore } from '@/shared/auth/authStore';
 import HostelBookingFlow from '../components/HostelBookingFlow';
+import '../styles/animations.css';
 
 interface SimplePassFormData {
   visitorName: string;
@@ -466,225 +467,326 @@ export default function CreatePassPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-3 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Header Card - LPU Style */}
-        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6 mb-4">
-          <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 md:gap-3">
-            <User className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />
-            Create Visitor Pass
-          </h1>
-          <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">Fill in visitor details to generate entry pass</p>
+        {/* Hero Header with Gradient Background - Master Dashboard Style */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-hidden animate-fade-in">
+          {/* Animated Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
+          </div>
+          
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                <User className="w-7 h-7 md:w-8 md:h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-4xl font-bold text-white">Create Visitor Pass</h1>
+                <p className="text-blue-100 text-sm md:text-base mt-1">Generate secure entry passes for campus visitors</p>
+              </div>
+            </div>
+            
+            {/* Quick Stats */}
+            {userRole && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
+                  <span className="text-white/90 text-xs font-medium">Creating as:</span>
+                  <span className="text-white font-bold ml-2 text-sm">{userRole}</span>
+                </div>
+                {isStudentLocked && (
+                  <div className="bg-yellow-400/90 backdrop-blur-sm px-4 py-2 rounded-lg border border-yellow-300">
+                    <span className="text-yellow-900 text-xs font-bold">🔒 Parent/Guardian Only</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Error Alert with Animation */}
           {error && (
-            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-500" />
-                <p className="text-red-800 font-medium">{error}</p>
+            <div className="animate-shake bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500 p-4 rounded-xl shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="bg-red-500 p-2 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-red-800 font-bold">Error</p>
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Visitor Information Card - LPU Style */}
-          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
-              <User className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-              Visitor Information
-            </h2>
+          {/* Visitor Information Card - Animated with Gradient Border */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-1">
+            {/* Section Header with Gradient */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-xl shadow-lg">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Visitor Information</h2>
+                <p className="text-gray-600 text-sm">Enter visitor's personal details</p>
+              </div>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">              {/* Guardian Dropdown - Only for Students */}
+            <div className="space-y-5">
+              {/* Guardian Dropdown - Only for Students */}
               {isStudentLocked && guardians.length > 0 && (
-                <div className="md:col-span-2">
-                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                <div className="animate-fade-in">
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-blue-600" />
                     Select Guardian/Parent <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    value={selectedGuardianId}
-                    onChange={handleGuardianSelect}
-                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    disabled={loadingGuardians}
-                  >
-                    <option value="">-- Select Guardian --</option>
-                    {guardians.map(guardian => (
-                      <option key={guardian.id} value={guardian.id}>
-                        {guardian.name} ({guardian.relationship}) - {guardian.phone}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    📋 Select from your registered guardians or enter manually below
+                  <div className="relative">
+                    <select
+                      value={selectedGuardianId}
+                      onChange={handleGuardianSelect}
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-blue-400"
+                      disabled={loadingGuardians}
+                    >
+                      <option value="">-- Select Guardian --</option>
+                      {guardians.map(guardian => (
+                        <option key={guardian.id} value={guardian.id}>
+                          {guardian.name} ({guardian.relationship}) - {guardian.phone}
+                        </option>
+                      ))}
+                    </select>
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
+                  <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    Select from your registered guardians or enter manually below
                   </p>
                 </div>
               )}
 
               {/* Loading guardians */}
               {isStudentLocked && loadingGuardians && (
-                <div className="md:col-span-2 text-sm text-gray-600">
-                  <Loader2 className="inline-block w-4 h-4 mr-2 animate-spin" />
-                  Loading your guardians...
+                <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl animate-pulse">
+                  <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
+                  <span className="text-sm font-medium text-blue-800">Loading your guardians...</span>
                 </div>
               )}
 
               {/* No guardians found */}
               {isStudentLocked && !loadingGuardians && guardians.length === 0 && (
-                <div className="md:col-span-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  ⚠️ No guardians found in database. Please enter details manually below.
+                <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-xl animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                    <p className="text-sm font-medium text-amber-800">
+                      No guardians found in database. Please enter details manually below.
+                    </p>
+                  </div>
                 </div>
               )}
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                  Visitor Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="visitorName"
-                  value={formData.visitorName}
-                  onChange={handleChange}
-                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter full name"
-                  required
-                  readOnly={isStudentLocked && selectedGuardianId !== ''}
-                />
-                {isStudentLocked && selectedGuardianId && (
-                  <p className="text-xs text-green-600 mt-1">✅ Auto-filled from guardian selection</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                  Mobile Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  name="mobileNumber"
-                  value={formData.mobileNumber}
-                  onChange={handleChange}
-                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="10-digit number"
-                  maxLength={10}
-                  pattern="[0-9]{10}"
-                  required
-                  readOnly={isStudentLocked && selectedGuardianId !== ''}
-                />
-                {isStudentLocked && selectedGuardianId && (
-                  <p className="text-xs text-green-600 mt-1">✅ Auto-filled from guardian selection</p>
-                )}
-                {!(isStudentLocked && selectedGuardianId) && (
-                  <p className="text-xs text-gray-500 mt-1">📱 Visitor will receive WhatsApp notification</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="visitor@example.com"
-                  readOnly={isStudentLocked && selectedGuardianId !== ''}
-                />
-                {isStudentLocked && selectedGuardianId && (
-                  <p className="text-xs text-green-600 mt-1">✅ Auto-filled from guardian selection</p>
-                )}
-                <p className="text-xs text-gray-500 mt-1">📧 QR code & pass details will be sent via email</p>
-              </div>
-
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2 flex items-center gap-2">
-                  Relation
-                  {isStudentLocked && (
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      🔒 Parent/Guardian Only
-                    </span>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Visitor Name */}
+                <div className="animate-fade-in stagger-item-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Visitor Name <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="visitorName"
+                      value={formData.visitorName}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      placeholder="Enter full name"
+                      required
+                      readOnly={isStudentLocked && selectedGuardianId !== ''}
+                    />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
+                  {isStudentLocked && selectedGuardianId && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Auto-filled from guardian selection
+                    </p>
                   )}
-                </label>
-                {isStudentLocked ? (
-                  // Students: Dropdown with Parent/Guardian options
-                  <select
-                    name="visitorRelation"
-                    value={formData.visitorRelation}
-                    onChange={handleChange}
-                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                    disabled={selectedGuardianId !== ''} // Lock if guardian selected
-                  >
-                    <option value="">Select Relation</option>
-                    <option value="Father">Father</option>
-                    <option value="Mother">Mother</option>
-                    <option value="Guardian">Guardian</option>
-                    <option value="Parent">Parent (Other)</option>
-                  </select>
-                ) : (
-                  // General users: Text input
-                  <input
-                    type="text"
-                    name="visitorRelation"
-                    value={formData.visitorRelation}
-                    onChange={handleChange}
-                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., Friend, Family, Vendor"
-                  />
-                )}
-                {isStudentLocked && selectedGuardianId && (
-                  <p className="text-xs text-green-600 mt-1">✅ Auto-filled from guardian selection</p>
-                )}
-              </div>
+                </div>
 
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                  Number of Persons <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  name="numberOfPersons"
-                  value={formData.numberOfPersons}
-                  onChange={handleChange}
-                  min="1"
-                  max="50"
-                  className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="How many people"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">Total number of visitors (including you)</p>
+                {/* Mobile Number */}
+                <div className="animate-fade-in stagger-item-3">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      name="mobileNumber"
+                      value={formData.mobileNumber}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      placeholder="10-digit number"
+                      maxLength={10}
+                      pattern="[0-9]{10}"
+                      required
+                      readOnly={isStudentLocked && selectedGuardianId !== ''}
+                    />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
+                  {isStudentLocked && selectedGuardianId && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Auto-filled from guardian selection
+                    </p>
+                  )}
+                  {!(isStudentLocked && selectedGuardianId) && (
+                    <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      Visitor will receive WhatsApp notification
+                    </p>
+                  )}
+                </div>
+
+                {/* Email Address */}
+                <div className="animate-fade-in stagger-item-4">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      placeholder="visitor@example.com"
+                      readOnly={isStudentLocked && selectedGuardianId !== ''}
+                    />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
+                  {isStudentLocked && selectedGuardianId && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Auto-filled from guardian selection
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+                    <Mail className="w-3 h-3" />
+                    QR code & pass details will be sent via email
+                  </p>
+                </div>
+
+                {/* Relation */}
+                <div className="animate-fade-in stagger-item-5">
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                    Relation
+                    {isStudentLocked && (
+                      <span className="text-xs bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1 rounded-full font-bold">
+                        🔒 Parent/Guardian Only
+                      </span>
+                    )}
+                  </label>
+                  <div className="relative">
+                    {isStudentLocked ? (
+                      <select
+                        name="visitorRelation"
+                        value={formData.visitorRelation}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-blue-400"
+                        required
+                        disabled={selectedGuardianId !== ''}
+                      >
+                        <option value="">Select Relation</option>
+                        <option value="Father">Father</option>
+                        <option value="Mother">Mother</option>
+                        <option value="Guardian">Guardian</option>
+                        <option value="Parent">Parent (Other)</option>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        name="visitorRelation"
+                        value={formData.visitorRelation}
+                        onChange={handleChange}
+                        className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                        placeholder="e.g., Friend, Family, Vendor"
+                      />
+                    )}
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
+                  {isStudentLocked && selectedGuardianId && (
+                    <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Auto-filled from guardian selection
+                    </p>
+                  )}
+                </div>
+
+                {/* Number of Persons */}
+                <div className="animate-fade-in stagger-item-6">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Number of Persons <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      name="numberOfPersons"
+                      value={formData.numberOfPersons}
+                      onChange={handleChange}
+                      min="1"
+                      max="50"
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      placeholder="How many people"
+                      required
+                    />
+                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
+                  <p className="text-xs text-gray-600 mt-1">Total number of visitors (including you)</p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Visit Details Card - LPU Style */}
-          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
-              <FileText className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-              Visit Details
-            </h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Visit Details Card - Animated with Green Gradient */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-2">
+            {/* Section Header with Gradient */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-3 rounded-xl shadow-lg">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
               <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Visit Details</h2>
+                <p className="text-gray-600 text-sm">Schedule and purpose of visit</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Purpose of Visit */}
+              <div className="animate-fade-in">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   Purpose of Visit <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="purposeOfVisit"
-                  value={formData.purposeOfVisit}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                >
-                  <option value="">Select Purpose</option>
-                  {purposeOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    name="purposeOfVisit"
+                    value={formData.purposeOfVisit}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-white hover:border-green-400"
+                    required
+                  >
+                    <option value="">Select Purpose</option>
+                    {purposeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                </div>
               </div>
 
+              {/* Other Purpose */}
               {formData.purposeOfVisit === 'other' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <div className="animate-slide-in-right">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
                     Specify Purpose <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -692,244 +794,309 @@ export default function CreatePassPage() {
                     name="purposeOther"
                     value={formData.purposeOther}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
                     placeholder="Enter purpose"
                     required
                   />
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+              {/* Visit Start Date */}
+              <div className="animate-fade-in">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   Visit Start Date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  name="visitDate"
-                  value={formData.visitDate}
-                  onChange={handleChange}
-                  min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type="date"
+                    name="visitDate"
+                    value={formData.visitDate}
+                    onChange={handleChange}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
+                    required
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+              {/* Visit End Date */}
+              <div className="animate-fade-in">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   Visit End Date <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  name="visitEndDate"
-                  value={formData.visitEndDate}
-                  onChange={handleChange}
-                  min={formData.visitDate || new Date().toISOString().split('T')[0]}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type="date"
+                    name="visitEndDate"
+                    value={formData.visitEndDate}
+                    onChange={handleChange}
+                    min={formData.visitDate || new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
+                    required
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                </div>
                 {canBookHostel && (
-                  <p className="text-xs text-blue-600 font-medium mt-1">
-                    🏨 Multi-day stay detected - hostel/apartment booking available below
+                  <p className="text-xs text-blue-600 font-bold mt-2 flex items-center gap-1 animate-pulse-glow">
+                    <Hotel className="w-4 h-4" />
+                    Multi-day stay detected - hostel/apartment booking available below
                   </p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+              {/* Entry Time */}
+              <div className="md:col-span-2 animate-fade-in">
+                <label className="block text-sm font-bold text-gray-700 mb-2">
                   Entry Time <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="time"
-                  name="entryTime"
-                  value={formData.entryTime}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type="time"
+                    name="entryTime"
+                    value={formData.entryTime}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
+                    required
+                  />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                </div>
                 {formData.entryTime && (() => {
-                  // Convert 24-hour to 12-hour format with AM/PM
                   const [hours, minutes] = formData.entryTime.split(':');
                   const hour = parseInt(hours, 10);
                   const ampm = hour >= 12 ? 'PM' : 'AM';
-                  const hour12 = hour % 12 || 12; // Convert to 12-hour (0 becomes 12)
+                  const hour12 = hour % 12 || 12;
                   return (
-                    <p className="text-sm font-semibold text-green-700 mt-1">
-                      🕒 {hour12}:{minutes} {ampm}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-3">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Entry: {hour12}:{minutes} {ampm}
+                      </div>
+                      <div className="bg-blue-50 border border-blue-300 text-blue-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        QR activates 5 hours before
+                      </div>
+                    </div>
                   );
                 })()}
-                <p className="text-xs text-blue-600 mt-1">
-                  ⏰ QR code will activate 5 hours before this time
-                </p>
               </div>
             </div>
           </div>
 
-          {/* Vehicle Details Card - LPU Style */}
-          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
-              <Car className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-              Vehicle Information (Optional)
-            </h2>
+          {/* Vehicle Details Card - Animated with Purple Gradient */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-3">
+            {/* Section Header with Gradient */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-3 rounded-xl shadow-lg">
+                <Car className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Vehicle Information</h2>
+                <p className="text-gray-600 text-sm">Optional vehicle registration details</p>
+              </div>
+            </div>
             
-            <div className="mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
+            {/* Vehicle Checkbox */}
+            <div className="mb-5">
+              <label className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border-2 border-gray-300 hover:border-purple-400 hover:bg-purple-50 transition-all">
                 <input
                   type="checkbox"
                   name="hasVehicle"
                   checked={formData.hasVehicle}
                   onChange={handleChange}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                 />
-                <span className="text-xs md:text-sm font-medium text-gray-700">Visitor will bring a vehicle</span>
+                <div className="flex items-center gap-2">
+                  <Car className="w-5 h-5 text-purple-600" />
+                  <span className="text-sm font-bold text-gray-700">Visitor will bring a vehicle</span>
+                </div>
               </label>
             </div>
 
+            {/* Vehicle Form Fields */}
             {formData.hasVehicle && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-slide-down">
+                {/* Vehicle Type */}
                 <div>
-                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
                     Vehicle Type <span className="text-red-500">*</span>
                   </label>
-                  <select
-                    name="vehicleType"
-                    value={formData.vehicleType}
-                    onChange={handleChange}
-                    className="w-full px-3 md:px-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
-                    <option value="">Select Type</option>
-                    {VEHICLE_TYPES.map(vt => (
-                      <option key={vt.value} value={vt.value}>{vt.label}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      name="vehicleType"
+                      value={formData.vehicleType}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-purple-400"
+                      required
+                    >
+                      <option value="">Select Type</option>
+                      {VEHICLE_TYPES.map(vt => (
+                        <option key={vt.value} value={vt.value}>{vt.label}</option>
+                      ))}
+                    </select>
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
                 </div>
 
+                {/* Vehicle Number */}
                 <div>
-                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
                     Vehicle Number <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="vehicleNumber"
-                    value={formData.vehicleNumber}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-                    placeholder="e.g., DL01AB1234"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="vehicleNumber"
+                      value={formData.vehicleNumber}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all hover:border-purple-400 uppercase font-mono"
+                      placeholder="e.g., DL01AB1234"
+                      required
+                    />
+                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
                 </div>
 
+                {/* Vehicle Model */}
                 <div className="md:col-span-2">
-                  <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
                     Vehicle Model <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="vehicleModel"
-                    value={formData.vehicleModel}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="e.g., Honda City, Yamaha R15"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="vehicleModel"
+                      value={formData.vehicleModel}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all hover:border-purple-400"
+                      placeholder="e.g., Honda City, Yamaha R15"
+                      required
+                    />
+                    <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  </div>
                 </div>
+              </div>
+            )}
+
+            {/* No Vehicle Info Message */}
+            {!formData.hasVehicle && (
+              <div className="text-center py-8 text-gray-500 animate-fade-in">
+                <Car className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">No vehicle information required</p>
               </div>
             )}
           </div>
 
-          {/* Stay Details Card - LPU Style - ONLY for Students creating passes for Parents */}
+          {/* Stay Details Card - Orange Gradient Theme - ONLY for Students creating passes for Parents */}
           {canBookHostel && (
-            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3 md:mb-4 flex items-center gap-2">
-                <Hotel className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
-                🏨 Accommodation Section
-              </h2>
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-4">
+              {/* Section Header with Gradient */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="bg-gradient-to-br from-orange-500 to-red-500 p-3 rounded-xl shadow-lg">
+                  <Hotel className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Accommodation</h2>
+                  <p className="text-gray-600 text-sm">Hostel/Apartment booking for multi-day stay</p>
+                </div>
+              </div>
               
-              <div className="mb-4 bg-blue-50 border-l-4 border-blue-500 p-3 md:p-4 rounded">
-                <p className="text-xs md:text-sm text-blue-900">
-                  <strong>ℹ️ Multi-day visit detected:</strong> {formData.visitDate} to {formData.visitEndDate}
-                  <br />
-                  <span className="text-xs text-blue-700">
-                    QR Code activates: 5 hours before entry time on {formData.visitDate}
-                    <br />
-                    QR Code expires: {formData.visitEndDate} at 23:59
-                  </span>
-                </p>
+              {/* Info Banner */}
+              <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 p-4 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-blue-900 mb-1">
+                      Multi-day visit detected
+                    </p>
+                    <div className="text-xs text-blue-700 space-y-1">
+                      <p><strong>Visit Period:</strong> {formData.visitDate} to {formData.visitEndDate}</p>
+                      <p><strong>QR Activation:</strong> 5 hours before entry time on {formData.visitDate}</p>
+                      <p><strong>QR Expiry:</strong> {formData.visitEndDate} at 23:59</p>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Hostel/Apartment Booking Options */}
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-gray-700 mb-3">
+              {/* Booking Options */}
+              <div className="mt-6">
+                <p className="text-sm font-bold text-gray-700 mb-4">
                   Do you want to book Hostel/Apartment?
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Yes - Book */}
                   <button
                     type="button"
                     onClick={() => {
                       setWantToBook(true);
                       setAccommodationType('university');
                     }}
-                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                    className={`group p-5 border-2 rounded-2xl text-left transition-all transform hover:scale-105 ${
                       wantToBook === true 
-                        ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-200' 
-                        : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                        ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-red-50 ring-4 ring-orange-200 scale-105' 
+                        : 'border-gray-300 hover:border-orange-400 hover:shadow-lg'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Hotel className={`w-5 h-5 ${wantToBook === true ? 'text-blue-600' : 'text-gray-400'}`} />
-                      <span className="font-semibold text-gray-800 text-sm md:text-base">✅ Yes, I want to book</span>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`p-2 rounded-lg ${wantToBook === true ? 'bg-orange-500' : 'bg-gray-200'}`}>
+                        <Hotel className={`w-6 h-6 ${wantToBook === true ? 'text-white' : 'text-gray-400'}`} />
+                      </div>
+                      <span className="font-bold text-gray-800 text-base">✅ Yes, I want to book</span>
                     </div>
-                    <p className="text-xs text-gray-600">Browse & book from available rooms</p>
+                    <p className="text-xs text-gray-600 ml-11">Browse & book from available rooms/apartments</p>
                     {wantToBook === true && (
-                      <p className="text-xs text-blue-600 font-medium mt-2">
-                        ✓ Booking flow opens after pass creation
-                      </p>
+                      <div className="mt-3 ml-11 bg-white border-2 border-orange-400 text-orange-700 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 animate-pulse-glow">
+                        <CheckCircle className="w-4 h-4" />
+                        Booking flow opens after pass creation
+                      </div>
                     )}
                   </button>
 
+                  {/* No - Skip */}
                   <button
                     type="button"
                     onClick={() => {
                       setWantToBook(false);
                       setAccommodationType('none');
                     }}
-                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                    className={`group p-5 border-2 rounded-2xl text-left transition-all transform hover:scale-105 ${
                       wantToBook === false 
-                        ? 'border-gray-600 bg-gray-50 ring-2 ring-gray-200' 
-                        : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                        ? 'border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 ring-4 ring-gray-200 scale-105' 
+                        : 'border-gray-300 hover:border-gray-400 hover:shadow-lg'
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Clock className={`w-5 h-5 ${wantToBook === false ? 'text-gray-600' : 'text-gray-400'}`} />
-                      <span className="font-semibold text-gray-800 text-sm md:text-base">❌ No, skip booking</span>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`p-2 rounded-lg ${wantToBook === false ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                        <Clock className={`w-6 h-6 ${wantToBook === false ? 'text-white' : 'text-gray-400'}`} />
+                      </div>
+                      <span className="font-bold text-gray-800 text-base">❌ No, skip booking</span>
                     </div>
-                    <p className="text-xs text-gray-600">Continue without accommodation</p>
+                    <p className="text-xs text-gray-600 ml-11">Continue without accommodation booking</p>
                   </button>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Submit Buttons Card */}
-          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-4 md:p-6">
+          {/* Submit Buttons Card - Gradient Theme */}
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 animate-slide-up stagger-item-5">
             
-            {/* Duplicate Pass Warning - Shown at bottom near submit button */}
+            {/* Duplicate Pass Warning - Enhanced with Animation */}
             {duplicateWarning.show && (
-              <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg shadow-lg">
-                <div className="flex items-start">
+              <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 p-5 rounded-xl shadow-xl animate-shake">
+                <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
-                    <svg className="h-6 w-6 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                    </svg>
+                    <div className="bg-red-500 p-2 rounded-lg">
+                      <AlertCircle className="h-6 w-6 text-white" />
+                    </div>
                   </div>
-                  <div className="ml-3 flex-1">
-                    <h3 className="text-base font-bold text-red-800">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-red-800 mb-2 flex items-center gap-2">
                       ⚠️ Cannot Create Pass - Duplicate Found
                     </h3>
-                    <div className="mt-2 text-sm text-red-700">
-                      <p className="font-semibold">{duplicateWarning.message}</p>
-                      <p className="mt-2">
+                    <div className="text-sm text-red-700 space-y-2">
+                      <p className="font-bold bg-white/70 p-2 rounded">{duplicateWarning.message}</p>
+                      <p>
                         Please cancel or complete the existing pass before creating a new one.
                       </p>
                     </div>
@@ -938,8 +1105,9 @@ export default function CreatePassPage() {
                         <button
                           type="button"
                           onClick={() => router.push('/admin/gate-entry/all-passes')}
-                          className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-bold rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
+                          <FileText className="w-4 h-4" />
                           View & Manage Existing Passes →
                         </button>
                       </div>
@@ -951,41 +1119,41 @@ export default function CreatePassPage() {
 
             {/* Checking Duplicate Spinner */}
             {checkingDuplicate && (
-              <div className="mb-4 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span className="font-medium">Checking for duplicate passes...</span>
+              <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl p-4 flex items-center gap-3 animate-pulse">
+                <div className="bg-blue-500 p-2 rounded-lg">
+                  <Loader2 className="h-5 w-5 text-white animate-spin" />
+                </div>
+                <span className="font-bold text-blue-800">Checking for duplicate passes...</span>
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3 md:gap-4">
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row justify-end gap-4">
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="px-4 md:px-6 py-2 md:py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition text-sm md:text-base"
+                className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={loading}
-                className="px-6 md:px-8 py-2 md:py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm md:text-base"
+                disabled={loading || duplicateWarning.show}
+                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 {loading ? (
                   <>
-                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-                  Creating Pass...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-4 h-4 md:w-5 md:h-5" />
-                  Create Pass
-                </>
-              )}
-            </button>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Creating Pass...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Create Pass
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </form>
