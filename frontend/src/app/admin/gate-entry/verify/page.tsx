@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, CheckCircle, XCircle, User, Calendar, Clock, Car, Building, AlertCircle, Loader2, Camera, X } from 'lucide-react';
+import { Search, CheckCircle, XCircle, User, Calendar, Clock, Car, Building, AlertCircle, Loader2, Camera, X, Shield } from 'lucide-react';
 import { gateEntryService, GatePass } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter } from 'next/navigation';
@@ -9,6 +9,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 // @ts-ignore - html5-qrcode doesn't have type definitions
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import './qr-scanner.css';
+import '../styles/animations.css';
 
 export default function VerifyPassPage() {
   const router = useRouter();
@@ -732,43 +733,55 @@ export default function VerifyPassPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-3 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="mb-4 md:mb-6">
-          <h1 className="text-xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
-            🔍 Pass Verification
-          </h1>
-          <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">Guard interface for visitor pass verification and entry management</p>
+        {/* Hero Header with Gradient Background - Master Dashboard Style */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-hidden animate-fade-in">
+          {/* Animated Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
+          </div>
+          
+          {/* Content */}
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+              <Shield className="w-7 h-7 md:w-8 md:h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-4xl font-bold text-white">Pass Verification</h1>
+              <p className="text-green-100 text-sm md:text-base mt-1">Guard interface for visitor pass verification and entry management</p>
+            </div>
+          </div>
         </div>
 
-        {/* Tabs Card - LPU Style */}
-        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] mb-4 md:mb-6">
-          <div className="border-b border-gray-200">
+        {/* Tabs Card - Master Dashboard Style */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-6 overflow-hidden animate-slide-up">
+          <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
             <div className="flex">
               <button
                 onClick={() => setActiveTab('manual')}
-                className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-medium transition-colors ${
+                className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-bold transition-all transform ${
                   activeTab === 'manual'
-                    ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'border-b-4 border-blue-600 text-blue-600 bg-gradient-to-r from-blue-50 to-cyan-50 scale-105'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-50'
                 }`}
               >
                 <div className="flex items-center justify-center gap-1 md:gap-2">
-                  <Search className="w-4 h-4 md:w-5 md:h-5" />
+                  <Search className={`w-4 h-4 md:w-5 md:h-5 ${activeTab === 'manual' ? 'animate-pulse' : ''}`} />
                   <span className="text-xs md:text-base">Manual Search</span>
                 </div>
               </button>
               <button
                 onClick={() => setActiveTab('qr')}
-                className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-medium transition-colors ${
+                className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-bold transition-all transform ${
                   activeTab === 'qr'
-                    ? 'border-b-2 border-blue-600 text-blue-600 bg-blue-50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? 'border-b-4 border-blue-600 text-blue-600 bg-gradient-to-r from-blue-50 to-cyan-50 scale-105'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-50'
                 }`}
               >
                 <div className="flex items-center justify-center gap-1 md:gap-2">
-                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-4 h-4 md:w-5 md:h-5 ${activeTab === 'qr' ? 'animate-pulse' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                   </svg>
                   <span className="text-xs md:text-base">QR Scan</span>
@@ -779,14 +792,17 @@ export default function VerifyPassPage() {
 
           {/* Manual Search Tab */}
           {activeTab === 'manual' && (
-            <div className="p-3 md:p-6">
-              <div className="grid grid-cols-1 gap-3 md:gap-4 mb-4">
+            <div className="p-4 md:p-6">
+              <div className="grid grid-cols-1 gap-4 md:gap-5 mb-5">
                 <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">Search By</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
+                    <Search className="w-4 h-4 text-blue-600" />
+                    Search By
+                  </label>
                   <select
                     value={searchType}
                     onChange={(e) => setSearchType(e.target.value as any)}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 text-sm md:text-base border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 bg-white"
                   >
                     <option value="passId">Pass ID</option>
                     <option value="visitorName">Visitor Name</option>
@@ -796,13 +812,13 @@ export default function VerifyPassPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1 md:mb-2">
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
                     {searchType === 'passId' && 'Enter Pass ID'}
                     {searchType === 'visitorName' && 'Enter Visitor Name'}
                     {searchType === 'mobile' && 'Enter Mobile Number'}
                     {searchType === 'vehicleNumber' && 'Enter Vehicle Number'}
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <input
                       type="text"
                       value={searchTerm}
@@ -814,12 +830,12 @@ export default function VerifyPassPage() {
                         searchType === 'mobile' ? 'Mobile' :
                         'Vehicle No.'
                       }
-                      className="flex-1 px-3 md:px-4 py-2 md:py-3 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="flex-1 px-4 py-3 text-sm md:text-base border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
                     />
                     <button
                       onClick={handleSearch}
                       disabled={loading}
-                      className="px-4 md:px-6 py-2 md:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 md:gap-2 disabled:bg-gray-400 text-sm md:text-base font-medium"
+                      className="px-5 md:px-7 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-bold"
                     >
                       {loading ? (
                         <>
@@ -838,12 +854,14 @@ export default function VerifyPassPage() {
               </div>
 
               {error && (
-                <div className="mt-4 p-3 md:p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="mt-5 p-4 md:p-5 bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-xl animate-shake">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-red-500 p-2 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-white flex-shrink-0" />
+                    </div>
                     <div className="flex-1">
-                      <p className="font-medium text-sm md:text-base text-red-800 mb-1">Verification Failed</p>
-                      <p className="text-xs md:text-sm text-red-600 whitespace-pre-line">{error}</p>
+                      <p className="font-bold text-sm md:text-base text-red-800 mb-1">Verification Failed</p>
+                      <p className="text-xs md:text-sm text-red-700 whitespace-pre-line">{error}</p>
                     </div>
                   </div>
                 </div>
@@ -853,64 +871,71 @@ export default function VerifyPassPage() {
 
           {/* QR Code Scan Tab */}
           {activeTab === 'qr' && (
-            <div className="p-3 md:p-8">
+            <div className="p-4 md:p-8">
               <div className="max-w-2xl mx-auto">
-                <div className="mb-4 md:mb-6 text-center">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <Camera className="w-5 h-5 md:w-6 md:h-6 text-blue-600" />
-                    <h3 className="text-lg md:text-xl font-bold text-gray-900">Scanner Camera</h3>
+                <div className="mb-5 md:mb-6 text-center animate-fade-in">
+                  <div className="inline-block bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-2xl mb-3 shadow-lg">
+                    <Camera className="w-6 h-6 md:w-7 md:h-7 text-white" />
                   </div>
-                  <p className="text-xs md:text-sm text-gray-600">Position the QR code within the camera frame</p>
+                  <h3 className="text-lg md:text-2xl font-bold text-gray-900 mb-2">Scanner Camera</h3>
+                  <p className="text-sm md:text-base text-gray-600">Position the QR code within the camera frame</p>
                   {!scannerInitialized && (
-                    <div className="mt-3 md:mt-4 flex items-center justify-center gap-2 text-blue-600">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span className="text-xs md:text-sm font-medium">Initializing camera scanner...</span>
+                    <div className="mt-4 flex items-center justify-center gap-2 text-blue-600 animate-pulse">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span className="text-sm md:text-base font-bold">Initializing camera scanner...</span>
                     </div>
                   )}
                 </div>
 
                 {/* QR Scanner Container - Library will inject UI here */}
-                <div id="qr-reader" ref={qrReaderRef} className="mb-6"></div>
+                <div id="qr-reader" ref={qrReaderRef} className="mb-6 rounded-xl overflow-hidden shadow-lg"></div>
 
                 {loading && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl p-5 mb-6 animate-pulse">
                     <div className="flex items-center justify-center gap-3">
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                      <p className="text-blue-800 font-medium">Verifying scanned pass...</p>
+                      <div className="bg-blue-500 p-2 rounded-lg">
+                        <Loader2 className="w-5 h-5 animate-spin text-white" />
+                      </div>
+                      <p className="text-blue-800 font-bold text-sm md:text-base">Verifying scanned pass...</p>
                     </div>
                   </div>
                 )}
 
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 md:p-6">
-                  <h4 className="font-semibold text-sm md:text-base text-gray-900 mb-2 md:mb-3">📋 Scanning Instructions:</h4>
-                  <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-gray-700">
-                    <p className="flex items-start gap-2">
-                      <span className="font-semibold text-blue-600">Step 1:</span>
-                      <span>Camera selection dropdown will appear above - select your camera</span>
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-4 md:p-6 shadow-lg animate-slide-up">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="bg-gradient-to-br from-blue-500 to-indigo-500 p-2 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <h4 className="font-bold text-base md:text-lg text-gray-900">Scanning Instructions:</h4>
+                  </div>
+                  <div className="space-y-2.5 md:space-y-3 text-xs md:text-sm text-gray-700\">
+                    <p className="flex items-start gap-3 bg-white/70 p-3 rounded-lg\">
+                      <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-lg\">Step 1:</span>
+                      <span className="flex-1">Camera selection dropdown will appear above - select your camera</span>
                     </p>
-                    <p className="flex items-start gap-2">
-                      <span className="font-semibold text-blue-600">Step 2:</span>
-                      <span>Click the <strong>&quot;Start Scanning&quot;</strong> button to open camera</span>
+                    <p className="flex items-start gap-3 bg-white/70 p-3 rounded-lg">
+                      <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-lg">Step 2:</span>
+                      <span className="flex-1">Click the <strong>&quot;Start Scanning&quot;</strong> button to open camera</span>
                     </p>
-                    <p className="flex items-start gap-2">
-                      <span className="font-semibold text-blue-600">Step 3:</span>
-                      <span>Hold visitor&apos;s gate pass QR code in front of camera</span>
+                    <p className="flex items-start gap-3 bg-white/70 p-3 rounded-lg">
+                      <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-lg">Step 3:</span>
+                      <span className="flex-1">Hold visitor&apos;s gate pass QR code in front of camera</span>
                     </p>
-                    <p className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <span>Ensure good lighting and steady hand for faster detection</span>
+                    <p className="flex items-start gap-3 bg-green-50 border border-green-200 p-3 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="flex-1">Ensure good lighting and steady hand for faster detection</span>
                     </p>
-                    <p className="flex items-start gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <span>Scanner will automatically verify pass after successful scan</span>
+                    <p className="flex items-start gap-3 bg-green-50 border border-green-200 p-3 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span className="flex-1">Scanner will automatically verify pass after successful scan</span>
                     </p>
-                    <p className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <span><strong>Allow camera permission</strong> when browser prompts</span>
+                    <p className="flex items-start gap-3 bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <span className="flex-1"><strong>Allow camera permission</strong> when browser prompts</span>
                     </p>
-                    <p className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-                      <span>Switch to Manual Search tab if QR code is not readable</span>
+                    <p className="flex items-start gap-3 bg-orange-50 border border-orange-200 p-3 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                      <span className="flex-1">Switch to Manual Search tab if QR code is not readable</span>
                     </p>
                   </div>
                 </div>
@@ -919,18 +944,18 @@ export default function VerifyPassPage() {
           )}
         </div>
 
-        {/* Pass Details Section - LPU Style */}
+        {/* Pass Details Section - Master Dashboard Style */}
         {pass && (
-          <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden animate-slide-up">
             {/* Status Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-3 md:px-6 py-3 md:py-4">
+            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-4 md:px-6 py-4 md:py-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white text-xs md:text-sm opacity-90">Pass ID</p>
+                  <p className="text-blue-100 text-xs md:text-sm font-medium mb-1">Pass ID</p>
                   <p className="text-white text-lg md:text-2xl font-bold break-all">{pass.passId}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <div className={`px-2 md:px-4 py-1 md:py-2 rounded-full ${getStatusColor(pass.passStatus || pass.status)} font-semibold text-xs md:text-sm`}>
+                  <div className={`px-3 md:px-5 py-1.5 md:py-2 rounded-full ${getStatusColor(pass.passStatus || pass.status)} font-bold text-xs md:text-sm shadow-lg`}>
                     {getStatusLabel(pass.passStatus || pass.status)}
                   </div>
                   {getQRStatusBadge(pass.qrStatus)}

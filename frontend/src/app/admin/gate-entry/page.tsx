@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, Filter, Download, RefreshCw, Eye, X, Send, 
-  CheckCircle, XCircle, Clock, AlertCircle, Calendar, User, Phone, QrCode, Car, Loader2
+  CheckCircle, XCircle, Clock, AlertCircle, Calendar, User, Phone, QrCode, Car, Loader2, FileText
 } from 'lucide-react';
 import Link from 'next/link';
 import { gateEntryService, type GatePass } from '@/shared/services/gateEntry.service';
@@ -11,6 +11,7 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import ExtendPassModal from './components/ExtendPassModal';
 import { canExtendPass, canCancelPass } from '@/shared/utils/gateEntryPermissions';
+import './styles/animations.css';
 
 interface Pass {
   id: string;
@@ -339,10 +340,13 @@ export default function AllPassesPage() {
   // Loading State
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading gate passes...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="text-center animate-fade-in">
+          <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-2xl inline-block mb-4 animate-pulse-glow">
+            <Loader2 className="w-12 h-12 text-white animate-spin" />
+          </div>
+          <p className="text-lg font-bold text-gray-700">Loading gate passes...</p>
+          <p className="text-sm text-gray-500 mt-2">Please wait while we fetch your data</p>
         </div>
       </div>
     );
@@ -351,10 +355,12 @@ export default function AllPassesPage() {
   // Error State
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 p-8 animate-shake">
           <div className="text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <div className="bg-gradient-to-br from-red-500 to-pink-500 p-4 rounded-2xl inline-block mb-4">
+              <AlertCircle className="w-16 h-16 text-white" />
+            </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Passes</h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <button
@@ -362,7 +368,7 @@ export default function AllPassesPage() {
                 setError(null);
                 fetchPasses();
               }}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 mx-auto"
             >
               <RefreshCw className="w-5 h-5" />
               Try Again
@@ -374,131 +380,199 @@ export default function AllPassesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-3 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-4 md:mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div>
-              <h1 className="text-xl md:text-3xl font-bold text-gray-900">📋 All Gate Passes</h1>
-              <p className="text-xs md:text-sm text-gray-600 mt-1">
-                {(() => {
-                  const role = (user?.role?.name || '').toLowerCase();
-                  const isAdmin = role === 'admin' || role === 'superadmin';
-                  const isGuard = role === 'staff';  // ✅ ROLE-BASED (Correct!)
-                  
-                  if (isAdmin) {
-                    return '👨‍💼 Admin View: Showing all gate passes';
-                  } else if (isGuard) {
-                    return '🛡️ Guard View: Showing all gate passes for verification';
-                  } else {
-                    return '📝 My Passes: Showing only passes created by you';
-                  }
-                })()}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 md:gap-3">
-              <button
-                onClick={() => {
-                  fetchPasses();
-                }}
-                className="px-3 md:px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-              <Link
-                href="/admin/gate-entry/create-pass"
-                className="px-3 md:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1 md:gap-2 text-sm md:text-base"
-              >
-                ➕ <span className="hidden sm:inline">Create New Pass</span><span className="sm:hidden">New</span>
-              </Link>
-            </div>
+        {/* Hero Header with Gradient Background - Master Dashboard Style */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-hidden animate-fade-in">
+          {/* Animated Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
           </div>
-
-          {/* Stats Cards - LPU Style with thin border all sides */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 mb-6">
-            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
-              <div className="text-xs md:text-sm text-gray-600">Total Passes</div>
-              <div className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</div>
-            </div>
-            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
-              <div className="text-xs md:text-sm text-gray-600">Active Today</div>
-              <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.active}</div>
-            </div>
-            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
-              <div className="text-xs md:text-sm text-gray-600">Pending</div>
-              <div className="text-xl md:text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            </div>
-            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
-              <div className="text-xs md:text-sm text-gray-600">Completed</div>
-              <div className="text-xl md:text-2xl font-bold text-green-600">{stats.completed}</div>
-            </div>
-            <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 hover:shadow-[0_6px_20px_rgba(21,101,192,0.25)] transition-shadow">
-              <div className="text-xs md:text-sm text-gray-600">Expired</div>
-              <div className="text-xl md:text-2xl font-bold text-red-600">{stats.expired}</div>
+          
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                  <FileText className="w-7 h-7 md:w-8 md:h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl md:text-4xl font-bold text-white">All Gate Passes</h1>
+                  <p className="text-indigo-100 text-sm md:text-base mt-1">
+                    {(() => {
+                      const role = (user?.role?.name || '').toLowerCase();
+                      const isAdmin = role === 'admin' || role === 'superadmin';
+                      const isGuard = role === 'staff';
+                      
+                      if (isAdmin) {
+                        return '👨‍💼 Admin View: Showing all gate passes';
+                      } else if (isGuard) {
+                        return '🛡️ Guard View: Showing all gate passes for verification';
+                      } else {
+                        return '📝 My Passes: Showing only passes created by you';
+                      }
+                    })()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 md:gap-3">
+                <button
+                  onClick={() => {
+                    fetchPasses();
+                  }}
+                  className="px-3 md:px-4 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all flex items-center gap-2 text-sm md:text-base font-medium hover-lift"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
+                <Link
+                  href="/admin/gate-entry/create-pass"
+                  className="px-3 md:px-4 py-2.5 bg-white text-blue-600 rounded-xl hover:bg-blue-50 transition-all flex items-center gap-2 text-sm md:text-base font-bold shadow-lg hover:shadow-xl hover-lift"
+                >
+                  ➕ <span className="hidden sm:inline">Create New Pass</span><span className="sm:hidden">New</span>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Filters Card - LPU Style */}
-        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] p-3 md:p-4 mb-4 md:mb-6">
+        {/* Stats Cards - Master Dashboard Style with Gradient Icons */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 mb-6">
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-1">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-gray-500 to-gray-600 p-3 rounded-xl shadow-lg">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-xs md:text-sm text-gray-600">Total Passes</div>
+                <div className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-2">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-xl shadow-lg">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-xs md:text-sm text-gray-600">Active Today</div>
+                <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.active}</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-3">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-3 rounded-xl shadow-lg">
+                <Clock className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-xs md:text-sm text-gray-600">Pending</div>
+                <div className="text-xl md:text-2xl font-bold text-yellow-600">{stats.pending}</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-3 rounded-xl shadow-lg">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-xs md:text-sm text-gray-600">Completed</div>
+                <div className="text-xl md:text-2xl font-bold text-green-600">{stats.completed}</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-5">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-red-500 to-pink-500 p-3 rounded-xl shadow-lg">
+                <AlertCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="text-xs md:text-sm text-gray-600">Expired</div>
+                <div className="text-xl md:text-2xl font-bold text-red-600">{stats.expired}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters Card - Master Dashboard Style with Gradient Header */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-6 mb-6 animate-slide-up">
+          {/* Filter Section Header */}
+          <div className="flex items-center gap-3 mb-5">
+            <div className="bg-gradient-to-br from-cyan-500 to-blue-500 p-2.5 rounded-xl shadow-lg">
+              <Filter className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-lg md:text-xl font-bold text-gray-900">Filter & Search Passes</h2>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {/* Search */}
             <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-gray-700 mb-2">Search Passes</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Search by Pass ID, Name, Mobile, Relation, or Vehicle..."
+                  placeholder="Pass ID, Name, Mobile, Relation, Vehicle..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400"
                 />
               </div>
             </div>
 
             {/* Status Filter */}
             <div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending (Not Completed)</option>
-                <option value="active">Active</option>
-                <option value="checked_in">Checked In</option>
-                <option value="completed">Completed</option>
-                <option value="denied">Denied</option>
-                <option value="expired">Expired</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
+              <label className="block text-xs font-bold text-gray-700 mb-2">Status</label>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400 bg-white"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending (Not Completed)</option>
+                  <option value="active">Active</option>
+                  <option value="checked_in">Checked In</option>
+                  <option value="completed">Completed</option>
+                  <option value="denied">Denied</option>
+                  <option value="expired">Expired</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
 
             {/* Date Filter */}
             <div>
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="all">All Dates</option>
-                <option value="today">Today</option>
-                <option value="upcoming">Upcoming</option>
-                <option value="past">Past</option>
-              </select>
+              <label className="block text-xs font-bold text-gray-700 mb-2">Date Range</label>
+              <div className="relative">
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400 bg-white"
+                >
+                  <option value="all">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="past">Past</option>
+                </select>
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-200 gap-2">
-            <div className="text-xs md:text-sm text-gray-600">
-              Showing <span className="font-semibold">{filteredPasses.length}</span> of{' '}
-              <span className="font-semibold">{passes.length}</span> passes
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-5 pt-5 border-t border-gray-200 gap-3">
+            <div className="text-sm text-gray-600 flex items-center gap-2">
+              <div className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs">
+                {filteredPasses.length}
+              </div>
+              <span>of {passes.length} passes</span>
             </div>
             <button
               onClick={handleExport}
-              className="px-3 md:px-4 py-2 text-xs md:text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Export to CSV
@@ -506,8 +580,8 @@ export default function AllPassesPage() {
           </div>
         </div>
 
-        {/* Passes Table - LPU Style Card */}
-        <div className="bg-white rounded-lg border border-blue-600 shadow-[0_4px_15px_rgba(21,101,192,0.15)] overflow-hidden">
+        {/* Passes Table - Master Dashboard Style Card */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden animate-slide-up">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -543,11 +617,11 @@ export default function AllPassesPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredPasses.map((pass) => {
+                  filteredPasses.map((pass, index) => {
                     const statusConfig = STATUS_CONFIG[pass.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
                     const StatusIcon = statusConfig.icon;
                     return (
-                      <tr key={pass.id} className="hover:bg-gray-50">
+                      <tr key={pass.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-300 animate-fade-in" style={{animationDelay: `${index * 50}ms`}}>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <QrCode className="w-4 h-4 text-gray-400" />

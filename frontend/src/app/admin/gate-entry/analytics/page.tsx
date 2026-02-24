@@ -15,6 +15,7 @@ import {
 import { gateEntryService } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { hasGateEntryPermission, GATE_ENTRY_PERMISSIONS } from '@/shared/utils/gateEntryPermissions';
+import '../styles/animations.css';
 
 // Status colors matching the design system
 const STATUS_COLORS = {
@@ -293,152 +294,176 @@ export default function GateEntryAnalyticsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
       <div className="max-w-[1800px] mx-auto space-y-6">
         
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                  <BarChart3 className="w-6 h-6 text-blue-600" />
+        {/* Hero Header with Gradient Background - Master Dashboard Style */}
+        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 overflow-hidden animate-fade-in">
+          {/* Animated Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
+            <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
+          </div>
+          
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                  <BarChart3 className="w-7 h-7 md:w-8 md:h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  <h1 className="text-2xl md:text-4xl font-bold text-white">
                     Gate Entry Analytics
                   </h1>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-blue-100 text-sm md:text-base mt-1">
                     Comprehensive insights and statistics
                   </p>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={fetchAnalytics}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span className="hidden md:inline">Refresh</span>
-              </button>
-              <button
-                onClick={handleExportCSV}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden md:inline">Export</span>
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={fetchAnalytics}
+                  disabled={loading}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all font-medium hover-lift disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span className="hidden md:inline">Refresh</span>
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-white text-blue-600 rounded-xl hover:bg-blue-50 transition-all font-bold shadow-lg hover:shadow-xl hover-lift"
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden md:inline">Export</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Filter className="w-5 h-5 text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-5 md:p-6 animate-slide-up">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-2.5 rounded-xl shadow-lg">
+              <Filter className="w-5 h-5 text-white" />
+            </div>
+            <h2 className="text-lg md:text-xl font-bold text-gray-900">Filter Analytics Data</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Date From */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
                 Date From
               </label>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full px-3 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
 
             {/* Date To */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
                 Date To
               </label>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full px-3 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
 
             {/* Purpose */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
                 Purpose
               </label>
-              <select
-                value={purposeFilter}
-                onChange={(e) => setPurposeFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Purposes</option>
-                <option value="meeting">Meeting</option>
-                <option value="delivery">Delivery</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="event">Event</option>
-                <option value="interview">Interview</option>
-                <option value="personal">Personal</option>
-                <option value="other">Other</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={purposeFilter}
+                  onChange={(e) => setPurposeFilter(e.target.value)}
+                  className="w-full px-3 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 bg-white"
+                >
+                  <option value="all">All Purposes</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="delivery">Delivery</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="event">Event</option>
+                  <option value="interview">Interview</option>
+                  <option value="personal">Personal</option>
+                  <option value="other">Other</option>
+                </select>
+                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
 
             {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
                 Status
               </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Statuses</option>
-                <option value="created">Created</option>
-                <option value="checked_in">Checked In</option>
-                <option value="checked_out">Checked Out</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="expired">Expired</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 bg-white"
+                >
+                  <option value="all">All Status</option>
+                  <option value="created">Created</option>
+                  <option value="checked_in">Checked In</option>
+                  <option value="checked_out">Checked Out</option>
+                  <option value="cancelled">Cancelled</option>
+                  <option value="expired">Expired</option>
+                </select>
+                <Activity className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
 
             {/* Vehicle Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">
                 Vehicle
               </label>
-              <select
-                value={vehicleTypeFilter}
-                onChange={(e) => setVehicleTypeFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="all">All Types</option>
-                <option value="none">Without Vehicle</option>
-                <option value="two_wheeler">Two Wheeler</option>
-                <option value="four_wheeler">Four Wheeler</option>
-                <option value="other">Other</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={vehicleTypeFilter}
+                  onChange={(e) => setVehicleTypeFilter(e.target.value)}
+                  className="w-full px-3 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 bg-white"
+                >
+                  <option value="all">All Types</option>
+                  <option value="none">Without Vehicle</option>
+                  <option value="two_wheeler">Two Wheeler</option>
+                  <option value="four_wheeler">Four Wheeler</option>
+                  <option value="other">Other</option>
+                </select>
+                <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
           </div>
 
-          <div className="flex gap-3 mt-4">
+          <div className="flex gap-3 mt-6">
             <button
               onClick={handleApplyFilters}
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Filter className="w-4 h-4" />
               Apply Filters
             </button>
             <button
               onClick={handleResetFilters}
-              className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               Reset
             </button>
@@ -446,7 +471,7 @@ export default function GateEntryAnalyticsPage() {
         </div>
 
         {/* Overview Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 animate-slide-up">
           <StatCard
             icon={Users}
             label="Total Passes"
@@ -776,24 +801,24 @@ interface StatCardProps {
 
 function StatCard({ icon: Icon, label, value, color }: StatCardProps) {
   const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
-    green: 'bg-green-50 text-green-600',
-    yellow: 'bg-yellow-50 text-yellow-600',
-    red: 'bg-red-50 text-red-600',
-    orange: 'bg-orange-50 text-orange-600',
-    purple: 'bg-purple-50 text-purple-600',
+    blue: { bg: 'bg-gradient-to-br from-blue-500 to-cyan-500', text: 'text-blue-600' },
+    indigo: { bg: 'bg-gradient-to-br from-indigo-500 to-purple-500', text: 'text-indigo-600' },
+    green: { bg: 'bg-gradient-to-br from-green-500 to-emerald-500', text: 'text-green-600' },
+    yellow: { bg: 'bg-gradient-to-br from-yellow-500 to-orange-500', text: 'text-yellow-600' },
+    red: { bg: 'bg-gradient-to-br from-red-500 to-pink-500', text: 'text-red-600' },
+    orange: { bg: 'bg-gradient-to-br from-orange-500 to-amber-500', text: 'text-orange-600' },
+    purple: { bg: 'bg-gradient-to-br from-purple-500 to-pink-500', text: 'text-purple-600' },
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-lg transition-shadow">
+    <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 hover-lift animate-fade-in">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${colorClasses[color]}`}>
-          <Icon className="w-5 h-5" />
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${colorClasses[color].bg}`}>
+          <Icon className="w-5 h-5 text-white" />
         </div>
         <div>
-          <p className="text-2xl font-bold text-gray-900">{new Intl.NumberFormat('en-IN').format(value)}</p>
-          <p className="text-xs text-gray-500">{label}</p>
+          <p className={`text-2xl font-bold ${colorClasses[color].text}`}>{new Intl.NumberFormat('en-IN').format(value)}</p>
+          <p className="text-xs font-medium text-gray-600">{label}</p>
         </div>
       </div>
     </div>
