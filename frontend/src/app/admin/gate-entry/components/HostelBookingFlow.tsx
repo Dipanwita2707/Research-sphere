@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { gateEntryService, Hostel, HostelRoom, HostelBooking } from '@/shared/services/gateEntry.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import PaymentQRModal from './PaymentQRModal';
+import { useLanguage } from '../context/LanguageContext';
 
 interface HostelBookingFlowProps {
   passId: string;
@@ -25,6 +26,7 @@ export default function HostelBookingFlow({
   onSuccess
 }: HostelBookingFlowProps) {
   const { error: showError, warning: showWarning, success: showSuccess, info: showInfo } = useToast();
+  const { t } = useLanguage();
   const [step, setStep] = useState<BookingStep>('choice');
   const [bookingChoice, setBookingChoice] = useState<'existing' | 'new' | 'none' | null>(null);
   const [hostels, setHostels] = useState<Hostel[]>([]);
@@ -56,11 +58,11 @@ export default function HostelBookingFlow({
       const response = await gateEntryService.getAvailableHostels(checkInDate, checkOutDate);
       setHostels(response.hostels);
       if (response.hostels.length === 0) {
-        showWarning('No hostels available for selected dates');
+        showWarning(t('hostel.noHostels'));
       }
     } catch (error) {
       console.error('Error loading hostels:', error);
-      showError('Failed to load hostels');
+      showError(t('hostel.loadingHostels').replace('...', ' failed'));
     } finally {
       setIsLoading(false);
     }
@@ -72,11 +74,11 @@ export default function HostelBookingFlow({
       const response = await gateEntryService.getHostelRooms(hostelId, checkInDate, checkOutDate);
       setRooms(response.rooms);
       if (response.rooms.length === 0) {
-        showWarning('No rooms available in this hostel');
+        showWarning(t('hostel.noRooms'));
       }
     } catch (error) {
       console.error('Error loading rooms:', error);
-      showError('Failed to load rooms');
+      showError(t('hostel.loadingRooms').replace('...', ' failed'));
     } finally {
       setIsLoading(false);
     }
@@ -151,7 +153,7 @@ export default function HostelBookingFlow({
   const renderChoiceStep = () => (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">
-        Your visit is multi-day. Do you need accommodation?
+        {t('hostel.multiDayQuestion')}
       </h3>
       
       <div className="space-y-3">
@@ -159,16 +161,16 @@ export default function HostelBookingFlow({
           onClick={() => handleChoiceSelection('new')}
           className="w-full p-4 border-2 border-blue-500 bg-blue-50 rounded-lg hover:bg-blue-100 transition-all text-left"
         >
-          <div className="font-semibold text-blue-800">I need to book accommodation</div>
-          <div className="text-sm text-blue-600 mt-1">Browse available hostels and rooms</div>
+          <div className="font-semibold text-blue-800">{t('hostel.needAccommodation')}</div>
+          <div className="text-sm text-blue-600 mt-1">{t('hostel.browseHostels')}</div>
         </button>
 
         <button
           onClick={() => handleChoiceSelection('none')}
           className="w-full p-4 border-2 border-gray-300 rounded-lg hover:border-gray-400 hover:bg-gray-50 transition-all text-left"
         >
-          <div className="font-semibold text-gray-800">No accommodation needed</div>
-          <div className="text-sm text-gray-600 mt-1">Continue without hostel booking</div>
+          <div className="font-semibold text-gray-800">{t('hostel.noAccommodation')}</div>
+          <div className="text-sm text-gray-600 mt-1">{t('hostel.continueWithout')}</div>
         </button>
       </div>
     </div>
@@ -177,23 +179,23 @@ export default function HostelBookingFlow({
   const renderHostelSelection = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">Select Hostel</h3>
+        <h3 className="text-lg font-semibold text-gray-800">{t('hostel.selectHostel')}</h3>
         <button
           onClick={() => setStep('choice')}
           className="text-sm text-blue-600 hover:text-blue-800"
         >
-          ← Back
+          {t('hostel.back')}
         </button>
       </div>
 
       {isLoading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading hostels...</p>
+          <p className="text-gray-600 mt-4">{t('hostel.loadingHostels')}</p>
         </div>
       ) : hostels.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-gray-600">No hostels available for selected dates</p>
+          <p className="text-gray-600">{t('hostel.noHostels')}</p>
         </div>
       ) : (
         <div className="grid gap-4 max-h-96 overflow-y-auto">
@@ -210,7 +212,7 @@ export default function HostelBookingFlow({
                   {hostel.hostelType}
                 </span>
                 <span className="text-sm text-gray-600">
-                  {hostel.availableRoomsCount} rooms available
+                  {hostel.availableRoomsCount} {t('hostel.roomsAvailable')}
                 </span>
               </div>
               {hostel.facilities && (
@@ -242,7 +244,7 @@ export default function HostelBookingFlow({
   const renderRoomSelection = () => (
     <div className="space-y-4">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">Select Room</h3>
+        <h3 className="text-lg font-semibold text-gray-800">{t('hostel.selectRoom')}</h3>
         <button
           onClick={() => {
             setStep('select_hostel');
@@ -250,7 +252,7 @@ export default function HostelBookingFlow({
           }}
           className="text-sm text-blue-600 hover:text-blue-800"
         >
-          ← Back
+          {t('hostel.back')}
         </button>
       </div>
 
@@ -259,18 +261,18 @@ export default function HostelBookingFlow({
           <span className="font-semibold">{selectedHostel?.name}</span>
         </p>
         <p className="text-xs text-blue-600 mt-1">
-          {nights} night{nights > 1 ? 's' : ''} • {guestCount} guest{guestCount > 1 ? 's' : ''}
+          {nights} {nights > 1 ? t('hostel.nights') : t('hostel.night')} • {guestCount} {guestCount > 1 ? t('hostel.guests') : t('hostel.guest')}
         </p>
       </div>
 
       {isLoading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600 mt-4">Loading rooms...</p>
+          <p className="text-gray-600 mt-4">{t('hostel.loadingRooms')}</p>
         </div>
       ) : rooms.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-gray-600">No rooms available in this hostel</p>
+          <p className="text-gray-600">{t('hostel.noRooms')}</p>
         </div>
       ) : (
         <div className="grid gap-3 max-h-96 overflow-y-auto">
@@ -285,7 +287,7 @@ export default function HostelBookingFlow({
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-gray-800">Room {room.roomNumber}</h4>
+                      <h4 className="font-semibold text-gray-800">{t('hostel.room')} {room.roomNumber}</h4>
                       {/* AC / Non-AC badge */}
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${room.isAc ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
                         {room.isAc ? '❄️ AC' : 'Non-AC'}
@@ -300,7 +302,7 @@ export default function HostelBookingFlow({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">Max {room.maxOccupancy} guests</p>
+                    <p className="text-xs text-gray-500 mt-1">{t('hostel.maxGuests')} {room.maxOccupancy} {t('hostel.guests')}</p>
                     {/* Amenities */}
                     {room.amenities && room.amenities.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
@@ -314,8 +316,8 @@ export default function HostelBookingFlow({
                   </div>
                   <div className="text-right ml-4">
                     <p className="text-lg font-bold text-blue-600">₹{totalPrice}</p>
-                    <p className="text-xs text-gray-500">₹{room.pricePerNight}/night</p>
-                    <p className="text-xs text-gray-400 mt-1">{nights} night{nights > 1 ? 's' : ''}</p>
+                    <p className="text-xs text-gray-500">₹{room.pricePerNight}{t('hostel.pricePerNight')}</p>
+                    <p className="text-xs text-gray-400 mt-1">{nights} {nights > 1 ? t('hostel.nights') : t('hostel.night')}</p>
                   </div>
                 </div>
               </div>
@@ -330,7 +332,7 @@ export default function HostelBookingFlow({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Hostel Booking</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{t('hostel.title')}</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-2xl"

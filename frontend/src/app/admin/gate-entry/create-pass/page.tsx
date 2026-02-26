@@ -7,6 +7,8 @@ import { gateEntryService } from '@/shared/services/gateEntry.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useAuthStore } from '@/shared/auth/authStore';
 import HostelBookingFlow from '../components/HostelBookingFlow';
+import { LanguageProvider, useLanguage } from '../context/LanguageContext';
+import { LanguageSelector } from '../components/LanguageSelector';
 import '../styles/animations.css';
 
 interface SimplePassFormData {
@@ -53,10 +55,11 @@ const VEHICLE_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-export default function CreatePassPage() {
+function CreatePassPageContent() {
   const router = useRouter();
   const { showSuccessModal } = useToast();
   const { user } = useAuthStore(); // Get user from Zustand auth store
+  const { t } = useLanguage(); // Get translation function
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -295,70 +298,70 @@ export default function CreatePassPage() {
     setError(null);
     
     if (!formData.visitorName.trim()) {
-      setError('Visitor name is required');
+      setError(t('createPass.err.visitorNameRequired'));
       return false;
     }
     
     if (!formData.mobileNumber.trim() || !/^[0-9]{10}$/.test(formData.mobileNumber)) {
-      setError('Valid 10-digit mobile number is required');
+      setError(t('createPass.err.invalidMobile'));
       return false;
     }
     
     // Email validation - optional but must be valid format if provided
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError('Please enter a valid email address');
+      setError(t('createPass.err.invalidEmail'));
       return false;
     }
     
     if (!formData.numberOfPersons || formData.numberOfPersons < 1) {
-      setError('Number of persons must be at least 1');
+      setError(t('createPass.err.personsMin'));
       return false;
     }
     
     if (formData.numberOfPersons > 50) {
-      setError('Number of persons cannot exceed 50');
+      setError(t('createPass.err.personsMax'));
       return false;
     }
     
     if (!formData.purposeOfVisit) {
-      setError('Purpose of visit is required');
+      setError(t('createPass.err.purposeRequired'));
       return false;
     }
     
     if (formData.purposeOfVisit === 'other' && !formData.purposeOther.trim()) {
-      setError('Please specify other purpose');
+      setError(t('createPass.err.specifyOther'));
       return false;
     }
     
     if (!formData.visitDate || !formData.visitEndDate) {
-      setError('Visit dates are required');
+      setError(t('createPass.err.datesRequired'));
       return false;
     }
     
     if (new Date(formData.visitEndDate) < new Date(formData.visitDate)) {
-      setError('End date cannot be before start date');
+      setError(t('createPass.err.endDateBeforeStart'));
       return false;
     }
     
     if (!formData.entryTime) {
-      setError('Entry time is required');
+      setError(t('createPass.err.entryTimeRequired'));
       return false;
     }
     
     if (formData.hasVehicle && !formData.vehicleNumber.trim()) {
-      setError('Vehicle number is required when bringing vehicle');
+      setError(t('createPass.err.vehicleNumberRequired'));
       return false;
     }
     
     if (formData.hasVehicle && !formData.vehicleModel.trim()) {
-      setError('Vehicle model is required when bringing vehicle');
+      setError(t('createPass.err.vehicleModelRequired'));
       return false;
     }
     
     // Multi-day accommodation validation
     if (isMultiDay) {
       if (wantToBook === null) {
-        setError('Please indicate if you want to book accommodation');
+        setError(t('createPass.err.accommodationRequired'));
         return false;
       }
       // Set accommodationType based on user choice
@@ -419,14 +422,20 @@ export default function CreatePassPage() {
       
       // Show beautiful success modal
       showSuccessModal({
-        title: 'Pass Created Successfully!',
-        message: isMultiDay && accommodationType === 'university' 
-          ? 'Now book accommodation for the visitor.' 
-          : 'Share this code with your visitor for entry verification.',
+        title: t('createPass.successTitle'),
+        message: isMultiDay && accommodationType === 'university'
+          ? t('createPass.successMessageHostel')
+          : t('createPass.successMessage'),
         passId: pass.passId,
         verificationCode: pass.verificationCode,
         mobile: formData.mobileNumber,
         email: formData.email || undefined,
+        passIdLabel: t('createPass.successPassId'),
+        verificationCodeLabel: t('createPass.successVerifCode'),
+        okButtonText: t('createPass.successOk'),
+        shareNote: t('createPass.successShareNote'),
+        whatsappSentText: t('createPass.successWhatsappSent'),
+        emailSentText: t('createPass.successEmailSent'),
       });
       
       // Reset form only if NOT showing hostel booking (so user sees the flow)
@@ -470,22 +479,29 @@ export default function CreatePassPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Hero Header with Gradient Background - Master Dashboard Style */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-hidden animate-fade-in">
+        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-visible animate-fade-in">
           {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 opacity-10 overflow-hidden rounded-2xl">
             <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
             <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
           </div>
           
           {/* Content */}
           <div className="relative z-10">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
-                <User className="w-7 h-7 md:w-8 md:h-8 text-white" />
+            {/* Header with Language Selector */}
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                  <User className="w-7 h-7 md:w-8 md:h-8 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h1 className="text-2xl md:text-4xl font-bold text-white">{t('createPass.title')}</h1>
+                  <p className="text-blue-100 text-sm md:text-base mt-1">{t('createPass.subtitle')}</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl md:text-4xl font-bold text-white">Create Visitor Pass</h1>
-                <p className="text-blue-100 text-sm md:text-base mt-1">Generate secure entry passes for campus visitors</p>
+              {/* Language Selector */}
+              <div className="flex-shrink-0">
+                <LanguageSelector />
               </div>
             </div>
             
@@ -493,12 +509,12 @@ export default function CreatePassPage() {
             {userRole && (
               <div className="mt-4 flex flex-wrap gap-3">
                 <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
-                  <span className="text-white/90 text-xs font-medium">Creating as:</span>
+                  <span className="text-white/90 text-xs font-medium">{t('createPass.creatingAs')}</span>
                   <span className="text-white font-bold ml-2 text-sm">{userRole}</span>
                 </div>
                 {isStudentLocked && (
                   <div className="bg-yellow-400/90 backdrop-blur-sm px-4 py-2 rounded-lg border border-yellow-300">
-                    <span className="text-yellow-900 text-xs font-bold">🔒 Parent/Guardian Only</span>
+                    <span className="text-yellow-900 text-xs font-bold">🔒 {t('createPass.parentGuardianOnly')}</span>
                   </div>
                 )}
               </div>
@@ -515,7 +531,7 @@ export default function CreatePassPage() {
                   <AlertCircle className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-red-800 font-bold">Error</p>
+                  <p className="text-red-800 font-bold">{t('createPass.error')}</p>
                   <p className="text-red-700 text-sm">{error}</p>
                 </div>
               </div>
@@ -530,8 +546,8 @@ export default function CreatePassPage() {
                 <User className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Visitor Information</h2>
-                <p className="text-gray-600 text-sm">Enter visitor's personal details</p>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.visitorInfo')}</h2>
+                <p className="text-gray-600 text-sm">{t('createPass.visitorInfoDesc')}</p>
               </div>
             </div>
             
@@ -541,7 +557,7 @@ export default function CreatePassPage() {
                 <div className="animate-fade-in">
                   <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
                     <Users className="w-4 h-4 text-blue-600" />
-                    Select Guardian/Parent <span className="text-red-500">*</span>
+                    {t('createPass.selectGuardian')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -550,7 +566,7 @@ export default function CreatePassPage() {
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-blue-400"
                       disabled={loadingGuardians}
                     >
-                      <option value="">-- Select Guardian --</option>
+                      <option value="">{t('createPass.selectGuardianOption')}</option>
                       {guardians.map(guardian => (
                         <option key={guardian.id} value={guardian.id}>
                           {guardian.name} ({guardian.relationship}) - {guardian.phone}
@@ -561,7 +577,7 @@ export default function CreatePassPage() {
                   </div>
                   <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
                     <FileText className="w-3 h-3" />
-                    Select from your registered guardians or enter manually below
+                    {t('createPass.selectFromGuardians')}
                   </p>
                 </div>
               )}
@@ -570,7 +586,7 @@ export default function CreatePassPage() {
               {isStudentLocked && loadingGuardians && (
                 <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl animate-pulse">
                   <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                  <span className="text-sm font-medium text-blue-800">Loading your guardians...</span>
+                  <span className="text-sm font-medium text-blue-800">{t('createPass.loadingGuardians')}</span>
                 </div>
               )}
 
@@ -580,7 +596,7 @@ export default function CreatePassPage() {
                   <div className="flex items-center gap-3">
                     <AlertCircle className="w-5 h-5 text-amber-600" />
                     <p className="text-sm font-medium text-amber-800">
-                      No guardians found in database. Please enter details manually below.
+                      {t('createPass.noGuardiansFound')}
                     </p>
                   </div>
                 </div>
@@ -590,7 +606,7 @@ export default function CreatePassPage() {
                 {/* Visitor Name */}
                 <div className="animate-fade-in stagger-item-2">
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Visitor Name <span className="text-red-500">*</span>
+                    {t('createPass.visitorName')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -599,7 +615,7 @@ export default function CreatePassPage() {
                       value={formData.visitorName}
                       onChange={handleChange}
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
-                      placeholder="Enter full name"
+                      placeholder={t('common.enterFullName')}
                       required
                       readOnly={isStudentLocked && selectedGuardianId !== ''}
                     />
@@ -608,7 +624,7 @@ export default function CreatePassPage() {
                   {isStudentLocked && selectedGuardianId && (
                     <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
-                      Auto-filled from guardian selection
+                      {t('createPass.autoFilled')}
                     </p>
                   )}
                 </div>
@@ -616,7 +632,7 @@ export default function CreatePassPage() {
                 {/* Mobile Number */}
                 <div className="animate-fade-in stagger-item-3">
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Mobile Number <span className="text-red-500">*</span>
+                    {t('createPass.mobileNumber')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -625,7 +641,7 @@ export default function CreatePassPage() {
                       value={formData.mobileNumber}
                       onChange={handleChange}
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
-                      placeholder="10-digit number"
+                      placeholder={t('common.tenDigitNumber')}
                       maxLength={10}
                       pattern="[0-9]{10}"
                       required
@@ -636,13 +652,13 @@ export default function CreatePassPage() {
                   {isStudentLocked && selectedGuardianId && (
                     <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
-                      Auto-filled from guardian selection
+                      {t('createPass.autoFilled')}
                     </p>
                   )}
                   {!(isStudentLocked && selectedGuardianId) && (
                     <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
                       <Phone className="w-3 h-3" />
-                      Visitor will receive WhatsApp notification
+                      {t('createPass.whatsappNotification')}
                     </p>
                   )}
                 </div>
@@ -650,7 +666,7 @@ export default function CreatePassPage() {
                 {/* Email Address */}
                 <div className="animate-fade-in stagger-item-4">
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Email Address
+                    {t('createPass.emailAddress')}
                   </label>
                   <div className="relative">
                     <input
@@ -659,7 +675,7 @@ export default function CreatePassPage() {
                       value={formData.email}
                       onChange={handleChange}
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
-                      placeholder="visitor@example.com"
+                      placeholder={t('common.visitorExample')}
                       readOnly={isStudentLocked && selectedGuardianId !== ''}
                     />
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -667,22 +683,22 @@ export default function CreatePassPage() {
                   {isStudentLocked && selectedGuardianId && (
                     <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
-                      Auto-filled from guardian selection
+                      {t('createPass.autoFilled')}
                     </p>
                   )}
                   <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
                     <Mail className="w-3 h-3" />
-                    QR code & pass details will be sent via email
+                    {t('createPass.emailNotification')}
                   </p>
                 </div>
 
                 {/* Relation */}
                 <div className="animate-fade-in stagger-item-5">
                   <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                    Relation
+                    {t('createPass.relation')}
                     {isStudentLocked && (
                       <span className="text-xs bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1 rounded-full font-bold">
-                        🔒 Parent/Guardian Only
+                        🔒 {t('createPass.parentGuardianBadge')}
                       </span>
                     )}
                   </label>
@@ -696,11 +712,11 @@ export default function CreatePassPage() {
                         required
                         disabled={selectedGuardianId !== ''}
                       >
-                        <option value="">Select Relation</option>
-                        <option value="Father">Father</option>
-                        <option value="Mother">Mother</option>
-                        <option value="Guardian">Guardian</option>
-                        <option value="Parent">Parent (Other)</option>
+                        <option value="">{t('createPass.selectRelation')}</option>
+                        <option value="Father">{t('createPass.father')}</option>
+                        <option value="Mother">{t('createPass.mother')}</option>
+                        <option value="Guardian">{t('createPass.guardian')}</option>
+                        <option value="Parent">{t('createPass.parentOther')}</option>
                       </select>
                     ) : (
                       <input
@@ -709,7 +725,7 @@ export default function CreatePassPage() {
                         value={formData.visitorRelation}
                         onChange={handleChange}
                         className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
-                        placeholder="e.g., Friend, Family, Vendor"
+                        placeholder={t('common.relationExample')}
                       />
                     )}
                     <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -717,7 +733,7 @@ export default function CreatePassPage() {
                   {isStudentLocked && selectedGuardianId && (
                     <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" />
-                      Auto-filled from guardian selection
+                      {t('createPass.autoFilled')}
                     </p>
                   )}
                 </div>
@@ -725,7 +741,7 @@ export default function CreatePassPage() {
                 {/* Number of Persons */}
                 <div className="animate-fade-in stagger-item-6">
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Number of Persons <span className="text-red-500">*</span>
+                    {t('createPass.numberOfPersons')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -736,12 +752,12 @@ export default function CreatePassPage() {
                       min="1"
                       max="50"
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
-                      placeholder="How many people"
+                      placeholder={t('createPass.howManyPeople')}
                       required
                     />
                     <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">Total number of visitors (including you)</p>
+                  <p className="text-xs text-gray-600 mt-1">{t('createPass.totalVisitors')}</p>
                 </div>
               </div>
             </div>
@@ -755,8 +771,8 @@ export default function CreatePassPage() {
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Visit Details</h2>
-                <p className="text-gray-600 text-sm">Schedule and purpose of visit</p>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.visitDetails')}</h2>
+                <p className="text-gray-600 text-sm">{t('createPass.visitDetailsDesc')}</p>
               </div>
             </div>
             
@@ -764,7 +780,7 @@ export default function CreatePassPage() {
               {/* Purpose of Visit */}
               <div className="animate-fade-in">
                 <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Purpose of Visit <span className="text-red-500">*</span>
+                  {t('createPass.purposeOfVisit')} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
@@ -774,9 +790,11 @@ export default function CreatePassPage() {
                     className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-white hover:border-green-400"
                     required
                   >
-                    <option value="">Select Purpose</option>
+                    <option value="">{t('common.selectPurpose')}</option>
                     {purposeOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={opt.value} value={opt.value}>
+                        {t(`createPass.${isStudentLocked ? 'studentPurpose' : 'generalPurpose'}.${opt.value}`)}
+                      </option>
                     ))}
                   </select>
                   <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -787,7 +805,7 @@ export default function CreatePassPage() {
               {formData.purposeOfVisit === 'other' && (
                 <div className="animate-slide-in-right">
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Specify Purpose <span className="text-red-500">*</span>
+                    {t('createPass.specifyPurpose')} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -795,7 +813,7 @@ export default function CreatePassPage() {
                     value={formData.purposeOther}
                     onChange={handleChange}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
-                    placeholder="Enter purpose"
+                    placeholder={t('createPass.enterPurpose')}
                     required
                   />
                 </div>
@@ -804,7 +822,7 @@ export default function CreatePassPage() {
               {/* Visit Start Date */}
               <div className="animate-fade-in">
                 <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Visit Start Date <span className="text-red-500">*</span>
+                  {t('createPass.visitStartDate')} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -823,7 +841,7 @@ export default function CreatePassPage() {
               {/* Visit End Date */}
               <div className="animate-fade-in">
                 <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Visit End Date <span className="text-red-500">*</span>
+                  {t('createPass.visitEndDate')} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -840,7 +858,7 @@ export default function CreatePassPage() {
                 {canBookHostel && (
                   <p className="text-xs text-blue-600 font-bold mt-2 flex items-center gap-1 animate-pulse-glow">
                     <Hotel className="w-4 h-4" />
-                    Multi-day stay detected - hostel/apartment booking available below
+                    {t('createPass.multiDayStayDetected')}
                   </p>
                 )}
               </div>
@@ -848,7 +866,7 @@ export default function CreatePassPage() {
               {/* Entry Time */}
               <div className="md:col-span-2 animate-fade-in">
                 <label className="block text-sm font-bold text-gray-700 mb-2">
-                  Entry Time <span className="text-red-500">*</span>
+                  {t('createPass.entryTime')} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -870,11 +888,11 @@ export default function CreatePassPage() {
                     <div className="mt-2 flex flex-wrap gap-3">
                       <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        Entry: {hour12}:{minutes} {ampm}
+                        {t('createPass.entry')} {hour12}:{minutes} {ampm}
                       </div>
                       <div className="bg-blue-50 border border-blue-300 text-blue-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
-                        QR activates 5 hours before
+                        {t('createPass.qrActivates')}
                       </div>
                     </div>
                   );
@@ -891,8 +909,8 @@ export default function CreatePassPage() {
                 <Car className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Vehicle Information</h2>
-                <p className="text-gray-600 text-sm">Optional vehicle registration details</p>
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.vehicleInfo')}</h2>
+                <p className="text-gray-600 text-sm">{t('createPass.vehicleInfoDesc')}</p>
               </div>
             </div>
             
@@ -908,7 +926,7 @@ export default function CreatePassPage() {
                 />
                 <div className="flex items-center gap-2">
                   <Car className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm font-bold text-gray-700">Visitor will bring a vehicle</span>
+                  <span className="text-sm font-bold text-gray-700">{t('createPass.visitorWillBringVehicle')}</span>
                 </div>
               </label>
             </div>
@@ -919,7 +937,7 @@ export default function CreatePassPage() {
                 {/* Vehicle Type */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Vehicle Type <span className="text-red-500">*</span>
+                    {t('createPass.vehicleType')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -929,9 +947,9 @@ export default function CreatePassPage() {
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-purple-400"
                       required
                     >
-                      <option value="">Select Type</option>
+                      <option value="">{t('createPass.selectVehicleType')}</option>
                       {VEHICLE_TYPES.map(vt => (
-                        <option key={vt.value} value={vt.value}>{vt.label}</option>
+                        <option key={vt.value} value={vt.value}>{t(`createPass.vehicleType.${vt.value}`)}</option>
                       ))}
                     </select>
                     <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -941,7 +959,7 @@ export default function CreatePassPage() {
                 {/* Vehicle Number */}
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Vehicle Number <span className="text-red-500">*</span>
+                    {t('createPass.vehicleNumber')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -950,7 +968,7 @@ export default function CreatePassPage() {
                       value={formData.vehicleNumber}
                       onChange={handleChange}
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all hover:border-purple-400 uppercase font-mono"
-                      placeholder="e.g., DL01AB1234"
+                      placeholder={t('createPass.vehicleNumberExample')}
                       required
                     />
                     <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -960,7 +978,7 @@ export default function CreatePassPage() {
                 {/* Vehicle Model */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-bold text-gray-700 mb-2">
-                    Vehicle Model <span className="text-red-500">*</span>
+                    {t('createPass.vehicleModel')} <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -969,7 +987,7 @@ export default function CreatePassPage() {
                       value={formData.vehicleModel}
                       onChange={handleChange}
                       className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all hover:border-purple-400"
-                      placeholder="e.g., Honda City, Yamaha R15"
+                      placeholder={t('createPass.vehicleModelExample')}
                       required
                     />
                     <Car className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -982,7 +1000,7 @@ export default function CreatePassPage() {
             {!formData.hasVehicle && (
               <div className="text-center py-8 text-gray-500 animate-fade-in">
                 <Car className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="text-sm">No vehicle information required</p>
+                <p className="text-sm">{t('createPass.noVehicleRequired')}</p>
               </div>
             )}
           </div>
@@ -996,8 +1014,8 @@ export default function CreatePassPage() {
                   <Hotel className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">Accommodation</h2>
-                  <p className="text-gray-600 text-sm">Hostel/Apartment booking for multi-day stay</p>
+                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.accommodation')}</h2>
+                  <p className="text-gray-600 text-sm">{t('createPass.accommodationDesc')}</p>
                 </div>
               </div>
               
@@ -1007,12 +1025,12 @@ export default function CreatePassPage() {
                   <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-sm font-bold text-blue-900 mb-1">
-                      Multi-day visit detected
+                      {t('createPass.multiDayVisitDetected')}
                     </p>
                     <div className="text-xs text-blue-700 space-y-1">
-                      <p><strong>Visit Period:</strong> {formData.visitDate} to {formData.visitEndDate}</p>
-                      <p><strong>QR Activation:</strong> 5 hours before entry time on {formData.visitDate}</p>
-                      <p><strong>QR Expiry:</strong> {formData.visitEndDate} at 23:59</p>
+                      <p><strong>{t('createPass.visitPeriod')}</strong> {formData.visitDate} to {formData.visitEndDate}</p>
+                      <p><strong>{t('createPass.qrActivation')}</strong> 5 hours before entry time on {formData.visitDate}</p>
+                      <p><strong>{t('createPass.qrExpiry')}</strong> {formData.visitEndDate} at 23:59</p>
                     </div>
                   </div>
                 </div>
@@ -1021,7 +1039,7 @@ export default function CreatePassPage() {
               {/* Booking Options */}
               <div className="mt-6">
                 <p className="text-sm font-bold text-gray-700 mb-4">
-                  Do you want to book Hostel/Apartment?
+                  {t('createPass.bookHostelQuestion')}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Yes - Book */}
@@ -1041,13 +1059,13 @@ export default function CreatePassPage() {
                       <div className={`p-2 rounded-lg ${wantToBook === true ? 'bg-orange-500' : 'bg-gray-200'}`}>
                         <Hotel className={`w-6 h-6 ${wantToBook === true ? 'text-white' : 'text-gray-400'}`} />
                       </div>
-                      <span className="font-bold text-gray-800 text-base">✅ Yes, I want to book</span>
+                      <span className="font-bold text-gray-800 text-base">{t('createPass.yesBooking')}</span>
                     </div>
-                    <p className="text-xs text-gray-600 ml-11">Browse & book from available rooms/apartments</p>
+                    <p className="text-xs text-gray-600 ml-11">{t('createPass.browseRooms')}</p>
                     {wantToBook === true && (
                       <div className="mt-3 ml-11 bg-white border-2 border-orange-400 text-orange-700 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 animate-pulse-glow">
                         <CheckCircle className="w-4 h-4" />
-                        Booking flow opens after pass creation
+                        {t('createPass.bookingFlowOpens')}
                       </div>
                     )}
                   </button>
@@ -1069,9 +1087,9 @@ export default function CreatePassPage() {
                       <div className={`p-2 rounded-lg ${wantToBook === false ? 'bg-gray-600' : 'bg-gray-200'}`}>
                         <Clock className={`w-6 h-6 ${wantToBook === false ? 'text-white' : 'text-gray-400'}`} />
                       </div>
-                      <span className="font-bold text-gray-800 text-base">❌ No, skip booking</span>
+                      <span className="font-bold text-gray-800 text-base">{t('createPass.noSkipBooking')}</span>
                     </div>
-                    <p className="text-xs text-gray-600 ml-11">Continue without accommodation booking</p>
+                    <p className="text-xs text-gray-600 ml-11">{t('createPass.continueWithoutBooking')}</p>
                   </button>
                 </div>
               </div>
@@ -1092,12 +1110,12 @@ export default function CreatePassPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-bold text-red-800 mb-2 flex items-center gap-2">
-                      ⚠️ Cannot Create Pass - Duplicate Found
+                      {t('createPass.duplicateFound')}
                     </h3>
                     <div className="text-sm text-red-700 space-y-2">
                       <p className="font-bold bg-white/70 p-2 rounded">{duplicateWarning.message}</p>
                       <p>
-                        Please cancel or complete the existing pass before creating a new one.
+                        {t('createPass.cancelExisting')}
                       </p>
                     </div>
                     {duplicateWarning.conflictingPasses.length > 0 && (
@@ -1108,7 +1126,7 @@ export default function CreatePassPage() {
                           className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-bold rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
                           <FileText className="w-4 h-4" />
-                          View & Manage Existing Passes →
+                          {t('createPass.viewExistingPasses')}
                         </button>
                       </div>
                     )}
@@ -1123,7 +1141,7 @@ export default function CreatePassPage() {
                 <div className="bg-blue-500 p-2 rounded-lg">
                   <Loader2 className="h-5 w-5 text-white animate-spin" />
                 </div>
-                <span className="font-bold text-blue-800">Checking for duplicate passes...</span>
+                <span className="font-bold text-blue-800">{t('createPass.checkingDuplicate')}</span>
               </div>
             )}
 
@@ -1135,7 +1153,7 @@ export default function CreatePassPage() {
                 className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading}
               >
-                Cancel
+                {t('createPass.cancel')}
               </button>
               <button
                 type="submit"
@@ -1145,12 +1163,12 @@ export default function CreatePassPage() {
                 {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Creating Pass...
+                    {t('createPass.creating')}
                   </>
                 ) : (
                   <>
                     <CheckCircle className="w-5 h-5" />
-                    Create Pass
+                    {t('createPass.createPass')}
                   </>
                 )}
               </button>
@@ -1177,5 +1195,14 @@ export default function CreatePassPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Wrap with LanguageProvider
+export default function CreatePassPage() {
+  return (
+    <LanguageProvider>
+      <CreatePassPageContent />
+    </LanguageProvider>
   );
 }
