@@ -30,6 +30,13 @@ export interface SuccessModalDetails {
   email?: string;
   title?: string;
   message?: string;
+  // Optional translated labels (for i18n support)
+  passIdLabel?: string;
+  verificationCodeLabel?: string;
+  okButtonText?: string;
+  shareNote?: string;
+  whatsappSentText?: string;
+  emailSentText?: string;
 }
 
 interface ToastContextValue {
@@ -191,7 +198,7 @@ const SuccessModal = ({
               <div className="space-y-4">
                 {details.passId && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 text-sm font-medium">Pass ID</span>
+                    <span className="text-gray-600 text-sm font-medium">{details.passIdLabel || 'Pass ID'}</span>
                     <span className="font-mono font-bold text-blue-700 bg-white px-4 py-1.5 rounded-lg shadow-sm border border-blue-100">
                       {details.passId}
                     </span>
@@ -199,7 +206,7 @@ const SuccessModal = ({
                 )}
                 {details.verificationCode && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600 text-sm font-medium">Verification Code</span>
+                    <span className="text-gray-600 text-sm font-medium">{details.verificationCodeLabel || 'Verification Code'}</span>
                     <span className="font-mono font-bold text-green-700 bg-green-100 px-4 py-2 rounded-lg text-xl tracking-widest shadow-sm border border-green-200">
                       {details.verificationCode}
                     </span>
@@ -217,7 +224,7 @@ const SuccessModal = ({
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 text-green-500" />
                   </div>
-                  <span>📱 WhatsApp sent to <strong className="text-green-700">{details.mobile}</strong></span>
+                  <span>{details.whatsappSentText || '📱 WhatsApp sent to'} <strong className="text-green-700">{details.mobile}</strong></span>
                 </div>
               )}
               {details.email && (
@@ -225,7 +232,7 @@ const SuccessModal = ({
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 text-blue-500" />
                   </div>
-                  <span>📧 Email sent to <strong className="text-blue-700">{details.email}</strong></span>
+                  <span>{details.emailSentText || '📧 Email sent to'} <strong className="text-blue-700">{details.email}</strong></span>
                 </div>
               )}
             </div>
@@ -241,7 +248,7 @@ const SuccessModal = ({
           {/* Share Note */}
           {details.verificationCode && (
             <p className="text-center text-gray-500 text-sm mb-5">
-              🔐 Share the verification code with your visitor for entry
+              {details.shareNote || '🔐 Share the verification code with your visitor for entry'}
             </p>
           )}
 
@@ -250,7 +257,7 @@ const SuccessModal = ({
             onClick={onClose}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
-            OK, Got It!
+            {details.okButtonText || 'OK, Got It!'}
           </button>
         </div>
       </div>

@@ -11,6 +11,9 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
 import ExtendPassModal from './components/ExtendPassModal';
 import { canExtendPass, canCancelPass } from '@/shared/utils/gateEntryPermissions';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
+import { LanguageSelector } from './components/LanguageSelector';
+import { DashboardShimmer } from './components/ShimmerUI';
 import './styles/animations.css';
 
 interface Pass {
@@ -78,9 +81,21 @@ const STATUS_CONFIG = {
   denied: { label: 'Denied', color: 'bg-red-100 text-red-800', icon: XCircle },
 };
 
-export default function AllPassesPage() {
+function AllPassesPageContent() {
   const { user } = useAuthStore();
   const toast = useToast();
+  const { t } = useLanguage(); // Get translation function
+
+  // Helper: get translated status label
+  const getStatusLabel = (status: string): string => {
+    const key = `allPasses.status.${status}`;
+    const translated = t(key as any);
+    // Fall back to STATUS_CONFIG label if key not found
+    if (translated === key) {
+      return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.label || status;
+    }
+    return translated;
+  };
   
   // Safe date formatting utilities
   const safeFormatDate = (dateValue: any, defaultValue: string = 'N/A'): string => {
@@ -264,12 +279,20 @@ export default function AllPassesPage() {
   }, [passes, searchTerm, statusFilter, dateFilter]);
 
   const handleResendNotification = (pass: Pass) => {
-    toast.success(`Notification resent to ${pass.mobileNumber}${pass.email ? ` and ${pass.email}` : ''}`, 'Notification Sent');
+    toast.success(`${t('allPasses.resend.message')} ${pass.mobileNumber}${pass.email ? ` and ${pass.email}` : ''}`, t('allPasses.resend.title'));
+  };
+
+  const handleCancelPass = (passId: string) => {
+    const pass = passes.find(p => p.passId === passId);
+    if (pass) {
+      setSelectedPass(pass);
+      setShowCancelModal(true);
+    }
   };
 
   const handleCancelPassConfirm = async () => {
     if (!selectedPass || !cancelReason.trim()) {
-      toast.error('Please provide a cancellation reason', 'Reason Required');
+      toast.error(t('allPasses.cancel.noReason'), t('allPasses.cancel.reasonRequired'));
       return;
     }
     
@@ -285,8 +308,8 @@ export default function AllPassesPage() {
       
       // Show beautiful success modal with checkout details
       toast.showSuccessModal({
-        title: 'Pass Cancelled Successfully!',
-        message: 'Emergency checkout QR and code sent to visitor (valid for 1 hour).',
+        title: t('allPasses.cancel.successTitle'),
+        message: t('allPasses.cancel.successMessage'),
         passId: cancelledPass.passId,
         verificationCode: cancelledPass.checkoutVerificationCode || cancelledPass.checkoutUniqueId,
         mobile: cancelledPass.mobileNumber,
@@ -296,7 +319,7 @@ export default function AllPassesPage() {
       await fetchPasses();
     } catch (err: any) {
       console.error('Error cancelling pass:', err);
-      toast.error(err.response?.data?.message || 'Failed to cancel pass', 'Error');
+      toast.error(err.response?.data?.message || t('allPasses.cancel.failedMsg'), t('common.error'));
     } finally {
       setCancellingPass(false);
     }
@@ -339,17 +362,7 @@ export default function AllPassesPage() {
 
   // Loading State
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
-        <div className="text-center animate-fade-in">
-          <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-2xl inline-block mb-4 animate-pulse-glow">
-            <Loader2 className="w-12 h-12 text-white animate-spin" />
-          </div>
-          <p className="text-lg font-bold text-gray-700">Loading gate passes...</p>
-          <p className="text-sm text-gray-500 mt-2">Please wait while we fetch your data</p>
-        </div>
-      </div>
-    );
+    return <DashboardShimmer />;
   }
 
   // Error State
@@ -361,7 +374,7 @@ export default function AllPassesPage() {
             <div className="bg-gradient-to-br from-red-500 to-pink-500 p-4 rounded-2xl inline-block mb-4">
               <AlertCircle className="w-16 h-16 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Error Loading Passes</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('allPasses.errorTitle')}</h2>
             <p className="text-gray-600 mb-6">{error}</p>
             <button
               onClick={() => {
@@ -371,7 +384,7 @@ export default function AllPassesPage() {
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 mx-auto"
             >
               <RefreshCw className="w-5 h-5" />
-              Try Again
+              {t('allPasses.tryAgain')}
             </button>
           </div>
         </div>
@@ -383,40 +396,49 @@ export default function AllPassesPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Hero Header with Gradient Background - Master Dashboard Style */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-hidden animate-fade-in">
+        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-visible animate-fade-in">
           {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0 opacity-10 overflow-hidden rounded-2xl">
             <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
             <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
           </div>
           
           {/* Content */}
           <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
-                  <FileText className="w-7 h-7 md:w-8 md:h-8 text-white" />
+            <div className="flex flex-col gap-4">
+              {/* Top Row: Title and Language Selector */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                    <FileText className="w-7 h-7 md:w-8 md:h-8 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h1 className="text-2xl md:text-4xl font-bold text-white">{t('allPasses.title')}</h1>
+                    <p className="text-indigo-100 text-sm md:text-base mt-1">
+                      {(() => {
+                        const role = (user?.role?.name || '').toLowerCase();
+                        const isAdmin = role === 'admin' || role === 'superadmin';
+                        const isGuard = role === 'staff';
+                        
+                        if (isAdmin) {
+                          return `👨‍💼 ${t('allPasses.adminView')}`;
+                        } else if (isGuard) {
+                          return `🛡️ ${t('allPasses.guardView')}`;
+                        } else {
+                          return `📝 ${t('allPasses.myPasses')}`;
+                        }
+                      })()}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-2xl md:text-4xl font-bold text-white">All Gate Passes</h1>
-                  <p className="text-indigo-100 text-sm md:text-base mt-1">
-                    {(() => {
-                      const role = (user?.role?.name || '').toLowerCase();
-                      const isAdmin = role === 'admin' || role === 'superadmin';
-                      const isGuard = role === 'staff';
-                      
-                      if (isAdmin) {
-                        return '👨‍💼 Admin View: Showing all gate passes';
-                      } else if (isGuard) {
-                        return '🛡️ Guard View: Showing all gate passes for verification';
-                      } else {
-                        return '📝 My Passes: Showing only passes created by you';
-                      }
-                    })()}
-                  </p>
+                {/* Language Selector */}
+                <div className="flex-shrink-0">
+                  <LanguageSelector />
                 </div>
               </div>
-              <div className="flex items-center gap-2 md:gap-3">
+              
+              {/* Bottom Row: Action Buttons */}
+              <div className="flex items-center gap-2 md:gap-3 justify-end">
                 <button
                   onClick={() => {
                     fetchPasses();
@@ -424,13 +446,13 @@ export default function AllPassesPage() {
                   className="px-3 md:px-4 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all flex items-center gap-2 text-sm md:text-base font-medium hover-lift"
                 >
                   <RefreshCw className="w-4 h-4" />
-                  <span className="hidden sm:inline">Refresh</span>
+                  <span className="hidden sm:inline">{t('allPasses.refresh')}</span>
                 </button>
                 <Link
                   href="/admin/gate-entry/create-pass"
                   className="px-3 md:px-4 py-2.5 bg-white text-blue-600 rounded-xl hover:bg-blue-50 transition-all flex items-center gap-2 text-sm md:text-base font-bold shadow-lg hover:shadow-xl hover-lift"
                 >
-                  ➕ <span className="hidden sm:inline">Create New Pass</span><span className="sm:hidden">New</span>
+                  ➕ <span className="hidden sm:inline">{t('allPasses.createNew')}</span><span className="sm:hidden">New</span>
                 </Link>
               </div>
             </div>
@@ -445,7 +467,7 @@ export default function AllPassesPage() {
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">Total Passes</div>
+                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.totalPasses')}</div>
                 <div className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</div>
               </div>
             </div>
@@ -456,7 +478,7 @@ export default function AllPassesPage() {
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">Active Today</div>
+                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.activeToday')}</div>
                 <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.active}</div>
               </div>
             </div>
@@ -467,7 +489,7 @@ export default function AllPassesPage() {
                 <Clock className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">Pending</div>
+                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.pending')}</div>
                 <div className="text-xl md:text-2xl font-bold text-yellow-600">{stats.pending}</div>
               </div>
             </div>
@@ -478,7 +500,7 @@ export default function AllPassesPage() {
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">Completed</div>
+                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.completed')}</div>
                 <div className="text-xl md:text-2xl font-bold text-green-600">{stats.completed}</div>
               </div>
             </div>
@@ -489,7 +511,7 @@ export default function AllPassesPage() {
                 <AlertCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">Expired</div>
+                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.expired')}</div>
                 <div className="text-xl md:text-2xl font-bold text-red-600">{stats.expired}</div>
               </div>
             </div>
@@ -503,18 +525,18 @@ export default function AllPassesPage() {
             <div className="bg-gradient-to-br from-cyan-500 to-blue-500 p-2.5 rounded-xl shadow-lg">
               <Filter className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">Filter & Search Passes</h2>
+            <h2 className="text-lg md:text-xl font-bold text-gray-900">{t('allPasses.filterSearch')}</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {/* Search */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-gray-700 mb-2">Search Passes</label>
+              <label className="block text-xs font-bold text-gray-700 mb-2">{t('allPasses.searchPasses')}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
                   type="text"
-                  placeholder="Pass ID, Name, Mobile, Relation, Vehicle..."
+                  placeholder={t('common.passIdNameMobile')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400"
@@ -524,21 +546,21 @@ export default function AllPassesPage() {
 
             {/* Status Filter */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">Status</label>
+              <label className="block text-xs font-bold text-gray-700 mb-2">{t('allPasses.status')}</label>
               <div className="relative">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400 bg-white"
                 >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending (Not Completed)</option>
-                  <option value="active">Active</option>
-                  <option value="checked_in">Checked In</option>
-                  <option value="completed">Completed</option>
-                  <option value="denied">Denied</option>
-                  <option value="expired">Expired</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="all">{t('common.allStatus')}</option>
+                  <option value="pending">{t('allPasses.filter.pending')}</option>
+                  <option value="active">{t('allPasses.filter.active')}</option>
+                  <option value="checked_in">{t('allPasses.filter.checkedIn')}</option>
+                  <option value="completed">{t('allPasses.filter.completed')}</option>
+                  <option value="denied">{t('allPasses.filter.denied')}</option>
+                  <option value="expired">{t('allPasses.filter.expired')}</option>
+                  <option value="cancelled">{t('allPasses.filter.cancelled')}</option>
                 </select>
                 <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
@@ -546,17 +568,17 @@ export default function AllPassesPage() {
 
             {/* Date Filter */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">Date Range</label>
+              <label className="block text-xs font-bold text-gray-700 mb-2">{t('allPasses.dateRange')}</label>
               <div className="relative">
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
                   className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400 bg-white"
                 >
-                  <option value="all">All Dates</option>
-                  <option value="today">Today</option>
-                  <option value="upcoming">Upcoming</option>
-                  <option value="past">Past</option>
+                  <option value="all">{t('common.allDates')}</option>
+                  <option value="today">{t('allPasses.filter.today')}</option>
+                  <option value="upcoming">{t('allPasses.filter.upcoming')}</option>
+                  <option value="past">{t('allPasses.filter.past')}</option>
                 </select>
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               </div>
@@ -568,14 +590,14 @@ export default function AllPassesPage() {
               <div className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs">
                 {filteredPasses.length}
               </div>
-              <span>of {passes.length} passes</span>
+              <span>{t('common.of')} {passes.length} {t('common.passes')}</span>
             </div>
             <button
               onClick={handleExport}
               className="px-4 py-2.5 text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Export to CSV
+              {t('allPasses.exportCSV')}
             </button>
           </div>
         </div>
@@ -587,22 +609,22 @@ export default function AllPassesPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Pass ID
+                    {t('allPasses.col.passId')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Visitor Details
+                    {t('allPasses.col.visitorDetails')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Visit Info
+                    {t('allPasses.col.visitInfo')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Date & Time
+                    {t('allPasses.col.dateTime')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Status
+                    {t('allPasses.col.status')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Actions
+                    {t('allPasses.col.actions')}
                   </th>
                 </tr>
               </thead>
@@ -612,7 +634,7 @@ export default function AllPassesPage() {
                     <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                       <div className="flex flex-col items-center gap-2">
                         <Search className="w-12 h-12 text-gray-300" />
-                        <p>No passes found matching your filters</p>
+                        <p>{t('allPasses.noPassesFound')}</p>
                       </div>
                     </td>
                   </tr>
@@ -627,7 +649,7 @@ export default function AllPassesPage() {
                             <QrCode className="w-4 h-4 text-gray-400" />
                             <div>
                               <div className="text-sm font-medium text-gray-900">{pass.passId}</div>
-                              <div className="text-xs text-gray-500">by {pass.creator?.username || 'System'}</div>
+                              <div className="text-xs text-gray-500">{t('allPasses.by')} {pass.creator?.username || t('allPasses.system')}</div>
                             </div>
                           </div>
                         </td>
@@ -647,7 +669,7 @@ export default function AllPassesPage() {
                               )}
                               {pass.numberOfPersons && pass.numberOfPersons > 1 && (
                                 <div className="text-xs text-green-600 mt-1 font-semibold">
-                                  👥 {pass.numberOfPersons} persons
+                                  👥 {pass.numberOfPersons} {t('allPasses.persons')}
                                 </div>
                               )}
                               {pass.hasVehicle && (
@@ -664,7 +686,7 @@ export default function AllPassesPage() {
                             <div className="font-medium text-gray-900">{pass.purposeOfVisit === 'other' && pass.purposeOther ? pass.purposeOther : pass.purposeOfVisit}</div>
                             {pass.stayRequired && (
                               <div className="text-xs text-purple-600 mt-1">
-                                🏠 Multi-day stay: {pass.hostelName}
+                                🏠 {t('allPasses.multiDayStay')} {pass.hostelName}
                               </div>
                             )}
                           </div>
@@ -679,12 +701,12 @@ export default function AllPassesPage() {
                               </div>
                               {pass.actualEntryTime && (
                                 <div className="text-xs text-green-600 mt-1">
-                                  ✓ In: {pass.actualEntryTime}
+                                  {t('allPasses.in')} {pass.actualEntryTime}
                                 </div>
                               )}
                               {pass.actualExitTime && (
                                 <div className="text-xs text-gray-600">
-                                  Out: {pass.actualExitTime}
+                                  {t('allPasses.out')} {pass.actualExitTime}
                                 </div>
                               )}
                             </div>
@@ -693,7 +715,7 @@ export default function AllPassesPage() {
                         <td className="px-4 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
                             <StatusIcon className="w-3 h-3" />
-                            {statusConfig.label}
+                            {getStatusLabel(pass.status)}
                           </span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
@@ -701,7 +723,7 @@ export default function AllPassesPage() {
                             <button
                               onClick={() => setSelectedPass(pass)}
                               className="text-blue-600 hover:text-blue-800"
-                              title="View Details"
+                              title={t('allPasses.action.viewDetails')}
                             >
                               <Eye className="w-4 h-4" />
                             </button>
@@ -715,7 +737,7 @@ export default function AllPassesPage() {
                                   setShowCancelModal(true);
                                 }}
                                 className="text-red-600 hover:text-red-800"
-                                title="Cancel Pass"
+                                title={t('allPasses.action.cancelPass')}
                               >
                                 <X className="w-4 h-4" />
                               </button>
@@ -727,7 +749,7 @@ export default function AllPassesPage() {
                                 <button
                                   onClick={() => handleResendNotification(pass)}
                                   className="text-green-600 hover:text-green-800"
-                                  title="Resend Notification"
+                                  title={t('allPasses.action.resendNotif')}
                                 >
                                   <Send className="w-4 h-4" />
                                 </button>
@@ -735,7 +757,7 @@ export default function AllPassesPage() {
                                   <button
                                     onClick={() => handleCancelPass(pass.passId)}
                                     className="text-red-600 hover:text-red-800"
-                                    title="Cancel Pass"
+                                    title={t('allPasses.action.cancelPass')}
                                   >
                                     <X className="w-4 h-4" />
                                   </button>
@@ -758,7 +780,7 @@ export default function AllPassesPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-gray-900">Pass Details</h3>
+                <h3 className="text-xl font-semibold text-gray-900">{t('allPasses.detail.title')}</h3>
                 <button
                   onClick={() => setSelectedPass(null)}
                   className="text-gray-400 hover:text-gray-600"
@@ -785,57 +807,57 @@ export default function AllPassesPage() {
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <h5 className="font-semibold text-gray-900 mb-3">Visitor Information</h5>
+                    <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.visitorInfo')}</h5>
                     <dl className="space-y-2 text-sm">
                       {selectedPass.visitorName && (
-                        <div><dt className="text-gray-600">Name:</dt><dd className="font-medium">{selectedPass.visitorName}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.name')}</dt><dd className="font-medium">{selectedPass.visitorName}</dd></div>
                       )}
                       {selectedPass.mobileNumber && (
-                        <div><dt className="text-gray-600">Mobile:</dt><dd className="font-medium">{selectedPass.mobileNumber}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.mobile')}</dt><dd className="font-medium">{selectedPass.mobileNumber}</dd></div>
                       )}
                       {selectedPass.email && (
-                        <div><dt className="text-gray-600">Email:</dt><dd className="font-medium">{selectedPass.email}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.email')}</dt><dd className="font-medium">{selectedPass.email}</dd></div>
                       )}
                       {selectedPass.visitorRelation && (
-                        <div><dt className="text-gray-600">Relation:</dt><dd className="font-medium">{selectedPass.visitorRelation}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.relation')}</dt><dd className="font-medium">{selectedPass.visitorRelation}</dd></div>
                       )}
                       {selectedPass.numberOfPersons && selectedPass.numberOfPersons > 0 && (
-                        <div><dt className="text-gray-600">Number of Persons:</dt><dd className="font-medium text-green-600">👥 {selectedPass.numberOfPersons}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.persons')}</dt><dd className="font-medium text-green-600">👥 {selectedPass.numberOfPersons}</dd></div>
                       )}
                     </dl>
                   </div>
 
                   <div>
-                    <h5 className="font-semibold text-gray-900 mb-3">Visit Information</h5>
+                    <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.visitInfo')}</h5>
                     <dl className="space-y-2 text-sm">
                       {selectedPass.purposeOfVisit && (
-                        <div><dt className="text-gray-600">Purpose:</dt><dd className="font-medium">{selectedPass.purposeOfVisit === 'other' && selectedPass.purposeOther ? selectedPass.purposeOther : selectedPass.purposeOfVisit}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.purpose')}</dt><dd className="font-medium">{selectedPass.purposeOfVisit === 'other' && selectedPass.purposeOther ? selectedPass.purposeOther : selectedPass.purposeOfVisit}</dd></div>
                       )}
                       {selectedPass.visitDate && (
-                        <div><dt className="text-gray-600">Visit Date:</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.visitDate')}</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
                       )}
                       {selectedPass.visitEndDate && (
-                        <div><dt className="text-gray-600">End Date:</dt><dd className="font-medium text-blue-600">{selectedPass.visitEndDate}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.endDate')}</dt><dd className="font-medium text-blue-600">{selectedPass.visitEndDate}</dd></div>
                       )}
                       {(selectedPass.entryTime || selectedPass.expectedEntryTime) && (
-                        <div><dt className="text-gray-600">Entry Time:</dt><dd className="font-medium">{selectedPass.entryTime || selectedPass.expectedEntryTime}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.entryTime')}</dt><dd className="font-medium">{selectedPass.entryTime || selectedPass.expectedEntryTime}</dd></div>
                       )}
                       {selectedPass.qrActivationTime && (
-                        <div><dt className="text-gray-600">QR Activates:</dt><dd className="font-medium text-blue-600">{safeFormatDateTime(selectedPass.qrActivationTime)}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.qrActivates')}</dt><dd className="font-medium text-blue-600">{safeFormatDateTime(selectedPass.qrActivationTime)}</dd></div>
                       )}
                     </dl>
                   </div>
 
                   {selectedPass.hasVehicle && (
                     <div>
-                      <h5 className="font-semibold text-gray-900 mb-3">Vehicle Information</h5>
+                      <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.vehicleInfo')}</h5>
                       <dl className="space-y-2 text-sm">
-                        <div><dt className="text-gray-600">Vehicle Number:</dt><dd className="font-medium">{selectedPass.vehicleNumber || 'N/A'}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.vehicleNumber')}</dt><dd className="font-medium">{selectedPass.vehicleNumber || 'N/A'}</dd></div>
                         {selectedPass.vehicleType && (
-                          <div><dt className="text-gray-600">Vehicle Type:</dt><dd className="font-medium">{selectedPass.vehicleType}</dd></div>
+                          <div><dt className="text-gray-600">{t('allPasses.detail.vehicleType')}</dt><dd className="font-medium">{selectedPass.vehicleType}</dd></div>
                         )}
                         {selectedPass.vehicleModel && (
-                          <div><dt className="text-gray-600">Vehicle Model:</dt><dd className="font-medium">{selectedPass.vehicleModel}</dd></div>
+                          <div><dt className="text-gray-600">{t('allPasses.detail.vehicleModel')}</dt><dd className="font-medium">{selectedPass.vehicleModel}</dd></div>
                         )}
                       </dl>
                     </div>
@@ -843,15 +865,15 @@ export default function AllPassesPage() {
 
                   {selectedPass.stayRequired && (
                     <div>
-                      <h5 className="font-semibold text-gray-900 mb-3">Stay Information</h5>
+                      <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.stayInfo')}</h5>
                       <dl className="space-y-2 text-sm">
-                        <div><dt className="text-gray-600">Check-in Date:</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkInDate || selectedPass.visitDate)}</dd></div>
-                        <div><dt className="text-gray-600">Check-out Date:</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkOutDate)}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.checkInDate')}</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkInDate || selectedPass.visitDate)}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.checkOutDate')}</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkOutDate)}</dd></div>
                         {selectedPass.hostelName && (
-                          <div><dt className="text-gray-600">Hostel:</dt><dd className="font-medium">{selectedPass.hostelName}</dd></div>
+                          <div><dt className="text-gray-600">{t('allPasses.detail.hostel')}</dt><dd className="font-medium">{selectedPass.hostelName}</dd></div>
                         )}
                         {selectedPass.roomNumber && (
-                          <div><dt className="text-gray-600">Room Number:</dt><dd className="font-medium">{selectedPass.roomNumber}</dd></div>
+                          <div><dt className="text-gray-600">{t('allPasses.detail.roomNumber')}</dt><dd className="font-medium">{selectedPass.roomNumber}</dd></div>
                         )}
                       </dl>
                     </div>
@@ -902,13 +924,13 @@ export default function AllPassesPage() {
                   )}
 
                   <div>
-                    <h5 className="font-semibold text-gray-900 mb-3">Entry/Exit Records</h5>
+                    <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.entryExitRecords')}</h5>
                     <dl className="space-y-2 text-sm">
-                      <div><dt className="text-gray-600">Created At:</dt><dd className="font-medium">{safeFormatDateTime(selectedPass.createdAt)}</dd></div>
-                      <div><dt className="text-gray-600">Created By:</dt><dd className="font-medium">{selectedPass.creator?.username || 'Unknown'}</dd></div>
+                      <div><dt className="text-gray-600">{t('allPasses.detail.createdAt')}</dt><dd className="font-medium">{safeFormatDateTime(selectedPass.createdAt)}</dd></div>
+                      <div><dt className="text-gray-600">{t('allPasses.detail.createdBy')}</dt><dd className="font-medium">{selectedPass.creator?.username || t('allPasses.detail.unknown')}</dd></div>
                       {selectedPass.actualEntryTime && (
                         <div className="text-green-600">
-                          <dt>Entry Time:</dt>
+                          <dt>{t('allPasses.detail.entryTime')}</dt>
                           <dd className="font-medium">
                             {safeFormatDateTime(selectedPass.actualEntryTime, 'N/A', { 
                               dateStyle: 'short', 
@@ -920,7 +942,7 @@ export default function AllPassesPage() {
                       )}
                       {selectedPass.actualExitTime && (
                         <div className="text-gray-600">
-                          <dt>Exit Time:</dt>
+                          <dt>{t('allPasses.detail.exitTime')}</dt>
                           <dd className="font-medium">
                             {safeFormatDateTime(selectedPass.actualExitTime, 'N/A', { 
                               dateStyle: 'short', 
@@ -932,7 +954,7 @@ export default function AllPassesPage() {
                       )}
                       {selectedPass.actualEntryTime && selectedPass.actualExitTime && (
                         <div className="text-blue-600">
-                          <dt>Total Duration:</dt>
+                          <dt>{t('allPasses.detail.totalDuration')}</dt>
                           <dd className="font-medium">
                             {(() => {
                               const entry = new Date(selectedPass.actualEntryTime);
@@ -962,7 +984,7 @@ export default function AllPassesPage() {
                     className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <Clock className="w-4 h-4" />
-                    Extend Pass
+                    {t('allPasses.detail.extendPass')}
                   </button>
                 )}
                 <button
@@ -970,13 +992,13 @@ export default function AllPassesPage() {
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
                 >
                   <Send className="w-4 h-4" />
-                  Resend Notification
+                  {t('allPasses.detail.resendNotif')}
                 </button>
                 <button
                   onClick={() => setSelectedPass(null)}
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Close
+                  {t('allPasses.detail.close')}
                 </button>
               </div>
             </div>
@@ -1016,7 +1038,7 @@ export default function AllPassesPage() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Cancel Pass</h3>
+                <h3 className="text-xl font-semibold text-gray-900">{t('allPasses.cancel.title')}</h3>
                 <button
                   onClick={() => {
                     setShowCancelModal(false);
@@ -1031,29 +1053,28 @@ export default function AllPassesPage() {
 
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                 <p className="text-sm text-red-800">
-                  <span className="font-semibold">Warning:</span> Cancelling this pass will generate a checkout QR code (valid for 1 hour) that will be sent to the visitor's mobile/email. 
-                  The visitor must exit the premises within 1 hour using this QR code.
+                  {t('allPasses.cancel.warning')}
                 </p>
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">Pass Details</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">{t('allPasses.cancel.passDetails')}</h4>
                 <div className="text-sm text-gray-600 space-y-1">
-                  <p><span className="font-medium">Pass ID:</span> {selectedPass.passId}</p>
-                  <p><span className="font-medium">Visitor:</span> {selectedPass.visitorName}</p>
-                  <p><span className="font-medium">Mobile:</span> {selectedPass.mobileNumber}</p>
-                  <p><span className="font-medium">Status:</span> {selectedPass.passStatus}</p>
+                  <p><span className="font-medium">{t('allPasses.cancel.passId')}</span> {selectedPass.passId}</p>
+                  <p><span className="font-medium">{t('allPasses.cancel.visitor')}</span> {selectedPass.visitorName}</p>
+                  <p><span className="font-medium">{t('allPasses.cancel.mobile')}</span> {selectedPass.mobileNumber}</p>
+                  <p><span className="font-medium">{t('allPasses.cancel.status')}</span> {selectedPass.passStatus}</p>
                 </div>
               </div>
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Cancellation Reason <span className="text-red-500">*</span>
+                  {t('allPasses.cancel.reasonLabel')} <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder="Enter reason for cancelling this pass..."
+                  placeholder={t('allPasses.cancel.reasonPlaceholder')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
                   rows={3}
                   required
@@ -1070,7 +1091,7 @@ export default function AllPassesPage() {
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   disabled={cancellingPass}
                 >
-                  No, Keep Pass
+                  {t('allPasses.cancel.keepPass')}
                 </button>
                 <button
                   onClick={handleCancelPassConfirm}
@@ -1083,12 +1104,12 @@ export default function AllPassesPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Cancelling...
+                      {t('allPasses.cancel.cancelling')}
                     </>
                   ) : (
                     <>
                       <X className="w-4 h-4" />
-                      Yes, Cancel Pass
+                      {t('allPasses.cancel.confirm')}
                     </>
                   )}
                 </button>
@@ -1098,5 +1119,14 @@ export default function AllPassesPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Wrap with LanguageProvider
+export default function AllPassesPage() {
+  return (
+    <LanguageProvider>
+      <AllPassesPageContent />
+    </LanguageProvider>
   );
 }
