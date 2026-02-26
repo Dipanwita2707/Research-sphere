@@ -2,7 +2,7 @@
  * Event Management Types
  */
 
-export type EventType = 
+export type EventType =
   | 'seminar'
   | 'workshop'
   | 'fest'
@@ -15,7 +15,7 @@ export type EventType =
 
 export type EventPaymentType = 'free' | 'paid';
 
-export type EventStatus = 
+export type EventStatus =
   | 'draft'
   | 'published'
   | 'ongoing'
@@ -26,7 +26,7 @@ export type OpportunityMode = 'online' | 'offline' | 'hybrid';
 
 export type ParticipationType = 'individual' | 'team';
 
-export type RegistrationStatus = 
+export type RegistrationStatus =
   | 'draft'
   | 'pending'
   | 'confirmed'
@@ -35,7 +35,7 @@ export type RegistrationStatus =
   | 'rejected'
   | 'incomplete_team';
 
-export type PaymentStatus = 
+export type PaymentStatus =
   | 'pending'
   | 'completed'
   | 'failed'
@@ -57,21 +57,21 @@ export type EventFieldType =
   | 'file'
   | 'image';
 
-export type TeamStatus = 
+export type TeamStatus =
   | 'forming'
   | 'complete'
   | 'confirmed'
   | 'disqualified'
   | 'withdrawn';
 
-export type InvitationStatus = 
+export type InvitationStatus =
   | 'pending'
   | 'accepted'
   | 'declined'
   | 'expired'
   | 'cancelled';
 
-export type RequestStatus = 
+export type RequestStatus =
   | 'pending'
   | 'accepted'
   | 'rejected'
@@ -96,6 +96,7 @@ export interface Event {
   approxCapacity?: number;
   dutyLeaveAvailable?: boolean;
   dutyLeaveEligibility?: string[];
+  dutyLeaveRoleType?: 'participants' | 'organizers' | 'both';
   hasSponsorship?: boolean;
   sponsors?: Array<{ name: string; amount: number; type: string; notes?: string }>;
   showSponsorshipPublicly?: boolean;  // Creator decides at publish: show sponsorship to users
@@ -106,11 +107,11 @@ export interface Event {
   registrationStartDate?: string;
   registrationEndDate?: string;
   publishedAt?: string;
-  
+
   // Event Branding
   bannerImageUrl?: string;
   logoImageUrl?: string;
-  
+
   // Opportunity Mode & Participation
   opportunityMode?: OpportunityMode;
   participationType?: ParticipationType;
@@ -118,7 +119,7 @@ export interface Event {
   maxTeamSize?: number;
   interCollegeAllowed?: boolean;
   interSpecializationAllowed?: boolean;
-  
+
   // Contact Details
   contactPersonName?: string;
   contactEmail?: string;
@@ -126,45 +127,54 @@ export interface Event {
   alternateContact?: string;
   websiteUrl?: string;
   socialMediaLinks?: Record<string, string>;
-  
+
   // Additional Information
   eligibilityCriteria?: string;
+  eligibilityDisplayFormat?: 'points' | 'paragraph' | 'both';
   rulesAndGuidelines?: string;
+  rulesDisplayFormat?: 'points' | 'paragraph' | 'both';
   prizeDetails?: string;
   certificateAvailable?: boolean;
   faqs?: Array<{ question: string; answer: string }>;
-  
+
   // Advanced Registration Settings
-  autoApproveRegistration?: boolean;
   maxTeamLimit?: number;
   teamRegistrationDeadline?: string;
-  allowEditAfterSubmission?: boolean;
   requireFormSubmission?: boolean;
   lookingForTeammatesEnabled?: boolean;
-  
+
   // Team Settings (additional)
   allowCrossInstituteTeams?: boolean;
   allowTeamEditAfterSubmission?: boolean;
   autoApproveTeams?: boolean;
-  
+
   // Registration Control Settings
   registrationCap?: number;
   showParticipantsPublicly?: boolean;
   allowWithdrawRegistration?: boolean;
   lockTeamAfterDeadline?: boolean;
-  
+
   // Team Discovery Settings
   allowPublicTeamListing?: boolean;
   allowJoinRequests?: boolean;
   allowInviteSystem?: boolean;
-  
+
   // Prize Settings
   prizesEnabled?: boolean;
-  
+
+  // Stall Settings
+  hasStalls?: boolean;
+  notingEventType?: 'venue' | 'stall' | 'festival';
+  stallConfig?: Record<string, any>;
+  applicationDeadline?: string;
+  festivalNotingId?: string | null;
+  festivalMeta?: { name: string; startDate: string; endDate: string; description?: string; coordinator?: string } | null;
+
   // Dynamic data (populated from API)
   customFields?: EventCustomField[];
   prizes?: EventPrize[];
-  
+  stalls?: Stall[];
+
   createdAt: string;
   updatedAt: string;
   createdBy?: {
@@ -283,11 +293,11 @@ export interface EventFormData {
   registrationFee?: number;
   registrationStartDate?: string;
   registrationEndDate?: string;
-  
+
   // Event Branding
   bannerImageUrl?: string;
   logoImageUrl?: string;
-  
+
   // Opportunity Mode & Participation
   opportunityMode?: OpportunityMode;
   participationType?: ParticipationType;
@@ -295,7 +305,7 @@ export interface EventFormData {
   maxTeamSize?: number;
   interCollegeAllowed?: boolean;
   interSpecializationAllowed?: boolean;
-  
+
   // Contact Details
   contactPersonName?: string;
   contactEmail?: string;
@@ -303,10 +313,12 @@ export interface EventFormData {
   alternateContact?: string;
   websiteUrl?: string;
   socialMediaLinks?: Record<string, string>;
-  
+
   // Additional Information
   eligibilityCriteria?: string;
+  eligibilityDisplayFormat?: 'points' | 'paragraph' | 'both';
   rulesAndGuidelines?: string;
+  rulesDisplayFormat?: 'points' | 'paragraph' | 'both';
   prizeDetails?: string;
   certificateAvailable?: boolean;
   faqs?: Array<{ question: string; answer: string }>;
@@ -378,12 +390,27 @@ export interface UserProfile {
   lastName?: string;
   displayName: string;
   registrationNo?: string;
+  studentId?: string;
   employeeId?: string;
+  gender?: string;
   department?: string;
   program?: string;
   school?: string;
+  passOutYear?: string;
   institute: string;
   location?: string;
+}
+
+export interface ProfileFields {
+  uid: boolean;
+  registrationNo: boolean;
+  studentId: boolean;
+  employeeId: boolean;
+  gender: boolean;
+  school: boolean;
+  department: boolean;
+  program: boolean;
+  passOutYear: boolean;
 }
 
 export interface RegistrationFormData {
@@ -401,6 +428,7 @@ export interface RegistrationFormData {
   };
   customFields: EventCustomField[];
   userProfile: UserProfile;
+  profileFields: ProfileFields;
   existingRegistration?: {
     id: string;
     registrationId: string;
@@ -570,32 +598,28 @@ export interface RegistrationSettings {
   minTeamSize?: number;
   maxTeamSize?: number;
   interCollegeAllowed?: boolean;
-  autoApproveRegistration: boolean;
   maxTeamLimit?: number;
   teamRegistrationDeadline?: string;
-  allowEditAfterSubmission: boolean;
   requireFormSubmission: boolean;
   lookingForTeammatesEnabled: boolean;
   registrationStartDate?: string;
   registrationEndDate?: string;
   maxCapacity?: number;
-  
+
   // Additional Team Settings
   allowCrossInstituteTeams?: boolean;
   allowTeamEditAfterSubmission?: boolean;
   autoApproveTeams?: boolean;
-  
+
   // Registration Control Settings
   registrationCap?: number;
-  showParticipantsPublicly?: boolean;
-  allowWithdrawRegistration?: boolean;
   lockTeamAfterDeadline?: boolean;
-  
+
   // Team Discovery Settings
   allowPublicTeamListing?: boolean;
   allowJoinRequests?: boolean;
   allowInviteSystem?: boolean;
-  
+
   // Prize Settings
   prizesEnabled?: boolean;
 }
@@ -604,7 +628,7 @@ export interface RegistrationSettings {
 // Prize Types
 // ============================================
 
-export type PrizeType = 
+export type PrizeType =
   | 'cash'
   | 'certificate'
   | 'internship'
@@ -638,4 +662,144 @@ export interface PrizeFormData {
   prizeType: PrizeType;
   prizeAmount?: number;
   additionalPerks?: string[];
+}
+
+// ============================================
+// Stall Management Types
+// ============================================
+
+export type StallApplicationStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'withdrawn';
+
+export type StallType = 'food' | 'non_food' | 'service' | 'other';
+
+export type StallSource = 'creator' | 'student_approved';
+
+export interface StallApplication {
+  id: string;
+  applicationId: string;
+  eventId: string;
+  userId: string;
+  status: StallApplicationStatus;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerSchool?: string;
+  ownerDepartment?: string;
+
+  // Stall Info
+  stallName: string;
+  stallType: StallType;
+  category?: string;
+
+  // Business Info
+  businessName?: string;
+  businessDescription?: string;
+  products?: string[];
+
+  // Infrastructure
+  spaceRequired?: number;
+  electricityRequired?: boolean;
+  waterRequired?: boolean;
+  specialRequirements?: string;
+
+  // Payment
+  stallFee?: number;
+  paymentStatus?: 'pending' | 'paid';
+
+  // Documents
+  gstNumber?: string;
+  foodLicenseNumber?: string;
+  documentUrls?: string[];
+
+  // Terms
+  termsAccepted: boolean;
+
+  // QR Code (generated on approval)
+  qrCode?: string;
+  stallId?: string;
+
+  // Timestamps
+  appliedAt: string;
+  reviewedAt?: string;
+  reviewNote?: string;
+  rejectionReason?: string;
+
+  user?: {
+    id: string;
+    uid: string;
+    name: string;
+    email?: string;
+  };
+  event?: {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+  };
+}
+
+export interface StallMetadata {
+  businessName?: string | null;
+  electricityRequired?: boolean;
+  waterRequired?: boolean;
+  specialRequirements?: string | null;
+  products?: string[];
+}
+
+export interface Stall {
+  id: string;
+  stallId: string;
+  eventId: string;
+  stallName: string;
+  stallType: StallType;
+  category?: string;
+  source: StallSource;
+  location?: string;
+  qrCode: string;
+  isActive: boolean;
+  createdAt: string;
+  stallMetadata?: StallMetadata | null;
+  owner?: {
+    id: string;
+    uid: string;
+    name: string;
+    email?: string;
+  };
+  application?: StallApplication;
+}
+
+export interface StallOpportunity {
+  id: string;
+  eventId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  venue?: string;
+  applicationDeadline?: string;
+  maxStudentStalls?: number;
+  stallFee?: number;
+  stallsApproved: number;
+  stallsRemaining?: number;
+  myApplication?: StallApplication;
+  status?: string;
+}
+
+export interface StallApplicationFormData {
+  stallName: string;
+  stallType: StallType;
+  category?: string;
+  businessName?: string;
+  businessDescription?: string;
+  products?: string[];
+  spaceRequired?: number;
+  electricityRequired?: boolean;
+  waterRequired?: boolean;
+  specialRequirements?: string;
+  gstNumber?: string;
+  foodLicenseNumber?: string;
+  documentUrls?: string[];
+  termsAccepted: boolean;
 }

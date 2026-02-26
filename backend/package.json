@@ -12,6 +12,7 @@
     "prisma:studio": "prisma studio",
     "seed": "node src/shared/database/seed.js",
     "seed:admin": "node scripts/database/seeds/seed-admin.js",
+    "cleanup:noting": "node scripts/cleanup-noting.js",
     "test": "jest"
   },
   "keywords": [

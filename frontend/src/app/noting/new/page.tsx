@@ -4,9 +4,19 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCircle, IndianRupee, User, Send, Save, Paperclip, AlertCircle, List, Calendar, Award, Trophy, Medal, Briefcase, ShoppingBag, Ticket, Star, Settings, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCircle, User, Send, Save, Paperclip, AlertCircle, List, Calendar } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { NoteConfig, CreatorInfo, CreateNotePayload } from '@/features/noting-management/types/noting.types';
+import {
+  EventTypeSelector,
+  StallConfigSection,
+  FestivalForm,
+  EventFormFields,
+  defaultStallConfig,
+  defaultFestivalForm,
+  defaultVenueForm,
+} from '@/features/noting-management/components';
+import type { NotingEventType, StallConfig, FestivalFormData, VenueFormData } from '@/features/noting-management/components';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
@@ -27,37 +37,89 @@ export interface AnnexureEntry {
 }
 
 const MAX_WORDS = 500;
-
-// Prize type matching Event manage page exactly
-type PrizeType = 'cash' | 'certificate' | 'internship' | 'merchandise' | 'trophy' | 'scholarship' | 'voucher' | 'custom';
-
-interface NotingPrize {
-  position: number;
-  rank: string;
-  title: string;
-  description?: string;
-  prizeType: PrizeType;
-  prizeAmount?: number;
-  additionalPerks?: string[];
-  sortOrder: number;
-  isActive: boolean;
-}
-
-const PRIZE_TYPE_OPTIONS: { value: PrizeType; label: string; icon: React.ReactNode }[] = [
-  { value: 'cash', label: 'Cash', icon: <IndianRupee className="w-4 h-4" /> },
-  { value: 'certificate', label: 'Certificate', icon: <Award className="w-4 h-4" /> },
-  { value: 'trophy', label: 'Trophy', icon: <Trophy className="w-4 h-4" /> },
-  { value: 'internship', label: 'Internship', icon: <Briefcase className="w-4 h-4" /> },
-  { value: 'scholarship', label: 'Scholarship', icon: <Medal className="w-4 h-4" /> },
-  { value: 'merchandise', label: 'Merchandise', icon: <ShoppingBag className="w-4 h-4" /> },
-  { value: 'voucher', label: 'Voucher', icon: <Ticket className="w-4 h-4" /> },
-  { value: 'custom', label: 'Custom', icon: <Star className="w-4 h-4" /> },
-];
-
-const PERK_OPTIONS = ['Certificate', 'Pre-placement Interview', 'Pre-placement Offer', 'Goodies', 'Mentorship'];
+const FILE_MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per file
+const AMOUNT_MAX = 10_00_000; // 10 lakh
 
 const DEBOUNCE_SYNC_MS = 400;
 const DEBOUNCE_AUTOSAVE_MS = 2000;
+
+/** Build event payload from shared VenueFormData (used for venue & stall) */
+function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> {
+  if (!v.eventName?.trim() || !v.eventType || !v.eventStartDate || !v.eventEndDate || !v.eventPaymentType) return {};
+  const payload: Record<string, unknown> = {
+    eventName: v.eventName.trim(),
+    eventType: v.eventType,
+    eventStartDate: v.eventStartDate,
+    eventEndDate: v.eventEndDate,
+    eventPaymentType: v.eventPaymentType,
+    eventParticipationType: v.eventParticipationType,
+    eventApproxCapacity: v.eventApproxCapacity !== '' ? Number(v.eventApproxCapacity) : null,
+    eventDutyLeaveAvailable: v.eventDutyLeaveAvailable,
+    eventDutyLeaveEligibility: v.eventDutyLeaveAvailable && v.eventDutyLeaveEligibility.length > 0 ? v.eventDutyLeaveEligibility : null,
+    eventDutyLeaveRoleType: v.eventDutyLeaveAvailable ? v.eventDutyLeaveRoleType : null,
+    eventHasSponsorship: v.eventHasSponsorship,
+    eventSponsors: v.eventHasSponsorship ? v.eventSponsors.map((s) => ({ ...s, amount: s.amount === '' ? 0 : Number(s.amount) })) : null,
+    eventHasResources: v.eventHasResources,
+    eventResources: v.eventHasResources ? v.eventResources.map((r) => ({
+      type: r.type,
+      description: r.description,
+      pricePerPiece: r.pricePerPiece !== '' && r.pricePerPiece != null ? Number(r.pricePerPiece) : null,
+      quantity: r.quantity !== '' && r.quantity != null ? Number(r.quantity) : null,
+    })) : null,
+    eventCertification: v.eventCertification,
+    eventCapacityFixed: v.eventCapacityFixed !== '' && v.eventCapacityFixed != null ? Number(v.eventCapacityFixed) : null,
+    eventPrizesAwards: (v.eventHasPrizes && v.eventPrizesAwards.length > 0) ? v.eventPrizesAwards.map((p, idx) => ({
+      position: p.position === '' ? idx + 1 : Number(p.position),
+      rank: p.rank,
+      title: p.title,
+      prizeType: p.prizeType,
+      prizeAmount: p.prizeAmount === '' ? undefined : Number(p.prizeAmount),
+      additionalPerks: p.additionalPerks ? p.additionalPerks.split(',').map((x) => x.trim()).filter(Boolean) : null,
+      sortOrder: idx,
+    })) : null,
+  };
+  if (v.eventPaymentType === 'paid') {
+    payload.eventRegistrationFeeIndividual = v.eventParticipationType === 'individual' && v.eventRegistrationFeeIndividual !== '' ? Number(v.eventRegistrationFeeIndividual) : null;
+    payload.eventRegistrationFeeTeam = v.eventParticipationType === 'team' && v.eventRegistrationFeeTeam !== '' ? Number(v.eventRegistrationFeeTeam) : null;
+  }
+  return payload;
+}
+
+/** Convert note from API to VenueFormData for draft load */
+function noteToVenueFormData(note: Record<string, unknown>): VenueFormData {
+  const sponsors = Array.isArray(note.eventSponsors) ? (note.eventSponsors as any[]) : [];
+  const resources = Array.isArray(note.eventResources) ? (note.eventResources as any[]) : [];
+  const prizes = Array.isArray(note.eventPrizesAwards) ? (note.eventPrizesAwards as any[]) : [];
+  return {
+    eventName: (note.eventName as string) || '',
+    eventType: (note.eventType as string) || '',
+    eventStartDate: (note.eventStartDate as string) || '',
+    eventEndDate: (note.eventEndDate as string) || '',
+    eventPaymentType: (note.eventPaymentType as 'free' | 'paid') || 'free',
+    eventParticipationType: (note.eventParticipationType as 'individual' | 'team') || 'individual',
+    eventRegistrationFeeIndividual: (note.eventRegistrationFeeIndividual as number) ?? '',
+    eventRegistrationFeeTeam: (note.eventRegistrationFeeTeam as number) ?? '',
+    eventApproxCapacity: (note.eventApproxCapacity as number) ?? '',
+    eventCapacityFixed: (note.eventCapacityFixed as number) ?? '',
+    eventDutyLeaveAvailable: (note.eventDutyLeaveAvailable as boolean | null) ?? null,
+    eventDutyLeaveEligibility: Array.isArray(note.eventDutyLeaveEligibility) ? ((note.eventDutyLeaveEligibility as string[]).includes('students') ? ['ug', 'pg', 'phd'] : (note.eventDutyLeaveEligibility as string[])) : [],
+    eventDutyLeaveRoleType: (note.eventDutyLeaveRoleType as 'participants' | 'organizers' | 'both') || undefined,
+    eventHasSponsorship: (note.eventHasSponsorship as boolean | null) ?? null,
+    eventSponsors: sponsors.map((s) => ({ name: s.name || '', amount: s.amount ?? '', type: s.type || 'cash', notes: s.notes || '' })),
+    eventHasResources: (note.eventHasResources as boolean | null) ?? null,
+    eventResources: resources.map((r) => ({ type: r.type || '', description: r.description || '', pricePerPiece: r.pricePerPiece ?? '', quantity: r.quantity ?? '' })),
+    eventCertification: (note.eventCertification as boolean | null) ?? null,
+    eventHasPrizes: prizes.length > 0 ? true : null,
+    eventPrizesAwards: prizes.map((p) => ({
+      position: p.position ?? '',
+      rank: p.rank || '',
+      title: p.title || '',
+      prizeType: p.prizeType || 'cash',
+      prizeAmount: p.prizeAmount ?? '',
+      additionalPerks: typeof p.additionalPerks === 'string' ? p.additionalPerks : Array.isArray(p.additionalPerks) ? (p.additionalPerks as string[]).join(', ') : undefined,
+    })),
+  };
+}
 
 function getInitialFromStore() {
   const s = useNotingDraftStore.getState();
@@ -85,7 +147,7 @@ export default function NewNotePage() {
 
   // Block students from accessing noting system
   useEffect(() => {
-    if (user && user.role === 'student') {
+    if (user && (user.role?.name === 'student' || user.userType === 'student')) {
       toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
       router.push('/dashboard');
     }
@@ -126,34 +188,22 @@ export default function NewNotePage() {
   const [points, setPoints] = useState<string[]>(initial.points);
   const [annexures, setAnnexures] = useState<AnnexureEntry[]>(initial.attachments.map((a: any) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription || '' })));
 
-  // Event-specific fields
+  // Event-specific fields — venue & stall use shared venueFormData (same form as festival sub-events)
   const [isEventNoting, setIsEventNoting] = useState(false);
-  const [eventName, setEventName] = useState('');
-  const [eventType, setEventType] = useState('');
-  const [eventStartDate, setEventStartDate] = useState('');
-  const [eventEndDate, setEventEndDate] = useState('');
-  const [eventPaymentType, setEventPaymentType] = useState<'free' | 'paid'>('free');
-  const [eventParticipationType, setEventParticipationType] = useState<'individual' | 'team'>('individual');
-  const [eventRegistrationFeeIndividual, setEventRegistrationFeeIndividual] = useState<number | ''>('');
-  const [eventRegistrationFeeTeam, setEventRegistrationFeeTeam] = useState<number | ''>('');
-  const [eventApproxCapacity, setEventApproxCapacity] = useState<number | ''>('');
-  const [eventDutyLeaveAvailable, setEventDutyLeaveAvailable] = useState<boolean | null>(null);
-  const [eventDutyLeaveEligibility, setEventDutyLeaveEligibility] = useState<string[]>([]);
-  const [eventHasSponsorship, setEventHasSponsorship] = useState<boolean | null>(null);
-  const [eventSponsors, setEventSponsors] = useState<Array<{ name: string; amount: number; type: 'cash' | 'in_kind'; notes?: string }>>([]);
-  const [eventHasResources, setEventHasResources] = useState<boolean | null>(null);
-  const [eventResources, setEventResources] = useState<Array<{ type: string; description: string; pricePerPiece: number | ''; quantity: number | ''; cost: number | '' }>>([]);
-  const [eventCertification, setEventCertification] = useState<boolean | null>(null);
-  const [eventCapacityFixed, setEventCapacityFixed] = useState<number | ''>('');
-  const [eventPrizesAwards, setEventPrizesAwards] = useState<NotingPrize[]>([]);
-  const [showPrizeModal, setShowPrizeModal] = useState(false);
-  const [editingPrize, setEditingPrize] = useState<NotingPrize | null>(null);
-  const [editingPrizeIndex, setEditingPrizeIndex] = useState<number | null>(null);
+  const [venueFormData, setVenueFormData] = useState<VenueFormData>({ ...defaultVenueForm });
+
+  // Stall & Festival noting type fields
+  const [notingEventType, setNotingEventType] = useState<NotingEventType | null>(null);
+  const [stallConfig, setStallConfig] = useState<StallConfig>({ ...defaultStallConfig });
+  const [festivalData, setFestivalData] = useState<FestivalFormData>({ ...defaultFestivalForm });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAutosavingRef = useRef(false);
+  // PERF: Track last-saved form snapshot to avoid re-firing autosave when
+  // object references change but actual values haven't.
+  const lastSavedSnapshotRef = useRef<string>("");
   const [fileDropActive, setFileDropActive] = useState(false);
   const [pointDraggedIndex, setPointDraggedIndex] = useState<number | null>(null);
   const [pointDropTargetIndex, setPointDropTargetIndex] = useState<number | null>(null);
@@ -211,24 +261,33 @@ export default function NewNotePage() {
       setPoints(s.points.length ? s.points : ['']);
       setAnnexures(s.attachments.map((a) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription ?? '' })));
 
-      if (note.eventName) setEventName(note.eventName);
-      if (note.eventType) setEventType(note.eventType);
-      if (note.eventStartDate) setEventStartDate(note.eventStartDate);
-      if (note.eventEndDate) setEventEndDate(note.eventEndDate);
-      if (note.eventPaymentType) setEventPaymentType(note.eventPaymentType);
-      if ((note as any).eventParticipationType) setEventParticipationType((note as any).eventParticipationType);
-      if ((note as any).eventRegistrationFeeIndividual != null) setEventRegistrationFeeIndividual((note as any).eventRegistrationFeeIndividual);
-      if ((note as any).eventRegistrationFeeTeam != null) setEventRegistrationFeeTeam((note as any).eventRegistrationFeeTeam);
-      if ((note as any).eventApproxCapacity != null) setEventApproxCapacity((note as any).eventApproxCapacity);
-      if ((note as any).eventDutyLeaveAvailable != null) setEventDutyLeaveAvailable((note as any).eventDutyLeaveAvailable);
-      if (Array.isArray((note as any).eventDutyLeaveEligibility)) setEventDutyLeaveEligibility((note as any).eventDutyLeaveEligibility);
-      if ((note as any).eventHasSponsorship != null) setEventHasSponsorship((note as any).eventHasSponsorship);
-      if (Array.isArray((note as any).eventSponsors)) setEventSponsors((note as any).eventSponsors);
-      if ((note as any).eventHasResources != null) setEventHasResources((note as any).eventHasResources);
-      if (Array.isArray((note as any).eventResources)) setEventResources((note as any).eventResources);
-      if ((note as any).eventCertification != null) setEventCertification((note as any).eventCertification);
-      if ((note as any).eventCapacityFixed != null) setEventCapacityFixed((note as any).eventCapacityFixed);
-      if (Array.isArray((note as any).eventPrizesAwards)) setEventPrizesAwards((note as any).eventPrizesAwards);
+      const noteObj = note as unknown as Record<string, unknown>;
+      if (noteObj.notingEventType === 'venue' || noteObj.notingEventType === 'stall') {
+        setVenueFormData(noteToVenueFormData(noteObj));
+      } else if (noteObj.eventName || noteObj.eventType) {
+        setVenueFormData(noteToVenueFormData(noteObj));
+      }
+
+      // Restore stall & festival type fields
+      if ((note as any).notingEventType) setNotingEventType((note as any).notingEventType as NotingEventType);
+      if ((note as any).stallConfig) setStallConfig((note as any).stallConfig);
+      if ((note as any).festivalMeta || Array.isArray((note as any).subEvents)) {
+        setFestivalData((prev) => ({
+          ...prev,
+          festivalName: (note as any).festivalMeta?.name || prev.festivalName,
+          startDate: (note as any).festivalMeta?.startDate || prev.startDate,
+          endDate: (note as any).festivalMeta?.endDate || prev.endDate,
+          description: (note as any).festivalMeta?.description || prev.description,
+          coordinator: (note as any).festivalMeta?.coordinator || prev.coordinator,
+          subEvents: Array.isArray((note as any).subEvents) ? (note as any).subEvents.map((se: { id?: string; eventType?: string; venueFormData?: Record<string, unknown>; stallConfig?: unknown }) => ({
+            id: se.id || crypto.randomUUID(),
+            eventType: (se.eventType || 'venue') as 'venue' | 'stall',
+            venueFormData: noteToVenueFormData(se.venueFormData || (se as Record<string, unknown>)),
+            stallConfig: se.stallConfig,
+          })) : prev.subEvents,
+          currentStage: 'review' as const,
+        }));
+      }
 
       // Extract year and sequence from the existing draft's noting ID
       if (note.notingId) {
@@ -275,11 +334,7 @@ export default function NewNotePage() {
     setAmount('');
     setPoints(['']);
     setAnnexures([]);
-    setEventName('');
-    setEventType('');
-    setEventStartDate('');
-    setEventEndDate('');
-    setEventPaymentType('free');
+    setVenueFormData({ ...defaultVenueForm });
     setIsRevertedNote(false);
     setNotingIdPreview('');
     setNotingYearAndSequence(null);
@@ -328,13 +383,19 @@ export default function NewNotePage() {
     setIsEventNoting(isEvent);
 
     if (!isEvent) {
-      setEventName('');
-      setEventType('');
-      setEventStartDate('');
-      setEventEndDate('');
-      setEventPaymentType('free');
+      setVenueFormData(defaultVenueForm);
     }
   }, [subcategory, config]);
+
+  // Auto-fill Overall Coordinator with noting creator's UID when Festival is selected
+  useEffect(() => {
+    if (notingEventType === 'festival' && creatorInfo && !festivalData.coordinator?.trim()) {
+      const uid = creatorInfo.employeeIdOrStudentId || creatorInfo.name || '';
+      if (uid) {
+        setFestivalData((prev) => ({ ...prev, coordinator: uid }));
+      }
+    }
+  }, [notingEventType, creatorInfo, festivalData.coordinator]);
 
   useEffect(() => {
     if (!draftLoaded) return;
@@ -394,28 +455,46 @@ export default function NewNotePage() {
       };
 
       const eventPayload: any = {};
-      if (isEventNoting && eventName && eventType && eventStartDate && eventEndDate && eventPaymentType) {
-        eventPayload.eventName = eventName.trim();
-        eventPayload.eventType = eventType;
-        eventPayload.eventStartDate = eventStartDate;
-        eventPayload.eventEndDate = eventEndDate;
-        eventPayload.eventPaymentType = eventPaymentType;
-        eventPayload.eventParticipationType = eventParticipationType;
-        if (eventPaymentType === 'paid') {
-          eventPayload.eventRegistrationFeeIndividual = eventParticipationType === 'individual' && eventRegistrationFeeIndividual !== '' ? Number(eventRegistrationFeeIndividual) : null;
-          eventPayload.eventRegistrationFeeTeam = eventParticipationType === 'team' && eventRegistrationFeeTeam !== '' ? Number(eventRegistrationFeeTeam) : null;
-        }
-        eventPayload.eventApproxCapacity = eventApproxCapacity !== '' ? Number(eventApproxCapacity) : null;
-        eventPayload.eventDutyLeaveAvailable = eventDutyLeaveAvailable;
-        eventPayload.eventDutyLeaveEligibility = eventDutyLeaveAvailable ? eventDutyLeaveEligibility : null;
-        eventPayload.eventHasSponsorship = eventHasSponsorship;
-        eventPayload.eventSponsors = eventHasSponsorship ? eventSponsors : null;
-        eventPayload.eventHasResources = eventHasResources;
-        eventPayload.eventResources = eventHasResources ? eventResources : null;
-        eventPayload.eventCertification = eventCertification;
-        eventPayload.eventCapacityFixed = eventCapacityFixed !== '' ? Number(eventCapacityFixed) : null;
-        eventPayload.eventPrizesAwards = eventPrizesAwards.length > 0 ? eventPrizesAwards : null;
+      if (isEventNoting && (notingEventType === 'venue' || notingEventType === 'stall')) {
+        Object.assign(eventPayload, venueFormDataToEventPayload(venueFormData));
       }
+
+      // Stall & festival type fields (set outside inner condition to support all notingEventType values)
+      if (isEventNoting && notingEventType) {
+        eventPayload.notingEventType = notingEventType;
+        if (notingEventType === 'stall') {
+          eventPayload.stallConfig = stallConfig;
+        }
+        if (notingEventType === 'festival') {
+          eventPayload.festivalMeta = {
+            name: festivalData.festivalName,
+            startDate: festivalData.startDate,
+            endDate: festivalData.endDate,
+            description: festivalData.description,
+            coordinator: festivalData.coordinator,
+          };
+          eventPayload.subEvents = festivalData.subEvents.map((se) => ({
+            id: se.id,
+            eventType: se.eventType,
+            venueFormData: venueFormDataToEventPayload(se.venueFormData),
+            stallConfig: se.stallConfig,
+          }));
+          // Override event fields with festival meta so backend approval flow works
+          if (festivalData.festivalName && festivalData.startDate && festivalData.endDate) {
+            eventPayload.eventName = festivalData.festivalName;
+            eventPayload.eventStartDate = festivalData.startDate;
+            eventPayload.eventEndDate = festivalData.endDate;
+            eventPayload.eventType = 'fest';
+            eventPayload.eventPaymentType = 'free';
+          }
+        }
+      }
+
+      // PERF: Compare JSON snapshot to skip no-op autosaves.
+      // This prevents re-firing when object references change but values haven't.
+      const snapshot = JSON.stringify({ ...payload, ...eventPayload });
+      if (snapshot === lastSavedSnapshotRef.current) return;
+      lastSavedSnapshotRef.current = snapshot;
 
       if (draftId) {
         const updatePayload: any = {
@@ -456,12 +535,7 @@ export default function NewNotePage() {
   }, [
     draftLoaded, config, draftId, category, subcategory, description,
     approvalPeriod, recurringFrequency, policyCompliance, amountRequired,
-    amount, points, annexures, isEventNoting, eventName, eventType,
-    eventStartDate, eventEndDate, eventPaymentType, eventParticipationType,
-    eventRegistrationFeeIndividual, eventRegistrationFeeTeam, eventApproxCapacity,
-    eventDutyLeaveAvailable, eventDutyLeaveEligibility, eventHasSponsorship,
-    eventSponsors, eventHasResources, eventResources, eventCertification,
-    eventCapacityFixed, eventPrizesAwards, setDraftId,
+    amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, setDraftId,
   ]);
 
   // Strip HTML tags and count words for the rich text editor
@@ -498,6 +572,11 @@ export default function NewNotePage() {
   const processFiles = async (files: FileList | File[]) => {
     const arr = Array.from(files).filter((f) => acceptFile(f));
     if (!arr.length) return;
+    const oversized = arr.filter((f) => f.size > FILE_MAX_SIZE_BYTES);
+    if (oversized.length > 0) {
+      toast({ type: 'error', message: `File size must not exceed 5MB. ${oversized.map((f) => f.name).join(', ')} ${oversized.length === 1 ? 'is' : 'are'} too large.` });
+      return;
+    }
     for (let i = 0; i < arr.length; i++) {
       const file = arr[i];
       const _id = `annex-${Date.now()}-${i}`;
@@ -579,57 +658,190 @@ export default function NewNotePage() {
       submit: false,
     };
 
-    if (isEventNoting && eventName && eventType && eventStartDate && eventEndDate && eventPaymentType) {
-      (basePayload as any).eventName = eventName.trim();
-      (basePayload as any).eventType = eventType;
-      (basePayload as any).eventStartDate = eventStartDate;
-      (basePayload as any).eventEndDate = eventEndDate;
-      (basePayload as any).eventPaymentType = eventPaymentType;
-      (basePayload as any).eventParticipationType = eventParticipationType;
-      if (eventPaymentType === 'paid') {
-        (basePayload as any).eventRegistrationFeeIndividual = eventParticipationType === 'individual' && eventRegistrationFeeIndividual !== '' ? Number(eventRegistrationFeeIndividual) : null;
-        (basePayload as any).eventRegistrationFeeTeam = eventParticipationType === 'team' && eventRegistrationFeeTeam !== '' ? Number(eventRegistrationFeeTeam) : null;
+    if (isEventNoting && (notingEventType === 'venue' || notingEventType === 'stall')) {
+      Object.assign(basePayload, venueFormDataToEventPayload(venueFormData));
+    }
+    if (isEventNoting) {
+      // Stall & Festival type
+      (basePayload as any).notingEventType = notingEventType || 'venue';
+      if (notingEventType === 'stall') {
+        (basePayload as any).stallConfig = stallConfig;
       }
-      (basePayload as any).eventApproxCapacity = eventApproxCapacity !== '' ? Number(eventApproxCapacity) : null;
-      (basePayload as any).eventDutyLeaveAvailable = eventDutyLeaveAvailable;
-      (basePayload as any).eventDutyLeaveEligibility = eventDutyLeaveAvailable ? eventDutyLeaveEligibility : null;
-      (basePayload as any).eventHasSponsorship = eventHasSponsorship;
-      (basePayload as any).eventSponsors = eventHasSponsorship ? eventSponsors : null;
-      (basePayload as any).eventHasResources = eventHasResources;
-      (basePayload as any).eventResources = eventHasResources ? eventResources : null;
-      (basePayload as any).eventCertification = eventCertification;
-      (basePayload as any).eventCapacityFixed = eventCapacityFixed !== '' ? Number(eventCapacityFixed) : null;
-      (basePayload as any).eventPrizesAwards = eventPrizesAwards.length > 0 ? eventPrizesAwards : null;
+      if (notingEventType === 'festival') {
+        (basePayload as any).festivalMeta = {
+          name: festivalData.festivalName,
+          startDate: festivalData.startDate,
+          endDate: festivalData.endDate,
+          description: festivalData.description,
+          coordinator: festivalData.coordinator,
+        };
+        (basePayload as any).subEvents = festivalData.subEvents.map((se) => ({
+          id: se.id,
+          eventType: se.eventType,
+          venueFormData: venueFormDataToEventPayload(se.venueFormData),
+          stallConfig: se.stallConfig,
+        }));
+        // For festival, use festival meta as the "event" fields (so approval flow works)
+        if (festivalData.festivalName && festivalData.startDate && festivalData.endDate) {
+          (basePayload as any).eventName = festivalData.festivalName;
+          (basePayload as any).eventStartDate = festivalData.startDate;
+          (basePayload as any).eventEndDate = festivalData.endDate;
+          (basePayload as any).eventType = 'fest';
+          (basePayload as any).eventPaymentType = 'free';
+        }
+      }
     }
 
     return basePayload;
-  }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, eventName, eventType, eventStartDate, eventEndDate, eventPaymentType, eventParticipationType, eventRegistrationFeeIndividual, eventRegistrationFeeTeam, eventApproxCapacity, eventDutyLeaveAvailable, eventDutyLeaveEligibility, eventHasSponsorship, eventSponsors, eventHasResources, eventResources, eventCertification, eventCapacityFixed, eventPrizesAwards]);
+  }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData]);
 
   const handleSubmit = (asDraft: boolean) => {
     if (!config) return;
     if (!asDraft) {
-      if (!description.trim()) {
-        toast({ type: 'error', message: 'Description is required' });
+      // Classification
+      if (!subcategory?.trim()) {
+        toast({ type: 'error', message: 'Please select a subcategory from the dropdown.' });
+        return;
+      }
+      // Description (strip HTML for empty check — ReactQuill can have <p><br></p>)
+      if (!plainTextDescription.trim()) {
+        toast({ type: 'error', message: 'Please add a description explaining your request.' });
         return;
       }
       if (overLimit) {
-        toast({ type: 'error', message: `Description must be at most ${MAX_WORDS} words` });
+        toast({ type: 'error', message: `Description exceeds the word limit. Please reduce to ${MAX_WORDS} words (currently: ${wordCount} words).` });
         return;
       }
-
+      // Requirements & Points — at least one non-empty point
+      const validPoints = dedupePoints(points);
+      if (validPoints.length === 0) {
+        toast({ type: 'error', message: 'Please add at least one requirement point in the Requirements & Points section.' });
+        return;
+      }
+      // Additional Details
+      if (policyCompliance === null || policyCompliance === undefined) {
+        toast({ type: 'error', message: 'Please select Policy Compliance: choose "Yes, complies" or "No" in Additional Details.' });
+        return;
+      }
+      if (approvalPeriod === 'recurring' && !recurringFrequency?.trim()) {
+        toast({ type: 'error', message: 'Please select a frequency (e.g. Monthly, Weekly) when Approval Period is Recurring.' });
+        return;
+      }
+      if (amountRequired && (amount === '' || Number(amount) < 0 || isNaN(Number(amount)))) {
+        toast({ type: 'error', message: 'Please enter a valid amount (₹) when "Amount required" is selected.' });
+        return;
+      }
+      if (amountRequired && Number(amount) > AMOUNT_MAX) {
+        toast({ type: 'error', message: 'Amount cannot exceed ₹10,00,000 (10 lakh). Please reduce the amount.' });
+        return;
+      }
+      // Event Details
       if (isEventNoting) {
-        if (!eventName.trim()) { toast({ type: 'error', message: 'Event name is required' }); return; }
-        if (!eventType) { toast({ type: 'error', message: 'Event type is required' }); return; }
-        if (!eventStartDate) { toast({ type: 'error', message: 'Event start date is required' }); return; }
-        if (!eventEndDate) { toast({ type: 'error', message: 'Event end date is required' }); return; }
-        if (new Date(eventEndDate) < new Date(eventStartDate)) { toast({ type: 'error', message: 'Event end date must be after start date' }); return; }
-        if (!eventPaymentType) { toast({ type: 'error', message: 'Event payment type is required' }); return; }
-        if (eventPaymentType === 'paid') {
-          if (eventParticipationType === 'individual' && (eventRegistrationFeeIndividual === '' || Number(eventRegistrationFeeIndividual) < 0)) {
-            toast({ type: 'error', message: 'Participation fee (₹) is required for paid individual events' }); return;
+        if (!notingEventType) {
+          toast({ type: 'error', message: 'Please select Event Structure: Venue Event, Stall-Based Event, or Fest.' });
+          return;
+        }
+        if (notingEventType === 'festival') {
+          if (!festivalData.festivalName?.trim()) { toast({ type: 'error', message: 'Please enter the Festival Name.' }); return; }
+          if (!festivalData.startDate) { toast({ type: 'error', message: 'Please select the Festival Start Date.' }); return; }
+          if (!festivalData.endDate) { toast({ type: 'error', message: 'Please select the Festival End Date.' }); return; }
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          if (festivalData.startDate && new Date(festivalData.startDate) < todayStart) {
+            toast({ type: 'error', message: 'Festival Start Date cannot be in the past. Please select a future date.' }); return;
           }
-          if (eventParticipationType === 'team' && (eventRegistrationFeeTeam === '' || Number(eventRegistrationFeeTeam) < 0)) {
-            toast({ type: 'error', message: 'Fee per team (₹) is required for paid team events' }); return;
+          if (festivalData.startDate && festivalData.endDate && new Date(festivalData.endDate) < new Date(festivalData.startDate)) {
+            toast({ type: 'error', message: 'Festival End Date should be after Start Date. Please correct the dates.' }); return;
+          }
+          if (festivalData.subEvents.length === 0) {
+            toast({ type: 'error', message: 'Please add at least one sub-event to the festival.' }); return;
+          }
+          for (let i = 0; i < festivalData.subEvents.length; i++) {
+            const se = festivalData.subEvents[i];
+            const v = se.venueFormData;
+            const label = `Sub-Event #${i + 1}`;
+            if (!v.eventName?.trim()) { toast({ type: 'error', message: `${label}: Please enter the Event Name.` }); return; }
+            if (!v.eventType) { toast({ type: 'error', message: `${label}: Please select the Event Type.` }); return; }
+            if (!v.eventStartDate) { toast({ type: 'error', message: `${label}: Please select the Start Date.` }); return; }
+            if (!v.eventEndDate) { toast({ type: 'error', message: `${label}: Please select the End Date.` }); return; }
+            const subToday = new Date();
+            subToday.setHours(0, 0, 0, 0);
+            if (v.eventStartDate && new Date(v.eventStartDate) < subToday) {
+              toast({ type: 'error', message: `${label}: Start Date cannot be in the past. Please select a future date.` }); return;
+            }
+            if (v.eventStartDate && v.eventEndDate && new Date(v.eventEndDate) < new Date(v.eventStartDate)) {
+              toast({ type: 'error', message: `${label}: End Date should be after Start Date. Please correct the dates.` }); return;
+            }
+            if (v.eventHasSponsorship === true) {
+              const valid = (v.eventSponsors || []).filter((s) => s?.name?.trim());
+              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one sponsor with a name when Sponsorship is enabled.` }); return; }
+            }
+            if (v.eventHasResources === true) {
+              const valid = (v.eventResources || []).filter((r) => (r?.type || '').trim() || (r?.description || '').trim());
+              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one resource when Resources are enabled.` }); return; }
+            }
+            if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
+              toast({ type: 'error', message: `${label}: Please select Duty Leave eligibility when Duty Leave is enabled.` }); return;
+            }
+            if (se.eventType === 'stall' && se.stallConfig) {
+              const sc = se.stallConfig;
+              if (sc.enableStudentApplied && (sc.maxStudentStalls == null || sc.maxStudentStalls < 1)) {
+                toast({ type: 'error', message: `${label}: Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.` }); return;
+              }
+              if (sc.enableCreatorMade && (sc.creatorStalls || []).some((cs) => !(cs?.name || '').trim())) {
+                toast({ type: 'error', message: `${label}: Each creator-made stall must have a name.` }); return;
+              }
+            }
+            if (!v.eventPaymentType) { toast({ type: 'error', message: `${label}: Please select Payment Type (Free or Paid).` }); return; }
+            if (v.eventPaymentType === 'paid') {
+              if (v.eventParticipationType === 'individual' && (v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
+                toast({ type: 'error', message: `${label}: Please enter the Participation Fee (₹) for paid events.` }); return;
+              }
+              if (v.eventParticipationType === 'team' && (v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
+                toast({ type: 'error', message: `${label}: Please enter the Fee per Team (₹) for paid events.` }); return;
+              }
+            }
+          }
+        }
+        if (notingEventType === 'venue' || notingEventType === 'stall') {
+          const v = venueFormData;
+          if (!v.eventName?.trim()) { toast({ type: 'error', message: 'Please enter the Event Name.' }); return; }
+          if (!v.eventType) { toast({ type: 'error', message: 'Please select the Event Type (e.g. Workshop, Seminar).' }); return; }
+          if (!v.eventStartDate) { toast({ type: 'error', message: 'Please select the Event Start Date.' }); return; }
+          if (!v.eventEndDate) { toast({ type: 'error', message: 'Please select the Event End Date.' }); return; }
+          const evtToday = new Date();
+          evtToday.setHours(0, 0, 0, 0);
+          if (v.eventStartDate && new Date(v.eventStartDate) < evtToday) {
+            toast({ type: 'error', message: 'Event Start Date cannot be in the past. Please select a future date.' }); return;
+          }
+          if (new Date(v.eventEndDate) < new Date(v.eventStartDate)) { toast({ type: 'error', message: 'Event End Date should be after Start Date. Please correct the dates.' }); return; }
+          if (!v.eventPaymentType) { toast({ type: 'error', message: 'Please select Payment Type: Free or Paid.' }); return; }
+          if (v.eventPaymentType === 'paid') {
+            if (v.eventParticipationType === 'individual' && (v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
+              toast({ type: 'error', message: 'Please enter the Participation Fee (₹) for paid individual events.' }); return;
+            }
+            if (v.eventParticipationType === 'team' && (v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
+              toast({ type: 'error', message: 'Please enter the Fee per Team (₹) for paid team events.' }); return;
+            }
+          }
+          if (v.eventHasSponsorship === true) {
+            const valid = (v.eventSponsors || []).filter((s) => s?.name?.trim());
+            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one sponsor with a name when Sponsorship is enabled.' }); return; }
+          }
+          if (v.eventHasResources === true) {
+            const valid = (v.eventResources || []).filter((r) => (r?.type || '').trim() || (r?.description || '').trim());
+            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one resource when Resources are enabled.' }); return; }
+          }
+          if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
+            toast({ type: 'error', message: 'Please select who is eligible for Duty Leave when Duty Leave is enabled.' }); return;
+          }
+          if (notingEventType === 'stall' && stallConfig) {
+            if (stallConfig.enableStudentApplied && (stallConfig.maxStudentStalls == null || stallConfig.maxStudentStalls < 1)) {
+              toast({ type: 'error', message: 'Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.' }); return;
+            }
+            if (stallConfig.enableCreatorMade && (stallConfig.creatorStalls || []).some((cs) => !(cs?.name || '').trim())) {
+              toast({ type: 'error', message: 'Each creator-made stall must have a name.' }); return;
+            }
           }
         }
       }
@@ -645,27 +857,39 @@ export default function NewNotePage() {
       attachments: payload.attachments,
     };
 
-    if (isEventNoting && eventName && eventType && eventStartDate && eventEndDate && eventPaymentType) {
-      updatePayload.eventName = eventName.trim();
-      updatePayload.eventType = eventType;
-      updatePayload.eventStartDate = eventStartDate;
-      updatePayload.eventEndDate = eventEndDate;
-      updatePayload.eventPaymentType = eventPaymentType;
-      updatePayload.eventParticipationType = eventParticipationType;
-      if (eventPaymentType === 'paid') {
-        updatePayload.eventRegistrationFeeIndividual = eventParticipationType === 'individual' && eventRegistrationFeeIndividual !== '' ? Number(eventRegistrationFeeIndividual) : null;
-        updatePayload.eventRegistrationFeeTeam = eventParticipationType === 'team' && eventRegistrationFeeTeam !== '' ? Number(eventRegistrationFeeTeam) : null;
+    if (isEventNoting && (notingEventType === 'venue' || notingEventType === 'stall')) {
+      Object.assign(updatePayload, venueFormDataToEventPayload(venueFormData));
+    }
+
+    // Stall & festival type fields
+    if (isEventNoting && notingEventType) {
+      updatePayload.notingEventType = notingEventType;
+      if (notingEventType === 'stall') {
+        updatePayload.stallConfig = stallConfig;
       }
-      updatePayload.eventApproxCapacity = eventApproxCapacity !== '' ? Number(eventApproxCapacity) : null;
-      updatePayload.eventDutyLeaveAvailable = eventDutyLeaveAvailable;
-      updatePayload.eventDutyLeaveEligibility = eventDutyLeaveAvailable ? eventDutyLeaveEligibility : null;
-      updatePayload.eventHasSponsorship = eventHasSponsorship;
-      updatePayload.eventSponsors = eventHasSponsorship ? eventSponsors : null;
-      updatePayload.eventHasResources = eventHasResources;
-      updatePayload.eventResources = eventHasResources ? eventResources : null;
-      updatePayload.eventCertification = eventCertification;
-      updatePayload.eventCapacityFixed = eventCapacityFixed !== '' ? Number(eventCapacityFixed) : null;
-      updatePayload.eventPrizesAwards = eventPrizesAwards.length > 0 ? eventPrizesAwards : null;
+      if (notingEventType === 'festival') {
+        updatePayload.festivalMeta = {
+          name: festivalData.festivalName,
+          startDate: festivalData.startDate,
+          endDate: festivalData.endDate,
+          description: festivalData.description,
+          coordinator: festivalData.coordinator,
+        };
+        updatePayload.subEvents = festivalData.subEvents.map((se) => ({
+          id: se.id,
+          eventType: se.eventType,
+          venueFormData: venueFormDataToEventPayload(se.venueFormData),
+          stallConfig: se.stallConfig,
+        }));
+        // Override event fields with festival meta so backend approval flow works
+        if (festivalData.festivalName && festivalData.startDate && festivalData.endDate) {
+          updatePayload.eventName = festivalData.festivalName;
+          updatePayload.eventStartDate = festivalData.startDate;
+          updatePayload.eventEndDate = festivalData.endDate;
+          updatePayload.eventType = 'fest';
+          updatePayload.eventPaymentType = 'free';
+        }
+      }
     }
 
     if (payload.approvalPeriod === 'one_time') updatePayload.recurringFrequency = null;
@@ -738,6 +962,43 @@ export default function NewNotePage() {
   }
 
   const subcategories = config.categories.find((c) => c.value === category)?.subcategories ?? [];
+
+  const baseValid = Boolean(
+    subcategory?.trim() &&
+    plainTextDescription.trim() &&
+    !overLimit &&
+    dedupePoints(points).length > 0 &&
+    policyCompliance !== null &&
+    (approvalPeriod !== 'recurring' || recurringFrequency?.trim()) &&
+    (!amountRequired || (amount !== '' && Number(amount) >= 0 && !isNaN(Number(amount)) && Number(amount) <= AMOUNT_MAX))
+  );
+  const allSubEventsValid = festivalData.subEvents.length > 0 && festivalData.subEvents.every((se) => {
+    const v = se.venueFormData;
+    const base = v.eventName?.trim() && v.eventType && v.eventStartDate && v.eventEndDate &&
+      new Date(v.eventEndDate) >= new Date(v.eventStartDate) && v.eventPaymentType;
+    if (!base) return false;
+    if (v.eventPaymentType === 'paid') {
+      return v.eventParticipationType === 'individual'
+        ? (v.eventRegistrationFeeIndividual !== '' && Number(v.eventRegistrationFeeIndividual) >= 0)
+        : (v.eventRegistrationFeeTeam !== '' && Number(v.eventRegistrationFeeTeam) >= 0);
+    }
+    return true;
+  });
+  const eventValid = !isEventNoting || (
+    notingEventType &&
+    (
+      (notingEventType === 'festival' && festivalData.festivalName?.trim() && festivalData.startDate && festivalData.endDate &&
+        new Date(festivalData.endDate) >= new Date(festivalData.startDate) && allSubEventsValid) ||
+      ((notingEventType === 'venue' || notingEventType === 'stall') &&
+        venueFormData.eventName?.trim() && venueFormData.eventType && venueFormData.eventStartDate &&
+        venueFormData.eventEndDate && new Date(venueFormData.eventEndDate) >= new Date(venueFormData.eventStartDate) &&
+        venueFormData.eventPaymentType &&
+        (venueFormData.eventPaymentType !== 'paid' ||
+          (venueFormData.eventParticipationType === 'individual' ? (venueFormData.eventRegistrationFeeIndividual !== '' && Number(venueFormData.eventRegistrationFeeIndividual) >= 0) :
+            (venueFormData.eventRegistrationFeeTeam !== '' && Number(venueFormData.eventRegistrationFeeTeam) >= 0))))
+    )
+  );
+  const canSubmit = baseValid && eventValid;
 
   // Label helper for sections
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
@@ -817,7 +1078,7 @@ export default function NewNotePage() {
 
               {/* ===== Description ===== */}
               <section>
-                <SectionLabel>Description</SectionLabel>
+                <SectionLabel>Description <span className="text-red-500">*</span></SectionLabel>
                 <div className={`noting-description-editor border rounded-md bg-white dark:bg-gray-700 transition-colors ${overLimit ? 'border-red-400' : 'border-gray-200 dark:border-gray-600 focus-within:border-sgt-500'}`}>
                   <ReactQuill
                     theme="snow"
@@ -853,7 +1114,7 @@ export default function NewNotePage() {
 
               {/* ===== Requirements / Points ===== */}
               <section>
-                <SectionLabel>Requirements & Points</SectionLabel>
+                <SectionLabel>Requirements & Points <span className="text-red-500">*</span></SectionLabel>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-1.5">
                   <GripVertical className="w-3.5 h-3.5" />
                   Add requirement points. Drag the handle to reorder.
@@ -933,7 +1194,7 @@ export default function NewNotePage() {
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
                     {fileDropActive ? 'Drop files here' : 'Drag and drop files here'}
                   </p>
-                  <p className="text-xs text-gray-400 mb-3">PDF, Word, Excel, Images, ZIP</p>
+                  <p className="text-xs text-gray-400 mb-3">PDF, Word, Excel, Images, ZIP • Max 5MB per file</p>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -1011,342 +1272,63 @@ export default function NewNotePage() {
               {/* ===== Event Details (Conditional) ===== */}
               {isEventNoting && (
                 <section>
-                  <SectionLabel>Event Details</SectionLabel>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                    Event name, type, dates, and payment type will be <strong>locked</strong> after approval and cannot be changed.
-                  </p>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Event Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={eventName}
-                        onChange={(e) => setEventName(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                        placeholder="Enter event name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Event Type <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={eventType}
-                        onChange={(e) => setEventType(e.target.value)}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                      >
-                        <option value="">Select event type</option>
-                        <option value="workshop">Workshop</option>
-                        <option value="seminar">Seminar</option>
-                        <option value="conference">Conference</option>
-                        <option value="competition">Competition</option>
-                        <option value="cultural">Cultural Event</option>
-                        <option value="sports">Sports Event</option>
-                        <option value="tech_fest">Tech Fest</option>
-                        <option value="hackathon">Hackathon</option>
-                        <option value="webinar">Webinar</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                          Start Date <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="date"
-                          value={eventStartDate}
-                          onChange={(e) => setEventStartDate(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                  <SectionLabel>Event Details <span className="text-red-500">*</span></SectionLabel>
+
+                  {/* ── EventTypeSelector GATE ── */}
+                  <EventTypeSelector
+                    value={notingEventType}
+                    onChange={(t) => {
+                      setNotingEventType(t);
+                      if (t !== 'stall') setStallConfig({ ...defaultStallConfig });
+                      if (t !== 'festival') {
+                        setFestivalData({ ...defaultFestivalForm });
+                      } else {
+                        setFestivalData({
+                          ...defaultFestivalForm,
+                          coordinator: creatorInfo?.employeeIdOrStudentId || creatorInfo?.name || '',
+                        });
+                      }
+                      if (t !== 'venue' && t !== 'stall') setVenueFormData({ ...defaultVenueForm });
+                    }}
+                    disabled={isEditingExistingDraft}
+                  />
+
+                  {/* Festival form — replaces normal event fields */}
+                  {notingEventType === 'festival' && (
+                    <FestivalForm
+                      data={festivalData}
+                      onChange={setFestivalData}
+                      disabled={isEditingExistingDraft}
+                      coordinatorReadOnly={true}
+                    />
+                  )}
+
+                  {/* Venue / Stall — shared EventFormFields (venue form UI everywhere) */}
+                  {(notingEventType === 'venue' || notingEventType === 'stall') && (
+                    <>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                        Event name, type, dates, and payment type will be <strong>locked</strong> after approval and cannot be changed.
+                      </p>
+                      <div className="space-y-4">
+                        <EventFormFields
+                          data={venueFormData}
+                          onChange={setVenueFormData}
+                          disabled={isEditingExistingDraft}
+                          showCapacityFixed={true}
+                          fieldsetPrefix="venue"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                          End Date <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="date"
-                          value={eventEndDate}
-                          onChange={(e) => setEventEndDate(e.target.value)}
-                          min={eventStartDate}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                        Payment Type <span className="text-red-500">*</span>
-                      </label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventPaymentType" value="free" checked={eventPaymentType === 'free'} onChange={(e) => setEventPaymentType(e.target.value as 'free' | 'paid')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Free</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventPaymentType" value="paid" checked={eventPaymentType === 'paid'} onChange={(e) => setEventPaymentType(e.target.value as 'free' | 'paid')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Paid</span>
-                        </label>
-                      </div>
-                    </div>
-                    {/* Participation Type & Fee (conditional) */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Participation Type</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventParticipationType" value="individual" checked={eventParticipationType === 'individual'} onChange={(e) => setEventParticipationType(e.target.value as 'individual' | 'team')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Individual</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventParticipationType" value="team" checked={eventParticipationType === 'team'} onChange={(e) => setEventParticipationType(e.target.value as 'individual' | 'team')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Team</span>
-                        </label>
-                      </div>
-                    </div>
-                    {eventPaymentType === 'paid' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                          {eventParticipationType === 'individual' ? 'Participation Fee (₹)' : 'Fee per Team (₹)'} <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={eventParticipationType === 'individual' ? eventRegistrationFeeIndividual : eventRegistrationFeeTeam}
-                          onChange={(e) => {
-                            const v = e.target.value === '' ? '' : Number(e.target.value);
-                            eventParticipationType === 'individual' ? setEventRegistrationFeeIndividual(v) : setEventRegistrationFeeTeam(v);
-                          }}
-                          className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                          placeholder={eventParticipationType === 'individual' ? 'e.g. 500' : 'e.g. 2000'}
-                        />
-                      </div>
-                    )}
-                    {/* Approximate Capacity (informational only) */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Approximate Capacity</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={eventApproxCapacity}
-                        onChange={(e) => setEventApproxCapacity(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                        placeholder="For planning only (optional)"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Used for estimation only, not strictly enforced</p>
-                    </div>
-                    {/* Duty Leave */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Duty Leave Available?</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventDutyLeave" value="yes" checked={eventDutyLeaveAvailable === true} onChange={() => setEventDutyLeaveAvailable(true)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Yes</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventDutyLeave" value="no" checked={eventDutyLeaveAvailable === false} onChange={() => { setEventDutyLeaveAvailable(false); setEventDutyLeaveEligibility([]); }} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
-                        </label>
-                      </div>
-                      {eventDutyLeaveAvailable && (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {['students', 'faculty_teaching', 'faculty_non_teaching', 'staff'].map((opt) => (
-                            <label key={opt} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-                              <input type="checkbox" checked={eventDutyLeaveEligibility.includes(opt)} onChange={(e) => setEventDutyLeaveEligibility((prev) => e.target.checked ? [...prev, opt] : prev.filter((x) => x !== opt))} className="w-3.5 h-3.5 text-sgt-600 focus:ring-sgt-500" />
-                              <span className="text-sm capitalize">{opt.replace('_', ' ')}</span>
-                            </label>
-                          ))}
+                      {notingEventType === 'stall' && (
+                        <div className="mt-4">
+                          <StallConfigSection
+                            config={stallConfig}
+                            onChange={setStallConfig}
+                            disabled={isEditingExistingDraft}
+                          />
                         </div>
                       )}
-                    </div>
-                    {/* Sponsorship */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Is there sponsorship?</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventSponsorship" value="yes" checked={eventHasSponsorship === true} onChange={() => setEventHasSponsorship(true)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Yes</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventSponsorship" value="no" checked={eventHasSponsorship === false} onChange={() => { setEventHasSponsorship(false); setEventSponsors([]); }} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
-                        </label>
-                      </div>
-                      {eventHasSponsorship && (
-                        <div className="mt-2 space-y-2">
-                          {eventSponsors.map((s, i) => (
-                            <div key={i} className="flex flex-wrap gap-2 p-2 rounded-md border border-gray-200 dark:border-gray-600">
-                              <input type="text" value={s.name} onChange={(e) => setEventSponsors((prev) => { const n = [...prev]; n[i] = { ...n[i], name: e.target.value }; return n; })} placeholder="Sponsor name" className="flex-1 min-w-[120px] px-2 py-1.5 text-sm border rounded" />
-                              <select value={s.type} onChange={(e) => setEventSponsors((prev) => { const n = [...prev]; n[i] = { ...n[i], type: e.target.value as 'cash' | 'in_kind' }; return n; })} className="px-2 py-1.5 text-sm border rounded">
-                                <option value="cash">Cash</option>
-                                <option value="in_kind">In-kind</option>
-                              </select>
-                              {s.type === 'cash' ? (
-                                <input type="number" min={0} value={s.amount || ''} onChange={(e) => setEventSponsors((prev) => { const n = [...prev]; n[i] = { ...n[i], amount: Number(e.target.value) || 0 }; return n; })} placeholder="Amount (₹)" className="w-28 px-2 py-1.5 text-sm border rounded" />
-                              ) : (
-                                <input type="text" value={s.notes || ''} onChange={(e) => setEventSponsors((prev) => { const n = [...prev]; n[i] = { ...n[i], notes: e.target.value }; return n; })} placeholder="Describe in-kind (e.g. Laptops, Food)" className="flex-1 min-w-[180px] px-2 py-1.5 text-sm border rounded" />
-                              )}
-                              <button type="button" onClick={() => setEventSponsors((prev) => prev.filter((_, j) => j !== i))} className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          ))}
-                          <button type="button" onClick={() => setEventSponsors((prev) => [...prev, { name: '', amount: 0, type: 'cash' }])} className="text-sm text-sgt-600 hover:text-sgt-700 font-medium flex items-center gap-1"><Plus className="w-4 h-4" /> Add sponsor</button>
-                        </div>
-                      )}
-                    </div>
-                    {/* Certification */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Certificate Available?</label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Will participants receive a certificate? (Locked after approval)</p>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventCertification" value="yes" checked={eventCertification === true} onChange={() => setEventCertification(true)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Yes</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventCertification" value="no" checked={eventCertification === false} onChange={() => setEventCertification(false)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
-                        </label>
-                      </div>
-                    </div>
-                    {/* Capacity Fixed (internal) */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Capacity Fixed (Internal)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={eventCapacityFixed}
-                        onChange={(e) => setEventCapacityFixed(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                        placeholder="Internal capacity limit (locked after approval)"
-                      />
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">This is different from approx capacity. Not visible to users. Locked after approval.</p>
-                    </div>
-                    {/* Prizes/Awards - Same format as Event Manage page */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prizes / Awards</label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Configure prizes (locked after approval). Uses same format as event management.</p>
-                      <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                        {eventPrizesAwards.length > 0 && (
-                          <div className="p-3 space-y-2">
-                            {eventPrizesAwards.map((prize, idx) => (
-                              <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600">
-                                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                                  {prize.prizeType === 'trophy' ? <Trophy className="w-5 h-5 text-blue-600" /> : prize.prizeType === 'cash' ? <IndianRupee className="w-5 h-5 text-blue-600" /> : <Award className="w-5 h-5 text-blue-600" />}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-semibold text-sm text-gray-900 dark:text-white">{prize.rank}</h4>
-                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                    {prize.prizeType === 'cash' && prize.prizeAmount ? `₹${prize.prizeAmount.toLocaleString()}` : prize.title || PRIZE_TYPE_OPTIONS.find(p => p.value === prize.prizeType)?.label || 'Prize'}
-                                  </p>
-                                  {prize.additionalPerks && prize.additionalPerks.length > 0 && (
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                      {prize.additionalPerks.map((perk, i) => <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">{perk}</span>)}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <button type="button" onClick={() => { setEditingPrize({ ...prize }); setEditingPrizeIndex(idx); setShowPrizeModal(true); }} className="p-1.5 text-gray-400 hover:text-sgt-600 transition-colors"><Settings className="w-4 h-4" /></button>
-                                  <button type="button" onClick={() => setEventPrizesAwards((prev) => prev.filter((_, j) => j !== idx))} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div className={eventPrizesAwards.length > 0 ? "p-3 border-t border-gray-200 dark:border-gray-600" : "p-3"}>
-                          <button type="button" onClick={() => {
-                            setEditingPrize({
-                              position: eventPrizesAwards.length + 1,
-                              rank: eventPrizesAwards.length === 0 ? 'Winner' : eventPrizesAwards.length === 1 ? 'First Runner Up' : eventPrizesAwards.length === 2 ? 'Second Runner Up' : `Position ${eventPrizesAwards.length + 1}`,
-                              title: '',
-                              prizeType: 'certificate',
-                              sortOrder: eventPrizesAwards.length,
-                              isActive: true,
-                              additionalPerks: [],
-                            });
-                            setEditingPrizeIndex(null);
-                            setShowPrizeModal(true);
-                          }} className="w-full flex items-center justify-center gap-2 p-2.5 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg text-gray-500 hover:border-sgt-400 hover:text-sgt-600 transition-colors text-sm">
-                            <Plus className="w-4 h-4" /><span className="font-medium">Add Prize</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Resources */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Are any resources required?</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventResources" value="yes" checked={eventHasResources === true} onChange={() => setEventHasResources(true)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">Yes</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="eventResources" value="no" checked={eventHasResources === false} onChange={() => { setEventHasResources(false); setEventResources([]); }} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">No</span>
-                        </label>
-                      </div>
-                      {eventHasResources && (
-                        <div className="mt-3">
-                          {/* Resource Table */}
-                          <div className="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-600">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="bg-gray-50 dark:bg-gray-700/50">
-                                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">Type</th>
-                                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">Description</th>
-                                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">Price/Piece (₹)</th>
-                                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">Quantity</th>
-                                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">Cost (₹)</th>
-                                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider w-10"></th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-100 dark:divide-gray-600">
-                                {eventResources.map((r, i) => {
-                                  const computedCost = (r.pricePerPiece !== '' && r.quantity !== '') ? Number(r.pricePerPiece) * Number(r.quantity) : '';
-                                  return (
-                                    <tr key={i} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
-                                      <td className="px-2 py-1.5">
-                                        <input type="text" value={r.type} onChange={(e) => setEventResources((prev) => { const n = [...prev]; n[i] = { ...n[i], type: e.target.value }; return n; })} placeholder="e.g. Audio System" className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        <input type="text" value={r.description} onChange={(e) => setEventResources((prev) => { const n = [...prev]; n[i] = { ...n[i], description: e.target.value }; return n; })} placeholder="Description" className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        <input type="number" min={0} value={r.pricePerPiece} onChange={(e) => { const val = e.target.value === '' ? '' : Number(e.target.value); setEventResources((prev) => { const n = [...prev]; const cost = (val !== '' && n[i].quantity !== '') ? Number(val) * Number(n[i].quantity) : ''; n[i] = { ...n[i], pricePerPiece: val, cost }; return n; }); }} placeholder="₹0" className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        <input type="number" min={1} value={r.quantity} onChange={(e) => { const val = e.target.value === '' ? '' : Number(e.target.value); setEventResources((prev) => { const n = [...prev]; const cost = (n[i].pricePerPiece !== '' && val !== '') ? Number(n[i].pricePerPiece) * Number(val) : ''; n[i] = { ...n[i], quantity: val, cost }; return n; }); }} placeholder="0" className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white" />
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                          {computedCost !== '' ? `₹${Number(computedCost).toLocaleString('en-IN')}` : '—'}
-                                        </span>
-                                      </td>
-                                      <td className="px-2 py-1.5">
-                                        <button type="button" onClick={() => setEventResources((prev) => prev.filter((_, j) => j !== i))} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"><Trash2 className="w-4 h-4" /></button>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                              {eventResources.length > 0 && (
-                                <tfoot>
-                                  <tr className="bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-600">
-                                    <td colSpan={4} className="px-3 py-2 text-right text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">Total Cost</td>
-                                    <td className="px-3 py-2 text-sm font-bold text-gray-900 dark:text-white">
-                                      ₹{eventResources.reduce((sum, r) => sum + (r.cost !== '' ? Number(r.cost) : 0), 0).toLocaleString('en-IN')}
-                                    </td>
-                                    <td></td>
-                                  </tr>
-                                </tfoot>
-                              )}
-                            </table>
-                          </div>
-                          <button type="button" onClick={() => setEventResources((prev) => [...prev, { type: '', description: '', pricePerPiece: '', quantity: '', cost: '' }])} className="mt-2 text-sm text-sgt-600 hover:text-sgt-700 dark:text-sgt-400 font-medium flex items-center gap-1"><Plus className="w-4 h-4" /> Add resource</button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </section>
               )}
 
@@ -1358,7 +1340,7 @@ export default function NewNotePage() {
                   <div className="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
                     {/* Approval Period */}
                     <div className="bg-white dark:bg-gray-800 p-4">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period <span className="text-red-500">*</span></label>
                       <div className="flex flex-col gap-2">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${approvalPeriod === 'one_time' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
@@ -1389,7 +1371,7 @@ export default function NewNotePage() {
 
                     {/* Policy Compliance */}
                     <div className="bg-white dark:bg-gray-800 p-4">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Policy Compliance</label>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Policy Compliance <span className="text-red-500">*</span></label>
                       <div className="flex flex-col gap-2">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
@@ -1408,7 +1390,7 @@ export default function NewNotePage() {
                   {/* Budget / Amount */}
                   <div className="p-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-3">
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">Budget / Amount</label>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">Budget / Amount <span className="text-red-500">*</span></label>
                       <div className="flex gap-3 flex-1 items-center">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${!amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
@@ -1426,11 +1408,12 @@ export default function NewNotePage() {
                             <input
                               type="number"
                               min={0}
+                              max={AMOUNT_MAX}
                               step={1}
                               value={amount}
                               onChange={(e) => setAmount(e.target.value)}
                               className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
-                              placeholder="Enter amount"
+                              placeholder="Max ₹10 lakh"
                             />
                           </div>
                         )}
@@ -1482,7 +1465,7 @@ export default function NewNotePage() {
                 <button
                   type="button"
                   onClick={() => handleSubmit(false)}
-                  disabled={submitting || !description.trim() || overLimit}
+                  disabled={submitting || !canSubmit}
                   className="px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
                 >
                   {submitting ? <LoadingSpinner size="sm" /> : <Send className="w-4 h-4" />}
@@ -1515,86 +1498,6 @@ export default function NewNotePage() {
         </div >
       </div >
 
-      {/* Prize Modal */}
-      {
-        showPrizeModal && editingPrize && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPrizeModal(false)}>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingPrizeIndex !== null ? 'Edit Prize' : 'Add Prize'}</h3>
-                <button type="button" onClick={() => setShowPrizeModal(false)} className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
-              </div>
-              <div className="p-5 space-y-4">
-                {/* Rank */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rank / Position Title</label>
-                  <input type="text" value={editingPrize.rank} onChange={(e) => setEditingPrize({ ...editingPrize!, rank: e.target.value })} placeholder="e.g. Winner, First Runner Up" className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 outline-none" />
-                </div>
-                {/* Prize Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Prize Type</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {PRIZE_TYPE_OPTIONS.map((opt) => (
-                      <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize!, prizeType: opt.value })} className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border-2 text-xs font-medium transition-all ${editingPrize.prizeType === opt.value ? 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 dark:text-sgt-300' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
-                        {opt.icon}
-                        <span>{opt.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {/* Title */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prize Title</label>
-                  <input type="text" value={editingPrize.title} onChange={(e) => setEditingPrize({ ...editingPrize!, title: e.target.value })} placeholder="e.g. Gold Medal, Cash Prize" className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 outline-none" />
-                </div>
-                {/* Amount (shown for cash type) */}
-                {editingPrize.prizeType === 'cash' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prize Amount (₹)</label>
-                    <input type="number" min={0} value={editingPrize.prizeAmount ?? ''} onChange={(e) => setEditingPrize({ ...editingPrize!, prizeAmount: e.target.value === '' ? undefined : Number(e.target.value) })} placeholder="Amount in ₹" className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 outline-none" />
-                  </div>
-                )}
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description (optional)</label>
-                  <textarea value={editingPrize.description || ''} onChange={(e) => setEditingPrize({ ...editingPrize!, description: e.target.value })} placeholder="Brief description of the prize" rows={2} className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 outline-none resize-none" />
-                </div>
-                {/* Additional Perks */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Additional Perks</label>
-                  <div className="flex flex-wrap gap-2">
-                    {PERK_OPTIONS.map((perk) => {
-                      const isSelected = editingPrize.additionalPerks?.includes(perk) ?? false;
-                      return (
-                        <button key={perk} type="button" onClick={() => {
-                          const currentPerks = editingPrize.additionalPerks || [];
-                          setEditingPrize({ ...editingPrize!, additionalPerks: isSelected ? currentPerks.filter(p => p !== perk) : [...currentPerks, perk] });
-                        }} className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${isSelected ? 'bg-sgt-100 dark:bg-sgt-900/30 border-sgt-300 dark:border-sgt-600 text-sgt-700 dark:text-sgt-300' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
-                          {perk}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 p-5 border-t border-gray-200 dark:border-gray-700">
-                <button type="button" onClick={() => setShowPrizeModal(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">Cancel</button>
-                <button type="button" onClick={() => {
-                  if (!editingPrize.rank.trim()) return;
-                  if (editingPrizeIndex !== null) {
-                    setEventPrizesAwards(prev => prev.map((p, i) => i === editingPrizeIndex ? editingPrize : p));
-                  } else {
-                    setEventPrizesAwards(prev => [...prev, editingPrize]);
-                  }
-                  setShowPrizeModal(false);
-                  setEditingPrize(null);
-                  setEditingPrizeIndex(null);
-                }} className="px-4 py-2 text-sm font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors">{editingPrizeIndex !== null ? 'Update Prize' : 'Add Prize'}</button>
-              </div>
-            </div>
-          </div>
-        )
-      }
     </>
   );
 }

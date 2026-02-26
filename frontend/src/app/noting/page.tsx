@@ -1,124 +1,378 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { FileText, Plus, Inbox, Send, Clock, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2, History, Pencil, Search, X, Filter, RotateCcw } from 'lucide-react';
-import { useNotingList, useDeleteDraft, NOTING_QUERY_KEYS } from '@/features/noting-management/hooks/useNoting';
-import { useQueryClient } from '@tanstack/react-query';
-import { notingService } from '@/features/noting-management/services/noting.service';
-import type { Note } from '@/features/noting-management/types/noting.types';
-import { useToast } from '@/shared/ui-components/Toast';
-import { useAuthStore } from '@/shared/auth/authStore';
-import { useRouter } from 'next/navigation';
-import { getErrorMessage } from '@/shared/utils/errorHandler';
-import { STATUS_CONFIG, MY_ACTION_CONFIG, PAGE_SIZE } from '@/features/noting-management/constants';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import Link from "next/link";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useTransition } from "react";
+import {
+  FileText,
+  Plus,
+  Inbox,
+  Send,
+  Clock,
+  CheckCircle,
+  XCircle,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  History,
+  Pencil,
+  Search,
+  X,
+  Filter,
+  RotateCcw,
+  Copy,
+  AlertTriangle,
+  Briefcase,
+  AlertCircle,
+  ArrowRight,
+} from "lucide-react";
+import {
+  useNotingList,
+  useDeleteDraft,
+  useMyCopies,
+  NOTING_QUERY_KEYS,
+} from "@/features/noting-management/hooks/useNoting";
+import { notingService } from "@/features/noting-management/services/noting.service";
+import { useQueryClient } from "@tanstack/react-query";
+import type {
+  Note,
+  NoteCopy,
+} from "@/features/noting-management/types/noting.types";
+import { useToast } from "@/shared/ui-components/Toast";
+import { useAuthStore } from "@/shared/auth/authStore";
+
+import { getErrorMessage } from "@/shared/utils/errorHandler";
+import { useDebounce } from "@/shared/hooks/useDebounce";
+import {
+  STATUS_CONFIG,
+  MY_ACTION_CONFIG,
+  PAGE_SIZE,
+} from "@/features/noting-management/constants";
+import { CardSkeleton, Skeleton } from "@/components/skeletons";
 
 function getDisplayName(note: Note): string {
   const c = note.createdBy;
   if (c?.employeeDetails?.displayName) return c.employeeDetails.displayName;
   if (c?.employeeDetails?.firstName || c?.employeeDetails?.lastName) {
-    return [c.employeeDetails.firstName, c.employeeDetails.lastName].filter(Boolean).join(' ');
+    return [c.employeeDetails.firstName, c.employeeDetails.lastName]
+      .filter(Boolean)
+      .join(" ");
   }
   if (c?.studentLogin?.displayName) return c.studentLogin.displayName;
-  return c?.uid ?? '—';
+  return c?.uid ?? "—";
 }
 
 const stripHtml = (html: string) => {
-  if (!html) return '';
-  return html.replace(/<[^>]*>/g, '').trim();
+  if (!html) return "";
+  return html.replace(/<[^>]*>/g, "").trim();
 };
 
 export default function NotingListPage() {
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const [filter, setFilter] = useState<'mine' | 'pending' | 'handled'>('mine');
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [status, setStatus] = useState('');
-  const [category, setCategory] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [, startTransition] = useTransition();
 
+  // ── URL is the single source of truth ────────────────────────────────────
+  // Read directly from searchParams — no useState mirrors, no sync useEffect.
+  const VALID_FILTERS = ["mine", "pending", "handled", "copies"] as const;
+  const VALID_COPIES_FILTERS = ["all", "my_work", "complaints"] as const;
+
+  const rawTab = searchParams.get("tab") ?? "mine";
+  const filter = VALID_FILTERS.includes(rawTab as any)
+    ? (rawTab as "mine" | "pending" | "handled" | "copies")
+    : "mine";
+
+  const rawPage = parseInt(searchParams.get("page") ?? "1", 10);
+  const page = isNaN(rawPage) || rawPage < 1 ? 1 : rawPage;
+
+  const status = searchParams.get("status") ?? "";
+  const category = searchParams.get("category") ?? "";
+  const startDate = searchParams.get("startDate") ?? "";
+  const endDate = searchParams.get("endDate") ?? "";
+
+  const rawCopiesFilter = searchParams.get("copies") ?? "all";
+  const copiesFilter = VALID_COPIES_FILTERS.includes(rawCopiesFilter as any)
+    ? (rawCopiesFilter as "all" | "my_work" | "complaints")
+    : "all";
+
+  // Filter panel is open when any filter param is present in URL
+  const showFilters = !!(status || category || startDate || endDate);
+
+  // ── Search input: local state only (debounced before hitting URL/query) ───
+  // The input box updates instantly; the URL + TanStack key update after 350 ms.
+  const [searchInput, setSearchInput] = useState(
+    () => searchParams.get("search") ?? "",
+  );
+  const debouncedSearch = useDebounce(searchInput, 350);
+
+  // Sync debounced search value into the URL (also resets page to 1)
+  useEffect(() => {
+    const current = searchParams.get("search") ?? "";
+    if (debouncedSearch === current) return;
+    setParams({ search: debouncedSearch || undefined, page: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  // ── Single URL-param updater ──────────────────────────────────────────────
+  // Wrapping router.replace in startTransition marks the navigation as
+  // non-urgent so React can keep the current UI interactive while the new
+  // search-params take effect — no extra useState needed.
+  const setParams = useCallback(
+    (updates: Record<string, string | undefined>) => {
+      startTransition(() => {
+        const next = new URLSearchParams(searchParams.toString());
+        Object.entries(updates).forEach(([key, val]) => {
+          if (val === undefined || val === "") {
+            next.delete(key);
+          } else {
+            next.set(key, val);
+          }
+        });
+        const qs = next.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      });
+    },
+    [router, pathname, searchParams],
+  );
+
+  // Convenience setters — each resets page to 1 on user-driven filter changes
+  const setFilter = useCallback(
+    (val: typeof filter) =>
+      setParams({ tab: val === "mine" ? undefined : val, page: undefined }),
+    [setParams],
+  );
+  const setPage = useCallback(
+    (val: number | ((prev: number) => number)) => {
+      const next = typeof val === "function" ? val(page) : val;
+      setParams({ page: next === 1 ? undefined : String(next) });
+    },
+    [setParams, page],
+  );
+  const setStatus = useCallback(
+    (val: string) => setParams({ status: val || undefined, page: undefined }),
+    [setParams],
+  );
+  const setCategoryFilter = useCallback(
+    (val: string) => setParams({ category: val || undefined, page: undefined }),
+    [setParams],
+  );
+  const setStartDate = useCallback(
+    (val: string) =>
+      setParams({ startDate: val || undefined, page: undefined }),
+    [setParams],
+  );
+  const setEndDate = useCallback(
+    (val: string) => setParams({ endDate: val || undefined, page: undefined }),
+    [setParams],
+  );
+  const setCopiesFilter = useCallback(
+    (val: typeof copiesFilter) =>
+      setParams({ copies: val === "all" ? undefined : val, page: undefined }),
+    [setParams],
+  );
+
+  // ── Notes list query ──────────────────────────────────────────────────────
   const listParams = {
     filter,
     page,
     limit: PAGE_SIZE,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
     status: status || undefined,
     category: category || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    // disable list query when on Copies tab
+    enabled: filter !== "copies",
   };
 
-  const { data: listResult, isLoading } = useNotingList(listParams);
+  const { data: listResult, isLoading: listLoading } =
+    useNotingList(listParams);
   const deleteMutation = useDeleteDraft();
 
   const notes = listResult?.data ?? [];
-  const pagination = listResult?.pagination ?? { page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 };
-  // Counts come from list response when includeCounts=true (avoids separate /counts call)
+  const listPagination = listResult?.pagination;
   const counts = listResult?.counts ?? { mine: 0, pending: 0, handled: 0 };
+
+  // ── Copies query (TanStack Query replaces manual useEffect fetch) ─────────
+  // Only enabled when the Copies tab is active AND the user is authenticated.
+  // TanStack Query caches the result so tab re-visits are instant.
+  const {
+    data: copiesData,
+    isLoading: copiesLoading,
+    error: copiesError,
+  } = useMyCopies({
+    page,
+    limit: PAGE_SIZE,
+    enabled: filter === "copies" && !!user,
+  });
+
+  const myCopies = copiesData?.copies ?? [];
+  const myManagerId = copiesData?.myManagerId ?? null;
+  const copiesPagination = copiesData?.pagination;
+
+  const pagination =
+    filter === "copies"
+      ? (copiesPagination ?? {
+        page: 1,
+        limit: PAGE_SIZE,
+        total: 0,
+        totalPages: 0,
+      })
+      : (listPagination ?? {
+        page: 1,
+        limit: PAGE_SIZE,
+        total: 0,
+        totalPages: 0,
+      });
+
+  const isLoading = listLoading || (filter === "copies" && copiesLoading);
+
+  // Show error toast for copies fetch failures (once per unique error)
+  const lastCopiesErrRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (copiesError) {
+      const msg = getErrorMessage(copiesError);
+      if (lastCopiesErrRef.current !== msg) {
+        lastCopiesErrRef.current = msg;
+        toast({ type: "error", message: msg || "Failed to load copies." });
+      }
+    } else {
+      lastCopiesErrRef.current = null;
+    }
+  }, [copiesError, toast]);
 
   // Block students from accessing noting system
   useEffect(() => {
-    if (user && user.role === 'student') {
-      toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
-      router.push('/dashboard');
+    if (user && (user.role as any) === "student") {
+      toast({
+        type: "error",
+        message: "Students are not allowed to access the noting system",
+      });
+      router.push("/dashboard");
     }
   }, [user, router, toast]);
 
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [filter, search, status, category, startDate, endDate]);
+  const handleDeleteDraft = useCallback(
+    (e: React.MouseEvent, note: Note) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-  const handleDeleteDraft = (e: React.MouseEvent, note: Note) => {
-    e.preventDefault();
-    e.stopPropagation();
+      const approverActions =
+        note.history?.filter((h) => h.performedById !== note.createdById) || [];
+      if (approverActions.length > 0) {
+        toast({
+          type: "error",
+          message: "Cannot delete note after an approver has taken action",
+        });
+        return;
+      }
 
-    const approverActions = note.history?.filter((h) => h.performedById !== note.createdById) || [];
-    if (approverActions.length > 0) {
-      toast({ type: 'error', message: 'Cannot delete note after an approver has taken action' });
-      return;
-    }
+      if (!window.confirm("Delete this note? This cannot be undone.")) return;
 
-    if (!window.confirm('Delete this note? This cannot be undone.')) return;
-
-    deleteMutation.mutate(note.id, {
-      onSuccess: () => {
-        toast({ type: 'success', message: 'Note deleted' });
-      },
-      onError: (err) => {
-        toast({ type: 'error', message: getErrorMessage(err) });
-      },
-    });
-  };
+      deleteMutation.mutate(note.id, {
+        onSuccess: () => {
+          toast({ type: "success", message: "Note deleted" });
+        },
+        onError: (err) => {
+          toast({ type: "error", message: getErrorMessage(err) });
+        },
+      });
+    },
+    [deleteMutation, toast],
+  );
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearch(searchInput);
-    setPage(1);
+    // debouncedSearch already handles the query; just prevent default
   };
 
-  const resetFilters = () => {
-    setSearchInput('');
-    setSearch('');
-    setStatus('');
-    setCategory('');
-    setStartDate('');
-    setEndDate('');
-    setPage(1);
-  };
+  const resetFilters = useCallback(() => {
+    setSearchInput("");
+    setParams({
+      search: undefined,
+      status: undefined,
+      category: undefined,
+      startDate: undefined,
+      endDate: undefined,
+      page: undefined,
+    });
+  }, [setParams]);
 
-  const TABS = [
-    { key: 'mine' as const, label: 'My Notes', desc: 'Notes created by you', icon: Send, count: counts.mine },
-    { key: 'pending' as const, label: 'Pending for Me', desc: 'Awaiting your review', icon: Inbox, count: counts.pending },
-    { key: 'handled' as const, label: 'Handled by Me', desc: "Actions you've taken", icon: History, count: counts.handled },
-  ];
+  // ── Memoized tab definitions (avoids re-creating array every render) ──────
+  const TABS = useMemo(
+    () => [
+      {
+        key: "mine" as const,
+        label: "My Notes",
+        desc: "Notes created by you",
+        icon: Send,
+        count: counts.mine,
+      },
+      {
+        key: "pending" as const,
+        label: "Pending for Me",
+        desc: "Awaiting your review",
+        icon: Inbox,
+        count: counts.pending,
+      },
+      {
+        key: "handled" as const,
+        label: "Handled by Me",
+        desc: "Actions you've taken",
+        icon: History,
+        count: counts.handled,
+      },
+      {
+        key: "copies" as const,
+        label: "Copies for Me",
+        desc: "Copies assigned to you",
+        icon: Copy,
+        count: copiesPagination?.total ?? myCopies.length,
+      },
+    ],
+    [
+      counts.mine,
+      counts.pending,
+      counts.handled,
+      copiesPagination?.total,
+      myCopies.length,
+    ],
+  );
+
+  // ── Memoized copies filtering (avoids re-filtering on every render) ───────
+  const currentUserId = user?.id;
+
+  const isMyWork = useCallback(
+    (c: NoteCopy) => {
+      const rootAssignee = (c as any).rootCopy?.assignedToId;
+      if (!rootAssignee) return true;
+      return rootAssignee === currentUserId;
+    },
+    [currentUserId],
+  );
+
+  const filteredCopies = useMemo(() => {
+    if (filter !== "copies") return [];
+    if (copiesFilter === "my_work") return myCopies.filter(isMyWork);
+    if (copiesFilter === "complaints")
+      return myCopies.filter((c) => !isMyWork(c));
+    return myCopies;
+  }, [filter, copiesFilter, myCopies, isMyWork]);
+
+  // Memoize sub-filter counts to avoid redundant array scans on every render
+  const myWorkCount = useMemo(
+    () => myCopies.filter(isMyWork).length,
+    [myCopies, isMyWork],
+  );
+  const complaintsCount = useMemo(
+    () => myCopies.filter((c) => !isMyWork(c)).length,
+    [myCopies, isMyWork],
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
@@ -151,21 +405,19 @@ export default function NotingListPage() {
               <button
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px flex-shrink-0 whitespace-nowrap ${
-                  isActive
-                    ? 'border-sgt-600 text-sgt-700 dark:text-sgt-300'
-                    : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                }`}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px flex-shrink-0 whitespace-nowrap ${isActive
+                    ? "border-sgt-600 text-sgt-700 dark:text-sgt-300"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300"
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
                 {tab.count > 0 && (
                   <span
-                    className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      isActive
-                        ? 'bg-sgt-600 text-white'
-                        : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                    }`}
+                    className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive
+                        ? "bg-sgt-600 text-white"
+                        : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      }`}
                   >
                     {tab.count}
                   </span>
@@ -177,13 +429,18 @@ export default function NotingListPage() {
 
         {/* Search and Filters */}
         <div className="mb-5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+          <form
+            onSubmit={handleSearch}
+            className="flex flex-col sm:flex-row gap-2"
+          >
             <div className="flex-1 relative min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                }}
                 placeholder="Search by Note ID or description..."
                 className="w-full pl-9 pr-9 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
               />
@@ -191,8 +448,7 @@ export default function NotingListPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSearchInput('');
-                    setSearch('');
+                    setSearchInput("");
                   }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
@@ -201,32 +457,45 @@ export default function NotingListPage() {
               )}
             </div>
             <div className="flex gap-2 flex-shrink-0">
-            <button
-              type="submit"
-              className="flex-1 sm:flex-none px-4 py-2 bg-sgt-600 text-white text-sm rounded-lg hover:bg-sgt-700 font-medium flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <Search className="w-3.5 h-3.5" />
-              Search
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowFilters(!showFilters)}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg border text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${
-                showFilters
-                  ? 'bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 border-sgt-300'
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-              }`}
-            >
-              <Filter className="w-3.5 h-3.5" />
-              Filters
-            </button>
+              <button
+                type="submit"
+                className="flex-1 sm:flex-none px-4 py-2 bg-sgt-600 text-white text-sm rounded-lg hover:bg-sgt-700 font-medium flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <Search className="w-3.5 h-3.5" />
+                Search
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setParams(
+                    showFilters
+                      ? {
+                        status: undefined,
+                        category: undefined,
+                        startDate: undefined,
+                        endDate: undefined,
+                        page: undefined,
+                      }
+                      : {},
+                  )
+                }
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg border text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${showFilters
+                    ? "bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 border-sgt-300"
+                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  }`}
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Filters
+              </button>
             </div>
           </form>
 
           {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-gray-100 dark:border-gray-700">
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Status</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Status
+                </label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
@@ -241,10 +510,12 @@ export default function NotingListPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Category
+                </label>
                 <select
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
                 >
                   <option value="">All Categories</option>
@@ -254,7 +525,9 @@ export default function NotingListPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Start Date</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  Start Date
+                </label>
                 <input
                   type="date"
                   value={startDate}
@@ -263,7 +536,9 @@ export default function NotingListPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">End Date</label>
+                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                  End Date
+                </label>
                 <input
                   type="date"
                   value={endDate}
@@ -284,13 +559,220 @@ export default function NotingListPage() {
           )}
         </div>
 
+        {/* Copies sub-filters: My Work | Complaints (only when Copies tab is active) */}
+        {filter === "copies" && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setCopiesFilter("all")}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${copiesFilter === "all"
+                  ? "bg-sgt-600 text-white border-sgt-600"
+                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+            >
+              All
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter === "all" ? "bg-white/20" : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300"}`}
+              >
+                {copiesPagination?.total ?? myCopies.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCopiesFilter("my_work")}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${copiesFilter === "my_work"
+                  ? "bg-sgt-600 text-white border-sgt-600"
+                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+            >
+              <Briefcase className="w-4 h-4" />
+              My Work
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter === "my_work" ? "bg-white/20" : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300"}`}
+              >
+                {myWorkCount}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setCopiesFilter("complaints")}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${copiesFilter === "complaints"
+                  ? "bg-sgt-600 text-white border-sgt-600"
+                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+            >
+              <AlertCircle className="w-4 h-4" />
+              Complaints
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${copiesFilter === "complaints" ? "bg-white/20" : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300"}`}
+              >
+                {complaintsCount}
+              </span>
+            </button>
+          </div>
+        )}
+
         {/* Content */}
-        {isLoading ? (
-          <div className="flex justify-center py-20">
-            <div className="text-center">
-              <LoadingSpinner size="lg" className="mx-auto mb-3" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">Loading notes...</p>
+        {filter === "copies" ? (
+          /* ===== Copies For Me Tab ===== */
+          copiesLoading ? (
+            <div className="space-y-4 mt-4">
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
             </div>
+          ) : myCopies.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12">
+              <div className="text-center">
+                <div className="w-14 h-14 mx-auto mb-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center">
+                  <Copy className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">
+                  No Copies Assigned
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  When someone sends you a copy of an approved note, it will
+                  appear here.
+                </p>
+              </div>
+            </div>
+          ) : filteredCopies.length === 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12">
+              <div className="text-center">
+                <div className="w-14 h-14 mx-auto mb-4 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                  <Filter className="w-7 h-7 text-gray-400" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">
+                  No {copiesFilter === "my_work" ? "My Work" : "Complaints"}{" "}
+                  Copies
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {copiesFilter === "my_work"
+                    ? 'You have no work assignment copies. Try "Complaints" or "All" to see other copies.'
+                    : 'You have no complaint/escalation copies. Try "My Work" or "All" to see other copies.'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredCopies.map((copy) => {
+                const statusColor =
+                  copy.status === "completed"
+                    ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+                    : copy.status === "replied"
+                      ? "text-emerald-600 bg-emerald-50 border-emerald-200"
+                      : copy.status === "forwarded"
+                        ? "text-amber-600 bg-amber-50 border-amber-200"
+                        : "text-indigo-600 bg-indigo-50 border-indigo-200";
+                const noteData = copy.note;
+                return (
+                  <div
+                    key={copy.id}
+                    className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+                  >
+                    {/* Copy Card Header — click navigates to separate page */}
+                    <Link
+                      href={`/noting/${copy.noteId}/copy/${copy.id}`}
+                      className="w-full flex items-center gap-3 px-4 sm:px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-left transition-colors"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 text-sm font-bold flex-shrink-0">
+                        <Copy className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-mono text-xs font-semibold text-sgt-600 dark:text-sgt-400">
+                            {noteData?.notingId || "N/A"}
+                          </span>
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase border ${statusColor}`}
+                          >
+                            {copy.status}
+                          </span>
+                          {copy.escalationLevel > 0 && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-red-50 text-red-600 border border-red-200 flex items-center gap-0.5">
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              Escalation L{copy.escalationLevel}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
+                          {noteData?.category} / {noteData?.subcategory}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                          Sent by:{" "}
+                          {copy.sentBy?.employeeDetails?.displayName ||
+                            copy.sentBy?.uid}{" "}
+                          •{" "}
+                          {new Date(copy.createdAt).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric", year: "numeric" },
+                          )}
+                        </p>
+                        {copy.escalationLevel > 0 &&
+                          (() => {
+                            try {
+                              const p = JSON.parse(copy.remarks);
+                              if (p.type === "reassigned") {
+                                const imm = p.immediateBossName;
+                                const bosses: string[] =
+                                  p.bossesNotified ||
+                                  (p.bossNotified ? [p.bossNotified] : []);
+                                const level = p.level || copy.escalationLevel;
+                                if (level === 1 && imm) {
+                                  return (
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                                      Your work has been escalated to your boss:{" "}
+                                      {imm}
+                                    </p>
+                                  );
+                                }
+                                if (level >= 2) {
+                                  return (
+                                    <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
+                                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                                      Escalation L{level} —{" "}
+                                      {bosses.length > 0
+                                        ? `${bosses.join(", ")} notified`
+                                        : "Higher authority notified"}
+                                    </p>
+                                  );
+                                }
+                              }
+                              if (p.type === "escalation") {
+                                return (
+                                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
+                                    <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                                    Escalation notice — assigned to you as
+                                    supervisor
+                                  </p>
+                                );
+                              }
+                            } catch {
+                              /* not JSON */
+                            }
+                            return (
+                              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
+                                <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                                Escalated to Level {copy.escalationLevel}
+                              </p>
+                            );
+                          })()}
+                      </div>
+                      <div className="flex-shrink-0">
+                        <ArrowRight className="w-5 h-5 text-gray-400" />
+                      </div>
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : isLoading ? (
+          <div className="space-y-4 mt-4">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
           </div>
         ) : notes.length === 0 ? (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-12">
@@ -299,16 +781,19 @@ export default function NotingListPage() {
                 <FileText className="w-7 h-7 text-sgt-600 dark:text-sgt-400" />
               </div>
               <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">
-                {filter === 'mine' && 'No Notes Created Yet'}
-                {filter === 'pending' && 'No Pending Approvals'}
-                {filter === 'handled' && 'No Handled Notes'}
+                {filter === "mine" && "No Notes Created Yet"}
+                {filter === "pending" && "No Pending Approvals"}
+                {filter === "handled" && "No Handled Notes"}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 max-w-sm mx-auto">
-                {filter === 'mine' && 'Start by creating your first approval request.'}
-                {filter === 'pending' && 'No notes waiting for your review right now.'}
-                {filter === 'handled' && 'Notes you have acted upon will appear here.'}
+                {filter === "mine" &&
+                  "Start by creating your first approval request."}
+                {filter === "pending" &&
+                  "No notes waiting for your review right now."}
+                {filter === "handled" &&
+                  "Notes you have acted upon will appear here."}
               </p>
-              {filter === 'mine' && (
+              {filter === "mine" && (
                 <Link
                   href="/noting/new"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm"
@@ -321,25 +806,33 @@ export default function NotingListPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {notes.map((note) => {
-              const statusConf = STATUS_CONFIG[note.status] || STATUS_CONFIG.draft;
+            {(notes as Note[]).map((note) => {
+              const statusConf =
+                STATUS_CONFIG[note.status] || STATUS_CONFIG.draft;
               const StatusIcon = statusConf.icon;
-              const isDeleting = deleteMutation.isPending && deleteMutation.variables === note.id;
+              const isDeleting =
+                deleteMutation.isPending &&
+                deleteMutation.variables === note.id;
 
-              const approverActions = note.history?.filter((h) => h.performedById !== note.createdById) || [];
-              const canEditOrDelete = filter === 'mine' && approverActions.length === 0;
+              const approverActions =
+                note.history?.filter(
+                  (h: { performedById: string }) =>
+                    h.performedById !== note.createdById,
+                ) || [];
+              const canEditOrDelete =
+                filter === "mine" && approverActions.length === 0;
 
               return (
                 <Link
                   key={note.id}
                   href={
-                    note.status === 'draft' || note.status === 'reverted'
+                    note.status === "draft" || note.status === "reverted"
                       ? `/noting/new?draft=${note.id}`
                       : `/noting/${note.id}`
                   }
                   className="group block"
                   onMouseEnter={() => {
-                    if (note.status !== 'draft' && note.status !== 'reverted') {
+                    if (note.status !== "draft" && note.status !== "reverted") {
                       queryClient.prefetchQuery({
                         queryKey: NOTING_QUERY_KEYS.detail(note.id),
                         queryFn: () => notingService.getById(note.id),
@@ -356,13 +849,18 @@ export default function NotingListPage() {
                             <span className="font-mono text-xs font-semibold text-sgt-600 dark:text-sgt-400">
                               {note.notingId}
                             </span>
-                            <span className="text-gray-300 dark:text-gray-600">•</span>
+                            <span className="text-gray-300 dark:text-gray-600">
+                              •
+                            </span>
                             <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(note.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric',
-                              })}
+                              {new Date(note.createdAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                },
+                              )}
                             </span>
                           </div>
                           <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-sgt-700 dark:group-hover:text-sgt-400 transition-colors capitalize">
@@ -380,26 +878,33 @@ export default function NotingListPage() {
                               </span>
                               {getDisplayName(note)}
                             </span>
-                            {filter !== 'handled' && note.currentHolder && (
+                            {filter !== "handled" && note.currentHolder && (
                               <span className="flex items-center gap-1">
                                 <Send className="w-3 h-3" />
-                                With {note.currentHolder.employeeDetails?.displayName || note.currentHolder.uid}
+                                With{" "}
+                                {note.currentHolder.employeeDetails
+                                  ?.displayName || note.currentHolder.uid}
                               </span>
                             )}
                             {(note._count?.history ?? 0) > 0 && (
                               <span className="flex items-center gap-1">
                                 <History className="w-3 h-3" />
-                                {note._count!.history} {note._count!.history === 1 ? 'action' : 'actions'}
+                                {note._count!.history}{" "}
+                                {note._count!.history === 1
+                                  ? "action"
+                                  : "actions"}
                               </span>
                             )}
                           </div>
                         </div>
 
                         <div className="flex flex-row flex-wrap items-center justify-end gap-2 shrink-0">
-                          {filter === 'handled' && note.myAction ? (
+                          {filter === "handled" && note.myAction ? (
                             <div className="flex flex-col items-end gap-1.5">
                               {(() => {
-                                const actionConf = MY_ACTION_CONFIG[note.myAction.action] || MY_ACTION_CONFIG.forwarded;
+                                const actionConf =
+                                  MY_ACTION_CONFIG[note.myAction.action] ||
+                                  MY_ACTION_CONFIG.forwarded;
                                 const ActionIcon = actionConf.icon;
                                 return (
                                   <span
@@ -426,17 +931,22 @@ export default function NotingListPage() {
                             </span>
                           )}
 
-                          <div className="flex items-center gap-0.5" onClick={(e) => e.preventDefault()}>
-                            {canEditOrDelete && note.status !== 'approved' && note.status !== 'rejected' && (
-                              <Link
-                                href={`/noting/new?draft=${note.id}`}
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 text-gray-400 hover:text-sgt-600 hover:bg-sgt-50 dark:hover:bg-sgt-900/20 rounded-md transition-colors"
-                                title="Edit note"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Link>
-                            )}
+                          <div
+                            className="flex items-center gap-0.5"
+                            onClick={(e) => e.preventDefault()}
+                          >
+                            {canEditOrDelete &&
+                              note.status !== "approved" &&
+                              note.status !== "rejected" && (
+                                <Link
+                                  href={`/noting/new?draft=${note.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-1.5 text-gray-400 hover:text-sgt-600 hover:bg-sgt-50 dark:hover:bg-sgt-900/20 rounded-md transition-colors"
+                                  title="Edit note"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Link>
+                              )}
                             {canEditOrDelete && (
                               <button
                                 type="button"
@@ -446,7 +956,7 @@ export default function NotingListPage() {
                                 title="Delete note"
                               >
                                 {isDeleting ? (
-                                  <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
+                                  <Skeleton className="w-3.5 h-3.5 rounded-sm" />
                                 ) : (
                                   <Trash2 className="w-3.5 h-3.5" />
                                 )}
@@ -468,15 +978,18 @@ export default function NotingListPage() {
           <div className="mt-5 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 px-5 py-3">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Showing{' '}
+                Showing{" "}
                 <span className="font-medium text-gray-700 dark:text-gray-200">
                   {(pagination.page - 1) * PAGE_SIZE + 1}
-                </span>{' '}
-                to{' '}
+                </span>{" "}
+                to{" "}
                 <span className="font-medium text-gray-700 dark:text-gray-200">
                   {Math.min(pagination.page * PAGE_SIZE, pagination.total)}
-                </span>{' '}
-                of <span className="font-medium text-gray-700 dark:text-gray-200">{pagination.total}</span>
+                </span>{" "}
+                of{" "}
+                <span className="font-medium text-gray-700 dark:text-gray-200">
+                  {pagination.total}
+                </span>
               </p>
               <div className="flex items-center gap-1.5">
                 <button
@@ -489,38 +1002,44 @@ export default function NotingListPage() {
                   Prev
                 </button>
                 <div className="hidden sm:flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                    let pageNum;
-                    if (pagination.totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (pagination.page <= 3) {
-                      pageNum = i + 1;
-                    } else if (pagination.page >= pagination.totalPages - 2) {
-                      pageNum = pagination.totalPages - 4 + i;
-                    } else {
-                      pageNum = pagination.page - 2 + i;
-                    }
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setPage(pageNum)}
-                        disabled={isLoading}
-                        className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${
-                          pagination.page === pageNum
-                            ? 'bg-sgt-600 text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
+                  {Array.from(
+                    { length: Math.min(5, pagination.totalPages) },
+                    (_, i) => {
+                      let pageNum;
+                      if (pagination.totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (pagination.page <= 3) {
+                        pageNum = i + 1;
+                      } else if (pagination.page >= pagination.totalPages - 2) {
+                        pageNum = pagination.totalPages - 4 + i;
+                      } else {
+                        pageNum = pagination.page - 2 + i;
+                      }
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setPage(pageNum)}
+                          disabled={isLoading}
+                          className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${pagination.page === pageNum
+                              ? "bg-sgt-600 text-white"
+                              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    },
+                  )}
                 </div>
                 <button
                   type="button"
-                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={pagination.page >= pagination.totalPages || isLoading}
+                  onClick={() =>
+                    setPage((p) => Math.min(pagination.totalPages, p + 1))
+                  }
+                  disabled={
+                    pagination.page >= pagination.totalPages || isLoading
+                  }
                   className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next

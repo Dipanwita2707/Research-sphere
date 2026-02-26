@@ -307,12 +307,10 @@ const updateRegistrationSettings = async (eventId, userId, settings) => {
       minTeamSize: settings.minTeamSize,
       maxTeamSize: settings.maxTeamSize,
       interCollegeAllowed: settings.interCollegeAllowed,
-      autoApproveRegistration: settings.autoApproveRegistration,
       maxTeamLimit: settings.maxTeamLimit,
       teamRegistrationDeadline: settings.teamRegistrationDeadline 
         ? new Date(settings.teamRegistrationDeadline) 
         : null,
-      allowEditAfterSubmission: settings.allowEditAfterSubmission,
       requireFormSubmission: settings.requireFormSubmission,
       lookingForTeammatesEnabled: settings.lookingForTeammatesEnabled,
       updatedAt: new Date(),
@@ -341,10 +339,8 @@ const getRegistrationSettings = async (eventId) => {
       minTeamSize: true,
       maxTeamSize: true,
       interCollegeAllowed: true,
-      autoApproveRegistration: true,
       maxTeamLimit: true,
       teamRegistrationDeadline: true,
-      allowEditAfterSubmission: true,
       requireFormSubmission: true,
       lookingForTeammatesEnabled: true,
       registrationStartDate: true,

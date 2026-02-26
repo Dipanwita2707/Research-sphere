@@ -1,37 +1,79 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Users, Search, Calendar, UserCheck, Mail } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useClubs } from '@/features/dsw/hooks';
-import { ClubStatusBadge } from '@/features/dsw/components/ClubStatusBadge';
-import { ClubFilters } from '@/features/dsw/types';
-import { getErrorMessage } from '@/shared/utils/errorHandler';
-import { useDebounce } from '@/shared/hooks/useDebounce';
-import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import React, { useState, useEffect } from "react";
+import {
+  Users,
+  Search,
+  Calendar,
+  UserCheck,
+  Mail,
+  Clock,
+  X,
+  CheckCircle,
+  ArrowRight,
+  FileText,
+} from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useClubs } from "@/features/dsw/hooks";
+import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
+import { ClubFilters } from "@/features/dsw/types";
+import { getErrorMessage } from "@/shared/utils/errorHandler";
+import { useDebounce } from "@/shared/hooks/useDebounce";
+import { PageSkeleton } from "@/shared/components/PageSkeleton";
 
 export default function AllClubsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [filters, setFilters] = useState<ClubFilters>({
     page: 1,
     limit: 20,
   });
-  const [searchInput, setSearchInput] = useState('');
+  const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput, 300);
 
+  // Pending submission banner state
+  const [pendingBanner, setPendingBanner] = useState<{
+    show: boolean;
+    notingId: string;
+    clubName: string;
+  } | null>(null);
+
+  // Read query params on mount to show the pending banner
   useEffect(() => {
-    setFilters((prev) => ({ ...prev, search: debouncedSearch || undefined, page: 1 }));
+    const submitted = searchParams.get("submitted");
+    const notingId = searchParams.get("notingId");
+    const clubName = searchParams.get("clubName");
+
+    if (submitted === "true" && notingId) {
+      setPendingBanner({ show: true, notingId, clubName: clubName || "" });
+
+      // Clean up the URL without triggering a re-render/navigation
+      const url = new URL(window.location.href);
+      url.searchParams.delete("submitted");
+      url.searchParams.delete("notingId");
+      url.searchParams.delete("clubName");
+      window.history.replaceState({}, "", url.pathname + (url.search || ""));
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    setFilters((prev) => ({
+      ...prev,
+      search: debouncedSearch || undefined,
+      page: 1,
+    }));
   }, [debouncedSearch]);
 
   const { data: response, isLoading, error } = useClubs(filters);
-  const clubs = response?.success ? response.data ?? [] : [];
+  const clubs = response?.success ? (response.data ?? []) : [];
   const total = response?.pagination?.total ?? 0;
   const errorMessage = error ? getErrorMessage(error) : null;
 
   const handleStatusFilter = (status: string) => {
     setFilters((prev) => ({
       ...prev,
-      status: status === 'all' ? undefined : (status as ClubFilters['status']),
+      status: status === "all" ? undefined : (status as ClubFilters["status"]),
       page: 1,
     }));
   };
@@ -42,10 +84,102 @@ export default function AllClubsPage() {
 
   return (
     <div className="space-y-6">
+      {/* ── Pending Club Request Banner ── */}
+      {pendingBanner?.show && (
+        <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-5 shadow-sm">
+          {/* Dismiss button */}
+          <button
+            onClick={() => setPendingBanner(null)}
+            className="absolute top-3 right-3 p-1.5 rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-start gap-4 pr-8">
+            {/* Icon */}
+            <div className="flex-shrink-0 w-11 h-11 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center">
+              <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h3 className="text-base font-semibold text-amber-900 dark:text-amber-100">
+                  Club Creation Request Submitted
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                  <Clock className="w-3 h-3" />
+                  Pending Approval
+                </span>
+              </div>
+
+              {pendingBanner.clubName && (
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                  Club:{" "}
+                  <span className="font-semibold">
+                    {pendingBanner.clubName}
+                  </span>
+                </p>
+              )}
+
+              <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                Your request has been sent to the Faculty Facilitator for
+                review. It will then go through the full approval chain before
+                your club is officially created.
+              </p>
+
+              {/* Approval chain */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs mb-3">
+                {[
+                  { label: "Faculty", done: true },
+                  { label: "HOD" },
+                  { label: "Dean" },
+                  { label: "DSW" },
+                  { label: "Higher Authority" },
+                ].map((step, i, arr) => (
+                  <React.Fragment key={step.label}>
+                    <span
+                      className={`px-2.5 py-1 rounded-full font-medium ${
+                        step.done
+                          ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 ring-1 ring-green-300 dark:ring-green-700"
+                          : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+                      }`}
+                    >
+                      {step.done && <span className="mr-1">✓</span>}
+                      {step.label}
+                    </span>
+                    {i < arr.length - 1 && (
+                      <ArrowRight className="w-3 h-3 text-amber-400 dark:text-amber-600 flex-shrink-0" />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {/* Noting ID + track link */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 rounded-md">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="font-mono font-medium">
+                    {pendingBanner.notingId}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Your club will appear here automatically once all approvals
+                  are received.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">All Clubs</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            All Clubs
+          </h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
             Showing {clubs.length} of {total} clubs
           </p>
@@ -74,7 +208,7 @@ export default function AllClubsPage() {
           <select
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             onChange={(e) => handleStatusFilter(e.target.value)}
-            value={filters.status || 'all'}
+            value={filters.status || "all"}
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -93,7 +227,8 @@ export default function AllClubsPage() {
             No Clubs Found
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            No clubs match your current filters. Try adjusting your search criteria.
+            No clubs match your current filters. Try adjusting your search
+            criteria.
           </p>
         </div>
       ) : (
@@ -133,7 +268,7 @@ export default function AllClubsPage() {
                   <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                     <UserCheck className="w-4 h-4" />
                     <span className="truncate">
-                      {club.facultyFacilitator.employeeDetails?.firstName}{' '}
+                      {club.facultyFacilitator.employeeDetails?.firstName}{" "}
                       {club.facultyFacilitator.employeeDetails?.lastName}
                     </span>
                   </div>
@@ -157,7 +292,12 @@ export default function AllClubsPage() {
       {total > (filters.limit ?? 20) && (
         <div className="flex justify-center gap-2">
           <button
-            onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, (prev.page ?? 1) - 1) }))}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                page: Math.max(1, (prev.page ?? 1) - 1),
+              }))
+            }
             disabled={filters.page === 1}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
           >
@@ -170,10 +310,15 @@ export default function AllClubsPage() {
             onClick={() =>
               setFilters((prev) => ({
                 ...prev,
-                page: Math.min(Math.ceil(total / (filters.limit ?? 20)), (prev.page ?? 1) + 1),
+                page: Math.min(
+                  Math.ceil(total / (filters.limit ?? 20)),
+                  (prev.page ?? 1) + 1,
+                ),
               }))
             }
-            disabled={(filters.page ?? 1) >= Math.ceil(total / (filters.limit ?? 20))}
+            disabled={
+              (filters.page ?? 1) >= Math.ceil(total / (filters.limit ?? 20))
+            }
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
           >
             Next

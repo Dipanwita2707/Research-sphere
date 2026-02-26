@@ -37,7 +37,7 @@ const hasPermission = (permissions: DepartmentPermission[], permissionName: stri
 
 const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
   if (!permissions || permissions.length === 0) return false;
-  
+
   const drdKeys = [
     'ipr_review', 'ipr_approve', 'ipr_assign_school', 'ipr_recommend',
     'research_review', 'research_approve', 'research_assign_school',
@@ -45,7 +45,7 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
     'drd_review', 'drd_approve', 'drd_recommend', 'drd_view_all',
     'view_all_ipr', 'review_ipr', 'approve_ipr', 'ipr'
   ];
-  
+
   for (const dept of permissions) {
     const category = dept.category?.toLowerCase() || '';
     if (category.includes('drd') || category.includes('research') || category.includes('development') || category.includes('book')) {
@@ -83,7 +83,7 @@ export default function NavigationHeader() {
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{name: string, href?: string, description?: string}>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ name: string, href?: string, description?: string }>>([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -98,7 +98,7 @@ export default function NavigationHeader() {
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
   const hasDrdAccess = hasDrdPermissions(userPermissions) || isAdmin;
   const hasFinanceAccess = hasFinancePermissions(userPermissions);
-  
+
   // Review and Approval permissions
   const canReviewIpr = hasPermission(userPermissions, 'ipr_review') || hasPermission(userPermissions, 'review_ipr');
   const canApproveIpr = hasPermission(userPermissions, 'ipr_approve') || hasPermission(userPermissions, 'approve_ipr');
@@ -150,21 +150,21 @@ export default function NavigationHeader() {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
-      
+
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSearch(false);
       }
-      
+
       // Check all dropdown refs
       const clickedInsideDropdown = Object.values(dropdownRefs.current).some(
         ref => ref && ref.contains(event.target as Node)
       );
-      
+
       if (!clickedInsideDropdown) {
         setActiveDropdown(null);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -186,13 +186,13 @@ export default function NavigationHeader() {
       return;
     }
 
-    const results: Array<{name: string, href?: string, description?: string}> = [];
+    const results: Array<{ name: string, href?: string, description?: string }> = [];
     const searchLower = query.toLowerCase();
 
     const searchInSubmenu = (items: SubMenuItem[]) => {
       items.forEach(item => {
-        if (item.name.toLowerCase().includes(searchLower) || 
-            item.description?.toLowerCase().includes(searchLower)) {
+        if (item.name.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)) {
           results.push({
             name: item.name,
             href: item.href,
@@ -244,7 +244,7 @@ export default function NavigationHeader() {
     return user?.username || 'User';
   };
 
-    // Build menu items based on permissions
+  // Build menu items based on permissions
   const menuItems: MenuItem[] = [];
 
   // ============================================
@@ -268,7 +268,7 @@ export default function NavigationHeader() {
         ...(canFileIpr ? [{ name: 'Patents / IPR', href: '/ipr/my-applications', description: 'View patent applications' }] : []),
       ],
     },
-    
+
     // Option 3: New Filing - File new work (with sub-options)
     {
       name: 'New Filing',
@@ -291,8 +291,8 @@ export default function NavigationHeader() {
   // ============================================
   // Build Review & Approval children - ORGANIZED
   // ============================================
-  const hasReviewAccess = hasDrdAccess || canReviewIpr || canApproveIpr || canReviewResearch || 
-    canApproveResearch || canReviewBook || canApproveBook || canReviewConference || 
+  const hasReviewAccess = hasDrdAccess || canReviewIpr || canApproveIpr || canReviewResearch ||
+    canApproveResearch || canReviewBook || canApproveBook || canReviewConference ||
     canApproveConference || canReviewGrant || canApproveGrant || hasFinanceAccess;
 
   const reviewApprovalChildren: SubMenuItem[] = [];
@@ -322,7 +322,7 @@ export default function NavigationHeader() {
   // Build Research and Development sub-items
   // ============================================
   const rndSubItems: SubMenuItem[] = [];
-  
+
   if (canFileIpr || canFileResearch) {
     rndSubItems.push({
       name: 'Submit & Track',
@@ -330,14 +330,14 @@ export default function NavigationHeader() {
       children: submitTrackChildren,
     });
   }
-  
+
   // Add Monthly Progress Tracker as a separate option
   rndSubItems.push({
     name: 'Monthly Progress Tracker',
     href: '/research/progress-tracker',
     description: 'Track monthly research milestones',
   });
-  
+
   if (hasReviewAccess && reviewApprovalChildren.length > 0) {
     rndSubItems.push({
       name: 'Review & Approve',
@@ -386,7 +386,7 @@ export default function NavigationHeader() {
       description: 'Academic resources and tools',
       children: [
         { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
-       
+
         { name: '�Courses', href: '#', description: 'Course management (Coming Soon)' },
         { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
         { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
@@ -429,7 +429,9 @@ export default function NavigationHeader() {
       { name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' },
       { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' },
       { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
+      { name: '🏪 Stall Application', href: '/events/stall-opportunities', description: 'Apply for stalls at events with stall opportunities' },
       { name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' },
+      { name: '📱 Event Feedback Scanner', href: '/event-feedback-scanner', description: 'Scan QR to open event feedback form' },
     ],
   });
 
@@ -440,8 +442,8 @@ export default function NavigationHeader() {
     description: 'RFID access system',
   });
 
-  // Add DSW (Division of Student Welfare) for Faculty, Staff, and Admin
-  if (isFaculty || isAdmin) {
+  // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
+  if (isStudent || isFaculty || isAdmin) {
     navigationSubItems.push({
       name: '🎓 Division of Student Welfare',
       description: 'Student Clubs & Activities',
@@ -449,7 +451,7 @@ export default function NavigationHeader() {
         { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
         { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
         { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am involved in' },
-        ...(isFaculty ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
+        ...((isStudent || isFaculty) ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
         ...(isAdmin ? [
           { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
           { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
@@ -474,7 +476,7 @@ export default function NavigationHeader() {
         // Analytics & Reports
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
-        
+
         // Organization Management
         {
           name: '🏛️ Organization Structure',
@@ -486,7 +488,7 @@ export default function NavigationHeader() {
             { name: '🏛️ Central Departments', href: '/admin/central-departments', description: 'Admin & support departments' },
           ],
         },
-        
+
         // User Management
         {
           name: '👥 User Management',
@@ -517,9 +519,9 @@ export default function NavigationHeader() {
   }
 
   return (
-    <header 
+    <header
       className="fixed top-0 left-0 right-0 z-50"
-      style={{ 
+      style={{
         background: 'linear-gradient(135deg, #005b96 0%, #004a80 50%, #003d6b 100%)',
         boxShadow: '0 4px 20px rgba(0,91,150,0.15)'
       }}
@@ -537,9 +539,9 @@ export default function NavigationHeader() {
 
         {/* Logo Section */}
         <Link href="/dashboard" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
-          <img 
-            src="/images/new-header-logo.png" 
-            alt="SGT University" 
+          <img
+            src="/images/new-header-logo.png"
+            alt="SGT University"
             className="h-10 sm:h-12 object-contain brightness-0 invert"
           />
           <div className="hidden sm:block xl:block">
@@ -553,18 +555,17 @@ export default function NavigationHeader() {
           {/* Dashboard Link */}
           <Link
             href="/dashboard"
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-              pathname === '/dashboard'
-                ? 'bg-white/20 text-white shadow-lg'
-                : 'text-white/90 hover:bg-white/15 hover:text-white'
-            }`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${pathname === '/dashboard'
+              ? 'bg-white/20 text-white shadow-lg'
+              : 'text-white/90 hover:bg-white/15 hover:text-white'
+              }`}
           >
             Dashboard
           </Link>
 
           {/* Dynamic Menu Items */}
           {menuItems.map((item) => (
-            <div 
+            <div
               key={item.name}
               className="relative"
               ref={(el) => { dropdownRefs.current[item.name] = el; }}
@@ -586,11 +587,10 @@ export default function NavigationHeader() {
                   setActiveSubmenu(null);
                   setActiveSubmenu2(null);
                 }}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${
-                  activeDropdown === item.name
-                    ? 'bg-white/20 text-white shadow-lg'
-                    : 'text-white/90 hover:bg-white/15 hover:text-white'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${activeDropdown === item.name
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/90 hover:bg-white/15 hover:text-white'
+                  }`}
               >
                 {item.name}
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === item.name ? 'rotate-180' : ''}`} />
@@ -598,7 +598,7 @@ export default function NavigationHeader() {
 
               {/* Dropdown - Blue Glassmorphism Effect Full Width */}
               {activeDropdown === item.name && item.subItems && (
-                <div 
+                <div
                   className="fixed left-0 right-0 mt-2 shadow-2xl border-t border-gray-200 z-50 max-h-[80vh] overflow-y-auto"
                   style={{
                     background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%)',
@@ -614,9 +614,8 @@ export default function NavigationHeader() {
                 >
                   <div className="max-w-7xl mx-auto px-6 py-4 relative">
                     {/* Main Menu */}
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 transition-all duration-300 ${
-                      activeSubmenu ? 'hidden' : 'block'
-                    }`}>
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 transition-all duration-300 ${activeSubmenu ? 'hidden' : 'block'
+                      }`}>
                       {item.subItems.map((subItem) => (
                         subItem.href ? (
                           <Link
@@ -637,10 +636,10 @@ export default function NavigationHeader() {
                               )}
                             </div>
                             <div className="ml-3 flex-shrink-0">
-                              <svg 
-                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
+                              <svg
+                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                fill="none"
+                                viewBox="0 0 24 24"
                                 stroke="currentColor"
                               >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -662,10 +661,10 @@ export default function NavigationHeader() {
                               )}
                             </div>
                             <div className="ml-3 flex-shrink-0">
-                              <svg 
-                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
+                              <svg
+                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                fill="none"
+                                viewBox="0 0 24 24"
                                 stroke="currentColor"
                               >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -675,7 +674,7 @@ export default function NavigationHeader() {
                         ) : null
                       ))}
                     </div>
-                    
+
                     {/* Nested Submenu Slide - Level 2 */}
                     {activeSubmenu && !activeSubmenu2 && (
                       <div className="transition-all duration-300">
@@ -691,12 +690,12 @@ export default function NavigationHeader() {
                             Back
                           </button>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {item.subItems.find(si => si.name === activeSubmenu)?.children?.map((child) => {
                             const isComingSoon = child.href === '#' || child.description?.includes('Coming Soon');
                             const hasNestedChildren = child.children && child.children.length > 0;
-                            
+
                             // Coming Soon items
                             if (isComingSoon && !hasNestedChildren) {
                               return (
@@ -718,7 +717,7 @@ export default function NavigationHeader() {
                                 </div>
                               );
                             }
-                            
+
                             // Items with nested children (like Research & IPR, Review & Approval)
                             if (hasNestedChildren) {
                               return (
@@ -736,10 +735,10 @@ export default function NavigationHeader() {
                                     )}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg 
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                      fill="none" 
-                                      viewBox="0 0 24 24" 
+                                    <svg
+                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
                                       stroke="currentColor"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -748,7 +747,7 @@ export default function NavigationHeader() {
                                 </button>
                               );
                             }
-                            
+
                             // Regular link items
                             return (
                               <Link
@@ -769,10 +768,10 @@ export default function NavigationHeader() {
                                   )}
                                 </div>
                                 <div className="ml-3 flex-shrink-0">
-                                  <svg 
-                                    className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
+                                  <svg
+                                    className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
                                     stroke="currentColor"
                                   >
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -800,12 +799,12 @@ export default function NavigationHeader() {
                             Back to {activeSubmenu}
                           </button>
                         </div>
-                        
+
                         {/* Submenu title */}
                         <div className="mb-3 pb-2 border-b border-gray-200">
                           <h3 className="text-lg font-bold text-[#005b96]">{activeSubmenu2}</h3>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {item.subItems
                             .find(si => si.name === activeSubmenu)?.children
@@ -813,7 +812,7 @@ export default function NavigationHeader() {
                             ?.map((grandChild) => {
                               const isComingSoon = grandChild.href === '#' || grandChild.description?.includes('Coming Soon');
                               const hasNestedChildren = grandChild.children && grandChild.children.length > 0;
-                              
+
                               if (isComingSoon && !hasNestedChildren) {
                                 return (
                                   <div
@@ -834,7 +833,7 @@ export default function NavigationHeader() {
                                   </div>
                                 );
                               }
-                              
+
                               // Items with nested children - go to Level 4
                               if (hasNestedChildren) {
                                 return (
@@ -852,10 +851,10 @@ export default function NavigationHeader() {
                                       )}
                                     </div>
                                     <div className="ml-3 flex-shrink-0">
-                                      <svg 
-                                        className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                        fill="none" 
-                                        viewBox="0 0 24 24" 
+                                      <svg
+                                        className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
                                         stroke="currentColor"
                                       >
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -864,10 +863,10 @@ export default function NavigationHeader() {
                                   </button>
                                 );
                               }
-                              
+
                               // Regular link items
                               if (!grandChild.href) return null;
-                              
+
                               return (
                                 <Link
                                   key={grandChild.href || grandChild.name}
@@ -888,10 +887,10 @@ export default function NavigationHeader() {
                                     )}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg 
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                      fill="none" 
-                                      viewBox="0 0 24 24" 
+                                    <svg
+                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
                                       stroke="currentColor"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -903,7 +902,7 @@ export default function NavigationHeader() {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Nested Submenu Slide - Level 4 (Fourth level) */}
                     {activeSubmenu && activeSubmenu2 && activeSubmenu3 && (
                       <div className="transition-all duration-300">
@@ -919,12 +918,12 @@ export default function NavigationHeader() {
                             Back to {activeSubmenu2}
                           </button>
                         </div>
-                        
+
                         {/* Submenu title */}
                         <div className="mb-3 pb-2 border-b border-gray-200">
                           <h3 className="text-lg font-bold text-[#005b96]">{activeSubmenu3}</h3>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {item.subItems
                             .find(si => si.name === activeSubmenu)?.children
@@ -932,7 +931,7 @@ export default function NavigationHeader() {
                             ?.find(gc => gc.name === activeSubmenu3)?.children
                             ?.map((greatGrandChild) => {
                               const isComingSoon = greatGrandChild.href === '#' || greatGrandChild.description?.includes('Coming Soon');
-                              
+
                               if (isComingSoon) {
                                 return (
                                   <div
@@ -953,9 +952,9 @@ export default function NavigationHeader() {
                                   </div>
                                 );
                               }
-                              
+
                               if (!greatGrandChild.href) return null;
-                              
+
                               return (
                                 <Link
                                   key={greatGrandChild.href || greatGrandChild.name}
@@ -977,10 +976,10 @@ export default function NavigationHeader() {
                                     )}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg 
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                      fill="none" 
-                                      viewBox="0 0 24 24" 
+                                    <svg
+                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
                                       stroke="currentColor"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -1003,7 +1002,7 @@ export default function NavigationHeader() {
         <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
           {/* Search */}
           <div className="relative" ref={searchRef}>
-            <button 
+            <button
               onClick={() => setShowSearch(!showSearch)}
               className="p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
             >
@@ -1165,7 +1164,7 @@ export default function NavigationHeader() {
           </div>
 
           {/* Dark Mode Toggle */}
-          <button 
+          <button
             onClick={toggleTheme}
             className="p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -1178,7 +1177,7 @@ export default function NavigationHeader() {
           </button>
 
           {/* Notifications */}
-          <button 
+          <button
             onClick={() => router.push('/notifications')}
             className="relative p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
           >
@@ -1232,9 +1231,8 @@ export default function NavigationHeader() {
 
       {/* Mobile Slide-out Menu */}
       <div
-        className={`lg:hidden fixed inset-0 z-40 transition-opacity duration-300 ${
-          mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`lg:hidden fixed inset-0 z-40 transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
       >
         {/* Backdrop */}
         <div
@@ -1244,9 +1242,8 @@ export default function NavigationHeader() {
         />
         {/* Drawer */}
         <div
-          className={`absolute top-0 left-0 h-full w-[min(320px,85vw)] max-w-sm bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 ease-out overflow-y-auto ${
-            mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          className={`absolute top-0 left-0 h-full w-[min(320px,85vw)] max-w-sm bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 ease-out overflow-y-auto ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
         >
           <div className="sticky top-0 z-10 px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between">
             <span className="font-semibold text-gray-900 dark:text-white">Menu</span>
@@ -1261,11 +1258,10 @@ export default function NavigationHeader() {
             <Link
               href="/dashboard"
               onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium ${
-                pathname === '/dashboard'
-                  ? 'bg-[#005b96]/15 text-[#005b96] dark:text-blue-400'
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
+              className={`block px-4 py-3 rounded-lg text-sm font-medium ${pathname === '/dashboard'
+                ? 'bg-[#005b96]/15 text-[#005b96] dark:text-blue-400'
+                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
             >
               Dashboard
             </Link>

@@ -5,41 +5,50 @@
 
 // Club Enums
 export type ClubStatus =
-  | 'draft'
-  | 'pending_approval'
-  | 'approved'
-  | 'active'
-  | 'suspended'
-  | 'archived';
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "active"
+  | "suspended"
+  | "archived";
 
 export type ClubLifecycleState =
-  | 'draft'
-  | 'under_approval'
-  | 'approved'
-  | 'active'
-  | 'suspended'
-  | 'archived';
+  | "draft"
+  | "under_approval"
+  | "approved"
+  | "active"
+  | "suspended"
+  | "archived";
 
-export type ClubTargetGroup = 'all' | 'ug' | 'pg' | 'phd';
+export type ClubTargetGroup = "all" | "ug" | "pg" | "phd";
 
-export type ClubVisibility = 'public' | 'restricted';
-
-export type ClubMeetingFrequency = 'weekly' | 'monthly' | 'event_based';
+export type ClubMeetingFrequency =
+  | "monthly"
+  | "quarterly"
+  | "half_yearly"
+  | "annually"
+  | "event_based";
 
 export type ClubChangeType =
-  | 'name_change'
-  | 'category_change'
-  | 'purpose_change'
-  | 'facilitator_change'
-  | 'vice_chairperson_change'
-  | 'governance_change'
-  | 'operational_change'
-  | 'other';
+  | "name_change"
+  | "category_change"
+  | "purpose_change"
+  | "facilitator_change"
+  | "chairperson_change"
+  | "governance_change"
+  | "operational_change"
+  | "other";
 
-export type ClubChangeRequestStatus = 'pending' | 'approved' | 'rejected';
+export type ClubChangeRequestStatus = "pending" | "approved" | "rejected";
 
 // User Role
-export type UserRole = 'superadmin' | 'admin' | 'student' | 'faculty' | 'staff' | 'parent';
+export type UserRole =
+  | "superadmin"
+  | "admin"
+  | "student"
+  | "faculty"
+  | "staff"
+  | "parent";
 
 // Club Category
 export interface ClubCategory {
@@ -83,6 +92,7 @@ export interface ClubMember {
   addedById: string;
   removedAt: string | null;
   removedById: string | null;
+  role?: string;
   metadata: Record<string, any>;
   student?: UserReference;
   addedBy?: UserReference;
@@ -98,32 +108,28 @@ export interface Club {
   purpose: string;
   academicSession: string;
   facultyFacilitatorId: string;
-  viceChairpersonId: string;
-  targetStudentGroup: ClubTargetGroup;
+  chairpersonId: string;
+  targetStudentGroup: ClubTargetGroup[];
   expectedActivityTypes: string[];
   codeOfConductAccepted: boolean;
   antiDiscriminationAccepted: boolean;
   meetingFrequency: ClubMeetingFrequency;
   estimatedAnnualActivityCount: number;
-  infrastructureRequirements: string[];
-  fundingRequired: boolean;
-  estimatedFundingAmount: number | null;
-  visibility: ClubVisibility;
-  allowInternalCollaboration: boolean;
-  allowExternalCollaboration: boolean;
   proposedEmail: string | null;
   socialMediaHandles: Record<string, string> | null;
   expectedStudentStrength: number | null;
   status: ClubStatus;
   lifecycleState: ClubLifecycleState;
   notingId: string | null;
+  creatorId: string | null;
   approvedAt: string | null;
   createdAt: string;
   updatedAt: string;
   metadata: Record<string, any>;
   category?: ClubCategory;
   facultyFacilitator?: UserReference;
-  viceChairperson?: UserReference;
+  chairperson?: UserReference;
+  creator?: UserReference;
   members?: ClubMember[];
   _count?: {
     members: number;
@@ -139,11 +145,12 @@ export interface ClubCreationFormData {
   academicSession: string;
 
   // Step 2: Authority & Membership
-  viceChairpersonId: string;
+  facultyFacilitatorId: string;
+  chairpersonId: string;
   initialMembers?: string[];
 
   // Step 3: Governance & Compliance
-  targetStudentGroup: ClubTargetGroup;
+  targetStudentGroup: ClubTargetGroup[];
   expectedActivityTypes: string[];
   codeOfConductAccepted: boolean;
   antiDiscriminationAccepted: boolean;
@@ -151,16 +158,8 @@ export interface ClubCreationFormData {
   // Step 4: Operational Planning
   meetingFrequency: ClubMeetingFrequency;
   estimatedAnnualActivityCount: number;
-  infrastructureRequirements: string[];
-  fundingRequired: boolean;
-  estimatedFundingAmount?: number;
 
-  // Step 5: Visibility & Collaboration
-  visibility: ClubVisibility;
-  allowInternalCollaboration?: boolean;
-  allowExternalCollaboration?: boolean;
-
-  // Step 6: Optional Metadata
+  // Step 5: Optional Metadata
   proposedEmail?: string;
   socialMediaHandles?: Record<string, string>;
   expectedStudentStrength?: number;
@@ -251,6 +250,30 @@ export interface DSWStatistics {
     status: string;
     _count: number;
   }>;
+}
+
+// Club Creation Request (pending noting - not yet a club)
+export interface ClubCreationRequest {
+  id: string;
+  notingId: string;
+  clubName: string | null;
+  clubPurpose: string | null;
+  clubAcademicSession: string | null;
+  clubCategoryId: string | null;
+  categoryName: string | null;
+  status: string; // NoteStatus: 'draft' | 'pending' | 'approved' | 'rejected' | 'withdrawn'
+  createdAt: string;
+  updatedAt: string;
+  currentHolder: {
+    id: string;
+    uid: string;
+    name: string;
+  } | null;
+  lastAction: {
+    action: string;
+    createdAt: string;
+    remarks: string | null;
+  } | null;
 }
 
 // Query Filters

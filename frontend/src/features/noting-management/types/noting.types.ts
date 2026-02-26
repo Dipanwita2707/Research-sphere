@@ -60,10 +60,55 @@ export interface Note {
   eventApproxCapacity?: number | null;
   eventDutyLeaveAvailable?: boolean | null;
   eventDutyLeaveEligibility?: string[] | null;
+  eventDutyLeaveRoleType?: 'participants' | 'organizers' | 'both' | null;
   eventHasSponsorship?: boolean | null;
   eventSponsors?: { name: string; amount: number; type: 'cash' | 'in_kind'; notes?: string }[] | null;
   eventHasResources?: boolean | null;
-  eventResources?: { category: string; type: string; description?: string; estimatedCost?: number }[] | null;
+  eventResources?: { category?: string; type: string; description?: string; estimatedCost?: number; pricePerPiece?: number; quantity?: number }[] | null;
+  eventCertification?: boolean | null;
+  eventPrizesAwards?: { position: number; rank: string; title?: string; prizeType: string; prizeAmount?: number; additionalPerks?: string[]; sortOrder?: number }[] | null;
+  notingEventType?: 'venue' | 'stall' | 'festival' | null;
+  stallConfig?: {
+    enableStudentApplied: boolean;
+    maxStudentStalls?: number;
+    stallFee?: number;
+    applicationDeadline?: string;
+    enableCreatorMade: boolean;
+    creatorStalls: { name: string; description: string; capacity: number }[];
+  } | null;
+  festivalMeta?: { name: string; startDate: string; endDate: string; description?: string; coordinator?: string } | null;
+  subEvents?: Array<{
+    id?: string;
+    eventType: 'venue' | 'stall';
+    venueFormData: {
+      eventName: string;
+      eventType: string;
+      eventStartDate: string;
+      eventEndDate: string;
+      eventPaymentType: 'free' | 'paid';
+      eventParticipationType: 'individual' | 'team';
+      eventRegistrationFeeIndividual?: number | null;
+      eventRegistrationFeeTeam?: number | null;
+      eventApproxCapacity?: number | null;
+      eventDutyLeaveAvailable?: boolean | null;
+      eventDutyLeaveEligibility?: string[] | null;
+      eventDutyLeaveRoleType?: string | null;
+      eventHasSponsorship?: boolean | null;
+      eventSponsors?: { name: string; amount: number; type: string; notes?: string }[] | null;
+      eventHasResources?: boolean | null;
+      eventResources?: { type: string; description?: string; pricePerPiece?: number; quantity?: number }[] | null;
+      eventCertification?: boolean | null;
+      eventPrizesAwards?: { position: number; rank: string; title?: string; prizeType: string; prizeAmount?: number; additionalPerks?: string[] }[] | null;
+    };
+    stallConfig?: {
+      enableStudentApplied: boolean;
+      maxStudentStalls?: number;
+      stallFee?: number;
+      applicationDeadline?: string;
+      enableCreatorMade: boolean;
+      creatorStalls: { name: string; description: string; capacity: number }[];
+    } | null;
+  }> | null;
   status: NoteStatus;
   createdById: string;
   currentHolderId?: string | null;
@@ -107,6 +152,55 @@ export interface NoteHistoryEntry {
   createdAt: string;
   performedBy?: { id: string; uid: string; employeeDetails?: { displayName?: string; firstName?: string; lastName?: string } };
   nextHolder?: { id: string; uid: string; employeeDetails?: { displayName?: string } } | null;
+}
+
+export interface NoteCopyReply {
+  id: string;
+  copyId: string;
+  repliedById: string;
+  remarks: string;
+  attachments?: { filePath: string; fileName: string; fileDescription?: string | null }[];
+  createdAt: string;
+  repliedBy?: { id: string; uid: string; employeeDetails?: { displayName?: string } };
+}
+
+export interface NoteCopy {
+  id: string;
+  noteId: string;
+  sentById: string;
+  assignedToId: string;
+  remarks: string;
+  status: 'pending' | 'replied' | 'forwarded' | 'completed';
+  escalationLevel: number;
+  escalatedToId?: string | null;
+  rootCopyId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignedTo?: { id: string; uid: string; employeeDetails?: { displayName?: string; firstName?: string; lastName?: string } };
+  escalatedTo?: { id: string; uid: string; employeeDetails?: { displayName?: string } } | null;
+  sentBy?: { id: string; uid: string; employeeDetails?: { displayName?: string } };
+  replies?: NoteCopyReply[];
+  note?: {
+    id: string;
+    notingId: string;
+    category: string;
+    subcategory: string;
+    description: string;
+    status: string;
+    amount?: number | string | null;
+    amountRequired?: boolean;
+    approvalPeriod?: string;
+    recurringFrequency?: string | null;
+    policyWithinSgtu?: boolean;
+    policyOutsideSgtu?: boolean;
+    policyBoth?: boolean;
+    policyJustification?: string | null;
+    policyCompliant?: boolean | null;
+    createdAt?: string;
+    points?: { id: string; content: string; sortOrder: number }[];
+    attachments?: { id: string; filePath: string; fileName: string; fileDescription?: string | null }[];
+    createdBy?: { uid: string; employeeDetails?: { displayName?: string } };
+  };
 }
 
 export interface CreateNoteAttachmentPayload {

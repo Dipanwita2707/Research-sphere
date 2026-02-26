@@ -324,6 +324,16 @@ export default function NavigationHeader() {
         { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
       ],
     },
+    // Events & Stalls
+    {
+      name: '🎪 Events & Stalls',
+      description: 'Browse events and stall opportunities',
+      children: [
+        { name: '📅 All Events', href: '/events', description: 'Browse and register for events' },
+        { name: '🪄 Stall Opportunities', href: '/events/stall-opportunities', description: 'Apply for stalls at events' },
+        { name: '📋 My Registrations', href: '/events/registrations', description: 'View your event registrations' },
+      ],
+    },
   ];
 
   // Add Research and Development if there are sub-items

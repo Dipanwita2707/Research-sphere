@@ -115,21 +115,22 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Update last login
-    await prisma.userLogin.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() }
-    });
-
-    // OPTIMIZATION: Load permissions separately (lazy loading)
-    const departmentPermissions = await prisma.departmentPermission.findMany({
-      where: { userId: user.id, isActive: true },
-      select: {
-        departmentId: true,
-        permissions: true,
-        isPrimary: true
-      }
-    });
+    // PERF: Run lastLoginAt update + permissions query in parallel
+    // (previously sequential — saved ~1 round-trip to Neon)
+    const [, departmentPermissions] = await Promise.all([
+      prisma.userLogin.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      }),
+      prisma.departmentPermission.findMany({
+        where: { userId: user.id, isActive: true },
+        select: {
+          departmentId: true,
+          permissions: true,
+          isPrimary: true
+        }
+      }),
+    ]);
 
     // Prepare user details (match frontend User interface)
     const userDetails = {
@@ -247,8 +248,8 @@ exports.login = async (req, res) => {
     
     res.cookie('token', token, cookieOptions);
 
-    // Audit log with full details
-    await auditService.log({
+    // PERF: Fire-and-forget audit log — don't block the response
+    auditService.log({
       actorId: user.id,
       action: 'User logged in successfully',
       actionType: AuditActionType.LOGIN,
@@ -266,7 +267,7 @@ exports.login = async (req, res) => {
         username: user.uid,
         role: user.role
       }
-    });
+    }).catch(e => console.warn('Audit log (login) failed:', e.message));
 
     res.status(200).json({
       success: true,
@@ -298,8 +299,8 @@ exports.logout = async (req, res) => {
     
     res.cookie('token', 'none', cookieOptions);
 
-    // Audit log with full details
-    await auditService.log({
+    // PERF: Fire-and-forget audit log — don't block the response
+    auditService.log({
       actorId: req.user.id,
       action: 'User logged out',
       actionType: AuditActionType.LOGOUT,
@@ -313,7 +314,7 @@ exports.logout = async (req, res) => {
       requestPath: req.originalUrl || req.url,
       requestMethod: 'POST',
       responseStatus: 200
-    });
+    }).catch(e => console.warn('Audit log (logout) failed:', e.message));
 
     res.status(200).json({
       success: true,

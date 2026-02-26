@@ -17,6 +17,7 @@ const {
   validateQRScan,
   validateVolunteerAssignment,
   validateListQuery,
+  validateFeedback,
 } = require('../validators/event.validators');
 const { 
   protect, 
@@ -25,6 +26,13 @@ const {
   requireEventPermission 
 } = require('../../../shared/middleware/auth');
 const { getDefaultPermissions } = require('../../../shared/config/permissions.config');
+const feedbackController = require('../controllers/feedback.controller');
+
+// Public: Submit event feedback (no auth - for QR scanner users)
+router.post('/:id/feedback', validateEventId, validateFeedback, feedbackController.submitFeedback);
+
+// Public: Get minimal event info for feedback form (no auth - for QR scanner users)
+router.get('/:id/feedback-info', validateEventId, feedbackController.getFeedbackFormInfo);
 
 // All routes require authentication
 router.use(protect);
@@ -104,6 +112,15 @@ router.get(
   eventController.getMyVolunteerActivity
 );
 
+// Stall opportunities - MUST be before /:id (static before param)
+const stallController = require('../controllers/stall.controller');
+router.get('/stall-opportunities', stallController.getStallOpportunities);
+
+// Event Settings: hierarchy data for UI - MUST be before /:id
+const eventSettingsController = require('../controllers/eventSettings.controller');
+const { validateEventSettingsUpdate } = require('../validators/eventSettings.validators');
+router.get('/hierarchy/data', eventSettingsController.getHierarchyData);
+
 // Get event by ID - any authenticated user can view published events
 router.get(
   '/:id',
@@ -142,6 +159,14 @@ router.get(
   validateEventId,
   checkAnyPermission(['event_view_reports', 'event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
   eventController.getEventStatistics
+);
+
+// Get registration filter options (distinct values from actual registrations)
+router.get(
+  '/:id/registrations/filter-options',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  eventController.getRegistrationFilterOptions
 );
 
 // Get event registrations (for event creator) - require event_manage_own or event_manage_all
@@ -184,6 +209,14 @@ router.post(
   allowEventScan,
   validateQRScan,
   eventController.scanQRCode
+);
+
+// Get event feedback (event creator only)
+router.get(
+  '/:id/feedback',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  feedbackController.getFeedback
 );
 
 // ============================================
@@ -317,6 +350,111 @@ router.patch(
   validateEventId,
   checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
   prizeController.togglePrizesEnabled
+);
+
+// ============================================
+// Stall Management Routes
+// ============================================
+// (stallController & /stall-opportunities defined above, before /:id)
+
+// My application for a specific event
+router.get('/:id/stall-applications/my', validateEventId, stallController.getMyStallApplication);
+
+// Bulk update applications
+router.patch(
+  '/:id/stall-applications/bulk',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.bulkUpdateStallApplications
+);
+
+// Submit stall application (any authenticated user / student)
+router.post('/:id/stall-applications', validateEventId, stallController.submitStallApplication);
+
+// Get all applications for an event (creator only)
+router.get(
+  '/:id/stall-applications',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.getStallApplications
+);
+
+// Toggle stall application portal open/closed (must be before /:appId)
+router.patch(
+  '/:id/stall-applications/toggle-open',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.toggleStallApplications
+);
+
+// Approve / reject a specific application
+router.patch(
+  '/:id/stall-applications/:appId',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.updateStallApplication
+);
+
+// Get all stalls for event (creator view)
+router.get(
+  '/:id/stalls',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.getStalls
+);
+
+// Creator adds a stall directly
+router.post(
+  '/:id/stalls',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.createStall
+);
+
+// Creator updates a stall
+router.patch(
+  '/:id/stalls/:stallId',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.updateStall
+);
+
+// Creator deletes a stall
+router.delete(
+  '/:id/stalls/:stallId',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  stallController.deleteStall
+);
+
+// ============================================
+// Event Settings / Visibility Routes
+// ============================================
+// (eventSettingsController & validateEventSettingsUpdate imported above, before /:id)
+
+// Get event settings
+router.get(
+  '/:id/settings',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  eventSettingsController.getEventSettings
+);
+
+// Update event settings
+router.put(
+  '/:id/settings',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  validateEventSettingsUpdate,
+  eventSettingsController.updateEventSettings
+);
+
+// Toggle event active status (ON/OFF)
+router.patch(
+  '/:id/settings/toggle-active',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  eventSettingsController.toggleEventActive
 );
 
 module.exports = router;
