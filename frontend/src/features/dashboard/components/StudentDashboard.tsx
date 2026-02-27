@@ -3300,18 +3300,18 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      <div className="space-y-6" style={{ fontSize: '1.15em' }}>
+      <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
         {/* Welcome Section */}
         <FadeInUp delay={0.1}>
-          <div data-tour-id="welcome-section" className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-8 backdrop-blur-sm">
+          <div data-tour-id="welcome-section" className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-4 sm:p-6 lg:p-8 backdrop-blur-sm">
             {/* Main Grid: Left Content + Right Slideshow */}
-            <div className="grid lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
               {/* Left Side: Profile + Cards */}
-              <div className="lg:col-span-7 space-y-6">
+              <div className="lg:col-span-7 space-y-4 sm:space-y-6">
                 {/* Profile Section */}
-                <div className="flex items-start gap-6">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                   {/* Profile Picture */}
-                  <div data-tour-id="profile-picture" className="relative flex-shrink-0 group">
+                  <div data-tour-id="profile-picture" className="relative flex-shrink-0 group mx-auto sm:mx-0">
                     <div className="relative">
                       {/* Animated Ring */}
                       <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-75 group-hover:opacity-100 blur-md group-hover:blur-lg transition-all duration-300 animate-pulse"></div>
@@ -3346,41 +3346,41 @@ export default function StudentDashboard() {
                   </div>
 
                   {/* Greeting and Info */}
-                  <div className="flex-1">
-                    <p className="text-base text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 flex items-center gap-2 justify-center sm:justify-start">
                       <Clock className="w-4 h-4" />
                       {getCurrentDate()}
                     </p>
-                    <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-1 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                       {getGreeting()},
                     </h1>
-                    <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2 sm:mb-3">
                       {getUserName()}
                     </h2>
                     
-                    <div className="space-y-1 text-base">
-                      <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
-                        <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span><span className="font-semibold">Registration Number: </span> {studentData?.uid} | <span className="font-semibold">Section:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
+                    <div className="space-y-1 text-sm sm:text-base">
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
+                        <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm"><span className="font-semibold">Reg#:</span> {studentData?.uid} | <span className="font-semibold">Sec:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
                       </div>
-                      <div className="text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
+                      <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
                         {studentData?.program}
                       </div>
                     </div>
 
-                    <p className="mt-3 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    <p className="mt-2 sm:mt-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm leading-relaxed">
                       Welcome to your Student dashboard. Track your progress, manage your work, and stay connected.
                     </p>
                   </div>
                 </div>
 
                 {/* 5 Stats Cards in a row - With Internal Animations */}
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
                   {/* Happening Card - Warm Coral Theme */}
                   <div 
                     data-tour-id="happening-card"
                     onClick={() => setActiveModal('happening')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #dc2626 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3400,11 +3400,11 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <FileText className="w-5 h-5 drop-shadow-sm" />
+                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="w-2 h-2 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.happening}</p>
-                      <p className="text-sm font-medium opacity-90">Happening Now</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.happening}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Happening Now</p>
                     </div>
                   </div>
 
@@ -3412,7 +3412,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="messages-card"
                     onClick={() => setActiveModal('messages')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3429,11 +3429,11 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <MessageSquare className="w-5 h-5 drop-shadow-sm" />
+                        <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <span className="text-[8px] bg-white/25 px-1.5 py-0.5 rounded-full font-semibold">New</span>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.messages}</p>
-                      <p className="text-sm font-medium opacity-90">Messages</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.messages}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Messages</p>
                     </div>
                   </div>
 
@@ -3441,7 +3441,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="assignments-card"
                     onClick={() => setActiveModal('assignments')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3457,15 +3457,15 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <BookOpen className="w-5 h-5 drop-shadow-sm" />
+                        <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="flex gap-0.5">
                           <div className="w-1.5 h-3 bg-white/40 rounded-full"></div>
                           <div className="w-1.5 h-2 bg-white/30 rounded-full mt-1"></div>
                           <div className="w-1.5 h-2.5 bg-white/35 rounded-full mt-0.5"></div>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.assignments}</p>
-                      <p className="text-sm font-medium opacity-90">Assignments</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.assignments}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Assignments</p>
                     </div>
                   </div>
 
@@ -3473,7 +3473,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="events-card"
                     onClick={() => setActiveModal('events')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 50%, #0f766e 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3492,20 +3492,20 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <Calendar className="w-5 h-5 drop-shadow-sm" />
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="w-5 h-5 rounded-full border-2 border-white/30 flex items-center justify-center">
                           <div className="w-1.5 h-1.5 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '1.5s' }}></div>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.events}</p>
-                      <p className="text-sm font-medium opacity-90">Upcoming Events</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.events}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Upcoming Events</p>
                     </div>
                   </div>
 
                   {/* Fees Card - Forest Green Theme */}
                   <div 
                     data-tour-id="fees-card"
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3522,7 +3522,7 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <svg className="w-5 h-5 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div className="flex items-center gap-0.5">
@@ -3531,14 +3531,14 @@ export default function StudentDashboard() {
                           </svg>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">₹0</p>
-                      <p className="text-sm font-medium opacity-90">Fees Cleared</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">₹0</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Fees Cleared</p>
                     </div>
                   </div>
                 </div>
 
                 {/* CGPA and Attendance Cards - Side by Side - SGT Theme */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* CGPA Card - Academic Blue Theme */}
                   <div 
                     data-tour-id="cgpa-card"
@@ -4086,12 +4086,12 @@ export default function StudentDashboard() {
 
         {/* Quick Access Section - White with Blue Border */}
         <FadeInUp delay={0.3}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Quick Access</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Quick Access</h2>
             
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
               {/* Today's Timetable */}
-              <div data-tour-id="todays-timetable" className="bg-white dark:bg-gray-800 rounded-xl p-4 border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col h-[420px]"
+              <div data-tour-id="todays-timetable" className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col min-h-[350px] sm:h-[420px]"
                 style={{ boxShadow: '0 4px 20px rgba(59, 130, 246, 0.15)' }}
               >
                 <div className="flex items-center gap-2 mb-3">

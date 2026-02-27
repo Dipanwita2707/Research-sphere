@@ -48,6 +48,8 @@ model UserLogin {
   gate_pass_gate_pass_entry_guard_idTouser_login    gate_pass[]                          @relation("gate_pass_entry_guard_idTouser_login")
   gate_pass_gate_pass_exit_guard_idTouser_login     gate_pass[]                          @relation("gate_pass_exit_guard_idTouser_login")
   gate_pass_gate_pass_person_to_meet_idTouser_login gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
+  bookingsVerified                                  HostelBooking[]                      @relation("BookingVerifiedBy")
+  bookingsCreated                                   HostelBooking[]                      @relation("BookingCreatedBy")
   gate_pass_history                                 gate_pass_history[]
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
@@ -133,7 +135,6 @@ model EmployeeDetails {
   photo                     String?                     @db.VarChar(64)
   empId                     String?                     @unique @map("emp_id") @db.VarChar(64)
   designation               String?                     @db.VarChar(128)
-  officerLevel              String?                     @map("officer_level") @db.VarChar(10)
   joinDate                  DateTime?                   @map("join_date") @db.Date
   isActive                  Boolean                     @default(true) @map("is_active")
   metadata                  Json                        @default("{}")
@@ -144,6 +145,7 @@ model EmployeeDetails {
   email                     String?                     @db.VarChar(256)
   phoneNumber               String?                     @map("phone_number") @db.VarChar(20)
   primarySchoolId           String?                     @map("primary_school_id") @db.Uuid
+  officerLevel              String?                     @map("officer_level") @db.VarChar(10)
   admissionFacultyStaff     AdmissionFacultyStaff[]
   admissionStaffDetails     AdmissionStaffDetails[]
   admissionStaffRoles       AdmissionStaffRoles[]
@@ -607,33 +609,20 @@ model CentralDepartment {
   @@map("central_department")
 }
 
-// ===========================================
-// Role-Based Permission Template System
-// Roles are named clusters of permissions that can be applied to users
-// ===========================================
 model Role {
-  id                            String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  roleCode                      String           @unique @map("role_code") @db.VarChar(32)
-  name                          String           @unique @db.VarChar(128)
-  description                   String?
-  // SCHOOL = school department permissions, CENTRAL = central department permissions, BOTH = both types
-  departmentType                RoleDepartmentType @default(BOTH) @map("department_type")
-  // JSON object containing permission keys: { schoolDeptPermissions: {...}, centralDeptPermissions: {...} }
-  permissions                   Json             @default("{}")
-  // If false, users with this role don't require school/department assignment (for VC, Pro-VC, etc.)
-  requiresDepartmentAssignment  Boolean          @default(true) @map("requires_department_assignment")
-  isActive                      Boolean          @default(true) @map("is_active")
-  createdBy                     String?          @map("created_by") @db.Uuid
-  createdAt                     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                     DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                           String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  roleCode                     String             @unique @map("role_code") @db.VarChar(32)
+  name                         String             @unique @db.VarChar(128)
+  description                  String?
+  departmentType               RoleDepartmentType @default(BOTH) @map("department_type")
+  permissions                  Json               @default("{}")
+  requiresDepartmentAssignment Boolean            @default(true) @map("requires_department_assignment")
+  isActive                     Boolean            @default(true) @map("is_active")
+  createdBy                    String?            @map("created_by") @db.Uuid
+  createdAt                    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("role")
-}
-
-enum RoleDepartmentType {
-  SCHOOL
-  CENTRAL
-  BOTH
 }
 
 model Program {
@@ -1844,31 +1833,31 @@ model GrantApplicationEditSuggestion {
 }
 
 model Note {
-  id                  String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  notingId            String                      @unique @map("noting_id") @db.VarChar(64)
-  category            NoteCategoryEnum
-  subcategory         String                      @map("subcategory") @db.VarChar(64)
-  description         String
-  approvalPeriod      NoteApprovalPeriodEnum      @map("approval_period")
-  recurringFrequency  NoteRecurringFrequencyEnum? @map("recurring_frequency")
-  policyWithinSgtu    Boolean?                    @map("policy_within_sgtu")
-  policyOutsideSgtu   Boolean?                    @map("policy_outside_sgtu")
-  policyBoth          Boolean?                    @map("policy_both")
-  policyJustification String?                     @map("policy_justification")
-  amountRequired      Boolean                     @default(false) @map("amount_required")
-  amount              Decimal?                    @db.Decimal(12, 2)
-  status              NoteStatusEnum              @default(draft)
-  createdById         String                      @map("created_by_id") @db.Uuid
-  currentHolderId     String?                     @map("current_holder_id") @db.Uuid
-  createdAt           DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  policyCompliant     Boolean?                    @map("policy_compliant")
-  currentFlowIndex    Int?                        @map("current_flow_index")
-  eventName           String?
-  eventType           EventType?
-  eventStartDate      DateTime?
-  eventEndDate        DateTime?
-  eventPaymentType    EventPaymentType?
+  id                               String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  notingId                         String                      @unique @map("noting_id") @db.VarChar(64)
+  category                         NoteCategoryEnum
+  subcategory                      String                      @map("subcategory") @db.VarChar(64)
+  description                      String
+  approvalPeriod                   NoteApprovalPeriodEnum      @map("approval_period")
+  recurringFrequency               NoteRecurringFrequencyEnum? @map("recurring_frequency")
+  policyWithinSgtu                 Boolean?                    @map("policy_within_sgtu")
+  policyOutsideSgtu                Boolean?                    @map("policy_outside_sgtu")
+  policyBoth                       Boolean?                    @map("policy_both")
+  policyJustification              String?                     @map("policy_justification")
+  amountRequired                   Boolean                     @default(false) @map("amount_required")
+  amount                           Decimal?                    @db.Decimal(12, 2)
+  status                           NoteStatusEnum              @default(draft)
+  createdById                      String                      @map("created_by_id") @db.Uuid
+  currentHolderId                  String?                     @map("current_holder_id") @db.Uuid
+  createdAt                        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                        DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  policyCompliant                  Boolean?                    @map("policy_compliant")
+  currentFlowIndex                 Int?                        @map("current_flow_index")
+  eventName                        String?
+  eventType                        EventType?
+  eventStartDate                   DateTime?
+  eventEndDate                     DateTime?
+  eventPaymentType                 EventPaymentType?
   eventParticipationType ParticipationType?       @map("event_participation_type")
   eventRegistrationFeeIndividual Float?            @map("event_registration_fee_individual")
   eventRegistrationFeeTeam       Float?            @map("event_registration_fee_team")
@@ -2078,7 +2067,7 @@ model gate_pass {
   person_to_meet_name                                String?                  @db.VarChar(255)
   visit_date                                         DateTime                 @db.Date
   expected_entry_time                                String                   @db.VarChar(10)
-  expected_exit_time                                 String                   @db.VarChar(10)
+  expected_exit_time                                 String?                  @db.VarChar(10)
   has_vehicle                                        Boolean                  @default(false)
   vehicle_type                                       vehicle_type_enum?
   vehicle_number                                     String?                  @db.VarChar(50)
@@ -2086,9 +2075,6 @@ model gate_pass {
   number_of_persons                                  Int                      @default(1)
   items_carrying                                     String?
   special_instructions                               String?
-  stay_required                                      Boolean?                 @default(false)
-  verification_code                                  String?                  @db.VarChar(10)
-  visitor_relation                                   String?                  @db.VarChar(100)
   status                                             gate_pass_status_enum    @default(active)
   qr_code                                            String?
   actual_entry_time                                  DateTime?                @db.Timestamptz(6)
@@ -2103,6 +2089,25 @@ model gate_pass {
   created_by_id                                      String                   @db.Uuid
   created_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
   updated_at                                         DateTime                 @default(now()) @db.Timestamptz(6)
+  stay_required                                      Boolean?                 @default(false)
+  verification_code                                  String?                  @db.VarChar(10)
+  visitor_relation                                   String?                  @db.VarChar(100)
+  visit_end_date                                     DateTime?                @db.Date
+  entry_time                                         String?                  @db.VarChar(10)
+  qr_status                                          qr_status_enum?          @default(inactive)
+  pass_status                                        pass_status_enum?        @default(created)
+  qr_activation_time                                 DateTime?                @db.Timestamptz(6)
+  extension_count                                    Int                      @default(0)
+  extension_reason                                   String?
+  cancellation_time                                  DateTime?                @db.Timestamptz(6)
+  checkout_unique_id                                 String?                  @unique
+  checkout_verification_code                         String?
+  checkout_qr_code                                   String?
+  checkout_qr_expires_at                             DateTime?                @db.Timestamptz(6)
+  linked_pass_id                                     String?                  @db.Uuid
+  hostel_booking                                     HostelBooking?
+  linked_pass                                        gate_pass?               @relation("PassExtension", fields: [linked_pass_id], references: [id])
+  extended_passes                                    gate_pass[]              @relation("PassExtension")
   user_login_gate_pass_created_by_idTouser_login     UserLogin                @relation("gate_pass_created_by_idTouser_login", fields: [created_by_id], references: [id])
   user_login_gate_pass_entry_guard_idTouser_login    UserLogin?               @relation("gate_pass_entry_guard_idTouser_login", fields: [entry_guard_id], references: [id])
   user_login_gate_pass_exit_guard_idTouser_login     UserLogin?               @relation("gate_pass_exit_guard_idTouser_login", fields: [exit_guard_id], references: [id])
@@ -2321,10 +2326,10 @@ model EventEntry {
 }
 
 model EventRegistration {
-  id                    String                       @id
-  registrationId        String                       @unique
-  eventId               String
-  userId                String                       @db.Uuid
+  id                          String                           @id
+  registrationId              String                           @unique
+  eventId                     String
+  userId                      String                           @db.Uuid
   teamId                String?                      @db.Uuid                    // Team association for team events
   status                RegistrationStatus           @default(pending)
   qrCode                String                       @unique
@@ -2640,6 +2645,12 @@ enum EventRequestStatus {
   cancelled
 
   @@map("event_request_status_enum")
+}
+
+enum RoleDepartmentType {
+  SCHOOL
+  CENTRAL
+  BOTH
 }
 
 enum AuditActionType {

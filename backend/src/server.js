@@ -17,6 +17,9 @@ const coreModule = require("./modules/core");
 // Import audit module separately (mounted at root level)
 const auditModule = require("./modules/audit");
 
+// Import gate-entry module
+const gateEntryModule = require('./modules/gate-entry');
+
 const app = express();
 
 // Trust proxy for load balancer (important for rate limiting with 25k users)
@@ -194,6 +197,9 @@ app.use(`${API_PREFIX}`, coreModule);
 // Audit module (separate for security isolation)
 app.use(`${API_PREFIX}/audit`, auditModule);
 
+// Gate Entry module
+app.use(`${API_PREFIX}/gate-entry`, gateEntryModule);
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
@@ -221,7 +227,11 @@ const startServer = async () => {
     // Initialize email service
     const { emailService } = require("./modules/core/services/email.service");
     await emailService.initialize();
-
+    
+    // Initialize QR activation cron job for gate entry
+    const { startQRActivationJob } = require('./jobs/qrActivation.job');
+    startQRActivationJob();
+    
     app.listen(config.port, () => {
       console.log(
         `✅ Server running in ${config.env} mode on port ${config.port}`,
@@ -234,6 +244,7 @@ const startServer = async () => {
         `📦 Cache initialized (${cache.isConnected() ? "Redis" : "Memory fallback"})`,
       );
       console.log(`📊 Audit report scheduler initialized`);
+      console.log(`🎫 QR activation job started for gate entry`);
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error.message);

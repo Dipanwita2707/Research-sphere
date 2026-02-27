@@ -232,7 +232,7 @@ export default function ModernStaffDashboard() {
 
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 px-2 sm:px-0">
         {/* Animated Hero Section */}
         <HeroSection 
           userName={getUserName()} 
@@ -254,11 +254,11 @@ export default function ModernStaffDashboard() {
 
         {/* Permission-Based Dashboard (Existing Widgets) + Current Action Section */}
         <FadeInUp delay={0.7}>
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Your Modules - Left Side */}
             <div>
-              <div className="bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-2xl shadow-md p-6 border border-blue-100 dark:border-gray-700 h-full">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Your Modules</h2>
+              <div className="bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-2xl shadow-md p-4 sm:p-6 border border-blue-100 dark:border-gray-700 h-full">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Your Modules</h2>
                 <PermissionBasedDashboard 
                   userPermissions={stats?.permissions || []}
                   userRole={user?.role?.name || user?.userType || 'staff'}
@@ -267,7 +267,7 @@ export default function ModernStaffDashboard() {
             </div>
 
             {/* Current Action + Recent Notifications - Right Side */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <CurrentActionSection userName={getUserName()} userId={user?.id} />
               <RecentNotifications />
             </div>

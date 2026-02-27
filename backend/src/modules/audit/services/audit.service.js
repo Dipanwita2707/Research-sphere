@@ -84,24 +84,26 @@ class AuditService {
         data: {
           actorId,
           action,
-          actionType,
-          module,
-          category,
-          severity,
           targetTable,
           targetId,
-          details,
-          oldValues,
-          newValues,
+          details: {
+            ...details,
+            actionType,
+            module,
+            category,
+            severity,
+            oldValues,
+            newValues,
+            sessionId,
+            requestPath,
+            requestMethod,
+            responseStatus,
+            duration,
+            errorMessage,
+            metadata
+          },
           ipAddress,
-          userAgent,
-          sessionId,
-          requestPath,
-          requestMethod,
-          responseStatus,
-          duration,
-          errorMessage,
-          metadata
+          userAgent
         }
       });
 

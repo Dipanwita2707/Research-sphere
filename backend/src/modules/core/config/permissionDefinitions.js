@@ -694,6 +694,79 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       description: "Full event system administrative access",
     },
   ],
+  
+  // Gate Entry - Visitor Pass Management System (Role-Based Access Control)
+  gateEntry: [
+    // ========== Pass Creation ==========
+    { 
+      key: 'gate_entry.create', 
+      label: 'Create Gate Pass', 
+      category: 'Pass Management', 
+      description: 'Can create visitor gate passes (All roles: Admin, Guard, Faculty, Student)',
+      roles: ['admin', 'superadmin', 'staff', 'faculty', 'student']
+    },
+    
+    // ========== Pass Viewing (Two levels) ==========
+    { 
+      key: 'gate_entry.view_all', 
+      label: 'View All Passes', 
+      category: 'Pass Management', 
+      description: 'Can view all gate passes in the system (Admin, Guard only)',
+      roles: ['admin', 'superadmin', 'staff']
+    },
+    { 
+      key: 'gate_entry.view_own', 
+      label: 'View Own Passes', 
+      category: 'Pass Management', 
+      description: 'Can view only own created passes (Faculty, Student)',
+      roles: ['faculty', 'student']
+    },
+    
+    // ========== Pass Verification (Check-in/Check-out) ==========
+    { 
+      key: 'gate_entry.verify', 
+      label: 'Verify Passes (Check-in/Check-out)', 
+      category: 'Verification', 
+      description: 'Can scan QR codes and verify visitor entry/exit (Admin, Guard only)',
+      roles: ['admin', 'superadmin', 'staff']
+    },
+    
+    // ========== Pass Cancellation (Context-Dependent) ==========
+    { 
+      key: 'gate_entry.cancel', 
+      label: 'Cancel Pass', 
+      category: 'Pass Actions', 
+      description: 'Cancel gate passes (Rules: Before check-in → Creator/Admin only; After check-in → Creator/Admin/Guard)',
+      roles: ['admin', 'superadmin', 'staff', 'faculty', 'student']
+    },
+    
+    // ========== Pass Extension ==========
+    { 
+      key: 'gate_entry.extend', 
+      label: 'Extend Pass Duration', 
+      category: 'Pass Actions', 
+      description: 'Extend pass validity time (Creator or Admin only - Guards CANNOT extend)',
+      roles: ['admin', 'superadmin', 'faculty', 'student']
+    },
+    
+    // ========== Analytics & Reports ==========
+    { 
+      key: 'gate_entry.analytics', 
+      label: 'View Analytics Dashboard', 
+      category: 'Analytics', 
+      description: 'Access gate entry statistics and reports (Admin only)',
+      roles: ['admin', 'superadmin']
+    },
+    
+    // ========== Administration ==========
+    { 
+      key: 'gate_entry.admin', 
+      label: 'Gate Entry Administration', 
+      category: 'Administration', 
+      description: 'Full administrative access to gate entry system (Superadmin only)',
+      roles: ['superadmin']
+    },
+  ],
 };
 
 /**
