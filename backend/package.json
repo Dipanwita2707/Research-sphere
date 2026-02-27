@@ -20,7 +20,7 @@
     "management",
     "system"
   ],
-  "author": "SGT University",
+  "author": "SGT University", 
   "license": "PROPRIETARY",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.981.0",

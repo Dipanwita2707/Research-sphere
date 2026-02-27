@@ -276,6 +276,51 @@ const NOTING_PERMISSIONS = {
       },
     },
   },
+  NOTING_SUBCATEGORY_APPROVALS: {
+    category: "Subcategory Approval Permissions",
+    permissions: {
+      event_approve: {
+        key: "event_approve",
+        label: "Approve Event Notings",
+        description: "Can approve notings for events",
+      },
+      dsw_approve_noting: {
+        key: "dsw_approve_noting",
+        label: "Approve DSW Club Notings",
+        description: "Can approve notings for DSW club creation/change requests",
+      },
+      curriculum_approve: {
+        key: "curriculum_approve",
+        label: "Approve Curriculum Notings",
+        description: "Can approve notings for curriculum-related requests",
+      },
+      exam_approve: {
+        key: "exam_approve",
+        label: "Approve Exam Notings",
+        description: "Can approve notings for examination-related requests",
+      },
+      infrastructure_approve: {
+        key: "infrastructure_approve",
+        label: "Approve Infrastructure Notings",
+        description: "Can approve notings for infrastructure-related requests",
+      },
+      accounts_purchase_approve: {
+        key: "accounts_purchase_approve",
+        label: "Approve Accounts/Purchase Notings",
+        description: "Can approve notings for accounts and purchase requests",
+      },
+      student_related_approve: {
+        key: "student_related_approve",
+        label: "Approve Student-Related Notings",
+        description: "Can approve notings for student-related requests",
+      },
+      non_academic_resources_approve: {
+        key: "non_academic_resources_approve",
+        label: "Approve Non-Academic Resources Notings",
+        description: "Can approve notings for non-academic resource requests",
+      },
+    },
+  },
 };
 
 // ===========================================
@@ -523,7 +568,6 @@ const getDefaultPermissions = (role) => {
       // Noting Permissions - Faculty can create notings (events, curriculum, etc.)
       noting_create: true, // Faculty can initiate notings for approval workflows
       noting_view_own: true, // Faculty can view their own notings
-      noting_add_comment: true, // Faculty can add comments
       // Event Permissions
       event_create: true, // Faculty can create events (via noting)
       event_manage_own: true, // Faculty can manage their own events

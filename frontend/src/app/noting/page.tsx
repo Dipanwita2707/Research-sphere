@@ -31,6 +31,7 @@ import {
   useNotingList,
   useDeleteDraft,
   useMyCopies,
+  useNotingPermissions,
   NOTING_QUERY_KEYS,
 } from "@/features/noting-management/hooks/useNoting";
 import { notingService } from "@/features/noting-management/services/noting.service";
@@ -246,16 +247,17 @@ export default function NotingListPage() {
     }
   }, [copiesError, toast]);
 
-  // Block students from accessing noting system
+  // Block students who are NOT club chairpersons from accessing noting system
+  const { data: notingPerms } = useNotingPermissions();
   useEffect(() => {
-    if (user && (user.role as any) === "student") {
+    if (user && (user.role as any) === "student" && notingPerms && !notingPerms.noting_create) {
       toast({
         type: "error",
         message: "Students are not allowed to access the noting system",
       });
       router.push("/dashboard");
     }
-  }, [user, router, toast]);
+  }, [user, notingPerms, router, toast]);
 
   const handleDeleteDraft = useCallback(
     (e: React.MouseEvent, note: Note) => {
@@ -387,6 +389,7 @@ export default function NotingListPage() {
               Create, track, and manage approval requests
             </p>
           </div>
+          {notingPerms?.noting_create && (
           <Link
             href="/noting/new"
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm w-full sm:w-auto"
@@ -394,6 +397,7 @@ export default function NotingListPage() {
             <Plus className="w-4 h-4 flex-shrink-0" />
             Create New Note
           </Link>
+          )}
         </div>
 
         {/* Tab Filters - scrollable on mobile */}

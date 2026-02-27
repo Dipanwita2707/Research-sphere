@@ -58,6 +58,7 @@ import type {
   NoteCopy,
 } from "@/features/noting-management/types/noting.types";
 import { useToast } from "@/shared/ui-components/Toast";
+import ClubDetailsCard from "@/features/dsw/components/ClubDetailsCard";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
 import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
@@ -737,7 +738,7 @@ export default function NoteDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-4 sm:py-6 px-4 sm:px-6">
-      <div className="max-w-[850px] mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Navigation Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <Link
@@ -860,6 +861,20 @@ export default function NoteDetailPage() {
                 dangerouslySetInnerHTML={{ __html: note.description || "" }}
               />
             </section>
+
+            {/* DSW Club Creation Details */}
+            {note.subcategory === "dsw_club_creation" && note.clubName && (
+              <section>
+                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+                  Club Creation Details
+                </h3>
+                <ClubDetailsCard
+                  mode="view"
+                  data={note}
+                  resolvedDetails={note.clubDetails}
+                />
+              </section>
+            )}
 
             {/* Event Details */}
             {note.subcategory === "events" && (
@@ -1624,9 +1639,9 @@ export default function NoteDetailPage() {
                   Requirements / Points
                 </h3>
                 <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 p-4">
-                  <ol className="list-decimal list-inside space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
+                  <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-gray-700">
                     {note.points.map((pt, i) => (
-                      <li key={pt.id || i} className="leading-relaxed">
+                      <li key={pt.id || i} className="leading-relaxed py-2.5 first:pt-0 last:pb-0">
                         {pt.content}
                       </li>
                     ))}
@@ -1864,79 +1879,192 @@ export default function NoteDetailPage() {
             {/* Approval Trail */}
             {note.history && note.history.length > 0 && (
               <section>
-                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <span className="inline-block w-8 h-px bg-gradient-to-r from-sgt-500 to-transparent" />
                   Approval Trail
+                  <span className="text-[10px] font-normal text-gray-300 dark:text-gray-600 ml-1">
+                    ({note.history.length} {note.history.length === 1 ? "entry" : "entries"})
+                  </span>
                 </h3>
-                <div className="relative pl-5 space-y-3 before:absolute before:left-[7px] before:top-2 before:bottom-0 before:w-px before:bg-gray-200 dark:before:bg-gray-700 max-h-[500px] overflow-y-auto">
-                  {note.history.map((h) => {
+                <div className="max-h-[560px] overflow-y-auto pr-1 scrollbar-thin">
+                  {note.history.map((h, idx) => {
                     let iconColor = "bg-gray-400";
+                    let glowColor = "shadow-gray-400/20";
+                    let badgeBg = "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300";
+                    let lineColor = "#d1d5db";
                     let Icon: React.ElementType = Clock;
                     const action = h.action.toLowerCase();
+
                     if (action.includes("submit")) {
                       Icon = Send;
-                      iconColor = "bg-sgt-600";
+                      iconColor = "bg-gradient-to-br from-sgt-500 to-sgt-700";
+                      glowColor = "shadow-sgt-500/40";
+                      lineColor = "#3b82f6";
+                      badgeBg = "bg-sgt-50 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300 ring-1 ring-sgt-200 dark:ring-sgt-700/50";
                     } else if (action.includes("approve")) {
                       Icon = CheckCircle;
-                      iconColor = "bg-emerald-600";
+                      iconColor = "bg-gradient-to-br from-emerald-400 to-emerald-600";
+                      glowColor = "shadow-emerald-500/40";
+                      lineColor = "#10b981";
+                      badgeBg = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-700/50";
                     } else if (action === "recommended") {
                       Icon = ThumbsUp;
-                      iconColor = "bg-blue-600";
+                      iconColor = "bg-gradient-to-br from-blue-400 to-blue-600";
+                      glowColor = "shadow-blue-500/40";
+                      lineColor = "#3b82f6";
+                      badgeBg = "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-blue-200 dark:ring-blue-700/50";
                     } else if (action === "not_recommended") {
                       Icon = ThumbsDown;
-                      iconColor = "bg-rose-600";
+                      iconColor = "bg-gradient-to-br from-rose-400 to-rose-600";
+                      glowColor = "shadow-rose-500/40";
+                      lineColor = "#f43f5e";
+                      badgeBg = "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 ring-1 ring-rose-200 dark:ring-rose-700/50";
                     } else if (action === "copy_sent") {
                       Icon = Copy;
-                      iconColor = "bg-indigo-500";
+                      iconColor = "bg-gradient-to-br from-indigo-400 to-indigo-600";
+                      glowColor = "shadow-indigo-500/40";
+                      lineColor = "#6366f1";
+                      badgeBg = "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 ring-1 ring-indigo-200 dark:ring-indigo-700/50";
                     } else if (action === "copy_forwarded") {
                       Icon = AlertTriangle;
-                      iconColor = "bg-amber-600";
+                      iconColor = "bg-gradient-to-br from-amber-400 to-amber-600";
+                      glowColor = "shadow-amber-500/40";
+                      lineColor = "#f59e0b";
+                      badgeBg = "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 ring-1 ring-amber-200 dark:ring-amber-700/50";
                     } else if (action === "copy_completed") {
                       Icon = CheckCircle;
-                      iconColor = "bg-emerald-600";
+                      iconColor = "bg-gradient-to-br from-emerald-400 to-emerald-600";
+                      glowColor = "shadow-emerald-500/40";
+                      lineColor = "#10b981";
+                      badgeBg = "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ring-1 ring-emerald-200 dark:ring-emerald-700/50";
                     } else if (action.includes("reject")) {
                       Icon = XCircle;
-                      iconColor = "bg-red-500";
+                      iconColor = "bg-gradient-to-br from-red-400 to-red-600";
+                      glowColor = "shadow-red-500/40";
+                      lineColor = "#ef4444";
+                      badgeBg = "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 ring-1 ring-red-200 dark:ring-red-700/50";
                     } else if (action.includes("revert")) {
                       Icon = RotateCcw;
-                      iconColor = "bg-orange-500";
+                      iconColor = "bg-gradient-to-br from-orange-400 to-orange-600";
+                      glowColor = "shadow-orange-500/40";
+                      lineColor = "#f97316";
+                      badgeBg = "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-700/50";
                     } else if (action.includes("forward")) {
                       Icon = ArrowRight;
-                      iconColor = "bg-sgt-500";
+                      iconColor = "bg-gradient-to-br from-sgt-400 to-sgt-600";
+                      glowColor = "shadow-sgt-500/40";
+                      lineColor = "#3b82f6";
+                      badgeBg = "bg-sgt-50 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300 ring-1 ring-sgt-200 dark:ring-sgt-700/50";
                     }
 
+                    const isLast = idx === note.history.length - 1;
+                    const actionLabel = h.action
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (c: string) => c.toUpperCase());
+
                     return (
-                      <div key={h.id} className="relative">
-                        <div className="absolute -left-[13px] top-0.5">
-                          <div
-                            className={`h-[14px] w-[14px] rounded-full ${iconColor} border-2 border-white dark:border-gray-800 flex items-center justify-center`}
-                          >
-                            <Icon className="w-2 h-2 text-white" />
+                      <div
+                        key={h.id}
+                        className="flex group"
+                        style={{
+                          animation: `fadeInUp 0.4s ease-out ${idx * 0.08}s both`,
+                        }}
+                      >
+                        {/* Left column: icon + connector line */}
+                        <div className="flex flex-col items-center flex-shrink-0" style={{ width: "32px" }}>
+                          {/* Icon node */}
+                          <div className="relative z-10">
+                            {isLast && (
+                              <div
+                                className={`absolute inset-0 rounded-full ${iconColor} opacity-30 animate-ping`}
+                                style={{ animationDuration: "2s" }}
+                              />
+                            )}
+                            <div
+                              className={`h-7 w-7 rounded-full ${iconColor} shadow-lg ${glowColor} flex items-center justify-center ring-[3px] ring-white dark:ring-gray-800 transition-transform duration-200 group-hover:scale-110`}
+                            >
+                              <Icon className="w-3.5 h-3.5 text-white drop-shadow-sm" />
+                            </div>
                           </div>
+                          {/* Connector line — grows to fill remaining height */}
+                          {!isLast && (
+                            <div
+                              className="w-[2px] flex-1 rounded-full my-1"
+                              style={{ backgroundColor: lineColor, opacity: 0.3 }}
+                            />
+                          )}
                         </div>
-                        <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md p-3 border border-gray-100 dark:border-gray-700/50 text-sm">
-                          <div className="font-medium text-gray-900 dark:text-white capitalize text-[13px]">
-                            {h.action}
-                          </div>
-                          <div className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">
-                            {getDisplayName(h.performedBy)} •{" "}
-                            {new Date(h.createdAt).toLocaleString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                          {h.remarks && (
-                            <div className="text-gray-600 dark:text-gray-300 text-[13px] italic mt-2 pl-2.5 border-l-2 border-gray-200 dark:border-gray-600">
-                              {h.remarks}
+
+                        {/* Right column: content card */}
+                        <div className="flex-1 min-w-0 pb-5 pl-3">
+                          <div
+                            className={`rounded-xl border transition-all duration-300 group-hover:shadow-md group-hover:-translate-y-[1px] ${
+                              isLast
+                                ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm"
+                                : "bg-gray-50/80 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700/40"
+                            }`}
+                          >
+                            <div className="p-3.5">
+                              {/* Action badge + timestamp row */}
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${badgeBg}`}
+                                >
+                                  <Icon className="w-3 h-3" />
+                                  {actionLabel}
+                                </span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums whitespace-nowrap">
+                                  {new Date(h.createdAt).toLocaleString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+
+                              {/* User info */}
+                              <div className="flex items-center gap-1.5 text-[12px] text-gray-600 dark:text-gray-300">
+                                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center flex-shrink-0">
+                                  <User className="w-2.5 h-2.5 text-gray-500 dark:text-gray-400" />
+                                </div>
+                                <span className="font-medium truncate">
+                                  {getDisplayName(h.performedBy)}
+                                </span>
+                                {h.performedBy?.uid && (
+                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded">
+                                    {h.performedBy.uid}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Remarks */}
+                              {h.remarks && (
+                                <div className="mt-2.5 pl-3 py-1.5 border-l-2 border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/20 rounded-r-md">
+                                  <p className="text-[12px] text-gray-600 dark:text-gray-300 italic leading-relaxed">
+                                    &ldquo;{h.remarks}&rdquo;
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Assignment */}
+                              {h.nextHolder && (
+                                <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-sgt-50 dark:bg-sgt-900/20 text-sgt-600 dark:text-sgt-400">
+                                    <CornerDownLeft className="w-3 h-3" />
+                                    <span className="text-[11px] font-semibold">
+                                      Assigned: {getDisplayName(h.nextHolder)}
+                                    </span>
+                                    {h.nextHolder?.uid && (
+                                      <span className="text-[10px] font-mono opacity-70">
+                                        ({h.nextHolder.uid})
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          )}
-                          {h.nextHolder && (
-                            <div className="flex items-center gap-1 text-xs mt-2 pt-2 border-t border-gray-200 dark:border-gray-700 text-sgt-600 dark:text-sgt-400 font-medium">
-                              <CornerDownLeft className="w-3 h-3" />
-                              Assigned: {getDisplayName(h.nextHolder)}
-                            </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     );

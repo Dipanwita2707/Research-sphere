@@ -226,6 +226,15 @@ const create = asyncHandler(async (req, res) => {
   // Validate category and subcategory
   validateCategory(category, subcategory);
 
+  // ── Chairperson restriction: students can only create event notings ─────
+  if (req.user.role === "student") {
+    if (subcategory !== "events") {
+      throw new ValidationError(
+        "As a Club Chairperson, you can only create event-type notings.",
+      );
+    }
+  }
+
   // Validate description (required only if submitting)
   const descriptionValue = validateDescription(description, submit);
   if (submit && !descriptionValue) {
@@ -325,35 +334,74 @@ const create = asyncHandler(async (req, res) => {
   // Validation only applies to submissions (drafts need no manager).
   let preValidatedManagerId = null;
   if (submit) {
-    const modulePermissionKey = approvalFlowService.getModulePermissionKey({
-      subcategory: subcategory || "",
-    });
-    const reportingService = require("../../core/services/reportingStructure.service");
-    const manager = await reportingService.getDirectManager(userId);
+    // ── Chairperson override: route to Faculty Facilitator ──────────────────
+    if (req.user.role === "student") {
+      const chairClub = await prisma.club.findFirst({
+        where: {
+          chairpersonId: userId,
+          status: { in: ["approved", "active"] },
+        },
+        select: { id: true, facultyFacilitatorId: true },
+      });
+      if (!chairClub || !chairClub.facultyFacilitatorId) {
+        throw new ValidationError(
+          "Your club does not have a Faculty Facilitator assigned. Please contact DSW to assign one before submitting notes.",
+        );
+      }
+      // Verify the facilitator has the event_approve permission
+      const modulePermissionKey = approvalFlowService.getModulePermissionKey({
+        subcategory: subcategory || "",
+      });
+      const facilitator = await prisma.userLogin.findUnique({
+        where: { id: chairClub.facultyFacilitatorId },
+        select: { id: true, email: true, employeeDetails: { select: { displayName: true } } },
+      });
+      if (!facilitator) {
+        throw new ValidationError(
+          "Your club's Faculty Facilitator account was not found. Please contact DSW.",
+        );
+      }
+      const { hasModulePermission } = approvalFlowService;
+      const facHasPerm = await hasModulePermission(facilitator, modulePermissionKey);
+      if (!facHasPerm) {
+        const facName = facilitator.employeeDetails?.displayName || facilitator.email || "Faculty Facilitator";
+        throw new ValidationError(
+          `${facName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission.`,
+        );
+      }
+      preValidatedManagerId = facilitator.id;
+    } else {
+      // ── Normal flow: use reporting manager ──────────────────────────────────
+      const modulePermissionKey = approvalFlowService.getModulePermissionKey({
+        subcategory: subcategory || "",
+      });
+      const reportingService = require("../../core/services/reportingStructure.service");
+      const manager = await reportingService.getDirectManager(userId);
 
-    if (!manager) {
-      throw new ValidationError(
-        "You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure before submitting notes.",
+      if (!manager) {
+        throw new ValidationError(
+          "You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure before submitting notes.",
+        );
+      }
+
+      const { hasModulePermission } = approvalFlowService;
+      const managerHasPerm = await hasModulePermission(
+        manager,
+        modulePermissionKey,
       );
-    }
+      if (!managerHasPerm) {
+        const managerName =
+          manager.employeeDetails?.displayName ||
+          manager.name ||
+          manager.email ||
+          "Your manager";
+        throw new ValidationError(
+          `${managerName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission before you can submit notes.`,
+        );
+      }
 
-    const { hasPermissionCached } = approvalFlowService;
-    const managerHasPerm = await hasPermissionCached(
-      manager,
-      modulePermissionKey,
-    );
-    if (!managerHasPerm) {
-      const managerName =
-        manager.employeeDetails?.displayName ||
-        manager.name ||
-        manager.email ||
-        "Your manager";
-      throw new ValidationError(
-        `${managerName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission before you can submit notes.`,
-      );
+      preValidatedManagerId = manager.id;
     }
-
-    preValidatedManagerId = manager.id;
   }
 
   // Determine initial holder if submitting - already validated above
@@ -772,33 +820,70 @@ const submitDraft = asyncHandler(async (req, res) => {
   // Get module permission key
   const modulePermissionKey = approvalFlowService.getModulePermissionKey(note);
 
-  // Check reporting structure for auto-forward
-  const autoForwardResult =
-    await approvalFlowService.determineNextApproverByReporting(
-      note,
-      modulePermissionKey,
-    );
+  let currentHolderId = null;
 
-  // CASE 1: No manager assigned - REJECT submission
-  if (!autoForwardResult.nextApproverId) {
-    throw new ValidationError(
-      "You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure before submitting notes.",
-    );
+  // ── Chairperson override: route to Faculty Facilitator ──────────────────
+  if (req.user.role === "student") {
+    const chairClub = await prisma.club.findFirst({
+      where: {
+        chairpersonId: userId,
+        status: { in: ["approved", "active"] },
+      },
+      select: { id: true, facultyFacilitatorId: true },
+    });
+    if (!chairClub || !chairClub.facultyFacilitatorId) {
+      throw new ValidationError(
+        "Your club does not have a Faculty Facilitator assigned. Please contact DSW to assign one before submitting notes.",
+      );
+    }
+    const facilitator = await prisma.userLogin.findUnique({
+      where: { id: chairClub.facultyFacilitatorId },
+      select: { id: true, email: true, employeeDetails: { select: { displayName: true } } },
+    });
+    if (!facilitator) {
+      throw new ValidationError(
+        "Your club's Faculty Facilitator account was not found. Please contact DSW.",
+      );
+    }
+    const { hasModulePermission } = approvalFlowService;
+    const facHasPerm = await hasModulePermission(facilitator, modulePermissionKey);
+    if (!facHasPerm) {
+      const facName = facilitator.employeeDetails?.displayName || facilitator.email || "Faculty Facilitator";
+      throw new ValidationError(
+        `${facName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission.`,
+      );
+    }
+    currentHolderId = facilitator.id;
+  } else {
+    // ── Normal flow: use reporting structure ──────────────────────────────
+    // Check reporting structure for auto-forward
+    const autoForwardResult =
+      await approvalFlowService.determineNextApproverByReporting(
+        note,
+        modulePermissionKey,
+      );
+
+    // CASE 1: No manager assigned - REJECT submission
+    if (!autoForwardResult.nextApproverId) {
+      throw new ValidationError(
+        "You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure before submitting notes.",
+      );
+    }
+
+    // CASE 2: Manager doesn't have approval permission - REJECT submission
+    if (!autoForwardResult.canAutoForward) {
+      const managerName =
+        autoForwardResult.managerInfo?.name ||
+        autoForwardResult.managerInfo?.email ||
+        "Your manager";
+      throw new ValidationError(
+        `${managerName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission before you can submit notes.`,
+      );
+    }
+
+    // CASE 3: Manager has permission - Forward to manager
+    currentHolderId = autoForwardResult.nextApproverId;
   }
-
-  // CASE 2: Manager doesn't have approval permission - REJECT submission
-  if (!autoForwardResult.canAutoForward) {
-    const managerName =
-      autoForwardResult.managerInfo?.name ||
-      autoForwardResult.managerInfo?.email ||
-      "Your manager";
-    throw new ValidationError(
-      `${managerName} does not have approval permission (${modulePermissionKey}). Please contact Admin to grant this permission before you can submit notes.`,
-    );
-  }
-
-  // CASE 3: Manager has permission - Forward to manager
-  const currentHolderId = autoForwardResult.nextApproverId;
 
   // Update note and create history in transaction
   await prisma.$transaction([
@@ -1877,8 +1962,10 @@ const recommend = asyncHandler(async (req, res) => {
 });
 
 /**
- * Not Recommend a pending note — sends it back to creator
- * Works like reject, but records action as "not_recommended"
+ * Not Recommend a pending note — forwards to reporting manager with
+ * "not_recommended" label so the next authority can see the previous
+ * holder did NOT recommend it. Works exactly like recommend() but
+ * records the action as "not_recommended".
  *
  * @route POST /api/noting/:id/not-recommend
  */
@@ -1900,15 +1987,24 @@ const notRecommend = asyncHandler(async (req, res) => {
     throw new ForbiddenError("Only the current holder can act on this note");
   }
 
+  // Get the next person in chain using the canonical reporting service
+  const reportingService = require("../../core/services/reportingStructure.service");
+  const manager = await reportingService.getDirectManager(userId);
+  if (!manager || !manager.id) {
+    throw new ValidationError(
+      "No reporting manager found to forward the note",
+    );
+  }
+
   const [updated] = await prisma.$transaction([
     prisma.note.update({
       where: { id },
-      data: {
-        status: "rejected",
-        currentHolderId: null,
-      },
+      data: { currentHolderId: manager.id },
       include: {
         createdBy: {
+          select: { id: true, uid: true, employeeDetails: { select: { displayName: true } } },
+        },
+        currentHolder: {
           select: { id: true, uid: true, employeeDetails: { select: { displayName: true } } },
         },
       },
@@ -1919,12 +2015,17 @@ const notRecommend = asyncHandler(async (req, res) => {
         action: "not_recommended",
         performedById: userId,
         remarks: remarks.trim(),
+        nextHolderId: manager.id,
       },
     }),
   ]);
 
   await invalidateNoteCaches(id);
-  return ApiResponse.success(res, updated, "Note not recommended");
+  return ApiResponse.success(
+    res,
+    updated,
+    "Note not recommended and forwarded to next authority",
+  );
 });
 
 // ===================================================================
@@ -2874,6 +2975,21 @@ const getMyNotingPermissions = asyncHandler(async (req, res) => {
     "noting_add_comment",
     "noting_reject",
     "noting_not_recommend",
+    // Subcategory-specific approval keys
+    "event_approve",
+    "dsw_approve_noting",
+    "curriculum_approve",
+    "exam_approve",
+    "infrastructure_approve",
+    "accounts_purchase_approve",
+    "student_related_approve",
+    "non_academic_resources_approve",
+    // Event management keys (for chairperson visibility)
+    "event_manage_own",
+    "event_publish",
+    "event_manage_attendance",
+    "event_assign_volunteers",
+    "event_view_reports",
   ];
 
   // 1. Start from role-level defaults (e.g. admin always has noting_approve)
@@ -2904,6 +3020,30 @@ const getMyNotingPermissions = asyncHandler(async (req, res) => {
         (dp.permissions[key] === true ||
           dp.permissions[`${key.split("_")[0]}_${key}`] === true),
     );
+  }
+
+  // ── Club chairperson override for students ──────────────────────────────
+  // If the student is a chairperson of an active/approved club,
+  // grant noting_create + noting_view_own + attach metadata.
+  if (user.role === "student" && !result.noting_create) {
+    try {
+      const chairpersonClub = await prisma.club.findFirst({
+        where: {
+          chairpersonId: user.id,
+          status: { in: ["approved", "active"] },
+        },
+        select: { id: true, name: true },
+      });
+      if (chairpersonClub) {
+        result.noting_create = true;
+        result.noting_view_own = true;
+        result.isClubChairperson = true;
+        result.chairpersonClubId = chairpersonClub.id;
+        result.chairpersonClubName = chairpersonClub.name;
+      }
+    } catch (clubErr) {
+      console.error("Chairperson club check in permissions:", clubErr);
+    }
   }
 
   // Cache for 5 minutes

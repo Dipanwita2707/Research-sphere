@@ -6,6 +6,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCircle, User, Send, Save, Paperclip, AlertCircle, List, Calendar } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
+import type { NotingPermissions } from '@/features/noting-management/services/noting.service';
 import type { NoteConfig, CreatorInfo, CreateNotePayload } from '@/features/noting-management/types/noting.types';
 import {
   EventTypeSelector,
@@ -145,11 +146,22 @@ export default function NewNotePage() {
   const { setForm, clearDraft, hydrateFromNote, setDraftId, getPayload, draftId } = useNotingDraftStore();
   const { user } = useAuthStore();
 
-  // Block students from accessing noting system
+  // ── Permission-aware student access check ─────────────────────────────────
+  // Chairpersons of active/approved clubs are allowed to create event notings.
+  // All other students are redirected.
+  const [notingPerms, setNotingPerms] = useState<NotingPermissions | null>(null);
   useEffect(() => {
     if (user && (user.role?.name === 'student' || user.userType === 'student')) {
-      toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
-      router.push('/dashboard');
+      notingService.getMyNotingPermissions().then((perms) => {
+        setNotingPerms(perms);
+        if (!perms.noting_create) {
+          toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
+          router.push('/dashboard');
+        }
+      }).catch(() => {
+        toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
+        router.push('/dashboard');
+      });
     }
   }, [user, router, toast]);
 
@@ -208,6 +220,25 @@ export default function NewNotePage() {
   const [pointDraggedIndex, setPointDraggedIndex] = useState<number | null>(null);
   const [pointDropTargetIndex, setPointDropTargetIndex] = useState<number | null>(null);
 
+  // Field-level validation errors
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const clearFieldError = useCallback((field: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  // Auto-clear field errors when user corrects them
+  useEffect(() => { clearFieldError('subcategory'); }, [subcategory, clearFieldError]);
+  useEffect(() => { clearFieldError('description'); }, [description, clearFieldError]);
+  useEffect(() => { clearFieldError('points'); }, [points, clearFieldError]);
+  useEffect(() => { clearFieldError('policyCompliance'); }, [policyCompliance, clearFieldError]);
+  useEffect(() => { clearFieldError('recurringFrequency'); }, [recurringFrequency, clearFieldError]);
+  useEffect(() => { clearFieldError('amount'); }, [amount, amountRequired, clearFieldError]);
+
   useEffect(() => {
     Promise.all([notingService.getConfig(), notingService.getMyCreatorInfo()])
       .then(([c, creator]) => {
@@ -220,6 +251,14 @@ export default function NewNotePage() {
       .catch(() => toast({ type: 'error', message: 'Failed to load form config' }))
       .finally(() => setLoading(false));
   }, [toast]);
+
+  // Lock category to 'academic' and subcategory to 'events' for chairpersons
+  useEffect(() => {
+    if (notingPerms?.isClubChairperson) {
+      setCategory('academic');
+      setSubcategory('events');
+    }
+  }, [notingPerms]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -698,43 +737,43 @@ export default function NewNotePage() {
   const handleSubmit = (asDraft: boolean) => {
     if (!config) return;
     if (!asDraft) {
-      // Classification
+      // Collect all base-field validation errors at once
+      const errors: Record<string, string> = {};
       if (!subcategory?.trim()) {
-        toast({ type: 'error', message: 'Please select a subcategory from the dropdown.' });
-        return;
+        errors.subcategory = 'Please select a subcategory.';
       }
-      // Description (strip HTML for empty check — ReactQuill can have <p><br></p>)
       if (!plainTextDescription.trim()) {
-        toast({ type: 'error', message: 'Please add a description explaining your request.' });
-        return;
+        errors.description = 'Please add a description explaining your request.';
+      } else if (overLimit) {
+        errors.description = `Description exceeds the word limit (${wordCount}/${MAX_WORDS} words).`;
       }
-      if (overLimit) {
-        toast({ type: 'error', message: `Description exceeds the word limit. Please reduce to ${MAX_WORDS} words (currently: ${wordCount} words).` });
-        return;
-      }
-      // Requirements & Points — at least one non-empty point
       const validPoints = dedupePoints(points);
       if (validPoints.length === 0) {
-        toast({ type: 'error', message: 'Please add at least one requirement point in the Requirements & Points section.' });
-        return;
+        errors.points = 'Please add at least one requirement point.';
       }
-      // Additional Details
       if (policyCompliance === null || policyCompliance === undefined) {
-        toast({ type: 'error', message: 'Please select Policy Compliance: choose "Yes, complies" or "No" in Additional Details.' });
-        return;
+        errors.policyCompliance = 'Please select Policy Compliance.';
       }
       if (approvalPeriod === 'recurring' && !recurringFrequency?.trim()) {
-        toast({ type: 'error', message: 'Please select a frequency (e.g. Monthly, Weekly) when Approval Period is Recurring.' });
-        return;
+        errors.recurringFrequency = 'Please select a frequency for recurring approval.';
       }
       if (amountRequired && (amount === '' || Number(amount) < 0 || isNaN(Number(amount)))) {
-        toast({ type: 'error', message: 'Please enter a valid amount (₹) when "Amount required" is selected.' });
+        errors.amount = 'Please enter a valid amount (₹).';
+      } else if (amountRequired && Number(amount) > AMOUNT_MAX) {
+        errors.amount = 'Amount cannot exceed ₹10,00,000 (10 lakh).';
+      }
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        toast({ type: 'error', message: 'Please fill all required fields.' });
+        const firstErrorField = Object.keys(errors)[0];
+        setTimeout(() => {
+          document.getElementById(`field-${firstErrorField}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
         return;
       }
-      if (amountRequired && Number(amount) > AMOUNT_MAX) {
-        toast({ type: 'error', message: 'Amount cannot exceed ₹10,00,000 (10 lakh). Please reduce the amount.' });
-        return;
-      }
+      setFieldErrors({});
+
       // Event Details
       if (isEventNoting) {
         if (!notingEventType) {
@@ -961,7 +1000,13 @@ export default function NewNotePage() {
     );
   }
 
-  const subcategories = config.categories.find((c) => c.value === category)?.subcategories ?? [];
+  const isChairperson = notingPerms?.isClubChairperson === true;
+
+  // For chairpersons: only show 'events' subcategory under 'academic'
+  const allSubcategories = config.categories.find((c) => c.value === category)?.subcategories ?? [];
+  const subcategories = isChairperson
+    ? allSubcategories.filter((s) => s.value === 'events')
+    : allSubcategories;
 
   const baseValid = Boolean(
     subcategory?.trim() &&
@@ -1008,7 +1053,7 @@ export default function NewNotePage() {
   return (
     <>
       <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-4 sm:py-6 px-4 sm:px-6">
-        <div className="max-w-[850px] mx-auto">
+        <div className="max-w-5xl mx-auto">
           {/* Navigation */}
           <Link href="/noting" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 transition-colors mb-5">
             <ArrowLeft className="w-4 h-4" />
@@ -1040,46 +1085,56 @@ export default function NewNotePage() {
               {/* ===== Category & Subcategory ===== */}
               <section>
                 <SectionLabel>Classification</SectionLabel>
+                {isChairperson && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mb-3 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    As a Club Chairperson, you can only create Event notings.
+                  </p>
+                )}
                 <div className="grid md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Category <span className="text-red-500">*</span>
                     </label>
                     <div className="space-y-2">
-                      <label className={`flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors ${category === 'academic' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      <label className={`flex items-center gap-3 p-3 border rounded-md transition-colors ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'academic' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                         }`}>
-                        <input type="radio" name="category" checked={category === 'academic'} onChange={() => setCategory('academic')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                        <input type="radio" name="category" checked={category === 'academic'} onChange={() => !isChairperson && setCategory('academic')} disabled={isChairperson} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
                         <span className="text-sm font-medium">Academic</span>
                       </label>
-                      <label className={`flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors ${category === 'administrative' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                      <label className={`flex items-center gap-3 p-3 border rounded-md transition-colors ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'administrative' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                         }`}>
-                        <input type="radio" name="category" checked={category === 'administrative'} onChange={() => setCategory('administrative')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                        <input type="radio" name="category" checked={category === 'administrative'} onChange={() => !isChairperson && setCategory('administrative')} disabled={isChairperson} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
                         <span className="text-sm font-medium">Administrative</span>
                       </label>
                     </div>
                   </div>
-                  <div>
+                  <div id="field-subcategory">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Subcategory <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={subcategory}
                       onChange={(e) => setSubcategory(e.target.value)}
-                      className="w-full px-3 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                      disabled={isChairperson}
+                      className={`w-full px-3 py-3 text-sm border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none ${isChairperson ? 'opacity-60 cursor-not-allowed' : ''} ${fieldErrors.subcategory ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                     >
                       <option value="">Select subcategory</option>
                       {subcategories.map((s) => (
                         <option key={s.value} value={s.value}>{s.label}</option>
                       ))}
                     </select>
+                    {fieldErrors.subcategory && (
+                      <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.subcategory}</p>
+                    )}
                   </div>
                 </div>
               </section>
 
               {/* ===== Description ===== */}
-              <section>
+              <section id="field-description">
                 <SectionLabel>Description <span className="text-red-500">*</span></SectionLabel>
-                <div className={`noting-description-editor border rounded-md bg-white dark:bg-gray-700 transition-colors ${overLimit ? 'border-red-400' : 'border-gray-200 dark:border-gray-600 focus-within:border-sgt-500'}`}>
+                <div className={`noting-description-editor border rounded-md bg-white dark:bg-gray-700 transition-colors ${fieldErrors.description ? 'border-red-500 ring-1 ring-red-500' : overLimit ? 'border-red-400' : 'border-gray-200 dark:border-gray-600 focus-within:border-sgt-500'}`}>
                   <ReactQuill
                     theme="snow"
                     value={description}
@@ -1110,10 +1165,13 @@ export default function NewNotePage() {
                     </span>
                   )}
                 </div>
+                {fieldErrors.description && !overLimit && (
+                  <p className="mt-1 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.description}</p>
+                )}
               </section>
 
               {/* ===== Requirements / Points ===== */}
-              <section>
+              <section id="field-points">
                 <SectionLabel>Requirements & Points <span className="text-red-500">*</span></SectionLabel>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-1.5">
                   <GripVertical className="w-3.5 h-3.5" />
@@ -1168,6 +1226,9 @@ export default function NewNotePage() {
                   <Plus className="w-4 h-4" />
                   Add another point
                 </button>
+                {fieldErrors.points && (
+                  <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.points}</p>
+                )}
               </section>
 
               {/* ===== Attachments ===== */}
@@ -1339,7 +1400,7 @@ export default function NewNotePage() {
                   {/* Approval Period & Policy Compliance - Side by Side */}
                   <div className="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
                     {/* Approval Period */}
-                    <div className="bg-white dark:bg-gray-800 p-4">
+                    <div id="field-recurringFrequency" className="bg-white dark:bg-gray-800 p-4">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period <span className="text-red-500">*</span></label>
                       <div className="flex flex-col gap-2">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${approvalPeriod === 'one_time' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
@@ -1367,10 +1428,13 @@ export default function NewNotePage() {
                           )}
                         </div>
                       </div>
+                      {fieldErrors.recurringFrequency && (
+                        <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.recurringFrequency}</p>
+                      )}
                     </div>
 
                     {/* Policy Compliance */}
-                    <div className="bg-white dark:bg-gray-800 p-4">
+                    <div id="field-policyCompliance" className="bg-white dark:bg-gray-800 p-4">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Policy Compliance <span className="text-red-500">*</span></label>
                       <div className="flex flex-col gap-2">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
@@ -1384,11 +1448,14 @@ export default function NewNotePage() {
                           <span className="text-sm font-medium">No</span>
                         </label>
                       </div>
+                      {fieldErrors.policyCompliance && (
+                        <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.policyCompliance}</p>
+                      )}
                     </div>
                   </div>
 
                   {/* Budget / Amount */}
-                  <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                  <div id="field-amount" className="p-4 border-t border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-3">
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">Budget / Amount <span className="text-red-500">*</span></label>
                       <div className="flex gap-3 flex-1 items-center">
@@ -1412,13 +1479,16 @@ export default function NewNotePage() {
                               step={1}
                               value={amount}
                               onChange={(e) => setAmount(e.target.value)}
-                              className="w-full pl-8 pr-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                              className={`w-full pl-8 pr-3 py-2.5 text-sm border rounded-md bg-white dark:bg-gray-700 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none ${fieldErrors.amount ? 'border-red-500 ring-1 ring-red-500' : 'border-gray-200 dark:border-gray-600'}`}
                               placeholder="Max ₹10 lakh"
                             />
                           </div>
                         )}
                       </div>
                     </div>
+                    {fieldErrors.amount && (
+                      <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.amount}</p>
+                    )}
                   </div>
                 </div>
               </section>
@@ -1465,7 +1535,7 @@ export default function NewNotePage() {
                 <button
                   type="button"
                   onClick={() => handleSubmit(false)}
-                  disabled={submitting || !canSubmit}
+                  disabled={submitting}
                   className="px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
                 >
                   {submitting ? <LoadingSpinner size="sm" /> : <Send className="w-4 h-4" />}

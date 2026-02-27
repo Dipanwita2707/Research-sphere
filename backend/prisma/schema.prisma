@@ -1900,6 +1900,10 @@ model Note {
   clubFacultyFacilitatorId String?                @map("club_faculty_facilitator_id") @db.Uuid
   clubChairpersonId        String?                @map("club_chairperson_id") @db.Uuid
   clubInitialMembers       String[]               @default([]) @map("club_initial_members")
+  clubProposedEmail        String?                @map("club_proposed_email") @db.VarChar(256)
+  clubSocialMediaHandles   Json?                  @map("club_social_media_handles") // {facebook?, instagram?, twitter?, linkedin?}
+  clubCodeOfConductAccepted Boolean?              @map("club_code_of_conduct_accepted")
+  clubAntiDiscriminationAccepted Boolean?         @map("club_anti_discrimination_accepted")
   autoForwardedToManager   Boolean                @default(false) @map("auto_forwarded_to_manager")
   manualForwardReason      String?                @map("manual_forward_reason") @db.Text
   reportingChainHistory    Json?                  @map("reporting_chain_history")

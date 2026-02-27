@@ -77,6 +77,51 @@ async function hasPermissionCached(user, permKey) {
   return result;
 }
 
+/**
+ * Check if a user has a module-level permission for a noting subcategory.
+ * Checks the specific subcategory key first (e.g. `curriculum_approve`),
+ * then falls back to the generic `noting_approve` as a super-permission.
+ * This ensures backward compatibility — users with `noting_approve` can
+ * still approve any subcategory's notings.
+ *
+ * @param {Object} user - User object
+ * @param {string} modulePermissionKey - Subcategory-specific key (from getModulePermissionKey)
+ * @returns {Promise<boolean>}
+ */
+async function hasModulePermission(user, modulePermissionKey) {
+  // Check the specific subcategory key
+  if (await hasPermissionCached(user, modulePermissionKey)) {
+    return true;
+  }
+  // Fallback: generic noting_approve acts as super-permission for all noting subcategories
+  if (modulePermissionKey !== "noting_approve") {
+    return hasPermissionCached(user, "noting_approve");
+  }
+  return false;
+}
+
+/**
+ * Bulk resolve module permissions with noting_approve fallback.
+ * First checks the specific subcategory key, then for non-granted users
+ * falls back to checking noting_approve as a super-permission.
+ *
+ * @param {Array} users - Users to check
+ * @param {string} modulePermissionKey - Subcategory-specific key
+ * @returns {Promise<Set<string>>} Set of user IDs that have the permission
+ */
+async function bulkResolveModulePermissions(users, modulePermissionKey) {
+  const grantedIds = await bulkResolvePermissions(users, modulePermissionKey);
+  if (modulePermissionKey !== "noting_approve") {
+    // Also check noting_approve as super-permission for remaining users
+    const remaining = users.filter((u) => !grantedIds.has(u.id));
+    if (remaining.length > 0) {
+      const superGranted = await bulkResolvePermissions(remaining, "noting_approve");
+      for (const id of superGranted) grantedIds.add(id);
+    }
+  }
+  return grantedIds;
+}
+
 // ---------------------------------------------------------------------------
 // Bulk permission resolution helpers
 // ---------------------------------------------------------------------------
@@ -206,8 +251,8 @@ async function determineNextApproverByReporting(note, modulePermissionKey) {
       };
     }
 
-    // Check permission using cached resolver
-    const managerHasPermission = await hasPermissionCached(
+    // Check permission using cached resolver (with noting_approve fallback)
+    const managerHasPermission = await hasModulePermission(
       manager,
       modulePermissionKey,
     );
@@ -300,7 +345,7 @@ async function getEligibleForwardTargets(userId, note, modulePermissionKey) {
   if (!reportingChain || reportingChain.length === 0) return [];
 
   // Batch-resolve permissions for all chain members in one round-trip
-  const grantedIds = await bulkResolvePermissions(
+  const grantedIds = await bulkResolveModulePermissions(
     reportingChain,
     modulePermissionKey,
   );
@@ -339,6 +384,18 @@ async function _getEligibleUsersWithPermission(
     },
   };
 
+  // Build OR conditions — include noting_approve holders as fallback
+  const orConditions = [
+    { centralDeptPermissions: { path: [permissionKey], equals: true } },
+    { schoolDeptPermissions: { path: [permissionKey], equals: true } },
+  ];
+  if (permissionKey !== "noting_approve") {
+    orConditions.push(
+      { centralDeptPermissions: { path: ["noting_approve"], equals: true } },
+      { schoolDeptPermissions: { path: ["noting_approve"], equals: true } },
+    );
+  }
+
   // Fetch candidates in parallel:
   // 1. Direct JSON permission holders (fast — uses json operator if indexed)
   // 2. Role-based permission holders
@@ -347,10 +404,7 @@ async function _getEligibleUsersWithPermission(
       where: {
         status: "active",
         id: { not: excludeUserId },
-        OR: [
-          { centralDeptPermissions: { path: [permissionKey], equals: true } },
-          { schoolDeptPermissions: { path: [permissionKey], equals: true } },
-        ],
+        OR: orConditions,
       },
       select: userSelect,
       take: limit,
@@ -377,7 +431,7 @@ async function _getEligibleUsersWithPermission(
   const candidates = Array.from(merged.values());
 
   // Batch-resolve permissions (single DB query for all unique role IDs)
-  const grantedIds = await bulkResolvePermissions(candidates, permissionKey);
+  const grantedIds = await bulkResolveModulePermissions(candidates, permissionKey);
 
   return candidates.filter((u) => grantedIds.has(u.id)).slice(0, limit);
 }
@@ -394,13 +448,13 @@ function getModulePermissionKey(note) {
     dsw_club_creation: "dsw_approve_noting",
     dsw_club_change: "dsw_approve_noting",
     events: "event_approve",
-    curriculum: "noting_approve",
-    exam: "noting_approve",
-    infrastructure: "noting_approve",
-    accounts_purchase: "noting_approve",
-    student_related: "noting_approve",
+    curriculum: "curriculum_approve",
+    exam: "exam_approve",
+    infrastructure: "infrastructure_approve",
+    accounts_purchase: "accounts_purchase_approve",
+    student_related: "student_related_approve",
     miscellaneous: "noting_approve",
-    non_academic_resources: "noting_approve",
+    non_academic_resources: "non_academic_resources_approve",
   };
 
   return permissionMap[note.subcategory] || "noting_approve";
@@ -475,4 +529,5 @@ module.exports = {
   invalidatePermCache,
   bulkResolvePermissions,
   hasPermissionCached,
+  hasModulePermission,
 };

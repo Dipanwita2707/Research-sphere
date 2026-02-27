@@ -81,6 +81,7 @@ export default function NavigationHeader() {
   const [activeSubmenu3, setActiveSubmenu3] = useState<string | null>(null); // Fourth level submenu
   const [unreadCount, setUnreadCount] = useState(0);
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
+  const [hasNotingAccess, setHasNotingAccess] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ name: string, href?: string, description?: string }>>([]);
@@ -123,6 +124,11 @@ export default function NavigationHeader() {
     };
     defer(() => fetchUnreadCount());
     defer(() => fetchUserPermissions());
+    // For students: check if they have noting access (e.g. club chairperson)
+    console.log('[NavigationHeader] isStudent:', isStudent, 'role:', user?.role, 'userType:', user?.userType);
+    if (isStudent) {
+      defer(() => fetchNotingAccess());
+    }
   }, [user]);
 
   const fetchUnreadCount = useCallback(async () => {
@@ -142,6 +148,21 @@ export default function NavigationHeader() {
       }
     } catch (error) {
       logger.error('Error fetching permissions:', error);
+    }
+  };
+
+  const fetchNotingAccess = async () => {
+    try {
+      console.log('[NavigationHeader] fetchNotingAccess called, isStudent:', isStudent);
+      const response = await api.get('/noting/my-permissions');
+      console.log('[NavigationHeader] noting permissions response:', response.data);
+      if (response.data.success && response.data.data?.noting_create) {
+        console.log('[NavigationHeader] Setting hasNotingAccess = true');
+        setHasNotingAccess(true);
+      }
+    } catch (err) {
+      console.error('[NavigationHeader] fetchNotingAccess error:', err);
+      // Student doesn't have noting access — leave as false
     }
   };
 
@@ -412,8 +433,8 @@ export default function NavigationHeader() {
     description: 'Student admissions portal',
   });
 
-  // Add Noting approval - Only for Faculty, Staff, and Admin (NOT for students)
-  if (!isStudent) {
+  // Add Noting approval - For Faculty, Staff, Admin, and students with noting access (e.g. club chairpersons)
+  if (!isStudent || hasNotingAccess) {
     navigationSubItems.push({
       name: '📋 Noting & Approval',
       href: '/noting',

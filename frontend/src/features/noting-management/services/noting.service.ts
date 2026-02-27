@@ -21,6 +21,21 @@ export interface NotingPermissions {
   noting_add_comment: boolean;
   noting_reject: boolean;
   noting_not_recommend: boolean;
+  // Subcategory-level approval permissions
+  event_approve?: boolean;
+  dsw_approve_noting?: boolean;
+  curriculum_approve?: boolean;
+  exam_approve?: boolean;
+  infrastructure_approve?: boolean;
+  accounts_purchase_approve?: boolean;
+  student_related_approve?: boolean;
+  non_academic_resources_approve?: boolean;
+  /** True if user is a chairperson of an active/approved club */
+  isClubChairperson?: boolean;
+  /** The club's UUID — only present for chairpersons */
+  chairpersonClubId?: string;
+  /** The club's name — only present for chairpersons */
+  chairpersonClubName?: string;
 }
 
 /**
@@ -52,15 +67,28 @@ export const notingService = {
   getMyNotingPermissions: (): Promise<NotingActionPermissions> =>
     api.get(`${BASE}/my-permissions`).then((res) => {
       const raw: NotingPermissions = res.data.data;
+
+      // User can approve if they have noting_approve (super) OR any subcategory approval key
+      const hasAnyApproval =
+        raw.noting_approve ||
+        raw.event_approve ||
+        raw.dsw_approve_noting ||
+        raw.curriculum_approve ||
+        raw.exam_approve ||
+        raw.infrastructure_approve ||
+        raw.accounts_purchase_approve ||
+        raw.student_related_approve ||
+        raw.non_academic_resources_approve;
+
       return {
         ...raw,
         // Derived action flags used to show/hide Approval Section buttons
-        canApprove: raw.noting_approve,
-        canReject: raw.noting_reject || raw.noting_approve || raw.noting_return,
+        canApprove: !!hasAnyApproval,
+        canReject: !!(raw.noting_reject || hasAnyApproval || raw.noting_return),
         canRevert: raw.noting_return,
         canForward: raw.noting_forward,
-        canRecommend: raw.noting_approve,
-        canNotRecommend: raw.noting_not_recommend || raw.noting_approve,
+        canRecommend: raw.noting_add_comment,
+        canNotRecommend: raw.noting_not_recommend,
       };
     }),
 

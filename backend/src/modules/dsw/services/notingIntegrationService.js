@@ -300,6 +300,10 @@ async function createClubCreationNoting(clubData, createdById) {
         clubFacultyFacilitatorId: facultyFacilitatorUuid,
         clubChairpersonId: chairpersonUuid,
         clubInitialMembers: resolvedInitialMembers,
+        clubProposedEmail: clubData.proposedEmail || null,
+        clubSocialMediaHandles: clubData.socialMediaHandles || null,
+        clubCodeOfConductAccepted: clubData.codeOfConductAccepted ?? null,
+        clubAntiDiscriminationAccepted: clubData.antiDiscriminationAccepted ?? null,
         points: {
           create: [
             {

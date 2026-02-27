@@ -109,6 +109,31 @@ export interface Note {
       creatorStalls: { name: string; description: string; capacity: number }[];
     } | null;
   }> | null;
+  // ── DSW Club Creation fields ──────────────────────────────────────────────
+  clubName?: string | null;
+  clubCategoryId?: string | null;
+  clubPurpose?: string | null;
+  clubAcademicSession?: string | null;
+  clubTargetStudentGroup?: string[];
+  clubMeetingFrequency?: string | null;
+  clubExpectedActivityTypes?: string[];
+  clubEstimatedAnnualActivityCount?: number | null;
+  clubExpectedStudentStrength?: number | null;
+  clubFacultyFacilitatorId?: string | null;
+  clubChairpersonId?: string | null;
+  clubInitialMembers?: string[];
+  clubProposedEmail?: string | null;
+  clubSocialMediaHandles?: { facebook?: string; instagram?: string; twitter?: string; linkedin?: string } | null;
+  clubCodeOfConductAccepted?: boolean | null;
+  clubAntiDiscriminationAccepted?: boolean | null;
+  /** Resolved display names for club UUIDs — populated by backend for dsw_club_creation notes */
+  clubDetails?: {
+    categoryName: string | null;
+    parentCategoryName: string | null;
+    facultyFacilitator: { id: string; uid: string; name: string; department?: string | null; designation?: string | null } | null;
+    chairperson: { id: string; uid: string; name: string; department?: string | null; program?: string | null } | null;
+    members: { id: string; uid: string; name: string }[];
+  } | null;
   status: NoteStatus;
   createdById: string;
   currentHolderId?: string | null;

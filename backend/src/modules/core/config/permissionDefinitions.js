@@ -575,6 +575,55 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       description:
         "Can mark a noting as not recommended (also granted via Approve permission)",
     },
+    // Subcategory Approval Permissions — granular control over which noting types a user can approve
+    {
+      key: "event_approve",
+      label: "Approve Event Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for events (subcategory: events)",
+    },
+    {
+      key: "dsw_approve_noting",
+      label: "Approve DSW Club Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for DSW club creation/change requests",
+    },
+    {
+      key: "curriculum_approve",
+      label: "Approve Curriculum Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for curriculum-related requests",
+    },
+    {
+      key: "exam_approve",
+      label: "Approve Exam Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for examination-related requests",
+    },
+    {
+      key: "infrastructure_approve",
+      label: "Approve Infrastructure Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for infrastructure-related requests",
+    },
+    {
+      key: "accounts_purchase_approve",
+      label: "Approve Accounts/Purchase Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for accounts and purchase requests",
+    },
+    {
+      key: "student_related_approve",
+      label: "Approve Student-Related Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for student-related requests",
+    },
+    {
+      key: "non_academic_resources_approve",
+      label: "Approve Non-Academic Resources Notings",
+      category: "Subcategory Approvals",
+      description: "Can approve notings for non-academic resource requests",
+    },
     // Administration
     {
       key: "noting_admin",
