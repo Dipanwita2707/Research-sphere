@@ -2566,6 +2566,29 @@ model EventPrize {
   @@map("event_prize")
 }
 
+model HostelBooking {
+  id              String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  gate_pass_id    String     @unique @db.Uuid
+  room_number     String?    @db.VarChar(50)
+  hostel_name     String?    @db.VarChar(100)
+  check_in_date   DateTime?  @db.Date
+  check_out_date  DateTime?  @db.Date
+  verified_by_id  String?    @db.Uuid
+  created_by_id   String     @db.Uuid
+  verified_at     DateTime?  @db.Timestamptz(6)
+  created_at      DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  gate_pass       gate_pass  @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  verified_by     UserLogin? @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
+  created_by      UserLogin  @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+
+  @@index([gate_pass_id])
+  @@index([verified_by_id])
+  @@index([created_by_id])
+  @@map("hostel_booking")
+}
+
 // ============================================
 // Advanced Registration Enums
 // ============================================
@@ -3046,6 +3069,23 @@ enum vehicle_type_enum {
   two_wheeler
   four_wheeler
   other
+}
+
+enum qr_status_enum {
+  inactive
+  active
+  expired
+  used
+}
+
+enum pass_status_enum {
+  created
+  pending
+  approved
+  rejected
+  active
+  completed
+  cancelled
 }
 
 enum visit_purpose_enum {
