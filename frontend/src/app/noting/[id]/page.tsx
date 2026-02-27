@@ -53,7 +53,7 @@ export default function NoteDetailPage() {
 
   // Block students from accessing noting system
   useEffect(() => {
-    if (user && user.role === 'student') {
+    if (user && user.role?.name === 'student') {
       toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
       router.push('/dashboard');
     }

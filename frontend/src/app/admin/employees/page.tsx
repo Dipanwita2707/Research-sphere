@@ -181,6 +181,7 @@ export default function EmployeeManagement() {
         centralDepartmentId: employee.employeeDetails.centralDepartmentId || '',
         currentAddress: '',
         permanentAddress: '',
+        officerLevel: (employee.employeeDetails as Record<string, unknown>).officerLevel as string || '',
       });
     } else {
       setEditingEmployee(null);
@@ -207,6 +208,7 @@ export default function EmployeeManagement() {
         centralDepartmentId: '',
         currentAddress: '',
         permanentAddress: '',
+        officerLevel: '',
       });
     }
     setShowModal(true);

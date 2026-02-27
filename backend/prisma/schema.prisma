@@ -106,6 +106,24 @@ model UserLogin {
   clubChangeRequestsApproved                        ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
   clubChangeRequestsRejected                        ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
   clubAuditLogs                                     ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
+  // Chat System Relations
+  chatGroupsCreated                                 ChatGroup[]                          @relation("ChatGroupCreatedBy")
+  chatGroupMemberships                              ChatGroupMember[]                    @relation("ChatGroupMemberUser")
+  chatMessagesSent                                  ChatMessage[]                        @relation("ChatMessageSender")
+  directMessagesSent                                DirectMessage[]                      @relation("DirectMessageSender")
+  directMessagesReceived                            DirectMessage[]                      @relation("DirectMessageReceiver")
+  chatStatus                                        UserChatStatus?                      @relation("UserChatStatus")
+  chatUserPermission                                ChatUserPermission?                  @relation("ChatUserPermission")
+
+  // Mail System Relations
+  mailMessagesCreated                               MailMessage[]                        @relation("MailMessageSender")
+  mailThreadsCreated                                MailThread[]                         @relation("MailThreadCreator")
+  mailRecipients                                    MailRecipient[]                      @relation("MailRecipientUser")
+  mailParticipants                                  MailParticipant[]                    @relation("MailParticipantUser")
+  mailLabels                                        MailLabel[]                          @relation("MailLabelOwner")
+  mailMessageLabels                                 MailMessageLabel[]                   @relation("MailMessageLabelUser")
+  mailDrafts                                        MailDraft[]                          @relation("MailDraftOwner")
+  mailAttachments                                   MailAttachment[]                     @relation("MailAttachmentUploader")
 
   @@map("user_login")
 }
@@ -2786,3 +2804,410 @@ enum ClubChangeRequestStatusEnum {
   @@map("club_change_request_status_enum")
 }
 
+// ==================== CHAT SYSTEM ====================
+
+enum ChatMemberRoleEnum {
+  owner
+  admin
+  moderator
+  member
+
+  @@map("chat_member_role_enum")
+}
+
+enum ChatMessageTypeEnum {
+  text
+  file
+  image
+  voice
+  video
+  document
+
+  @@map("chat_message_type_enum")
+}
+
+enum LastSeenPrivacyEnum {
+  everyone
+  contacts
+  nobody
+
+  @@map("last_seen_privacy_enum")
+}
+
+model ChatGroup {
+  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name              String                @db.VarChar(100)
+  description       String?               @db.VarChar(500)
+  avatar            String?               @db.VarChar(255)
+  createdById       String                @map("created_by_id") @db.Uuid
+  isEncrypted       Boolean               @default(false) @map("is_encrypted")
+  isActive          Boolean               @default(true) @map("is_active")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy         UserLogin             @relation("ChatGroupCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  members           ChatGroupMember[]     @relation("ChatGroupMembers")
+  permissions       ChatGroupPermission?  @relation("ChatGroupPermissions")
+  messages          ChatMessage[]         @relation("ChatGroupMessages")
+
+  @@index([createdById])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("chat_group")
+}
+
+model ChatGroupMember {
+  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  groupId           String                @map("group_id") @db.Uuid
+  userId            String                @map("user_id") @db.Uuid
+  memberRole        ChatMemberRoleEnum    @default(member) @map("member_role")
+  customPermissions Json?                 @map("custom_permissions")
+  isMuted           Boolean               @default(false) @map("is_muted")
+  mutedUntil        DateTime?             @map("muted_until") @db.Timestamptz(6)
+  joinedAt          DateTime              @default(now()) @map("joined_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group             ChatGroup             @relation("ChatGroupMembers", fields: [groupId], references: [id], onDelete: Cascade)
+  user              UserLogin             @relation("ChatGroupMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@index([groupId])
+  @@index([memberRole])
+  @@map("chat_group_member")
+}
+
+model ChatGroupPermission {
+  id                    String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  groupId               String              @unique @map("group_id") @db.Uuid
+  canSendMessage        Boolean             @default(true) @map("can_send_message")
+  canUploadFiles        Boolean             @default(true) @map("can_upload_files")
+  canSendVoice          Boolean             @default(true) @map("can_send_voice")
+  canSendVideo          Boolean             @default(true) @map("can_send_video")
+  canSendEmoji          Boolean             @default(true) @map("can_send_emoji")
+  canEditMessage        Boolean             @default(true) @map("can_edit_message")
+  canDeleteMessage      Boolean             @default(true) @map("can_delete_message")
+  canPinMessage         Boolean             @default(false) @map("can_pin_message")
+  canMentionAll         Boolean             @default(false) @map("can_mention_all")
+  canAddMembers         Boolean             @default(false) @map("can_add_members")
+  canRemoveMembers      Boolean             @default(false) @map("can_remove_members")
+  adminOnlyMessaging    Boolean             @default(false) @map("admin_only_messaging")
+  readOnlyMode          Boolean             @default(false) @map("read_only_mode")
+  privateDMAllowed      Boolean             @default(true) @map("private_dm_allowed")
+  searchMembers         Boolean             @default(true) @map("search_members")
+  maxFileSize           Int                 @default(10485760) @map("max_file_size")  // 10MB default
+  
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group                 ChatGroup           @relation("ChatGroupPermissions", fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@map("chat_group_permission")
+}
+
+model ChatMessage {
+  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  groupId           String                @map("group_id") @db.Uuid
+  senderId          String                @map("sender_id") @db.Uuid
+  messageType       ChatMessageTypeEnum   @default(text) @map("message_type")
+  content           String?               @db.Text
+  encryptedContent  String?               @map("encrypted_content") @db.Text
+  filePath          String?               @map("file_path") @db.VarChar(500)
+  fileName          String?               @map("file_name") @db.VarChar(255)
+  fileSize          Int?                  @map("file_size")
+  mimeType          String?               @map("mime_type") @db.VarChar(100)
+  duration          Int?                  // For voice/video in seconds
+  waveformData      Json?                 @map("waveform_data")  // Array of amplitudes for voice
+  replyToId         String?               @map("reply_to_id") @db.Uuid
+  mentions          Json?                 // Array of user IDs mentioned
+  isPinned          Boolean               @default(false) @map("is_pinned")
+  isEdited          Boolean               @default(false) @map("is_edited")
+  readBy            Json                  @default("[]") @map("read_by")  // Array of {userId, readAt}
+  isDeleted         Boolean               @default(false) @map("is_deleted")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  group             ChatGroup             @relation("ChatGroupMessages", fields: [groupId], references: [id], onDelete: Cascade)
+  sender            UserLogin             @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo           ChatMessage?          @relation("ChatMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies           ChatMessage[]         @relation("ChatMessageReplies")
+
+  @@index([groupId, createdAt])
+  @@index([senderId])
+  @@index([messageType])
+  @@index([isPinned])
+  @@index([isDeleted])
+  @@map("chat_message")
+}
+
+model DirectMessage {
+  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  senderId          String                @map("sender_id") @db.Uuid
+  receiverId        String                @map("receiver_id") @db.Uuid
+  messageType       ChatMessageTypeEnum   @default(text) @map("message_type")
+  content           String?               @db.Text
+  encryptedContent  String?               @map("encrypted_content") @db.Text
+  filePath          String?               @map("file_path") @db.VarChar(500)
+  fileName          String?               @map("file_name") @db.VarChar(255)
+  fileSize          Int?                  @map("file_size")
+  mimeType          String?               @map("mime_type") @db.VarChar(100)
+  duration          Int?                  // For voice/video in seconds
+  waveformData      Json?                 @map("waveform_data")
+  replyToId         String?               @map("reply_to_id") @db.Uuid
+  isEdited          Boolean               @default(false) @map("is_edited")
+  isDeleted         Boolean               @default(false) @map("is_deleted")
+  readAt            DateTime?             @map("read_at") @db.Timestamptz(6)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  sender            UserLogin             @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver          UserLogin             @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  replyTo           DirectMessage?        @relation("DirectMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies           DirectMessage[]       @relation("DirectMessageReplies")
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, senderId, createdAt])
+  @@index([readAt])
+  @@map("direct_message")
+}
+
+model UserChatStatus {
+  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String                @unique @map("user_id") @db.Uuid
+  isOnline          Boolean               @default(false) @map("is_online")
+  lastSeenAt        DateTime?             @map("last_seen_at") @db.Timestamptz(6)
+  socketId          String?               @map("socket_id") @db.VarChar(100)
+  lastSeenPrivacy   LastSeenPrivacyEnum   @default(everyone) @map("last_seen_privacy")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user              UserLogin             @relation("UserChatStatus", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([isOnline])
+  @@index([lastSeenAt])
+  @@map("user_chat_status")
+}
+
+model ChatUserPermission {
+  id                    String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId                String              @unique @map("user_id") @db.Uuid
+  
+  // Chat Access Control
+  chatEnabled           Boolean             @default(true) @map("chat_enabled")
+  
+  // Individual User-Level Permissions
+  canPrivateMessage     Boolean             @default(true) @map("can_private_message")
+  canCreateGroup        Boolean             @default(true) @map("can_create_group")
+  canUploadProfilePhoto Boolean             @default(true) @map("can_upload_profile_photo")
+  
+  // Privacy Permissions (user-level)
+  canSetLastSeen        Boolean             @default(true) @map("can_set_last_seen")
+  canSetOnlineStatus    Boolean             @default(true) @map("can_set_online_status")
+  canSetProfilePrivacy  Boolean             @default(true) @map("can_set_profile_privacy")
+  canSetAboutPrivacy    Boolean             @default(true) @map("can_set_about_privacy")
+  canSetStatusPrivacy   Boolean             @default(true) @map("can_set_status_privacy")
+  canSetReadReceipts    Boolean             @default(true) @map("can_set_read_receipts")
+  canSetMessageTimer    Boolean             @default(true) @map("can_set_message_timer")
+  canSetGroupsPrivacy   Boolean             @default(true) @map("can_set_groups_privacy")
+  canBlockContacts      Boolean             @default(true) @map("can_block_contacts")
+  
+  // Customization Permissions (user-level)
+  canChangeTheme        Boolean             @default(true) @map("can_change_theme")
+  canChangeWallpaper    Boolean             @default(true) @map("can_change_wallpaper")
+  
+  // Notification Permissions (user-level)
+  canToggleNotifications Boolean            @default(true) @map("can_toggle_notifications")
+  
+  // Metadata
+  addedBy               String?             @map("added_by") @db.Uuid
+  createdAt             DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user                  UserLogin           @relation("ChatUserPermission", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([chatEnabled])
+  @@index([userId])
+  @@map("chat_user_permission")
+}
+
+// ============================================================================
+// INTERNAL MAIL SYSTEM (Gmail-like)
+// ============================================================================
+
+enum MailRecipientType {
+  TO
+  CC
+  BCC
+}
+
+model MailThread {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  subject         String            @db.VarChar(500)
+  createdById     String            @map("created_by_id") @db.Uuid
+  lastMessageAt   DateTime          @default(now()) @map("last_message_at") @db.Timestamptz(6)
+  lastMessageSnippet String?        @map("last_message_snippet") @db.VarChar(200)
+  messageCount    Int               @default(1) @map("message_count")
+  isActive        Boolean           @default(true) @map("is_active")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy       UserLogin         @relation("MailThreadCreator", fields: [createdById], references: [id])
+  messages        MailMessage[]     @relation("MailThreadMessages")
+  participants    MailParticipant[] @relation("MailThreadParticipants")
+
+  @@index([createdById])
+  @@index([lastMessageAt])
+  @@index([subject])
+  @@map("mail_thread")
+}
+
+model MailMessage {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  threadId        String            @map("thread_id") @db.Uuid
+  senderId        String            @map("sender_id") @db.Uuid
+  subject         String            @db.VarChar(500)
+  body            String            @db.Text
+  bodyPlainText   String?           @map("body_plain_text") @db.Text
+  replyToId       String?           @map("reply_to_id") @db.Uuid
+  forwardedFromId String?           @map("forwarded_from_id") @db.Uuid
+  isSystemMessage Boolean           @default(false) @map("is_system_message")
+  metadata        Json?             @db.JsonB
+  sentAt          DateTime          @default(now()) @map("sent_at") @db.Timestamptz(6)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  thread          MailThread        @relation("MailThreadMessages", fields: [threadId], references: [id], onDelete: Cascade)
+  sender          UserLogin         @relation("MailMessageSender", fields: [senderId], references: [id])
+  replyTo         MailMessage?      @relation("MailMessageReply", fields: [replyToId], references: [id])
+  replies         MailMessage[]     @relation("MailMessageReply")
+  forwardedFrom   MailMessage?      @relation("MailMessageForward", fields: [forwardedFromId], references: [id])
+  forwards        MailMessage[]     @relation("MailMessageForward")
+  recipients      MailRecipient[]   @relation("MailMessageRecipients")
+  attachments     MailAttachment[]  @relation("MailMessageAttachments")
+  labels          MailMessageLabel[] @relation("MailMessageLabels")
+
+  @@index([threadId, sentAt])
+  @@index([senderId, sentAt])
+  @@index([replyToId])
+  @@map("mail_message")
+}
+
+model MailRecipient {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  messageId       String            @map("message_id") @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  recipientType   MailRecipientType @map("recipient_type")
+  readAt          DateTime?         @map("read_at") @db.Timestamptz(6)
+  isDeleted       Boolean           @default(false) @map("is_deleted")
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  isStarred       Boolean           @default(false) @map("is_starred")
+  isArchived      Boolean           @default(false) @map("is_archived")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message         MailMessage       @relation("MailMessageRecipients", fields: [messageId], references: [id], onDelete: Cascade)
+  user            UserLogin         @relation("MailRecipientUser", fields: [userId], references: [id])
+
+  @@unique([messageId, userId], name: "unique_recipient_per_message")
+  @@index([userId, readAt])
+  @@index([userId, isDeleted])
+  @@index([userId, isStarred])
+  @@index([userId, isArchived])
+  @@index([messageId])
+  @@map("mail_recipient")
+}
+
+model MailParticipant {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  threadId        String            @map("thread_id") @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  lastReadAt      DateTime?         @map("last_read_at") @db.Timestamptz(6)
+  isDeleted       Boolean           @default(false) @map("is_deleted")
+  deletedAt       DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  isMuted         Boolean           @default(false) @map("is_muted")
+  isStarred       Boolean           @default(false) @map("is_starred")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  thread          MailThread        @relation("MailThreadParticipants", fields: [threadId], references: [id], onDelete: Cascade)
+  user            UserLogin         @relation("MailParticipantUser", fields: [userId], references: [id])
+
+  @@unique([threadId, userId], name: "unique_participant_per_thread")
+  @@index([userId, isDeleted])
+  @@index([threadId])
+  @@map("mail_participant")
+}
+
+model MailLabel {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String?           @map("user_id") @db.Uuid
+  name            String            @db.VarChar(100)
+  color           String?           @db.VarChar(20)
+  icon            String?           @db.VarChar(50)
+  isSystem        Boolean           @default(false) @map("is_system")
+  sortOrder       Int               @default(0) @map("sort_order")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user            UserLogin?        @relation("MailLabelOwner", fields: [userId], references: [id])
+  messageLabels   MailMessageLabel[] @relation("MailLabelMessages")
+
+  @@index([userId])
+  @@index([isSystem])
+  @@map("mail_label")
+}
+
+model MailMessageLabel {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  messageId       String            @map("message_id") @db.Uuid
+  labelId         String            @map("label_id") @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  appliedAt       DateTime          @default(now()) @map("applied_at") @db.Timestamptz(6)
+
+  message         MailMessage       @relation("MailMessageLabels", fields: [messageId], references: [id], onDelete: Cascade)
+  label           MailLabel         @relation("MailLabelMessages", fields: [labelId], references: [id], onDelete: Cascade)
+  user            UserLogin         @relation("MailMessageLabelUser", fields: [userId], references: [id])
+
+  @@unique([messageId, labelId, userId], name: "unique_label_per_message_per_user")
+  @@index([userId, labelId])
+  @@index([messageId])
+  @@map("mail_message_label")
+}
+
+model MailAttachment {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  messageId       String            @map("message_id") @db.Uuid
+  uploadedById    String            @map("uploaded_by_id") @db.Uuid
+  fileName        String            @map("file_name") @db.VarChar(256)
+  filePath        String            @map("file_path") @db.VarChar(512)
+  fileSize        Int               @map("file_size")
+  mimeType        String            @map("mime_type") @db.VarChar(128)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message         MailMessage       @relation("MailMessageAttachments", fields: [messageId], references: [id], onDelete: Cascade)
+  uploadedBy      UserLogin         @relation("MailAttachmentUploader", fields: [uploadedById], references: [id])
+
+  @@index([messageId])
+  @@map("mail_attachment")
+}
+
+model MailDraft {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String            @map("user_id") @db.Uuid
+  threadId        String?           @map("thread_id") @db.Uuid
+  replyToId       String?           @map("reply_to_id") @db.Uuid
+  mode            String            @default("new") @db.VarChar(20)
+  subject         String?           @db.VarChar(500)
+  body            String?           @db.Text
+  toRecipients    Json              @default("[]") @map("to_recipients")
+  ccRecipients    Json              @default("[]") @map("cc_recipients")
+  bccRecipients   Json              @default("[]") @map("bcc_recipients")
+  attachments     Json              @default("[]")
+  lastSavedAt     DateTime          @default(now()) @map("last_saved_at") @db.Timestamptz(6)
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user            UserLogin         @relation("MailDraftOwner", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("mail_draft")
+}

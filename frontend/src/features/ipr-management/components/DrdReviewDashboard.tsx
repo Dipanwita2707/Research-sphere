@@ -1768,8 +1768,8 @@ export default function DrdReviewDashboard() {
                         <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-1">Applicant Type</p>
                         <p className="font-medium text-gray-700 capitalize">
                           {selectedApp.applicantUser?.employeeDetails?.designation ||
-                           (selectedApp.applicantUser?.role === 'staff' ? 'Staff' : 
-                            selectedApp.applicantUser?.role === 'faculty' ? 'Faculty' :
+                           (selectedApp.applicantUser?.role?.name === 'staff' ? 'Staff' : 
+                            selectedApp.applicantUser?.role?.name === 'faculty' ? 'Faculty' :
                             selectedApp.applicantUser?.employeeDetails ? 'Staff' : null) || 
                            (selectedApp.applicantUser?.studentLogin ? 'Student' : null) ||
                            selectedApp.applicantDetails?.employeeType || selectedApp.applicantType || 'N/A'}

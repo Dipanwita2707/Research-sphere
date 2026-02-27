@@ -22,7 +22,8 @@ import {
   BarChart3,
   BookOpen,
   FileText,
-  Presentation
+  Presentation,
+  MessageCircle
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -150,6 +151,7 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
   
   // Common items
   items.push(
+    { name: 'Chat', href: '/chat', icon: MessageCircle },
     { name: 'Notifications', href: '/notifications', icon: Bell },
     { name: 'Settings', href: '/settings', icon: Settings }
   );

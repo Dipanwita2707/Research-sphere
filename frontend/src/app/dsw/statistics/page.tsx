@@ -17,7 +17,7 @@ export default function StatisticsPage() {
     try {
       setLoading(true);
       const response = await dswAPI.getStatistics();
-      if (response.success) {
+      if (response.success && response.data) {
         setStats(response.data);
       }
     } catch (err: any) {

@@ -96,7 +96,8 @@ export default function AuthorManager({ authors, onChange, disabled = false, lab
     }
 
     const userName = userData.name || userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-    const authorType = userData.role === 'student' ? 'Student' : 'Faculty';
+    const roleName = typeof userData.role === 'object' ? userData.role?.name : userData.role;
+    const authorType = roleName === 'student' ? 'Student' : 'Faculty';
 
     try {
       const fullData = await researchService.lookupByRegistration(userData.uid);

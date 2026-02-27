@@ -705,11 +705,8 @@ export default function UserRoleManagement() {
     }
 
     try {
-      // Save each department's permissions
+      // Save each department's permissions (including when all are unchecked)
       for (const [deptKey, permissions] of deptEntries) {
-        const hasPermissions = Object.values(permissions).some(v => v);
-        if (!hasPermissions) continue;
-
         const [deptType, deptId] = deptKey.split('_');
         
         if (deptType === 'school') {
@@ -964,13 +961,13 @@ export default function UserRoleManagement() {
                       </td>
                       <td className="px-6 py-4">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          user.role === 'admin' 
+                          (typeof user.role === 'object' ? user.role?.name : user.role) === 'admin' 
                             ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
-                            : user.role === 'faculty'
+                            : (typeof user.role === 'object' ? user.role?.name : user.role) === 'faculty'
                             ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                             : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
                         }`}>
-                          {user.role}
+                          {typeof user.role === 'object' ? user.role?.name : user.role}
                         </span>
                         {user.employeeDetails?.designation && (
                           <div className="text-xs text-gray-500 mt-1">

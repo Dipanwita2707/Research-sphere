@@ -405,6 +405,23 @@ export default function NavigationHeader() {
     });
   }
 
+  // ============================================
+  // CHAT - For all users
+  // ============================================
+  menuItems.push({
+    name: 'Chat',
+    subItems: [
+      { name: '💬 All Chats', href: '/chat', description: 'View all conversations' },
+      { name: '👥 Group Chats', href: '/chat?tab=groups', description: 'Group conversations' },
+      { name: '📨 Direct Messages', href: '/chat?tab=direct', description: 'Private conversations' },
+      ...(isAdmin ? [
+        { name: '➕ Create Group', href: '/chat?action=create', description: 'Create a new chat group' },
+        { name: '📤 Bulk Upload Members', href: '/chat?action=bulk-upload', description: 'Import members via CSV' },
+        { name: '⚙️ Manage Permissions', href: '/chat?action=permissions', description: 'Configure group permissions' },
+      ] : []),
+    ],
+  });
+
   return (
     <header 
       className="fixed top-0 left-0 right-0 z-50"

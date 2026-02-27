@@ -35,7 +35,7 @@ export default function ClubDetailsPage() {
       setLoading(true);
       setError(null);
       const response = await clubAPI.getClubById(clubId);
-      if (response.success) {
+      if (response.success && response.data) {
         setClub(response.data);
       } else {
         setError('Failed to load club details');

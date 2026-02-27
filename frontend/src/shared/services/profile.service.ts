@@ -96,6 +96,20 @@ class ProfileService {
     const response = await api.put('/auth/change-password', data);
     return response.data;
   }
+
+  async uploadProfilePhoto(file: File): Promise<{ profileImage: string; profileImagePath: string; profileImageUrl: string; message: string }> {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const response = await api.post('/auth/profile/photo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async deleteProfilePhoto(): Promise<{ message: string }> {
+    const response = await api.delete('/auth/profile/photo');
+    return response.data;
+  }
 }
 
 export const profileService = new ProfileService();

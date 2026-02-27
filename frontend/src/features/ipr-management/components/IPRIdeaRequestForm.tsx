@@ -369,13 +369,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       
       if (response.data.success) {
         const userData = response.data.data;
+        const roleName = typeof userData.role === 'object' ? userData.role?.name : userData.role;
         setFormData(prev => ({
           ...prev,
           uid: suggestion.uid,
           name: userData.name || '',
           email: userData.email || '',
           phone: userData.phone || '',
-          employeeType: userData.role === 'faculty' ? 'staff' : userData.role,
+          employeeType: roleName === 'faculty' ? 'staff' : roleName,
           universityDeptName: userData.department || '',
         }));
       }

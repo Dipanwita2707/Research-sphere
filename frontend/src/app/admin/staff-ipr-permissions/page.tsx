@@ -23,9 +23,15 @@ interface StaffMember {
   employeeId: string;
   department: string;
   designation: string;
-  role: string;
+  role: string | { id: string; name: string; displayName?: string };
   permissions: string[];
 }
+
+// Helper to get role name from string or object
+const getRoleName = (role: string | { id: string; name: string; displayName?: string } | undefined): string => {
+  if (!role) return '';
+  return typeof role === 'object' ? role.name : role;
+};
 
 interface IPRPermission {
   key: string;
@@ -72,9 +78,10 @@ export default function StaffIPRPermissions() {
     setIsLoading(true);
     try {
       const response = await api.get('/employees');
-      const staff = response.data.data.filter((emp: any) => 
-        emp.role === 'staff' || emp.role === 'faculty'
-      );
+      const staff = response.data.data.filter((emp: any) => {
+        const roleName = getRoleName(emp.role);
+        return roleName === 'staff' || roleName === 'faculty';
+      });
       setStaffMembers(staff);
     } catch (error) {
       logger.error('Error fetching staff:', error);
@@ -260,9 +267,9 @@ export default function StaffIPRPermissions() {
                       </div>
                       <div className="text-right">
                         <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                          staff.role === 'faculty' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                          getRoleName(staff.role) === 'faculty' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                         }`}>
-                          {staff.role}
+                          {getRoleName(staff.role)}
                         </span>
                         <p className="text-xs text-gray-500 mt-1">
                           {staff.permissions.length} IPR permissions

@@ -40,7 +40,6 @@ const protect = async (req, res, next) => {
               email: true,
               role: true,
               status: true,
-              assignedRoleIds: true,
               centralDeptPermissions: {
                 where: { isActive: true },
                 select: {
@@ -68,8 +67,8 @@ const protect = async (req, res, next) => {
 
           if (!userData) return null;
 
-          // Get assigned roles with permissions
-          const roleIds = userData.assignedRoleIds || [];
+          // Get assigned roles with permissions (currently not implemented)
+          const roleIds = [];
           let rolesWithPermissions = [];
           
           if (Array.isArray(roleIds) && roleIds.length > 0) {

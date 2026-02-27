@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
@@ -17,7 +19,18 @@ const coreModule = require('./modules/core');
 // Import audit module separately (mounted at root level)
 const auditModule = require('./modules/audit');
 
+// Import chat module
+const chatModule = require('./modules/chat');
+const { socketAuth } = require('./modules/chat/sockets/socketAuth');
+const { initChatSocket } = require('./modules/chat/sockets/chatSocket');
+
+// Import mail module
+const mailModule = require('./modules/mail');
+
 const app = express();
+
+// Create HTTP server for Socket.io
+const httpServer = createServer(app);
 
 // Trust proxy for load balancer (important for rate limiting with 25k users)
 app.set('trust proxy', 1);
@@ -82,8 +95,13 @@ if (config.env === 'development') {
   });
 }
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Serve static files from uploads directory with explicit CORS headers
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+}, express.static(path.join(__dirname, '..', 'uploads')));
 
 // Health check (both at root and API level for Render)
 app.get('/health', (req, res) => {
@@ -146,6 +164,12 @@ app.use(`${API_PREFIX}`, coreModule);
 // Audit module (separate for security isolation)
 app.use(`${API_PREFIX}/audit`, auditModule);
 
+// Chat module
+app.use(`${API_PREFIX}/chat`, chatModule);
+
+// Mail module (Internal Mailing System)
+app.use(`${API_PREFIX}/mail`, mailModule);
+
 // Error handling middleware (must be last)
 app.use(errorHandler);
 
@@ -164,6 +188,25 @@ const startServer = async () => {
     const cache = require('./shared/config/redis');
     await cache.initRedis();
     
+    // Initialize Socket.io
+    const io = new Server(httpServer, {
+      cors: {
+        origin: config.cors.origin,
+        credentials: true,
+      },
+      pingTimeout: 60000,
+      pingInterval: 25000,
+    });
+
+    // Socket.io authentication middleware
+    io.use(socketAuth);
+
+    // Initialize chat socket handlers
+    initChatSocket(io);
+
+    // Make io available globally for other modules
+    app.set('io', io);
+    
     // Initialize audit report scheduler
     const { auditReportScheduler } = require('./modules/audit/services/auditScheduler.service');
     await auditReportScheduler.initialize();
@@ -172,9 +215,10 @@ const startServer = async () => {
     const { emailService } = require('./modules/core/services/email.service');
     await emailService.initialize();
     
-    app.listen(config.port, () => {
+    httpServer.listen(config.port, () => {
       console.log(`✅ Server running in ${config.env} mode on port ${config.port}`);
       console.log(`🔗 API available at http://localhost:${config.port}${API_PREFIX}`);
+      console.log(`🔌 Socket.io ready for connections`);
       console.log(`🗄️  Database connected via Prisma`);
       console.log(`📦 Cache initialized (${cache.isConnected() ? 'Redis' : 'Memory fallback'})`);
       console.log(`📊 Audit report scheduler initialized`);

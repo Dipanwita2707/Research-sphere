@@ -144,6 +144,7 @@ exports.login = async (req, res) => {
         displayName: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : null
       },
       profileImage: user.profileImage,
+      profileImageUrl: user.profileImage ? `/uploads/profiles/${user.profileImage}` : null,
       permissions: departmentPermissions || []
     };
 
@@ -416,6 +417,7 @@ exports.getMe = async (req, res) => {
             displayName: user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : null
           },
           profileImage: user.profileImage,
+          profileImageUrl: user.profileImage ? `/uploads/profiles/${user.profileImage}` : null,
           permissions: permissions || []
         };
 
@@ -810,6 +812,143 @@ exports.updateSettings = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error updating settings'
+    });
+  }
+};
+
+// Upload profile photo
+exports.uploadProfilePhoto = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No file uploaded'
+      });
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'
+      });
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'File size exceeds 5MB limit'
+      });
+    }
+
+    const fs = require('fs').promises;
+    const path = require('path');
+    const crypto = require('crypto');
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(__dirname, '..', '..', '..', '..', 'uploads', 'profiles');
+    try {
+      await fs.access(uploadsDir);
+    } catch {
+      await fs.mkdir(uploadsDir, { recursive: true });
+    }
+
+    // Generate unique filename (shortened to fit 64 char limit)
+    const timestamp = Date.now();
+    const randomString = crypto.randomBytes(4).toString('hex'); // 8 hex chars
+    const ext = path.extname(file.originalname);
+    const filename = `${timestamp}-${randomString}${ext}`; // Format: timestamp-random.ext
+    const filePath = path.join(uploadsDir, filename);
+
+    // Save file to disk
+    await fs.writeFile(filePath, file.buffer);
+
+    // Update user's profile image path in database
+    const updatedUser = await prisma.userLogin.update({
+      where: { id: userId },
+      data: {
+        profileImage: filename,
+        profileImageFilePath: `/uploads/profiles/${filename}`
+      },
+      select: {
+        id: true,
+        profileImage: true,
+        profileImageFilePath: true
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile photo uploaded successfully',
+      data: {
+        profileImage: updatedUser.profileImage,
+        profileImagePath: updatedUser.profileImageFilePath,
+        profileImageUrl: `/uploads/profiles/${updatedUser.profileImage}`
+      }
+    });
+  } catch (error) {
+    console.error('Upload profile photo error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error uploading profile photo'
+    });
+  }
+};
+
+// Delete profile photo
+exports.deleteProfilePhoto = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Get current user
+    const user = await prisma.userLogin.findUnique({
+      where: { id: userId },
+      select: { profileImage: true }
+    });
+
+    if (!user || !user.profileImage) {
+      return res.status(404).json({
+        success: false,
+        message: 'No profile photo to delete'
+      });
+    }
+
+    const fs = require('fs').promises;
+    const path = require('path');
+
+    // Delete file from disk
+    const filePath = path.join(__dirname, '..', '..', '..', '..', 'uploads', 'profiles', user.profileImage);
+    try {
+      await fs.unlink(filePath);
+    } catch (error) {
+      // File might not exist, continue anyway
+      console.log('File deletion warning:', error.message);
+    }
+
+    // Update database
+    await prisma.userLogin.update({
+      where: { id: userId },
+      data: {
+        profileImage: null,
+        profileImageFilePath: null
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile photo deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete profile photo error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting profile photo'
     });
   }
 };

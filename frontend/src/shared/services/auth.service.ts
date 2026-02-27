@@ -13,6 +13,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   uid?: string;
+  profileImageUrl?: string;
   role?: {
     id: string;
     name: string;

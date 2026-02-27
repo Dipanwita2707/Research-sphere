@@ -2155,7 +2155,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     // userData from search has: uid, name, role, department, designation
     // Handle different property names (name vs displayName)
     const userName = userData.name || userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-    const authorType = userData.role === 'student' ? 'Student' : 'Faculty';
+    const roleName = typeof userData.role === 'object' ? userData.role?.name : userData.role;
+    const authorType = roleName === 'student' ? 'Student' : 'Faculty';
     
     logger.debug('[selectAuthorFromSuggestion] Extracted name:', userName, 'authorType:', authorType);
     

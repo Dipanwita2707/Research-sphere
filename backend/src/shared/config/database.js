@@ -3,30 +3,37 @@ const { PrismaClient } = require('@prisma/client');
 // Singleton pattern to prevent multiple Prisma Client instances
 let prisma;
 
+// Build database URL safely — DATABASE_URL already contains query params
+// (sslmode, connection_limit, etc.) so we append with '&', not a second '?'
+const buildDbUrl = (extraParams = {}) => {
+  const base = process.env.DATABASE_URL || '';
+  const separator = base.includes('?') ? '&' : '?';
+  const extras = Object.entries(extraParams)
+    .map(([k, v]) => `${k}=${v}`)
+    .join('&');
+  return extras ? base + separator + extras : base;
+};
+
 if (process.env.NODE_ENV === 'production') {
-  // Production: Single instance with connection pooling
+  // Production: single instance with tuned pool
   prisma = new PrismaClient({
-    log: ['error'], // Minimal logging in production
+    log: ['error'],
     datasources: {
-      db: {
-        url: process.env.DATABASE_URL + '?connection_limit=10&pool_timeout=20',
-      },
+      db: { url: buildDbUrl({ connect_timeout: 15 }) },
     },
     transactionOptions: {
-      maxWait: 20000, // 20 seconds max wait
-      timeout: 30000, // 30 seconds transaction timeout
+      maxWait: 20000,
+      timeout: 30000,
       isolationLevel: 'ReadCommitted',
     },
   });
 } else {
-  // Development: Use global variable to preserve client across HMR with connection pooling
+  // Development: global singleton to survive HMR
   if (!global.prisma) {
     global.prisma = new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+      log: ['warn', 'error'],
       datasources: {
-        db: {
-          url: process.env.DATABASE_URL + '?connection_limit=5&pool_timeout=20',
-        },
+        db: { url: buildDbUrl({ connect_timeout: 15 }) },
       },
       transactionOptions: {
         maxWait: 20000,
@@ -38,40 +45,35 @@ if (process.env.NODE_ENV === 'production') {
   prisma = global.prisma;
 }
 
-// Connection retry logic for Neon database
-let connectionAttempts = 0;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
-
-const connectWithRetry = async () => {
+// Aiven / cloud PostgreSQL periodically closes idle connections (OS error 10054 —
+// "connection forcibly closed by remote host"). Prisma's internal pool reconnects
+// automatically on the next query, so we just do a lightweight startup ping.
+// A full manual retry loop is not needed and causes log spam.
+const initConnection = async () => {
   try {
-    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
     console.log('✅ Database connected successfully via Prisma');
-    connectionAttempts = 0; // Reset on success
   } catch (error) {
-    connectionAttempts++;
-    console.error(`❌ Database connection attempt ${connectionAttempts} failed:`, error.message);
-    
-    if (connectionAttempts < MAX_RETRIES) {
-      console.log(`⏳ Retrying in ${RETRY_DELAY/1000} seconds...`);
-      setTimeout(connectWithRetry, RETRY_DELAY);
-    } else {
-      console.error('❌ Max connection retries reached. Exiting...');
-      process.exit(1);
-    }
+    // Non-fatal on startup — Prisma will reconnect on first real query
+    console.warn('⚠️ Database startup ping failed (Prisma will retry automatically):', error.message);
   }
 };
 
-// Initial connection
-connectWithRetry();
+initConnection();
 
-// Handle connection errors during runtime
+// Suppress noisy but harmless cloud-idle connection-reset messages
 prisma.$on('error', (e) => {
-  console.error('Prisma runtime error:', e);
-  // Attempt to reconnect
-  if (connectionAttempts === 0) {
-    connectWithRetry();
+  const msg = (e.message || '').toLowerCase();
+  if (
+    msg.includes('connection reset') ||
+    msg.includes('connection forcibly closed') ||
+    msg.includes('kind: io') ||
+    msg.includes('econnreset')
+  ) {
+    // Prisma handles this internally — no log needed
+    return;
   }
+  console.error('Prisma runtime error:', e);
 });
 
 // Handle cleanup on application termination

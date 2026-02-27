@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { profileService, UserSettings } from '@/shared/services/profile.service';
+import { getProfileImageUrl } from '@/features/chat/services/chat.service';
 import logger from '@/shared/utils/logger';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { 
@@ -18,12 +19,14 @@ import {
   Save,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  User
 } from 'lucide-react';
+import { ProfilePhotoUpload } from '@/shared/components/ProfilePhotoUpload';
 
 export default function SettingsPage() {
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('notifications');
+  const { user, refreshUser } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('profile');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -174,6 +177,7 @@ export default function SettingsPage() {
   };
 
   const tabs = [
+    { id: 'profile', name: 'Profile', icon: User },
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'security', name: 'Security', icon: Lock },
     { id: 'preferences', name: 'Preferences', icon: Settings }
@@ -243,6 +247,49 @@ export default function SettingsPage() {
               </div>
             ) : (
               <>
+                {/* Profile Tab */}
+                {activeTab === 'profile' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Photo</h3>
+                      <p className="text-sm text-gray-500 mb-6">Upload and manage your profile photo</p>
+                    </div>
+
+                    <ProfilePhotoUpload
+                      currentPhotoUrl={user?.profileImage ? getProfileImageUrl(user.profileImage) : null}
+                      userId={user?.id || ''}
+                      onPhotoUpdated={async (url) => {
+                        // Refresh user data from server to get new profile image URL
+                        logger.info('Photo updated:', url);
+                        await refreshUser();
+                      }}
+                      onPhotoDeleted={async () => {
+                        // Refresh user data from server to clear profile image URL
+                        logger.info('Photo deleted');
+                        await refreshUser();
+                      }}
+                    />
+
+                    <div className="pt-6 border-t border-gray-200">
+                      <h4 className="text-md font-semibold text-gray-900 mb-3">About Profile Photos</h4>
+                      <ul className="text-sm text-gray-600 space-y-2">
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 mt-1">•</span>
+                          <span>Your profile photo is visible to other users in your groups and conversations</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 mt-1">•</span>
+                          <span>The ability to upload a profile photo may be controlled by your group administrators</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-blue-600 mt-1">•</span>
+                          <span>Profile photos must be under 5MB and in JPEG, PNG, GIF, or WebP format</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
                 {/* Notifications Tab */}
                 {activeTab === 'notifications' && (
                   <div className="space-y-6">

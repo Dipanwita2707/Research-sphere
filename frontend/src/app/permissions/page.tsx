@@ -10,13 +10,19 @@ interface User {
   id: string;
   uid: string;
   email: string;
-  role: string;
+  role: string | { id: string; name: string; displayName?: string };
   employeeDetails?: {
     firstName: string;
     lastName: string;
     designation: string;
   };
 }
+
+// Helper to get role name from string or object
+const getRoleName = (role: string | { id: string; name: string; displayName?: string } | undefined): string => {
+  if (!role) return '';
+  return typeof role === 'object' ? role.name : role;
+};
 
 export default function PermissionManagementPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -78,7 +84,7 @@ export default function PermissionManagementPage() {
               Manage Permissions: {selectedUser.employeeDetails?.firstName} {selectedUser.employeeDetails?.lastName}
             </h1>
             <p className="text-gray-600 mt-1">
-              {selectedUser.uid} • {selectedUser.email} • {selectedUser.role}
+              {selectedUser.uid} • {selectedUser.email} • {getRoleName(selectedUser.role)}
             </p>
           </div>
         </div>
@@ -198,7 +204,7 @@ export default function PermissionManagementPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800 capitalize">
-                        {user.role}
+                        {getRoleName(user.role)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
@@ -227,13 +233,13 @@ export default function PermissionManagementPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm text-gray-600">Faculty</div>
           <div className="text-2xl font-bold text-gray-900 mt-1">
-            {users.filter(u => u.role === 'faculty').length}
+            {users.filter(u => getRoleName(u.role) === 'faculty').length}
           </div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm text-gray-600">Staff</div>
           <div className="text-2xl font-bold text-gray-900 mt-1">
-            {users.filter(u => u.role === 'staff').length}
+            {users.filter(u => getRoleName(u.role) === 'staff').length}
           </div>
         </div>
       </div>

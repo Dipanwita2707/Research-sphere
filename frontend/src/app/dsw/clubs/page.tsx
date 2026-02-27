@@ -24,9 +24,9 @@ export default function AllClubsPage() {
     try {
       setLoading(true);
       const response = await clubAPI.getClubs(filters);
-      if (response.success) {
+      if (response.success && response.data) {
         setClubs(response.data);
-        setTotal(response.pagination.total);
+        setTotal(response.pagination?.total ?? 0);
       }
     } catch (err: any) {
       console.error('Error fetching clubs:', err);

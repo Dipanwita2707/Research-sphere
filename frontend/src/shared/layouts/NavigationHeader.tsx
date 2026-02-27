@@ -272,12 +272,14 @@ export default function NavigationHeader() {
   // ============================================
   // Build Review & Approval children - ORGANIZED
   // ============================================
-  const hasReviewAccess = hasDrdAccess || canReviewIpr || canApproveIpr || canReviewResearch || 
-    canApproveResearch || canReviewBook || canApproveBook || canReviewConference || 
-    canApproveConference || canReviewGrant || canApproveGrant || hasFinanceAccess;
-
   const reviewApprovalChildren: SubMenuItem[] = [];
-  if (hasDrdAccess) {
+  
+  // Only show DRD Dashboard if user has any actual review/approve permissions
+  const hasAnyReviewPermission = canReviewIpr || canApproveIpr || canReviewResearch || 
+    canApproveResearch || canReviewBook || canApproveBook || canReviewConference || 
+    canApproveConference || canReviewGrant || canApproveGrant;
+  
+  if (hasAnyReviewPermission && hasDrdAccess) {
     reviewApprovalChildren.push({ name: '📊 DRD Dashboard', href: '/drd', description: 'Research & Development overview' });
   }
   if (canReviewIpr || canApproveIpr) {
@@ -298,6 +300,8 @@ export default function NavigationHeader() {
   if (hasFinanceAccess) {
     reviewApprovalChildren.push({ name: '🏦 Finance & Payments', href: '/finance/dashboard', description: 'Manage incentive payments' });
   }
+  
+  const hasReviewAccess = reviewApprovalChildren.length > 0;
 
   // ============================================
   // Build Research and Development sub-items
@@ -494,6 +498,17 @@ export default function NavigationHeader() {
       ],
     });
   }
+
+  // ============================================
+  // SYSTEM & COMMUNICATION - Chat + Mail grouped
+  // ============================================
+  menuItems.push({
+    name: 'System & Communication',
+    subItems: [
+      { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
+      { name: '📧 Mail', href: '/mail', description: 'Open the mail system' },
+    ],
+  });
 
   return (
     <header 

@@ -19,7 +19,7 @@ export default function MyClubsPage() {
     try {
       setLoading(true);
       const response = await clubAPI.getMyClubs();
-      if (response.success) {
+      if (response.success && response.data) {
         setClubs(response.data);
       }
     } catch (err: any) {

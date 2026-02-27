@@ -31,7 +31,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 export default function EventsPage() {
   const { toast } = useToast();
   const { user } = useAuthStore();
-  const isStudent = user?.role === 'student' || user?.userType === 'student';
+  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);

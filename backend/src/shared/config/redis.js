@@ -12,19 +12,23 @@ const redisConfig = {
   password: process.env.REDIS_PASSWORD || null,
   username: process.env.REDIS_USERNAME || null,
   db: parseInt(process.env.REDIS_DB) || 0,
-  maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 1000,
-  enableReadyCheck: true,
-  lazyConnect: false, // Connect immediately
-  connectTimeout: 10000, // 10 second timeout
-  commandTimeout: 5000, // 5 second command timeout
+  // TCP keepalive — prevents cloud Redis from closing the idle socket after
+  // a few minutes of inactivity (the root cause of "connection closed" warnings)
+  keepAlive: 30000,          // ping every 30 s
+  // Reconnect automatically on transient errors (ECONNRESET, ETIMEDOUT, etc.)
+  reconnectOnError: (err) => {
+    const transient = ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'READONLY'];
+    return transient.some((e) => err.message.toUpperCase().includes(e));
+  },
+  maxRetriesPerRequest: null, // don't throw on retry — fall back to memory cache instead
+  enableReadyCheck: false,    // skip HELLO handshake on Redis Cloud (more resilient)
+  lazyConnect: true,          // connect on first use, not at require() time
+  connectTimeout: 10000,
+  commandTimeout: 8000,
   retryStrategy: (times) => {
-    // Stop retrying after 3 attempts
-    if (times > 3) {
-      return null;
-    }
-    return Math.min(times * 2000, 5000); // Max 5 second delay
-  }
+    if (times > 10) return null; // give up after 10 attempts → memory fallback takes over
+    return Math.min(times * 1000, 8000); // 1 s, 2 s, … capped at 8 s
+  },
 };
 
 // Create Redis instance
@@ -283,6 +287,96 @@ const invalidateLists = async (type) => {
 };
 
 /**
+ * Redis Set operations - Add member to set
+ */
+const sadd = async (key, ...members) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.sadd(key, ...members);
+    }
+    
+    // Memory fallback
+    let set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      set = new Set();
+    }
+    members.forEach(member => set.add(member));
+    memoryCache.set(key, set);
+    return members.length;
+  } catch (error) {
+    console.error('Cache sadd error:', error.message);
+    return 0;
+  }
+};
+
+/**
+ * Redis Set operations - Remove member from set
+ */
+const srem = async (key, ...members) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.srem(key, ...members);
+    }
+    
+    // Memory fallback
+    const set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      return 0;
+    }
+    let removed = 0;
+    members.forEach(member => {
+      if (set.delete(member)) removed++;
+    });
+    return removed;
+  } catch (error) {
+    console.error('Cache srem error:', error.message);
+    return 0;
+  }
+};
+
+/**
+ * Redis Set operations - Get all members of set
+ */
+const smembers = async (key) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.smembers(key);
+    }
+    
+    // Memory fallback
+    const set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      return [];
+    }
+    return Array.from(set);
+  } catch (error) {
+    console.error('Cache smembers error:', error.message);
+    return [];
+  }
+};
+
+/**
+ * Redis Set operations - Check if member exists in set
+ */
+const sismember = async (key, member) => {
+  try {
+    if (isConnected && redis) {
+      return await redis.sismember(key, member);
+    }
+    
+    // Memory fallback
+    const set = memoryCache.get(key);
+    if (!set || !(set instanceof Set)) {
+      return 0;
+    }
+    return set.has(member) ? 1 : 0;
+  } catch (error) {
+    console.error('Cache sismember error:', error.message);
+    return 0;
+  }
+};
+
+/**
  * Get cache statistics
  */
 const getStats = async () => {
@@ -323,6 +417,10 @@ module.exports = {
   invalidateUser,
   invalidateLists,
   getStats,
+  sadd,
+  srem,
+  smembers,
+  sismember,
   CACHE_TTL,
   CACHE_KEYS,
   isConnected: () => isConnected
