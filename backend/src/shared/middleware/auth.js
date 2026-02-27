@@ -472,7 +472,7 @@ const checkPermission = (permissionKey, options = {}) => {
     errorMessage = null
   } = options;
 
-  return (req, res, next) => {
+  return async (req, res, next) => {
     try {
       const user = req.user;
 
@@ -513,6 +513,33 @@ const checkPermission = (permissionKey, options = {}) => {
         return next();
       }
 
+      // Check 3: Club chairperson override for noting + event permissions
+      // Students who are chairpersons of active/approved clubs can create notings
+      // and manage their own events (created from approved notings)
+      const CHAIRPERSON_ALLOWED_PERMISSIONS = [
+        'noting_create', 'noting_view_own',
+        'event_manage_own', 'event_publish', 'event_cancel',
+        'event_view_all', 'event_manage_attendance',
+        'event_assign_volunteers', 'event_view_reports',
+      ];
+      if (user.role === 'student' && CHAIRPERSON_ALLOWED_PERMISSIONS.includes(permissionKey)) {
+        try {
+          const chairpersonClub = await prisma.club.findFirst({
+            where: {
+              chairpersonId: user.id,
+              status: { in: ['approved', 'active'] },
+            },
+            select: { id: true },
+          });
+          if (chairpersonClub) {
+            req.chairpersonClubId = chairpersonClub.id;
+            return next();
+          }
+        } catch (clubErr) {
+          console.error('Chairperson club check error:', clubErr);
+        }
+      }
+
       // Access denied
       return res.status(403).json({
         success: false,
@@ -541,7 +568,7 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
     errorMessage = null
   } = options;
 
-  return (req, res, next) => {
+  return async (req, res, next) => {
     try {
       const user = req.user;
 
@@ -581,6 +608,30 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
 
       if (hasExplicitPermission) {
         return next();
+      }
+
+      // Check 3: Club chairperson override for event permissions
+      if (user.role === 'student') {
+        const CHAIRPERSON_EVENT_PERMISSIONS = [
+          'event_manage_own', 'event_publish', 'event_cancel',
+          'event_view_all', 'event_manage_attendance',
+          'event_assign_volunteers', 'event_view_reports',
+        ];
+        const hasChairpersonKey = permissionKeys.some(k => CHAIRPERSON_EVENT_PERMISSIONS.includes(k));
+        if (hasChairpersonKey) {
+          try {
+            const chairpersonClub = await prisma.club.findFirst({
+              where: { chairpersonId: user.id, status: { in: ['approved', 'active'] } },
+              select: { id: true },
+            });
+            if (chairpersonClub) {
+              req.chairpersonClubId = chairpersonClub.id;
+              return next();
+            }
+          } catch (clubErr) {
+            console.error('Chairperson club check error (checkAnyPermission):', clubErr);
+          }
+        }
       }
 
       return res.status(403).json({

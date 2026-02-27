@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -186,7 +187,7 @@ export default function VolunteersPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-orange-500 mx-auto mb-4" />
+          <CardSkeleton className="w-full max-w-sm mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400">Loading volunteers...</p>
         </div>
       </div>
@@ -299,7 +300,7 @@ export default function VolunteersPage() {
                   {/* Search Results Dropdown */}
                   {searching && (
                     <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-500 mx-auto" />
+                      <Skeleton className="w-5 h-5 rounded-full" />
                     </div>
                   )}
                   {searchResults.length > 0 && !selectedUserId && (
@@ -384,7 +385,7 @@ export default function VolunteersPage() {
                 >
                   {assigning ? (
                     <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <Skeleton className="w-5 h-5 rounded-full" />
                       Assigning...
                     </>
                   ) : (

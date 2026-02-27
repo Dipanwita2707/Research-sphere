@@ -1,11 +1,20 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Users, TrendingUp, Calendar, Award, Plus, Search, BarChart } from 'lucide-react';
-import { useRouter, useQueryClient } from 'next/navigation';
-import { useStatistics } from '@/features/dsw/hooks';
-import { getErrorMessage } from '@/shared/utils/errorHandler';
-import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import React from "react";
+import {
+  Users,
+  TrendingUp,
+  Calendar,
+  Award,
+  Plus,
+  Search,
+  BarChart,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { useStatistics } from "@/features/dsw/hooks";
+import { getErrorMessage } from "@/shared/utils/errorHandler";
+import { PageSkeleton } from "@/shared/components/PageSkeleton";
 
 export default function DSWDashboard() {
   const router = useRouter();
@@ -41,7 +50,7 @@ export default function DSWDashboard() {
           </p>
         </div>
         <button
-          onClick={() => router.push('/dsw/create-club')}
+          onClick={() => router.push("/dsw/create-club")}
           className="inline-flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm w-full sm:w-auto"
         >
           <Plus className="w-5 h-5" />
@@ -60,7 +69,9 @@ export default function DSWDashboard() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Clubs</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Total Clubs
+              </p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
                 {stats?.totalClubs || 0}
               </p>
@@ -96,7 +107,9 @@ export default function DSWDashboard() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Categories</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Categories
+              </p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
                 {stats?.totalCategories || 0}
               </p>
@@ -133,8 +146,10 @@ export default function DSWDashboard() {
       {/* Quick Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <button
-          onClick={() => router.push('/dsw/clubs')}
-          onMouseEnter={() => queryClient.prefetchQuery({ queryKey: ['dsw', 'clubs'] })}
+          onClick={() => router.push("/dsw/clubs")}
+          onMouseEnter={() =>
+            queryClient.prefetchQuery({ queryKey: ["dsw", "clubs"] })
+          }
           className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow text-left group"
         >
           <div className="flex items-center gap-4">
@@ -153,8 +168,10 @@ export default function DSWDashboard() {
         </button>
 
         <button
-          onClick={() => router.push('/dsw/my-clubs')}
-          onMouseEnter={() => queryClient.prefetchQuery({ queryKey: ['dsw', 'my-clubs'] })}
+          onClick={() => router.push("/dsw/my-clubs")}
+          onMouseEnter={() =>
+            queryClient.prefetchQuery({ queryKey: ["dsw", "my-clubs"] })
+          }
           className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow text-left group"
         >
           <div className="flex items-center gap-4">
@@ -162,7 +179,9 @@ export default function DSWDashboard() {
               <Award className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">My Clubs</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                My Clubs
+              </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 View your memberships
               </p>
@@ -171,8 +190,10 @@ export default function DSWDashboard() {
         </button>
 
         <button
-          onClick={() => router.push('/dsw/statistics')}
-          onMouseEnter={() => queryClient.prefetchQuery({ queryKey: ['dsw', 'statistics'] })}
+          onClick={() => router.push("/dsw/statistics")}
+          onMouseEnter={() =>
+            queryClient.prefetchQuery({ queryKey: ["dsw", "statistics"] })
+          }
           className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow text-left group"
         >
           <div className="flex items-center gap-4">
@@ -204,23 +225,35 @@ export default function DSWDashboard() {
               Club Creation Approval Workflow
             </h3>
             <p className="text-blue-700 dark:text-blue-300 text-sm mb-3">
-              Faculty members can create new clubs through a structured approval workflow. Click
-              &quot;Create New Club&quot; above to fill the 6-step creation form.
+              Faculty members can create new clubs through a structured approval
+              workflow. Click &quot;Create New Club&quot; above to fill the
+              6-step creation form.
             </p>
             <div className="flex flex-wrap items-center gap-2 text-sm text-blue-700 dark:text-blue-300">
               <span className="font-semibold">Approval Chain:</span>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">Faculty</span>
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">
+                Faculty
+              </span>
               <span>→</span>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">HOD</span>
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">
+                HOD
+              </span>
               <span>→</span>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">Dean</span>
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">
+                Dean
+              </span>
               <span>→</span>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">DSW</span>
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">
+                DSW
+              </span>
               <span>→</span>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">Higher Authority</span>
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 rounded">
+                Higher Authority
+              </span>
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-              ✓ Track your request in the Noting System • ✓ Club auto-created after final approval
+              ✓ Track your request in the Noting System • ✓ Club auto-created
+              after final approval
             </p>
           </div>
         </div>

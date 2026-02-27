@@ -34,7 +34,133 @@ async function getNoteById(id, options = null) {
  * @returns {Promise<Object>} Note with all relations
  */
 async function getNoteWithDetails(id) {
-  return getNoteById(id, { include: getFullNoteInclude() });
+  const note = await getNoteById(id, { include: getFullNoteInclude() });
+
+  // ── Enrich DSW club creation notings with resolved names ──────────────
+  if (note.subcategory === 'dsw_club_creation' && note.clubName) {
+    note.clubDetails = await resolveDswClubDetails(note);
+  }
+
+  return note;
+}
+
+/**
+ * Resolve UUIDs to display names for DSW club creation noting fields.
+ * clubCategoryId   → category name (and parent)
+ * clubFacultyFacilitatorId → name, uid, department
+ * clubChairpersonId → name, uid
+ * clubInitialMembers[] → [{id, uid, name}]
+ */
+async function resolveDswClubDetails(note) {
+  const details = {
+    categoryName: null,
+    parentCategoryName: null,
+    facultyFacilitator: null,
+    chairperson: null,
+    members: [],
+  };
+
+  try {
+    // Category
+    if (note.clubCategoryId) {
+      const cat = await prisma.clubCategory.findUnique({
+        where: { id: note.clubCategoryId },
+        select: { name: true, parent: { select: { name: true } } },
+      });
+      if (cat) {
+        details.categoryName = cat.name;
+        details.parentCategoryName = cat.parent?.name || null;
+      }
+    }
+
+    // Faculty Facilitator
+    if (note.clubFacultyFacilitatorId) {
+      const user = await prisma.userLogin.findUnique({
+        where: { id: note.clubFacultyFacilitatorId },
+        select: {
+          id: true, uid: true,
+          employeeDetails: {
+            select: {
+              firstName: true, lastName: true, displayName: true,
+              designation: true,
+              primaryDepartment: { select: { departmentName: true } },
+            },
+          },
+        },
+      });
+      if (user) {
+        const emp = user.employeeDetails;
+        details.facultyFacilitator = {
+          id: user.id,
+          uid: user.uid,
+          name: emp?.displayName || [emp?.firstName, emp?.lastName].filter(Boolean).join(' ') || user.uid,
+          department: emp?.primaryDepartment?.departmentName || null,
+          designation: emp?.designation || null,
+        };
+      }
+    }
+
+    // Chairperson
+    if (note.clubChairpersonId) {
+      const user = await prisma.userLogin.findUnique({
+        where: { id: note.clubChairpersonId },
+        select: {
+          id: true, uid: true,
+          studentLogin: {
+            select: {
+              displayName: true, firstName: true, lastName: true, studentId: true,
+              program: {
+                select: { programName: true, department: { select: { departmentName: true } } },
+              },
+            },
+          },
+          employeeDetails: {
+            select: { displayName: true, firstName: true, lastName: true },
+          },
+        },
+      });
+      if (user) {
+        const stu = user.studentLogin;
+        const emp = user.employeeDetails;
+        details.chairperson = {
+          id: user.id,
+          uid: user.uid,
+          name: stu?.displayName || [stu?.firstName, stu?.lastName].filter(Boolean).join(' ')
+                || emp?.displayName || [emp?.firstName, emp?.lastName].filter(Boolean).join(' ')
+                || user.uid,
+          department: stu?.program?.department?.departmentName || null,
+          program: stu?.program?.programName || null,
+        };
+      }
+    }
+
+    // Initial Members (batch)
+    if (note.clubInitialMembers && note.clubInitialMembers.length > 0) {
+      const users = await prisma.userLogin.findMany({
+        where: { id: { in: note.clubInitialMembers } },
+        select: {
+          id: true, uid: true,
+          studentLogin: { select: { displayName: true, firstName: true, lastName: true } },
+          employeeDetails: { select: { displayName: true, firstName: true, lastName: true } },
+        },
+      });
+      details.members = users.map((u) => {
+        const stu = u.studentLogin;
+        const emp = u.employeeDetails;
+        return {
+          id: u.id,
+          uid: u.uid,
+          name: stu?.displayName || [stu?.firstName, stu?.lastName].filter(Boolean).join(' ')
+                || emp?.displayName || [emp?.firstName, emp?.lastName].filter(Boolean).join(' ')
+                || u.uid,
+        };
+      });
+    }
+  } catch (err) {
+    console.error('Failed to resolve DSW club details for note', note.id, err.message);
+  }
+
+  return details;
 }
 
 /**

@@ -38,7 +38,7 @@ import type { Event, OpportunityMode, ParticipationType, EventPrize, PrizeType, 
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
@@ -1374,10 +1374,10 @@ export default function ManageEventPage() {
               </div>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
-                  {saving ? <LoadingSpinner size="sm" /> : <Save className="w-4 h-4" />}Save Draft
+                  {saving ? <Skeleton className="w-4 h-4 rounded-sm" /> : <Save className="w-4 h-4" />}Save Draft
                 </button>
                 <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
-                  {publishing ? <LoadingSpinner size="sm" /> : <CheckCircle className="w-4 h-4" />}
+                  {publishing ? <Skeleton className="w-4 h-4 rounded-sm" /> : <CheckCircle className="w-4 h-4" />}
                   {event.status === 'published' ? 'Update & Republish' : 'Save & Publish'}
                 </button>
               </div>

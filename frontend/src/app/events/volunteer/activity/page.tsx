@@ -25,7 +25,7 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
 
@@ -329,7 +329,7 @@ export default function VolunteerActivityPage() {
         {/* Activity List */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <LoadingSpinner size="md" className="!border-sgt-600" />
+            <Skeleton className="w-8 h-8 rounded-sm" />
           </div>
         ) : filteredEntries.length === 0 ? (
           <div className={CARD + ' p-12 text-center'}>

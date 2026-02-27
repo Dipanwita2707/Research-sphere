@@ -4,7 +4,7 @@ import { logger } from '@/shared/utils/logger';
 // Configuration
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
 const isDev = process.env.NODE_ENV === 'development';
-const TIMEOUT = isDev ? 10000 : 12000; // 10s dev, 12s prod (no API call should take longer)
+const TIMEOUT = isDev ? 30000 : 30000; // 30s - noting/copies can be slow with heavy includes
 const MAX_RETRIES = isDev ? 0 : 1; // 0 retries in dev, 1 in prod (fail fast)
 const RETRY_DELAY = 1000; // 1 second
 

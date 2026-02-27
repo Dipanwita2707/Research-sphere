@@ -9,7 +9,7 @@ import type { Event } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 
 export default function QRScannerPage() {
   const params = useParams();
@@ -246,7 +246,7 @@ export default function QRScannerPage() {
               >
                 {scanning ? (
                   <>
-                    <LoadingSpinner size="sm" />
+                    <Skeleton className="w-4 h-4 rounded-sm" />
                     Scanning...
                   </>
                 ) : (

@@ -1,4 +1,5 @@
-const prisma = require('../../../shared/config/database');
+const prisma = require("../../../shared/config/database");
+const cache = require("../../../shared/config/redis");
 
 // Get all notifications for the current user
 const getMyNotifications = async (req, res) => {
@@ -10,13 +11,13 @@ const getMyNotifications = async (req, res) => {
 
     const where = {
       userId,
-      ...(unreadOnly === 'true' && { isRead: false }),
+      ...(unreadOnly === "true" && { isRead: false }),
     };
 
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
         take: parseInt(limit),
       }),
@@ -40,10 +41,10 @@ const getMyNotifications = async (req, res) => {
       unreadCount,
     });
   } catch (error) {
-    console.error('Get notifications error:', error);
+    console.error("Get notifications error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get notifications',
+      message: "Failed to get notifications",
       error: error.message,
     });
   }
@@ -62,7 +63,7 @@ const markAsRead = async (req, res) => {
     if (!notification) {
       return res.status(404).json({
         success: false,
-        message: 'Notification not found',
+        message: "Notification not found",
       });
     }
 
@@ -74,16 +75,19 @@ const markAsRead = async (req, res) => {
       },
     });
 
+    // Invalidate cached unread count for this user
+    await cache.del(`notif:unread:${userId}`);
+
     res.json({
       success: true,
-      message: 'Notification marked as read',
+      message: "Notification marked as read",
       data: updated,
     });
   } catch (error) {
-    console.error('Mark notification as read error:', error);
+    console.error("Mark notification as read error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to mark notification as read',
+      message: "Failed to mark notification as read",
       error: error.message,
     });
   }
@@ -102,15 +106,18 @@ const markAllAsRead = async (req, res) => {
       },
     });
 
+    // Invalidate cached unread count for this user
+    await cache.del(`notif:unread:${userId}`);
+
     res.json({
       success: true,
-      message: 'All notifications marked as read',
+      message: "All notifications marked as read",
     });
   } catch (error) {
-    console.error('Mark all notifications as read error:', error);
+    console.error("Mark all notifications as read error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to mark all notifications as read',
+      message: "Failed to mark all notifications as read",
       error: error.message,
     });
   }
@@ -129,7 +136,7 @@ const deleteNotification = async (req, res) => {
     if (!notification) {
       return res.status(404).json({
         success: false,
-        message: 'Notification not found',
+        message: "Notification not found",
       });
     }
 
@@ -139,36 +146,46 @@ const deleteNotification = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Notification deleted',
+      message: "Notification deleted",
     });
   } catch (error) {
-    console.error('Delete notification error:', error);
+    console.error("Delete notification error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete notification',
+      message: "Failed to delete notification",
       error: error.message,
     });
   }
 };
 
-// Get unread count
+// Get unread count (cached for 30 seconds to reduce repeated DB hits)
 const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user.id;
+    const cacheKey = `notif:unread:${userId}`;
+
+    // Try cache first
+    const cached = await cache.get(cacheKey);
+    if (cached !== null) {
+      return res.json({ success: true, unreadCount: cached });
+    }
 
     const count = await prisma.notification.count({
       where: { userId, isRead: false },
     });
+
+    // Cache for 30 seconds — short TTL so count stays roughly accurate
+    await cache.set(cacheKey, count, 30);
 
     res.json({
       success: true,
       unreadCount: count,
     });
   } catch (error) {
-    console.error('Get unread count error:', error);
+    console.error("Get unread count error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get unread count',
+      message: "Failed to get unread count",
       error: error.message,
     });
   }
