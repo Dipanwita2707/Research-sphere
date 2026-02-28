@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Parchment background -->
+  <rect x="8" y="6" width="48" height="38" rx="3" fill="#FFF8E7" stroke="#E8A020" stroke-width="2"/>
+
+  <!-- Top decorative line -->
+  <line x1="16" y1="16" x2="48" y2="16" stroke="#E8A020" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Text lines -->
+  <line x1="16" y1="23" x2="48" y2="23" stroke="#D4A855" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="16" y1="29" x2="40" y2="29" stroke="#D4A855" stroke-width="1.5" stroke-linecap="round" opacity="0.6"/>
+  <line x1="16" y1="35" x2="36" y2="35" stroke="#D4A855" stroke-width="1.2" stroke-linecap="round" opacity="0.4"/>
+
+  <!-- Ribbon left -->
+  <path d="M20 44 L16 58 L22 54 L26 58 L26 44" fill="#E05050" stroke="#C03030" stroke-width="1.2" stroke-linejoin="round"/>
+
+  <!-- Ribbon right -->
+  <path d="M44 44 L48 58 L42 54 L38 58 L38 44" fill="#E05050" stroke="#C03030" stroke-width="1.2" stroke-linejoin="round"/>
+
+  <!-- Seal circle -->
+  <circle cx="32" cy="48" r="10" fill="#FFF0C0" stroke="#E8A020" stroke-width="2"/>
+  <circle cx="32" cy="48" r="7" fill="none" stroke="#E8A020" stroke-width="1" stroke-dasharray="2.5 2"/>
+
+  <!-- Star in seal -->
+  <path d="M32 42.5 L33.2 46.2 H37 L34 48.4 L35.2 52 L32 49.8 L28.8 52 L30 48.4 L27 46.2 H30.8 Z" fill="#E8A020"/>
+</svg>

@@ -3,16 +3,14 @@
  * Input validation for all DSW operations
  */
 
-const { body, param, query, validationResult } = require('express-validator');
+const { body, param, query, validationResult } = require("express-validator");
 const {
   ClubTargetGroup,
-  ClubVisibility,
   ClubMeetingFrequency,
   ClubActivityTypes,
-  InfrastructureTypes,
   ClubChangeType,
   ErrorMessages,
-} = require('../constants');
+} = require("../constants");
 
 /**
  * Validation error handler
@@ -22,7 +20,7 @@ const handleValidationErrors = (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
-      message: 'Validation failed',
+      message: "Validation failed",
       errors: errors.array(),
     });
   }
@@ -34,143 +32,110 @@ const handleValidationErrors = (req, res, next) => {
  */
 const validateClubCreation = [
   // Step 1: Core Club Identity
-  body('name')
+  body("name")
     .trim()
     .notEmpty()
-    .withMessage('Club name is required')
+    .withMessage("Club name is required")
     .isLength({ min: 3, max: 256 })
-    .withMessage('Club name must be between 3 and 256 characters'),
+    .withMessage("Club name must be between 3 and 256 characters"),
 
-  body('categoryId')
+  body("categoryId")
     .notEmpty()
-    .withMessage('Club category is required')
+    .withMessage("Club category is required")
     .isUUID()
-    .withMessage('Invalid category ID'),
+    .withMessage("Invalid category ID"),
 
-  body('purpose')
+  body("purpose")
     .trim()
     .notEmpty()
-    .withMessage('Purpose/Objective is required')
+    .withMessage("Purpose/Objective is required")
     .isLength({ min: 50 })
-    .withMessage('Purpose must be at least 50 characters'),
+    .withMessage("Purpose must be at least 50 characters"),
 
-  body('academicSession')
+  body("academicSession")
     .trim()
     .notEmpty()
-    .withMessage('Academic session is required')
+    .withMessage("Academic session is required")
     .matches(/^\d{4}[-–]\d{4}$/)
-    .withMessage('Academic session must be in format YYYY-YYYY (e.g., 2025-2026)'),
+    .withMessage(
+      "Academic session must be in format YYYY-YYYY (e.g., 2025-2026)",
+    ),
 
   // Step 2: Authority & Membership
-  body('viceChairpersonId')
+  body("facultyFacilitatorId")
     .notEmpty()
-    .withMessage('Vice Chairperson is required')
-    .isUUID()
-    .withMessage('Invalid Vice Chairperson ID'),
+    .withMessage("Faculty Facilitator is required")
+    .isString()
+    .withMessage("Invalid Faculty Facilitator ID"),
 
-  body('initialMembers')
+  body("chairpersonId")
+    .optional()
+    .isString()
+    .withMessage("Invalid Chairperson ID"),
+
+  body("initialMembers")
     .optional()
     .isArray()
-    .withMessage('Initial members must be an array'),
+    .withMessage("Initial members must be an array"),
 
-  body('initialMembers.*')
+  body("initialMembers.*")
     .optional()
-    .isUUID()
-    .withMessage('Invalid member ID'),
+    .isString()
+    .withMessage("Invalid member ID"),
 
   // Step 3: Governance & Compliance
-  body('targetStudentGroup')
-    .notEmpty()
-    .withMessage('Target student group is required')
-    .isIn(Object.values(ClubTargetGroup))
-    .withMessage('Invalid target student group'),
-
-  body('expectedActivityTypes')
+  body("targetStudentGroup")
     .isArray({ min: 1 })
-    .withMessage('At least one activity type must be selected'),
+    .withMessage("At least one target student group is required"),
 
-  body('expectedActivityTypes.*')
+  body("targetStudentGroup.*")
+    .isIn(Object.values(ClubTargetGroup))
+    .withMessage("Invalid target student group"),
+
+  body("expectedActivityTypes")
+    .isArray({ min: 1 })
+    .withMessage("At least one activity type must be selected"),
+
+  body("expectedActivityTypes.*")
     .isIn(ClubActivityTypes)
-    .withMessage('Invalid activity type'),
+    .withMessage("Invalid activity type"),
 
-  body('codeOfConductAccepted')
-    .equals('true')
-    .withMessage('Code of Conduct must be accepted'),
+  body("codeOfConductAccepted")
+    .equals("true")
+    .withMessage("Code of Conduct must be accepted"),
 
-  body('antiDiscriminationAccepted')
-    .equals('true')
-    .withMessage('Anti-Discrimination Declaration must be accepted'),
+  body("antiDiscriminationAccepted")
+    .equals("true")
+    .withMessage("Anti-Discrimination Declaration must be accepted"),
 
   // Step 4: Operational Planning
-  body('meetingFrequency')
+  body("meetingFrequency")
     .notEmpty()
-    .withMessage('Meeting frequency is required')
+    .withMessage("Meeting frequency is required")
     .isIn(Object.values(ClubMeetingFrequency))
-    .withMessage('Invalid meeting frequency'),
+    .withMessage("Invalid meeting frequency"),
 
-  body('estimatedAnnualActivityCount')
+  body("estimatedAnnualActivityCount")
     .notEmpty()
-    .withMessage('Estimated annual activity count is required')
+    .withMessage("Estimated annual activity count is required")
     .isInt({ min: 1, max: 100 })
-    .withMessage('Activity count must be between 1 and 100'),
+    .withMessage("Activity count must be between 1 and 100"),
 
-  body('infrastructureRequirements')
-    .isArray()
-    .withMessage('Infrastructure requirements must be an array'),
-
-  body('infrastructureRequirements.*')
-    .isIn(InfrastructureTypes)
-    .withMessage('Invalid infrastructure type'),
-
-  body('fundingRequired')
-    .isBoolean()
-    .withMessage('Funding required must be a boolean'),
-
-  body('estimatedFundingAmount')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Funding amount must be a positive number'),
-
-  // Custom validation: if fundingRequired is true, amount is mandatory
-  body('estimatedFundingAmount').custom((value, { req }) => {
-    if (req.body.fundingRequired === true && !value) {
-      throw new Error('Estimated funding amount is required when funding is needed');
-    }
-    return true;
-  }),
-
-  // Step 5: Visibility & Collaboration
-  body('visibility')
-    .notEmpty()
-    .withMessage('Club visibility is required')
-    .isIn(Object.values(ClubVisibility))
-    .withMessage('Invalid visibility option'),
-
-  body('allowInternalCollaboration')
-    .optional()
-    .isBoolean()
-    .withMessage('Allow internal collaboration must be a boolean'),
-
-  body('allowExternalCollaboration')
-    .optional()
-    .isBoolean()
-    .withMessage('Allow external collaboration must be a boolean'),
-
-  // Step 6: Optional Metadata
-  body('proposedEmail')
+  // Step 5: Optional Metadata
+  body("proposedEmail")
     .optional()
     .isEmail()
-    .withMessage('Invalid email format'),
+    .withMessage("Invalid email format"),
 
-  body('socialMediaHandles')
+  body("socialMediaHandles")
     .optional()
     .isObject()
-    .withMessage('Social media handles must be an object'),
+    .withMessage("Social media handles must be an object"),
 
-  body('expectedStudentStrength')
+  body("expectedStudentStrength")
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Expected student strength must be a positive integer'),
+    .withMessage("Expected student strength must be a positive integer"),
 
   handleValidationErrors,
 ];
@@ -179,17 +144,21 @@ const validateClubCreation = [
  * Validate Add Member Request
  */
 const validateAddMember = [
-  param('clubId')
+  param("clubId")
     .notEmpty()
-    .withMessage('Club ID is required')
+    .withMessage("Club ID is required")
     .isUUID()
-    .withMessage('Invalid club ID'),
+    .withMessage("Invalid club ID"),
 
-  body('studentId')
+  // Accept a student UID (e.g. "12201501"), an email, or a UUID.
+  // The service will resolve whichever form is supplied to the
+  // internal UserLogin.id UUID before hitting the database.
+  body("studentId")
+    .trim()
     .notEmpty()
-    .withMessage('Student ID is required')
-    .isUUID()
-    .withMessage('Invalid student ID'),
+    .withMessage("Student ID or email is required")
+    .isLength({ min: 3, max: 256 })
+    .withMessage("Student identifier must be between 3 and 256 characters"),
 
   handleValidationErrors,
 ];
@@ -198,23 +167,23 @@ const validateAddMember = [
  * Validate Remove Member Request
  */
 const validateRemoveMember = [
-  param('clubId')
+  param("clubId")
     .notEmpty()
-    .withMessage('Club ID is required')
+    .withMessage("Club ID is required")
     .isUUID()
-    .withMessage('Invalid club ID'),
+    .withMessage("Invalid club ID"),
 
-  param('memberId')
+  param("memberId")
     .notEmpty()
-    .withMessage('Member ID is required')
+    .withMessage("Member ID is required")
     .isUUID()
-    .withMessage('Invalid member ID'),
+    .withMessage("Invalid member ID"),
 
-  body('reason')
+  body("reason")
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('Reason must not exceed 500 characters'),
+    .withMessage("Reason must not exceed 500 characters"),
 
   handleValidationErrors,
 ];
@@ -223,30 +192,30 @@ const validateRemoveMember = [
  * Validate Club Change Request
  */
 const validateClubChangeRequest = [
-  param('clubId')
+  param("clubId")
     .notEmpty()
-    .withMessage('Club ID is required')
+    .withMessage("Club ID is required")
     .isUUID()
-    .withMessage('Invalid club ID'),
+    .withMessage("Invalid club ID"),
 
-  body('changeType')
+  body("changeType")
     .notEmpty()
-    .withMessage('Change type is required')
+    .withMessage("Change type is required")
     .isIn(Object.values(ClubChangeType))
-    .withMessage('Invalid change type'),
+    .withMessage("Invalid change type"),
 
-  body('requestedChanges')
+  body("requestedChanges")
     .notEmpty()
-    .withMessage('Requested changes are required')
+    .withMessage("Requested changes are required")
     .isObject()
-    .withMessage('Requested changes must be an object'),
+    .withMessage("Requested changes must be an object"),
 
-  body('justification')
+  body("justification")
     .trim()
     .notEmpty()
-    .withMessage('Justification is required')
+    .withMessage("Justification is required")
     .isLength({ min: 50 })
-    .withMessage('Justification must be at least 50 characters'),
+    .withMessage("Justification must be at least 50 characters"),
 
   handleValidationErrors,
 ];
@@ -255,31 +224,25 @@ const validateClubChangeRequest = [
  * Validate Get Clubs Query
  */
 const validateGetClubs = [
-  query('page')
+  query("page")
     .optional()
     .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
+    .withMessage("Page must be a positive integer"),
 
-  query('limit')
+  query("limit")
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
+    .withMessage("Limit must be between 1 and 100"),
 
-  query('status')
-    .optional()
-    .isString()
-    .withMessage('Status must be a string'),
+  query("status").optional().isString().withMessage("Status must be a string"),
 
-  query('categoryId')
-    .optional()
-    .isUUID()
-    .withMessage('Invalid category ID'),
+  query("categoryId").optional().isUUID().withMessage("Invalid category ID"),
 
-  query('search')
+  query("search")
     .optional()
     .trim()
     .isLength({ max: 256 })
-    .withMessage('Search query too long'),
+    .withMessage("Search query too long"),
 
   handleValidationErrors,
 ];
@@ -288,11 +251,11 @@ const validateGetClubs = [
  * Validate Club ID Parameter
  */
 const validateClubId = [
-  param('clubId')
+  param("clubId")
     .notEmpty()
-    .withMessage('Club ID is required')
+    .withMessage("Club ID is required")
     .isUUID()
-    .withMessage('Invalid club ID'),
+    .withMessage("Invalid club ID"),
 
   handleValidationErrors,
 ];
@@ -301,23 +264,23 @@ const validateClubId = [
  * Validate Category Creation
  */
 const validateCategoryCreation = [
-  body('name')
+  body("name")
     .trim()
     .notEmpty()
-    .withMessage('Category name is required')
+    .withMessage("Category name is required")
     .isLength({ min: 2, max: 128 })
-    .withMessage('Category name must be between 2 and 128 characters'),
+    .withMessage("Category name must be between 2 and 128 characters"),
 
-  body('description')
+  body("description")
     .optional()
     .trim()
     .isLength({ max: 500 })
-    .withMessage('Description must not exceed 500 characters'),
+    .withMessage("Description must not exceed 500 characters"),
 
-  body('sortOrder')
+  body("sortOrder")
     .optional()
     .isInt({ min: 0 })
-    .withMessage('Sort order must be a non-negative integer'),
+    .withMessage("Sort order must be a non-negative integer"),
 
   handleValidationErrors,
 ];

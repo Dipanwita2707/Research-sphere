@@ -5,27 +5,31 @@
 
 const Redis = require('ioredis');
 
-// Redis configuration - uses environment variables or defaults to localhost
-const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-  password: process.env.REDIS_PASSWORD || null,
-  username: process.env.REDIS_USERNAME || null,
-  db: parseInt(process.env.REDIS_DB) || 0,
-  maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 1000,
-  enableReadyCheck: true,
-  lazyConnect: false, // Connect immediately
-  connectTimeout: 10000, // 10 second timeout
-  commandTimeout: 5000, // 5 second command timeout
-  retryStrategy: (times) => {
-    // Stop retrying after 3 attempts
-    if (times > 3) {
-      return null;
+// Redis configuration - REDIS_URL takes precedence, else use individual vars
+const redisConfig = process.env.REDIS_URL
+  ? {
+      maxRetriesPerRequest: 3,
+      retryDelayOnFailover: 1000,
+      enableReadyCheck: true,
+      lazyConnect: false,
+      connectTimeout: 10000,
+      commandTimeout: 5000,
+      retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
     }
-    return Math.min(times * 2000, 5000); // Max 5 second delay
-  }
-};
+  : {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD || null,
+      username: process.env.REDIS_USERNAME || null,
+      db: parseInt(process.env.REDIS_DB) || 0,
+      maxRetriesPerRequest: 3,
+      retryDelayOnFailover: 1000,
+      enableReadyCheck: true,
+      lazyConnect: false,
+      connectTimeout: 10000,
+      commandTimeout: 5000,
+      retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
+    };
 
 // Create Redis instance
 let redis = null;
@@ -44,7 +48,9 @@ const initRedis = async () => {
   connectionAttempted = true;
 
   try {
-    redis = new Redis(redisConfig);
+    redis = process.env.REDIS_URL
+      ? new Redis(process.env.REDIS_URL, redisConfig)
+      : new Redis(redisConfig);
 
     redis.on('connect', () => {
       console.log('[SUCCESS] Redis connected successfully');
@@ -88,7 +94,7 @@ const initRedis = async () => {
  */
 const CACHE_TTL = {
   // Short-lived cache (1-5 minutes)
-  USER_SESSION: 300,        // 5 min
+  USER_SESSION: 1800,       // 30 min - reduce auth DB hits on every request
   DASHBOARD: 120,           // 2 min - Dashboard data
   PERMISSIONS: 300,         // 5 min
   

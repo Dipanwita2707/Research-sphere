@@ -22,6 +22,23 @@ export interface ToastOptions {
   duration?: number;
 }
 
+// Success Modal Details
+export interface SuccessModalDetails {
+  passId?: string;
+  verificationCode?: string;
+  mobile?: string;
+  email?: string;
+  title?: string;
+  message?: string;
+  // Optional translated labels (for i18n support)
+  passIdLabel?: string;
+  verificationCodeLabel?: string;
+  okButtonText?: string;
+  shareNote?: string;
+  whatsappSentText?: string;
+  emailSentText?: string;
+}
+
 interface ToastContextValue {
   toasts: Toast[];
   addToast: (toast: Omit<Toast, 'id'>) => string;
@@ -33,6 +50,9 @@ interface ToastContextValue {
   error: (message: string, title?: string) => string;
   warning: (message: string, title?: string) => string;
   info: (message: string, title?: string) => string;
+  // Success Modal
+  showSuccessModal: (details: SuccessModalDetails) => void;
+  hideSuccessModal: () => void;
 }
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
@@ -134,9 +154,148 @@ const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast:
   );
 };
 
+// Success Modal Component for Pass Creation
+const SuccessModal = ({
+  isOpen,
+  onClose,
+  details,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  details: SuccessModalDetails;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" 
+        onClick={onClose} 
+      />
+      
+      {/* Modal */}
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full animate-modal-in overflow-hidden">
+        {/* Success Header */}
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 text-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-20">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white rounded-full" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-white rounded-full" />
+          </div>
+          <div className="relative">
+            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-xl">
+              <CheckCircle className="w-12 h-12 text-green-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-white">{details.title || 'Pass Created Successfully!'}</h2>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          {/* Pass Details Card */}
+          {(details.passId || details.verificationCode) && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 mb-5 border-l-4 border-blue-500 shadow-sm">
+              <div className="space-y-4">
+                {details.passId && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm font-medium">{details.passIdLabel || 'Pass ID'}</span>
+                    <span className="font-mono font-bold text-blue-700 bg-white px-4 py-1.5 rounded-lg shadow-sm border border-blue-100">
+                      {details.passId}
+                    </span>
+                  </div>
+                )}
+                {details.verificationCode && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 text-sm font-medium">{details.verificationCodeLabel || 'Verification Code'}</span>
+                    <span className="font-mono font-bold text-green-700 bg-green-100 px-4 py-2 rounded-lg text-xl tracking-widest shadow-sm border border-green-200">
+                      {details.verificationCode}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Notification Status */}
+          {(details.mobile || details.email) && (
+            <div className="space-y-3 mb-6">
+              {details.mobile && (
+                <div className="flex items-center gap-3 text-sm text-gray-700 bg-green-50 rounded-xl px-4 py-3 border-l-4 border-green-400">
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  </div>
+                  <span>{details.whatsappSentText || '📱 WhatsApp sent to'} <strong className="text-green-700">{details.mobile}</strong></span>
+                </div>
+              )}
+              {details.email && (
+                <div className="flex items-center gap-3 text-sm text-gray-700 bg-blue-50 rounded-xl px-4 py-3 border-l-4 border-blue-400">
+                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <span>{details.emailSentText || '📧 Email sent to'} <strong className="text-blue-700">{details.email}</strong></span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Custom Message */}
+          {details.message && (
+            <p className="text-center text-gray-600 text-sm mb-5 bg-gray-50 rounded-lg p-3">
+              {details.message}
+            </p>
+          )}
+
+          {/* Share Note */}
+          {details.verificationCode && (
+            <p className="text-center text-gray-500 text-sm mb-5">
+              {details.shareNote || '🔐 Share the verification code with your visitor for entry'}
+            </p>
+          )}
+
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          >
+            {details.okButtonText || 'OK, Got It!'}
+          </button>
+        </div>
+      </div>
+
+      {/* Animation Styles */}
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes modal-in {
+          from {
+            transform: scale(0.9) translateY(20px);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out forwards;
+        }
+        .animate-modal-in {
+          animation: modal-in 0.3s ease-out forwards;
+        }
+      `}</style>
+    </div>
+  );
+};
+
 // Toast Provider
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [successModalState, setSuccessModalState] = useState<{
+    isOpen: boolean;
+    details: SuccessModalDetails;
+  }>({ isOpen: false, details: {} });
 
   const addToast = useCallback((toast: Omit<Toast, 'id'>): string => {
     const id = generateId();
@@ -180,6 +339,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [addToast]
   );
 
+  // Success Modal methods
+  const showSuccessModal = useCallback((details: SuccessModalDetails) => {
+    setSuccessModalState({ isOpen: true, details });
+  }, []);
+
+  const hideSuccessModal = useCallback(() => {
+    setSuccessModalState({ isOpen: false, details: {} });
+  }, []);
+
   const value: ToastContextValue = {
     toasts,
     addToast,
@@ -190,12 +358,19 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     error,
     warning,
     info,
+    showSuccessModal,
+    hideSuccessModal,
   };
 
   return (
     <ToastContext.Provider value={value}>
       {children}
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+      <SuccessModal
+        isOpen={successModalState.isOpen}
+        onClose={hideSuccessModal}
+        details={successModalState.details}
+      />
     </ToastContext.Provider>
   );
 }

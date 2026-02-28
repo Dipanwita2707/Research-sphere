@@ -20,7 +20,7 @@ import type {
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 
 type TabType = 'create' | 'join';
 type SectionType = 'invitations' | 'requests';
@@ -632,7 +632,7 @@ export default function TeamManagementPage() {
                       >
                         {creatingTeam ? (
                           <>
-                            <LoadingSpinner size="sm" />
+                            <Skeleton className="w-4 h-4 rounded-sm" />
                             Creating Team...
                           </>
                         ) : (
@@ -693,7 +693,7 @@ export default function TeamManagementPage() {
                           >
                             {finalizingTeam ? (
                               <>
-                                <LoadingSpinner size="sm" />
+                                <Skeleton className="w-4 h-4 rounded-sm" />
                                 Completing...
                               </>
                             ) : (
@@ -779,7 +779,7 @@ export default function TeamManagementPage() {
                           disabled={searching || !searchQuery.trim()}
                           className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
                         >
-                          {searching ? <LoadingSpinner size="sm" /> : 'Search'}
+                          {searching ? <Skeleton className="w-4 h-4 rounded-sm" /> : 'Search'}
                         </button>
                       </div>
 

@@ -8,7 +8,7 @@ import type { Event, EventFilters } from '@/features/event-management/types/even
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { useDebounce } from '@/shared/hooks/useDebounce';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 import { EVENT_TYPE_LABELS, STATUS_CONFIG } from '@/features/event-management/constants';
 
 export default function EventsPage() {
@@ -180,7 +180,7 @@ export default function EventsPage() {
         {/* Events Grid */}
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
-            <LoadingSpinner size="lg" />
+            <CardSkeleton className="w-full max-w-sm" />
           </div>
         ) : events.length === 0 ? (
           <div className="text-center py-12">

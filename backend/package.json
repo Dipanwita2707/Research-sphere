@@ -12,6 +12,7 @@
     "prisma:studio": "prisma studio",
     "seed": "node src/shared/database/seed.js",
     "seed:admin": "node scripts/database/seeds/seed-admin.js",
+    "cleanup:noting": "node scripts/cleanup-noting.js",
     "test": "jest"
   },
   "keywords": [
@@ -19,7 +20,7 @@
     "management",
     "system"
   ],
-  "author": "SGT University",
+  "author": "SGT University", 
   "license": "PROPRIETARY",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.981.0",
@@ -37,6 +38,7 @@
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "helmet": "^7.1.0",
+    "html5-qrcode": "^2.3.8",
     "ioredis": "^5.9.1",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
@@ -48,6 +50,9 @@
     "pg": "^8.16.3",
     "prisma": "^5.19.0",
     "redis-server": "^1.2.2"
+    "qrcode": "^1.5.4",
+    "redis-server": "^1.2.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",

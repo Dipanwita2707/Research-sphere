@@ -7,6 +7,8 @@ import { categoryAPI } from '@/features/dsw/services/api';
 import { ClubCategory } from '@/features/dsw/types';
 import { useAuthStore } from '@/shared/auth/authStore';
 
+import { CardSkeleton, Skeleton } from '@/components/skeletons';
+
 export default function CategoriesPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -45,10 +47,20 @@ export default function CategoriesPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading categories...</p>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
         </div>
       </div>
     );

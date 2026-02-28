@@ -1,37 +1,39 @@
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require("@prisma/client");
 
 // Singleton pattern to prevent multiple Prisma Client instances
 let prisma;
 
-if (process.env.NODE_ENV === 'production') {
+if (process.env.NODE_ENV === "production") {
   // Production: Single instance with connection pooling
   prisma = new PrismaClient({
-    log: ['error'], // Minimal logging in production
+    log: ["error"], // Minimal logging in production
     datasources: {
       db: {
-        url: process.env.DATABASE_URL + '?connection_limit=10&pool_timeout=20',
+        url: process.env.DATABASE_URL + "?connection_limit=25&pool_timeout=30",
       },
     },
     transactionOptions: {
       maxWait: 20000, // 20 seconds max wait
       timeout: 30000, // 30 seconds transaction timeout
-      isolationLevel: 'ReadCommitted',
+      isolationLevel: "ReadCommitted",
     },
   });
 } else {
   // Development: Use global variable to preserve client across HMR with connection pooling
   if (!global.prisma) {
     global.prisma = new PrismaClient({
-      log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+      log:
+        process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
       datasources: {
         db: {
-          url: process.env.DATABASE_URL + '?connection_limit=5&pool_timeout=20',
+          url:
+            process.env.DATABASE_URL + "?connection_limit=10&pool_timeout=30",
         },
       },
       transactionOptions: {
         maxWait: 20000,
         timeout: 30000,
-        isolationLevel: 'ReadCommitted',
+        isolationLevel: "ReadCommitted",
       },
     });
   }
@@ -46,17 +48,20 @@ const RETRY_DELAY = 2000;
 const connectWithRetry = async () => {
   try {
     await prisma.$connect();
-    console.log('✅ Database connected successfully via Prisma');
+    console.log("✅ Database connected successfully via Prisma");
     connectionAttempts = 0; // Reset on success
   } catch (error) {
     connectionAttempts++;
-    console.error(`❌ Database connection attempt ${connectionAttempts} failed:`, error.message);
-    
+    console.error(
+      `❌ Database connection attempt ${connectionAttempts} failed:`,
+      error.message,
+    );
+
     if (connectionAttempts < MAX_RETRIES) {
-      console.log(`⏳ Retrying in ${RETRY_DELAY/1000} seconds...`);
+      console.log(`⏳ Retrying in ${RETRY_DELAY / 1000} seconds...`);
       setTimeout(connectWithRetry, RETRY_DELAY);
     } else {
-      console.error('❌ Max connection retries reached. Exiting...');
+      console.error("❌ Max connection retries reached. Exiting...");
       process.exit(1);
     }
   }
@@ -66,8 +71,8 @@ const connectWithRetry = async () => {
 connectWithRetry();
 
 // Handle connection errors during runtime
-prisma.$on('error', (e) => {
-  console.error('Prisma runtime error:', e);
+prisma.$on("error", (e) => {
+  console.error("Prisma runtime error:", e);
   // Attempt to reconnect
   if (connectionAttempts === 0) {
     connectWithRetry();
@@ -75,16 +80,16 @@ prisma.$on('error', (e) => {
 });
 
 // Handle cleanup on application termination
-process.on('beforeExit', async () => {
+process.on("beforeExit", async () => {
   await prisma.$disconnect();
 });
 
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
   await prisma.$disconnect();
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
+process.on("SIGTERM", async () => {
   await prisma.$disconnect();
   process.exit(0);
 });

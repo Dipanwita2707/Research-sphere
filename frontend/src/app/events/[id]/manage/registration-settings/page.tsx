@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -345,7 +346,7 @@ export default function RegistrationSettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <CardSkeleton className="w-full max-w-sm mx-auto mb-4" />
       </div>
     );
   }
@@ -372,7 +373,7 @@ export default function RegistrationSettingsPage() {
               disabled={saving}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? <Skeleton className="w-4 h-4 rounded-full" /> : <Save className="w-4 h-4" />}
               Save Settings
             </button>
           </div>
