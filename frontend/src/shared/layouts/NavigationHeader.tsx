@@ -92,6 +92,7 @@ export default function NavigationHeader() {
 
   const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
+  const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
   const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
@@ -440,7 +441,9 @@ export default function NavigationHeader() {
     description: 'RFID access system',
   });
 
-  // Add Ticket Management (TMS) - role-based
+  // === TMS HIDDEN — Development in progress ===
+  // Uncomment the block below to re-enable Ticket Management in navigation
+  /*
   {
     const tmsChildren: SubMenuItem[] = [];
     if (isStudent) {
@@ -449,7 +452,7 @@ export default function NavigationHeader() {
         { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
       );
     }
-    if (isFaculty || isAdmin) {
+    if (isFaculty || isStaff || isAdmin) {
       tmsChildren.push(
         { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
         { name: '📜 Request History', href: '/tms/history', description: 'Track your past actions on tickets' },
@@ -469,6 +472,7 @@ export default function NavigationHeader() {
       });
     }
   }
+  */
 
   // Add DSW (Division of Student Welfare) for Faculty, Staff, and Admin
   if (isFaculty || isAdmin) {

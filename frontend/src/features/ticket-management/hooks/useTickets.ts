@@ -41,6 +41,7 @@ export function useMyTickets(params?: TicketListParams) {
   return useQuery({
     queryKey: TMS_QUERY_KEYS.myTickets(params),
     queryFn: () => tmsService.getMyTickets(params),
+    enabled: !!params,
     staleTime: 1 * 60 * 1000,
   });
 }

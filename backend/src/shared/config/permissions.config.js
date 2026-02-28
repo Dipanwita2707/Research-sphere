@@ -565,7 +565,12 @@ const getDefaultPermissions = (role) => {
       // DSW Permissions - view only
       dsw_view_club: true,        // Staff can view clubs
       // Noting Permissions - view only by default
-      noting_view_own: true       // Staff can view notings they're involved in
+      noting_view_own: true,      // Staff can view notings they're involved in
+      // TMS Permissions - same as faculty (staff are also employees)
+      tms_view_assigned_tickets: true,  // Staff can view tickets assigned to them
+      tms_update_ticket: true,          // Staff can add remarks to tickets
+      tms_escalate_ticket: true,        // Staff can escalate tickets
+      tms_resolve_ticket: true          // Staff can resolve tickets
       // Staff do NOT get filing/creation permissions by default
       // They need explicit permission from admin checkbox
     },
@@ -587,6 +592,7 @@ const getDefaultPermissions = (role) => {
       event_manage_all: true,
       event_view_reports: true,
       // TMS Permissions
+      tms_view_assigned_tickets: true,
       tms_manage_categories: true,
       tms_view_analytics: true,
       tms_close_ticket: true
@@ -609,6 +615,7 @@ const getDefaultPermissions = (role) => {
       event_manage_all: true,
       event_view_reports: true,
       // TMS Permissions
+      tms_view_assigned_tickets: true,
       tms_manage_categories: true,
       tms_view_analytics: true,
       tms_close_ticket: true

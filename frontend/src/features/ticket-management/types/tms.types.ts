@@ -190,6 +190,7 @@ export interface TicketListParams {
 export interface AdminTicketListParams extends TicketListParams {
   masterCategoryId?: string;
   categoryId?: string;
+  subCategoryId?: string;
   assignedToId?: string;
   createdById?: string;
   currentLevel?: TmsEscalationLevel;
@@ -233,9 +234,27 @@ export interface TmsCategoryStat {
   category?: string;
   count: number;
   byStatus?: Record<string, number>;
+  byPriority?: Record<string, number>;
+  resolved?: number;
+  avgResolutionHours?: number;
+  escalations?: number;
+  avgRating?: number | null;
+  totalRatings?: number;
+}
+
+export interface TmsCategorySummary {
+  totalTickets: number;
+  totalCategories: number;
+  totalSubCategories: number;
+  totalMasterCategories: number;
+  totalResolved: number;
+  totalEscalations: number;
+  academicCount: number;
+  nonAcademicCount: number;
 }
 
 export interface TmsCategoryStats {
+  summary?: TmsCategorySummary;
   byMasterCategory: TmsCategoryStat[];
   byCategory: TmsCategoryStat[];
   bySubCategory: TmsCategoryStat[];

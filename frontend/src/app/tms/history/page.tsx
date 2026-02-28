@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Eye, ArrowLeft, Clock, CheckCircle2, XCircle, ArrowUpRight, MessageSquare } from 'lucide-react';
+import { Search, Eye, ArrowLeft, Clock, CheckCircle2, XCircle, ArrowUpRight, MessageSquare, ChevronLeft, ChevronRight, FileText, Filter } from 'lucide-react';
 import { useMyHistory } from '@/features/ticket-management/hooks/useTickets';
 import { STATUS_CONFIG, PRIORITY_CONFIG, PAGE_SIZE } from '@/features/ticket-management/constants';
 import type { TmsTicket, TmsTicketStatus, TmsPriority, TmsTimelineAction, TicketListParams } from '@/features/ticket-management/types/tms.types';
@@ -35,14 +35,14 @@ function StatusBadge({ status }: { status: TmsTicketStatus }) {
   const config = STATUS_CONFIG[status];
   if (!config) return <span className="text-xs">{status}</span>;
   const colorMap: Record<string, string> = {
-    open: 'bg-blue-600 text-white',
-    in_progress: 'bg-orange-500 text-white',
+    open: 'bg-[#005b96] text-white',
+    in_progress: 'bg-amber-500 text-white',
     escalated: 'bg-red-500 text-white',
     resolved: 'bg-emerald-600 text-white',
-    closed: 'bg-green-600 text-white',
+    closed: 'bg-[#03396c] text-white',
   };
   return (
-    <span className={`inline-block px-2.5 py-1 rounded-full text-xs font-semibold ${colorMap[status] || 'bg-gray-200 text-gray-700'}`}>
+    <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-semibold ${colorMap[status] || 'bg-gray-200 text-gray-700'}`}>
       {config.label}
     </span>
   );
@@ -133,52 +133,57 @@ export default function RequestHistoryPage() {
   }, [tickets, pagination.total]);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
 
         {/* Header */}
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-8 flex items-center gap-4">
           <button
             onClick={() => router.push('/tms')}
-            className="p-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition-colors"
+            className="p-2.5 bg-white hover:bg-[#005b96]/5 border border-[#b3cde0]/40 rounded-xl transition-all shadow-sm"
             title="Back to Assigned Tickets"
           >
-            <ArrowLeft className="w-4 h-4 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-[#005b96]" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Request History</h1>
-            <p className="text-sm text-gray-500 mt-0.5">All tickets you have acted on — resolved, closed, escalated, or remarked</p>
+            <h1 className="text-2xl font-bold text-[#011f4b] tracking-tight">Request History</h1>
+            <p className="text-sm text-[#6497b1] mt-0.5">All tickets you have acted on — resolved, closed, escalated, or remarked</p>
           </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-8">
           {[
-            { label: 'Total Acted', value: stats.total, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-            { label: 'Resolved', value: stats.resolved, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-            { label: 'Closed', value: stats.closed, color: 'bg-green-50 text-green-700 border-green-200' },
-            { label: 'Escalated', value: stats.escalated, color: 'bg-red-50 text-red-700 border-red-200' },
-            { label: 'Remarked', value: stats.remarked, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+            { label: 'Total Acted', value: stats.total, iconBg: 'bg-[#005b96]/10', numColor: 'text-[#005b96]', border: 'border-[#005b96]/15' },
+            { label: 'Resolved', value: stats.resolved, iconBg: 'bg-emerald-50', numColor: 'text-emerald-600', border: 'border-emerald-200/50' },
+            { label: 'Closed', value: stats.closed, iconBg: 'bg-[#03396c]/10', numColor: 'text-[#03396c]', border: 'border-[#03396c]/15' },
+            { label: 'Escalated', value: stats.escalated, iconBg: 'bg-red-50', numColor: 'text-red-600', border: 'border-red-200/50' },
+            { label: 'Remarked', value: stats.remarked, iconBg: 'bg-[#6497b1]/10', numColor: 'text-[#6497b1]', border: 'border-[#6497b1]/20' },
           ].map((s) => (
-            <div key={s.label} className={`rounded-xl border p-3 text-center ${s.color}`}>
-              <div className="text-2xl font-bold">{s.value}</div>
-              <div className="text-xs font-medium mt-0.5">{s.label}</div>
+            <div key={s.label} className={`bg-white rounded-2xl border ${s.border} p-4 text-center transition-all hover:shadow-md`} style={{ boxShadow: '0 2px 8px 0 rgba(0, 91, 150, 0.05)' }}>
+              <div className={`text-3xl font-bold ${s.numColor}`}>{s.value}</div>
+              <div className="text-[11px] font-semibold text-[#6497b1] mt-1 uppercase tracking-wider">{s.label}</div>
             </div>
           ))}
         </div>
 
         {/* Filter Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="bg-white rounded-2xl border border-[#b3cde0]/40 p-5 mb-8" style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-1.5 h-5 rounded-full bg-[#005b96]" />
+            <Filter className="w-4 h-4 text-[#005b96]" />
+            <span className="text-sm font-semibold text-[#011f4b]">Filters</span>
+          </div>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Search */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6497b1]" />
               <input
                 type="text"
                 placeholder="Search by Request ID or Subject"
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full pl-9 pr-4 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] placeholder-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
               />
             </div>
 
@@ -186,7 +191,7 @@ export default function RequestHistoryPage() {
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value as TmsTicketStatus | ''); setPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none min-w-[150px]"
+              className="px-3 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none min-w-[150px] transition-colors"
             >
               <option value="">All Statuses</option>
               {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
@@ -198,7 +203,7 @@ export default function RequestHistoryPage() {
             <select
               value={priorityFilter}
               onChange={(e) => { setPriorityFilter(e.target.value as TmsPriority | ''); setPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none min-w-[140px]"
+              className="px-3 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none min-w-[140px] transition-colors"
             >
               <option value="">All Priorities</option>
               {Object.entries(PRIORITY_CONFIG).map(([key, cfg]) => (
@@ -210,7 +215,7 @@ export default function RequestHistoryPage() {
             <select
               value={actionFilter}
               onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none min-w-[150px]"
+              className="px-3 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none min-w-[150px] transition-colors"
             >
               <option value="">All Actions</option>
               <option value="resolved">Resolved</option>
@@ -224,10 +229,10 @@ export default function RequestHistoryPage() {
             <button
               onClick={clearFilters}
               disabled={!hasActiveFilters}
-              className={`px-4 py-2 border rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2.5 border rounded-xl text-sm font-medium transition-all ${
                 hasActiveFilters
-                  ? 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                  : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'border-[#005b96]/30 text-[#005b96] hover:bg-[#005b96]/5'
+                  : 'border-[#b3cde0]/30 text-[#b3cde0] cursor-not-allowed'
               }`}
             >
               Clear
@@ -236,20 +241,22 @@ export default function RequestHistoryPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#b3cde0]/40 overflow-hidden" style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}>
           {isLoading ? (
-            <div className="flex justify-center py-16">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+            <div className="flex justify-center py-20">
+              <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
             </div>
           ) : isError ? (
-            <div className="text-center py-16">
-              <p className="text-red-500 text-sm">Failed to load history. Please try again.</p>
+            <div className="text-center py-20">
+              <p className="text-red-500 text-sm font-medium">Failed to load history. Please try again.</p>
             </div>
           ) : tickets.length === 0 ? (
-            <div className="text-center py-16">
-              <Clock className="w-10 h-10 mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-500 text-sm font-medium">No request history found</p>
-              <p className="text-xs text-gray-400 mt-1">
+            <div className="text-center py-20">
+              <div className="inline-flex items-center justify-center w-14 h-14 bg-[#005b96]/[0.06] rounded-2xl mb-4">
+                <FileText className="w-7 h-7 text-[#b3cde0]" />
+              </div>
+              <p className="text-[#011f4b] text-sm font-semibold">No request history found</p>
+              <p className="text-xs text-[#6497b1] mt-1">
                 {hasActiveFilters
                   ? 'Try adjusting your filters'
                   : 'Your history will appear here once you take action on assigned tickets'}
@@ -259,44 +266,44 @@ export default function RequestHistoryPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200 bg-gray-50/60">
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Request ID</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Student</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Subject</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Category</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Priority</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Last Action</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Action Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="text-center px-4 py-3 text-xs font-bold text-gray-600 uppercase tracking-wider">View</th>
+                  <tr style={{ background: 'linear-gradient(135deg, #011f4b 0%, #03396c 100%)' }}>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Request ID</th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Student</th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Subject</th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Category</th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Priority</th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Last Action</th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Action Date</th>
+                    <th className="text-left px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">Status</th>
+                    <th className="text-center px-4 py-3.5 text-[11px] font-semibold text-white/90 uppercase tracking-wider">View</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(tickets as (TmsTicket & { myLastAction?: string; myLastActionAt?: string; myActionCount?: number })[]).map((ticket, idx) => (
                     <tr
                       key={ticket.id}
-                      className={`border-b border-gray-100 hover:bg-blue-50/40 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
+                      className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}
                     >
                       {/* Request ID */}
                       <td className="px-4 py-3.5">
-                        <span className="text-sm text-blue-600 font-medium">{ticket.requestId}</span>
+                        <span className="text-sm text-[#005b96] font-semibold">{ticket.requestId}</span>
                       </td>
 
                       {/* Student */}
                       <td className="px-4 py-3.5">
-                        <div className="text-sm font-medium text-gray-800">{getStudentName(ticket)}</div>
-                        <div className="text-xs text-gray-400">{getStudentId(ticket)}</div>
+                        <div className="text-sm font-medium text-[#011f4b]">{getStudentName(ticket)}</div>
+                        <div className="text-[11px] text-[#6497b1]">{getStudentId(ticket)}</div>
                       </td>
 
                       {/* Subject */}
                       <td className="px-4 py-3.5 max-w-[200px]">
-                        <span className="text-sm text-gray-800 line-clamp-1">{ticket.subject}</span>
+                        <span className="text-sm text-[#03396c] line-clamp-1">{ticket.subject}</span>
                       </td>
 
                       {/* Category */}
                       <td className="px-4 py-3.5">
-                        <div className="text-sm text-gray-700">{ticket.masterCategory?.name}</div>
-                        <div className="text-xs text-gray-400">{ticket.subCategory?.name}</div>
+                        <div className="text-sm text-[#011f4b]">{ticket.masterCategory?.name}</div>
+                        <div className="text-[11px] text-[#6497b1]">{ticket.subCategory?.name}</div>
                       </td>
 
                       {/* Priority */}
@@ -308,19 +315,19 @@ export default function RequestHistoryPage() {
                       <td className="px-4 py-3.5">
                         <ActionBadge action={ticket.myLastAction ?? null} />
                         {(ticket.myActionCount ?? 0) > 1 && (
-                          <div className="text-[10px] text-gray-400 mt-0.5">{ticket.myActionCount} actions total</div>
+                          <div className="text-[10px] text-[#6497b1] mt-0.5">{ticket.myActionCount} actions total</div>
                         )}
                       </td>
 
                       {/* Action Date */}
                       <td className="px-4 py-3.5">
-                        <span className="text-sm text-gray-700">
+                        <span className="text-sm text-[#011f4b]">
                           {ticket.myLastActionAt
                             ? new Date(ticket.myLastActionAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
                             : '—'}
                         </span>
                         {ticket.myLastActionAt && (
-                          <div className="text-[10px] text-gray-400">
+                          <div className="text-[10px] text-[#6497b1]">
                             {new Date(ticket.myLastActionAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                           </div>
                         )}
@@ -335,7 +342,7 @@ export default function RequestHistoryPage() {
                       <td className="px-4 py-3.5 text-center">
                         <button
                           onClick={() => router.push(`/tms/${ticket.id}`)}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-200 hover:border-blue-600 rounded-lg font-medium transition-all"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-sm text-[#005b96] hover:text-white hover:bg-[#005b96] border border-[#005b96]/25 hover:border-[#005b96] rounded-lg font-medium transition-all"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           View
@@ -351,24 +358,27 @@ export default function RequestHistoryPage() {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between mt-4 px-1">
-            <p className="text-sm text-gray-500">
+          <div className="flex items-center justify-between mt-6 px-1">
+            <p className="text-sm text-[#6497b1]">
               Showing {(pagination.page - 1) * pagination.limit + 1}–{Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 border border-[#b3cde0]/40 rounded-xl text-[#005b96] hover:bg-[#005b96]/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                Previous
+                <ChevronLeft className="w-4 h-4" />
               </button>
+              <span className="px-3 py-1 bg-[#005b96]/[0.06] text-[#005b96] text-sm font-semibold rounded-lg">
+                {pagination.page} / {pagination.totalPages}
+              </span>
               <button
                 onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 disabled={page >= pagination.totalPages}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 border border-[#b3cde0]/40 rounded-xl text-[#005b96] hover:bg-[#005b96]/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                Next
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>

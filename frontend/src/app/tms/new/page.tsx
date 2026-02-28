@@ -136,49 +136,54 @@ export default function NewTicketPage() {
   };
 
   const selectClass =
-    'w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none cursor-pointer';
+    'w-full px-4 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none appearance-none cursor-pointer transition-all';
   const inputClass =
-    'w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none';
-  const labelClass = 'block text-sm font-semibold text-gray-800 mb-1.5';
+    'w-full px-4 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] placeholder-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-all';
+  const labelClass = 'block text-sm font-semibold text-[#011f4b] mb-1.5';
 
   // ==========================================
   // CONSENT / AGREEMENT SCREEN
   // ==========================================
   if (!hasConsented) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#e8f0f8] to-[#f0f4f8] py-10 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-b from-[#e8f1f8] to-[#f8fafc] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-[#004a80] rounded-2xl mb-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#011f4b] to-[#005b96] rounded-2xl mb-5 shadow-lg shadow-[#005b96]/20">
               <ShieldCheck className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Ticket Management System</h1>
-            <p className="text-sm text-gray-500 mt-1">Please read and accept the following before proceeding</p>
+            <h1 className="text-2xl font-bold text-[#011f4b] tracking-tight">Ticket Management System</h1>
+            <p className="text-sm text-[#6497b1] mt-1.5">Please read and accept the following before proceeding</p>
           </div>
 
           {/* Consent Card */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-            <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-[#b3cde0]/30 p-7 sm:p-9" style={{ boxShadow: '0 4px 24px 0 rgba(0, 91, 150, 0.08)' }}>
+            <div className="space-y-3">
               {CONSENT_POINTS.map((point, idx) => (
-                <div key={idx} className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-gray-700 leading-relaxed">{point}</p>
+                <div key={idx} className="flex items-start gap-3.5 p-3.5 rounded-xl bg-[#f8fafc] border border-[#b3cde0]/20 hover:border-[#005b96]/20 transition-colors">
+                  <div className="mt-0.5 shrink-0 w-7 h-7 rounded-lg bg-[#005b96]/10 flex items-center justify-center">
+                    <span className="text-xs font-bold text-[#005b96]">{idx + 1}</span>
+                  </div>
+                  <p className="text-[13px] text-[#03396c] leading-relaxed pt-0.5">{point}</p>
                 </div>
               ))}
             </div>
 
+            {/* Divider */}
+            <div className="mt-8 mb-6 h-px bg-gradient-to-r from-transparent via-[#b3cde0]/40 to-transparent" />
+
             {/* Action Buttons */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
                 onClick={() => setHasConsented(true)}
-                className="w-full sm:w-auto px-8 py-3 bg-[#e87722] hover:bg-[#d06a1e] text-white rounded-lg text-sm font-bold transition-colors shadow-sm"
+                className="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-[#e87722] to-[#d06a1e] hover:from-[#d06a1e] hover:to-[#c05e18] text-white rounded-xl text-sm font-bold transition-all shadow-md shadow-orange-500/15"
               >
                 Agree &amp; Proceed
               </button>
               <button
                 onClick={() => router.back()}
-                className="w-full sm:w-auto px-8 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                className="w-full sm:w-auto px-8 py-3 bg-[#f8fafc] border border-[#b3cde0]/40 rounded-xl text-sm font-medium text-[#6497b1] hover:bg-[#005b96]/5 hover:text-[#005b96] hover:border-[#005b96]/20 transition-all"
               >
                 Go Back
               </button>
@@ -193,28 +198,29 @@ export default function NewTicketPage() {
   // TICKET FORM (shown after consent)
   // ==========================================
   return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-4 mb-8">
           <button
             onClick={() => router.back()}
-            className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+            className="p-2.5 bg-white hover:bg-[#005b96]/5 border border-[#b3cde0]/40 rounded-xl transition-all shadow-sm"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5 text-[#005b96]" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Submit New Request</h1>
-            <p className="text-sm text-gray-500">Fill in the details below to submit your request</p>
+            <h1 className="text-2xl font-bold text-[#011f4b] tracking-tight">Submit New Request</h1>
+            <p className="text-sm text-[#6497b1] mt-0.5">Fill in the details below to submit your request</p>
           </div>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6"
+          className="bg-white rounded-2xl border border-[#b3cde0]/40 p-7 space-y-6" style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
         >
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <div className="flex items-start gap-2.5 p-4 bg-red-50 border border-red-200/50 rounded-xl text-sm text-red-700">
+              <span className="text-red-400 mt-0.5 shrink-0">⚠</span>
               {error}
             </div>
           )}
@@ -303,16 +309,16 @@ export default function NewTicketPage() {
 
           {/* Dealing Person — shown after sub-category is selected */}
           {subCategoryId && dealingPerson && (
-            <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center justify-center w-9 h-9 bg-blue-100 rounded-full">
-                <User className="w-5 h-5 text-blue-600" />
+            <div className="flex items-center gap-3.5 p-4 bg-[#005b96]/[0.04] border border-[#005b96]/15 rounded-xl">
+              <div className="flex items-center justify-center w-10 h-10 bg-[#005b96]/10 rounded-xl">
+                <User className="w-5 h-5 text-[#005b96]" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">Dealing Person</p>
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-[10px] uppercase tracking-wider text-[#6497b1] font-semibold">Dealing Person</p>
+                <p className="text-sm font-semibold text-[#011f4b]">
                   {dealingPerson.name}
                   {dealingPerson.designation && (
-                    <span className="text-xs font-normal text-gray-500 ml-1">({dealingPerson.designation})</span>
+                    <span className="text-xs font-normal text-[#6497b1] ml-1.5">({dealingPerson.designation})</span>
                   )}
                 </p>
               </div>
@@ -320,13 +326,13 @@ export default function NewTicketPage() {
           )}
 
           {subCategoryId && !dealingPerson && (
-            <div className="flex items-center gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center justify-center w-9 h-9 bg-yellow-100 rounded-full">
-                <User className="w-5 h-5 text-yellow-600" />
+            <div className="flex items-center gap-3.5 p-4 bg-amber-50/60 border border-amber-200/50 rounded-xl">
+              <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-xl">
+                <User className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 font-medium">Dealing Person</p>
-                <p className="text-sm text-yellow-700">No employee assigned to this sub-category yet</p>
+                <p className="text-[10px] uppercase tracking-wider text-[#6497b1] font-semibold">Dealing Person</p>
+                <p className="text-sm text-amber-700 font-medium">No employee assigned to this sub-category yet</p>
               </div>
             </div>
           )}
@@ -359,7 +365,7 @@ export default function NewTicketPage() {
               maxLength={500}
               className={`${inputClass} resize-none`}
             />
-            <p className="mt-1 text-xs text-gray-400 text-right">
+            <p className="mt-1 text-xs text-[#6497b1] text-right">
               {description.length}/500 characters
             </p>
           </div>
@@ -383,15 +389,15 @@ export default function NewTicketPage() {
             <div>
               <label className={labelClass}>Upload Supporting Document</label>
               {selectedFile ? (
-                <div className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50">
-                  <span className="text-sm text-gray-700 truncate flex-1">{selectedFile.name}</span>
+                <div className="flex items-center gap-2 px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl bg-[#005b96]/[0.03]">
+                  <span className="text-sm text-[#011f4b] truncate flex-1">{selectedFile.name}</span>
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedFile(null);
                       if (fileInputRef.current) fileInputRef.current.value = '';
                     }}
-                    className="text-gray-400 hover:text-red-500"
+                    className="text-[#6497b1] hover:text-red-500 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -400,7 +406,7 @@ export default function NewTicketPage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm text-[#6497b1] hover:bg-[#005b96]/[0.03] hover:border-[#005b96]/25 transition-colors"
                 >
                   <Upload className="w-4 h-4" />
                   Choose File
@@ -413,23 +419,23 @@ export default function NewTicketPage() {
                 onChange={handleFileChange}
                 className="hidden"
               />
-              <p className="mt-1 text-xs text-gray-400">Max file size: 5MB (PDF, JPG, PNG)</p>
+              <p className="mt-1 text-xs text-[#6497b1]">Max file size: 5MB (PDF, JPG, PNG)</p>
             </div>
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-4 pt-2">
+          <div className="flex gap-4 pt-3">
             <button
               type="submit"
               disabled={createMutation.isPending || uploading}
-              className="flex-1 py-2.5 bg-[#004a80] hover:bg-[#003d6b] text-white rounded-full text-sm font-semibold transition-colors disabled:opacity-50"
+              className="flex-1 py-3 bg-[#005b96] hover:bg-[#03396c] text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-50 shadow-md shadow-[#005b96]/20 hover:shadow-lg hover:shadow-[#005b96]/30"
             >
               {uploading ? 'Uploading File...' : createMutation.isPending ? 'Submitting...' : 'Submit Request'}
             </button>
             <button
               type="button"
               onClick={handleReset}
-              className="flex-1 py-2.5 border border-gray-300 rounded-full text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex-1 py-3 border border-[#b3cde0]/40 rounded-xl text-sm font-semibold text-[#6497b1] hover:bg-[#005b96]/[0.03] hover:border-[#005b96]/25 transition-all"
             >
               Reset
             </button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Plus, Pencil, Trash2, X, Save } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Save, Layers } from 'lucide-react';
 import {
   useAllCategories,
   useCreateMasterCategory,
@@ -202,8 +202,8 @@ export default function CategoriesAdminPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#005b96]" />
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-9 w-9 border-[3px] border-[#b3cde0] border-t-[#005b96]" />
       </div>
     );
   }
@@ -221,24 +221,29 @@ export default function CategoriesAdminPage() {
     : '';
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-[#003d66]">Category Management</h1>
-          <p className="text-sm text-[#5a7d9a] mt-1">Manage master categories, categories, and subcategories</p>
+        <div className="mb-8 flex items-center gap-4">
+          <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-[#011f4b] to-[#005b96] rounded-2xl shadow-lg shadow-[#005b96]/20">
+            <Layers className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-[#011f4b] tracking-tight">Category Management</h1>
+            <p className="text-sm text-[#6497b1] mt-0.5">Manage master categories, categories, and subcategories</p>
+          </div>
         </div>
 
         {/* Tab bar */}
-        <div className="inline-flex bg-[#003d66] rounded-lg overflow-hidden mb-6">
+        <div className="inline-flex bg-white rounded-xl border border-[#b3cde0]/40 overflow-hidden mb-8" style={{ boxShadow: '0 2px 8px 0 rgba(0, 91, 150, 0.06)' }}>
           {tabs.map((t) => (
             <button
               key={t.key}
               onClick={() => setTab(t.key)}
-              className={`px-5 py-2 text-sm font-medium transition-colors ${
+              className={`px-5 py-2.5 text-sm font-semibold transition-all ${
                 tab === t.key
-                  ? 'bg-white text-[#003d66]'
-                  : 'text-white/80 hover:text-white hover:bg-[#004d80]'
+                  ? 'bg-gradient-to-r from-[#011f4b] to-[#03396c] text-white shadow-md'
+                  : 'text-[#6497b1] hover:text-[#005b96] hover:bg-[#005b96]/[0.04]'
               }`}
             >
               {t.label}
@@ -247,12 +252,15 @@ export default function CategoriesAdminPage() {
         </div>
 
         {/* Card container */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl border border-[#b3cde0]/40 p-7" style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}>
           {/* Card header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-[#003d66]">
-              {tab === 'master' ? 'Master Categories' : tab === 'category' ? 'Categories' : tab === 'sub' ? 'Subcategories' : 'Role Handlers'}
-            </h2>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-5 rounded-full bg-[#005b96]" />
+              <h2 className="text-lg font-bold text-[#011f4b]">
+                {tab === 'master' ? 'Master Categories' : tab === 'category' ? 'Categories' : tab === 'sub' ? 'Subcategories' : 'Role Handlers'}
+              </h2>
+            </div>
             {tab !== 'roles' && (
               <button
                 onClick={() => {
@@ -260,7 +268,7 @@ export default function CategoriesAdminPage() {
                   else if (tab === 'category') openCreate('create-category');
                   else openCreate('create-sub');
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-[#003d66] hover:bg-[#004d80] text-white rounded-lg text-sm font-medium"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005b96] hover:bg-[#03396c] text-white rounded-xl text-sm font-semibold shadow-md shadow-[#005b96]/20 hover:shadow-lg transition-all"
               >
                 <Plus className="w-4 h-4" />
                 Add {tab === 'master' ? 'Master Category' : tab === 'category' ? 'Category' : 'Subcategory'}
@@ -270,120 +278,128 @@ export default function CategoriesAdminPage() {
 
           {/* ========== MASTER CATEGORIES TABLE ========== */}
           {tab === 'master' && (
+            <div className="overflow-hidden rounded-xl border border-[#b3cde0]/30">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-3 px-4 text-left font-bold text-[#003d66]">ID</th>
-                  <th className="py-3 px-4 text-left font-bold text-[#003d66]">Category Name</th>
-                  <th className="py-3 px-4 text-center font-bold text-[#003d66]">Actions</th>
+                <tr style={{ background: 'linear-gradient(135deg, #011f4b 0%, #03396c 100%)' }}>
+                  <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">ID</th>
+                  <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">Category Name</th>
+                  <th className="py-3.5 px-5 text-center text-[11px] font-semibold text-white/90 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {masterCategories?.map((mc, idx) => (
-                  <tr key={mc.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="py-3.5 px-4 text-[#005b96] font-medium">{idx + 1}</td>
-                    <td className="py-3.5 px-4 text-[#003d66]">{mc.name}</td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-center gap-3">
-                        <button onClick={() => openEdit('edit-master', mc)} className="text-[#005b96] hover:text-[#003d66]" title="Edit">
-                          <Pencil className="w-4.5 h-4.5" />
+                  <tr key={mc.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                    <td className="py-3.5 px-5 text-[#005b96] font-semibold">{idx + 1}</td>
+                    <td className="py-3.5 px-5 text-[#011f4b] font-medium">{mc.name}</td>
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => openEdit('edit-master', mc)} className="p-1.5 rounded-lg text-[#005b96] hover:bg-[#005b96]/10 transition-colors" title="Edit">
+                          <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete('master', mc.id)} className="text-red-500 hover:text-red-700" title="Delete">
-                          <Trash2 className="w-4.5 h-4.5" />
+                        <button onClick={() => handleDelete('master', mc.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete">
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
                 {(!masterCategories || masterCategories.length === 0) && (
-                  <tr><td colSpan={3} className="py-8 text-center text-gray-400">No master categories</td></tr>
+                  <tr><td colSpan={3} className="py-12 text-center text-[#6497b1]">No master categories</td></tr>
                 )}
               </tbody>
             </table>
+            </div>
           )}
 
           {/* ========== CATEGORIES TABLE ========== */}
           {tab === 'category' && (
+            <div className="overflow-hidden rounded-xl border border-[#b3cde0]/30">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="py-3 px-4 text-left font-bold text-[#003d66]">ID</th>
-                  <th className="py-3 px-4 text-left font-bold text-[#003d66]">Category Name</th>
-                  <th className="py-3 px-4 text-left font-bold text-[#003d66]">Master Category</th>
-                  <th className="py-3 px-4 text-center font-bold text-[#003d66]">Actions</th>
+                <tr style={{ background: 'linear-gradient(135deg, #011f4b 0%, #03396c 100%)' }}>
+                  <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">ID</th>
+                  <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">Category Name</th>
+                  <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">Master Category</th>
+                  <th className="py-3.5 px-5 text-center text-[11px] font-semibold text-white/90 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {flatCategories.map((cat, idx) => (
-                  <tr key={cat.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="py-3.5 px-4 text-[#005b96] font-medium">{idx + 1}</td>
-                    <td className="py-3.5 px-4 text-[#003d66]">{cat.name}</td>
-                    <td className="py-3.5 px-4 text-[#003d66]">{cat.masterCategoryName}</td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-center gap-3">
-                        <button onClick={() => openEdit('edit-category', cat)} className="text-[#005b96] hover:text-[#003d66]" title="Edit">
-                          <Pencil className="w-4.5 h-4.5" />
+                  <tr key={cat.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                    <td className="py-3.5 px-5 text-[#005b96] font-semibold">{idx + 1}</td>
+                    <td className="py-3.5 px-5 text-[#011f4b] font-medium">{cat.name}</td>
+                    <td className="py-3.5 px-5">
+                      <span className="inline-block px-2.5 py-1 rounded-lg bg-[#005b96]/[0.06] text-[#005b96] text-xs font-medium">{cat.masterCategoryName}</span>
+                    </td>
+                    <td className="py-3.5 px-5">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => openEdit('edit-category', cat)} className="p-1.5 rounded-lg text-[#005b96] hover:bg-[#005b96]/10 transition-colors" title="Edit">
+                          <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete('category', cat.id)} className="text-red-500 hover:text-red-700" title="Delete">
-                          <Trash2 className="w-4.5 h-4.5" />
+                        <button onClick={() => handleDelete('category', cat.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete">
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
                 {flatCategories.length === 0 && (
-                  <tr><td colSpan={4} className="py-8 text-center text-gray-400">No categories</td></tr>
+                  <tr><td colSpan={4} className="py-12 text-center text-[#6497b1]">No categories</td></tr>
                 )}
               </tbody>
             </table>
+            </div>
           )}
 
           {/* ========== SUBCATEGORIES TABLE ========== */}
           {tab === 'sub' && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border border-[#b3cde0]/30">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-3 px-4 text-left font-bold text-[#003d66]">ID</th>
-                    <th className="py-3 px-4 text-left font-bold text-[#003d66]">Subcategory Name</th>
-                    <th className="py-3 px-4 text-left font-bold text-[#003d66]">Category</th>
-                    <th className="py-3 px-4 text-left font-bold text-[#003d66]">Assigned Employee</th>
-                    <th className="py-3 px-4 text-center font-bold text-[#003d66]">Priority</th>
-                    <th className="py-3 px-4 text-center font-bold text-[#003d66]">SLA Time</th>
-                    <th className="py-3 px-4 text-center font-bold text-[#003d66]">Actions</th>
+                  <tr style={{ background: 'linear-gradient(135deg, #011f4b 0%, #03396c 100%)' }}>
+                    <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">ID</th>
+                    <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">Subcategory Name</th>
+                    <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">Category</th>
+                    <th className="py-3.5 px-5 text-left text-[11px] font-semibold text-white/90 uppercase tracking-wider">Assigned Employee</th>
+                    <th className="py-3.5 px-5 text-center text-[11px] font-semibold text-white/90 uppercase tracking-wider">Priority</th>
+                    <th className="py-3.5 px-5 text-center text-[11px] font-semibold text-white/90 uppercase tracking-wider">SLA Time</th>
+                    <th className="py-3.5 px-5 text-center text-[11px] font-semibold text-white/90 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {flatSubCategories.map((sc, idx) => (
-                    <tr key={sc.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                      <td className="py-3.5 px-4 text-[#005b96] font-medium">{idx + 1}</td>
-                      <td className="py-3.5 px-4 text-[#003d66]">{sc.name}</td>
-                      <td className="py-3.5 px-4 text-[#003d66]">{sc.categoryName}</td>
-                      <td className="py-3.5 px-4 text-[#003d66]">
-                        {sc.employee?.employeeDetails?.displayName || <span className="text-gray-400">—</span>}
+                    <tr key={sc.id} className={`border-b border-[#b3cde0]/15 hover:bg-[#005b96]/[0.03] transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-[#f8fafc]'}`}>
+                      <td className="py-3.5 px-5 text-[#005b96] font-semibold">{idx + 1}</td>
+                      <td className="py-3.5 px-5 text-[#011f4b] font-medium">{sc.name}</td>
+                      <td className="py-3.5 px-5">
+                        <span className="inline-block px-2.5 py-1 rounded-lg bg-[#005b96]/[0.06] text-[#005b96] text-xs font-medium">{sc.categoryName}</span>
                       </td>
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3.5 px-5 text-[#011f4b]">
+                        {sc.employee?.employeeDetails?.displayName || <span className="text-[#6497b1]">—</span>}
+                      </td>
+                      <td className="py-3.5 px-5 text-center">
                         <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border capitalize ${PRIORITY_BADGE[sc.priority || 'medium'] || PRIORITY_BADGE.medium}`}>
                           {sc.priority || 'Medium'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center text-[#003d66]">
+                      <td className="py-3.5 px-5 text-center text-[#011f4b] font-medium">
                         {slaLabel(sc.slaHours ?? 48)}
                       </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-center gap-3">
-                          <button onClick={() => openEdit('edit-sub', sc)} className="text-[#005b96] hover:text-[#003d66]" title="Edit">
-                            <Pencil className="w-4.5 h-4.5" />
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => openEdit('edit-sub', sc)} className="p-1.5 rounded-lg text-[#005b96] hover:bg-[#005b96]/10 transition-colors" title="Edit">
+                            <Pencil className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleDelete('sub', sc.id)} className="text-red-500 hover:text-red-700" title="Delete">
-                            <Trash2 className="w-4.5 h-4.5" />
+                          <button onClick={() => handleDelete('sub', sc.id)} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete">
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {flatSubCategories.length === 0 && (
-                    <tr><td colSpan={7} className="py-8 text-center text-gray-400">No subcategories</td></tr>
+                    <tr><td colSpan={7} className="py-12 text-center text-[#6497b1]">No subcategories</td></tr>
                   )}
                 </tbody>
               </table>
@@ -393,13 +409,13 @@ export default function CategoriesAdminPage() {
           {/* ========== ROLE HANDLERS TAB ========== */}
           {tab === 'roles' && (
             <div>
-              <p className="text-sm text-[#5a7d9a] mb-4">
+              <p className="text-sm text-[#6497b1] mb-5">
                 Assign employees to handle tickets at the Registrar, Dean, and Vice Chancellor levels.
                 These are used when tickets are escalated beyond the category hierarchy.
               </p>
               {roleError && (
-                <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                  {roleError}
+                <div className="mb-4 px-4 py-3 bg-red-50/80 border border-red-200/50 rounded-xl text-sm text-red-700 flex items-center gap-2">
+                  <span className="text-base">⚠</span> {roleError}
                 </div>
               )}
               <div className="space-y-4">
@@ -411,19 +427,19 @@ export default function CategoriesAdminPage() {
                   const current = (roleHandlers as TmsRoleHandler[] | undefined)?.find((h) => h.role === role);
                   const inputVal = roleInputs[role] ?? (current?.employee?.uid || '');
                   return (
-                    <div key={role} className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                    <div key={role} className="bg-[#f8fafc] rounded-xl border border-[#b3cde0]/30 p-5 hover:border-[#005b96]/20 transition-colors">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
-                          <h3 className="text-sm font-bold text-[#003d66]">{label}</h3>
-                          <p className="text-xs text-[#5a7d9a] mt-0.5">{desc}</p>
+                          <h3 className="text-sm font-bold text-[#011f4b]">{label}</h3>
+                          <p className="text-xs text-[#6497b1] mt-0.5">{desc}</p>
                           {current?.employee && (
-                            <p className="text-xs text-green-700 mt-1 font-medium">
-                              Currently: {current.employee.employeeDetails?.designation ? `${current.employee.employeeDetails.designation} ` : ''}
+                            <p className="text-xs text-emerald-600 mt-1.5 font-medium">
+                              ✓ Currently: {current.employee.employeeDetails?.designation ? `${current.employee.employeeDetails.designation} ` : ''}
                               {current.employee.employeeDetails?.displayName || current.employee.uid} ({current.employee.uid})
                             </p>
                           )}
                           {!current && (
-                            <p className="text-xs text-orange-600 mt-1 font-medium">⚠ Not assigned — tickets at this level will show &quot;Assigned To: System&quot;</p>
+                            <p className="text-xs text-amber-600 mt-1.5 font-medium">⚠ Not assigned — tickets at this level will show &quot;Assigned To: System&quot;</p>
                           )}
                         </div>
                       </div>
@@ -433,7 +449,7 @@ export default function CategoriesAdminPage() {
                           value={inputVal}
                           onChange={(e) => setRoleInputs((prev) => ({ ...prev, [role]: e.target.value }))}
                           placeholder="Enter Employee UID (e.g. TEACH019)"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none"
+                          className="flex-1 px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-white text-[#011f4b] placeholder-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
                         />
                         <button
                           onClick={async () => {
@@ -452,7 +468,7 @@ export default function CategoriesAdminPage() {
                             }
                           }}
                           disabled={roleSaving === role}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#003d66] hover:bg-[#004d80] text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#005b96] hover:bg-[#03396c] text-white rounded-xl text-sm font-semibold disabled:opacity-50 shadow-sm transition-all"
                         >
                           <Save className="w-3.5 h-3.5" />
                           {roleSaving === role ? 'Saving...' : 'Save'}
@@ -469,7 +485,7 @@ export default function CategoriesAdminPage() {
                                 setRoleError(`Failed to remove ${label} handler`);
                               }
                             }}
-                            className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                             title="Remove handler"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -486,49 +502,51 @@ export default function CategoriesAdminPage() {
 
         {/* ========== MODAL ========== */}
         {formMode && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4 relative">
-              <button onClick={() => setFormMode(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#011f4b]/40 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-7 w-full max-w-md mx-4 relative border border-[#b3cde0]/30" style={{ boxShadow: '0 8px 32px 0 rgba(0, 91, 150, 0.15)' }}>
+              <button onClick={() => setFormMode(null)} className="absolute top-4 right-4 p-1 rounded-lg text-[#6497b1] hover:text-[#005b96] hover:bg-[#005b96]/10 transition-colors">
                 <X className="w-5 h-5" />
               </button>
-              <h3 className="text-lg font-semibold text-[#003d66] mb-5">{modalTitle}</h3>
+              <h3 className="text-lg font-bold text-[#011f4b] mb-5">{modalTitle}</h3>
 
               {error && (
-                <div className="mb-3 p-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+                <div className="mb-4 p-3 bg-red-50/80 border border-red-200/50 rounded-xl text-sm text-red-700 flex items-center gap-2">
+                  <span className="text-base">⚠</span> {error}
+                </div>
               )}
 
               <div className="space-y-4">
                 {/* Name */}
                 <div>
-                  <label className="block text-sm font-medium text-[#003d66] mb-1">Name</label>
+                  <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Name</label>
                   <input
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none"
+                    className="w-full px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] placeholder-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
                     placeholder="Enter name"
                   />
                 </div>
 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-[#003d66] mb-1">Description</label>
+                  <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Description</label>
                   <textarea
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none resize-none"
+                    className="w-full px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] placeholder-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none resize-none transition-colors"
                     placeholder="Optional description"
                   />
                 </div>
 
                 {/* isAcademic (master only) */}
                 {formMode.includes('master') && (
-                  <label className="flex items-center gap-2 text-sm text-[#003d66]">
+                  <label className="flex items-center gap-2.5 text-sm font-medium text-[#011f4b]">
                     <input
                       type="checkbox"
                       checked={formIsAcademic}
                       onChange={(e) => setFormIsAcademic(e.target.checked)}
-                      className="rounded border-gray-300 text-[#005b96] focus:ring-[#005b96]"
+                      className="rounded border-[#b3cde0] text-[#005b96] focus:ring-[#005b96]/20"
                     />
                     Academic category
                   </label>
@@ -537,11 +555,11 @@ export default function CategoriesAdminPage() {
                 {/* Parent selector for create-category */}
                 {formMode === 'create-category' && (
                   <div>
-                    <label className="block text-sm font-medium text-[#003d66] mb-1">Master Category</label>
+                    <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Master Category</label>
                     <select
                       value={formParentId}
                       onChange={(e) => setFormParentId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none"
+                      className="w-full px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
                     >
                       <option value="">Select master category</option>
                       {masterOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -552,11 +570,11 @@ export default function CategoriesAdminPage() {
                 {/* Parent selector for create-sub */}
                 {formMode === 'create-sub' && (
                   <div>
-                    <label className="block text-sm font-medium text-[#003d66] mb-1">Category</label>
+                    <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Category</label>
                     <select
                       value={formParentId}
                       onChange={(e) => setFormParentId(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none"
+                      className="w-full px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
                     >
                       <option value="">Select category</option>
                       {categoryOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -566,12 +584,12 @@ export default function CategoriesAdminPage() {
 
                 {/* Employee ID */}
                 <div>
-                  <label className="block text-sm font-medium text-[#003d66] mb-1">Assign Employee (User ID)</label>
+                  <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Assign Employee (User ID)</label>
                   <input
                     value={formEmployeeId}
                     onChange={(e) => setFormEmployeeId(e.target.value)}
                     placeholder="Enter employee UUID (optional)"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none"
+                    className="w-full px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] placeholder-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
                   />
                 </div>
 
@@ -579,11 +597,11 @@ export default function CategoriesAdminPage() {
                 {formMode.includes('sub') && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-[#003d66] mb-1">Priority</label>
+                      <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">Priority</label>
                       <select
                         value={formPriority}
                         onChange={(e) => setFormPriority(e.target.value as TmsPriority)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none"
+                        className="w-full px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
                       >
                         <option value="low">Low</option>
                         <option value="medium">Medium</option>
@@ -592,29 +610,29 @@ export default function CategoriesAdminPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-[#003d66] mb-1">SLA Time (hours)</label>
+                      <label className="block text-sm font-semibold text-[#011f4b] mb-1.5">SLA Time (hours)</label>
                       <input
                         type="number"
                         min={1}
                         value={formSlaHours}
                         onChange={(e) => setFormSlaHours(parseInt(e.target.value, 10) || 48)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#005b96] focus:border-[#005b96] outline-none"
+                        className="w-full px-3.5 py-2.5 border border-[#b3cde0]/50 rounded-xl text-sm bg-[#f8fafc] text-[#011f4b] focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-colors"
                       />
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="flex justify-end gap-2 mt-6">
+              <div className="flex justify-end gap-3 mt-7">
                 <button
                   onClick={() => setFormMode(null)}
-                  className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-5 py-2.5 text-sm font-medium text-[#6497b1] border border-[#b3cde0]/40 rounded-xl hover:bg-[#005b96]/[0.03] hover:text-[#005b96] transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSubmit}
-                  className="px-5 py-2 bg-[#003d66] hover:bg-[#004d80] text-white rounded-lg text-sm font-medium"
+                  className="px-6 py-2.5 bg-[#005b96] hover:bg-[#03396c] text-white rounded-xl text-sm font-semibold shadow-md shadow-[#005b96]/20 transition-all"
                 >
                   {formMode.startsWith('create') ? 'Create' : 'Save Changes'}
                 </button>

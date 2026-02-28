@@ -43,7 +43,7 @@ const getCategoryAnalytics = asyncHandler(async (req, res) => {
 const listAllTickets = asyncHandler(async (req, res) => {
   const {
     page, limit, status, messageType, priority,
-    masterCategoryId, categoryId, assignedToId, createdById,
+    masterCategoryId, categoryId, subCategoryId, assignedToId, createdById,
     currentLevel, search, startDate, endDate, sortBy, sortOrder,
   } = req.query;
 
@@ -55,6 +55,7 @@ const listAllTickets = asyncHandler(async (req, res) => {
     priority,
     masterCategoryId,
     categoryId,
+    subCategoryId,
     assignedToId,
     createdById,
     currentLevel,

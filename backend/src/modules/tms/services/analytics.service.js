@@ -138,7 +138,7 @@ async function getEmployeeStats(filters = {}) {
 }
 
 /**
- * Get per-category statistics
+ * Get per-category statistics (detailed)
  */
 async function getCategoryStats(filters = {}) {
   const { startDate, endDate } = filters;
@@ -147,7 +147,7 @@ async function getCategoryStats(filters = {}) {
   if (endDate) dateFilter.lte = new Date(endDate);
   const where = Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {};
 
-  const [byMaster, byCategory, bySubCategory] = await Promise.all([
+  const [byMaster, byCategory, bySubCategory, totalTickets] = await Promise.all([
     prisma.tmsTicket.groupBy({
       by: ['masterCategoryId'],
       where,
@@ -163,6 +163,7 @@ async function getCategoryStats(filters = {}) {
       where,
       _count: { id: true },
     }),
+    prisma.tmsTicket.count({ where }),
   ]);
 
   // Enrich with category names
@@ -177,55 +178,151 @@ async function getCategoryStats(filters = {}) {
     }),
     prisma.tmsCategory.findMany({
       where: { id: { in: catIds } },
-      select: { id: true, name: true, masterCategory: { select: { name: true } } },
+      select: { id: true, name: true, masterCategory: { select: { id: true, name: true } } },
     }),
     prisma.tmsSubCategory.findMany({
       where: { id: { in: subCatIds } },
-      select: { id: true, name: true, category: { select: { name: true, masterCategory: { select: { name: true } } } } },
+      select: { id: true, name: true, category: { select: { id: true, name: true, masterCategory: { select: { name: true } } } } },
     }),
   ]);
 
   const masterMap = Object.fromEntries(masters.map((m) => [m.id, { name: m.name, isAcademic: m.isAcademic }]));
-  const catMap = Object.fromEntries(cats.map((c) => [c.id, { name: c.name, masterCategory: c.masterCategory.name }]));
-  const subCatMap = Object.fromEntries(subCats.map((s) => [s.id, { name: s.name, category: s.category.name, masterCategory: s.category.masterCategory.name }]));
+  const catMap = Object.fromEntries(cats.map((c) => [c.id, { name: c.name, masterCategory: c.masterCategory.name, masterCategoryId: c.masterCategory.id }]));
+  const subCatMap = Object.fromEntries(subCats.map((s) => [s.id, { name: s.name, category: s.category.name, categoryId: s.category.id, masterCategory: s.category.masterCategory.name }]));
 
-  // Per-master-category status breakdown
-  const masterStatusBreakdowns = await Promise.all(
+  // Per-master-category: status breakdown, priority breakdown, avg resolution, escalation count
+  const masterEnriched = await Promise.all(
     byMaster.map(async (m) => {
-      const statuses = await prisma.tmsTicket.groupBy({
-        by: ['status'],
-        where: { ...where, masterCategoryId: m.masterCategoryId },
-        _count: { id: true },
-      });
+      const mcWhere = { ...where, masterCategoryId: m.masterCategoryId };
+      const [statuses, priorities, resolvedTickets, escalations, ratings] = await Promise.all([
+        prisma.tmsTicket.groupBy({
+          by: ['status'],
+          where: mcWhere,
+          _count: { id: true },
+        }),
+        prisma.tmsTicket.groupBy({
+          by: ['priority'],
+          where: mcWhere,
+          _count: { id: true },
+        }),
+        prisma.tmsTicket.findMany({
+          where: { ...mcWhere, resolvedAt: { not: null } },
+          select: { createdAt: true, resolvedAt: true },
+        }),
+        prisma.tmsTimeline.count({
+          where: {
+            action: { in: ['escalated', 'auto_escalated'] },
+            ticket: mcWhere,
+          },
+        }),
+        prisma.tmsRating.aggregate({
+          where: { ticket: mcWhere },
+          _avg: { rating: true },
+          _count: { id: true },
+        }),
+      ]);
+
+      let avgResolutionHours = 0;
+      if (resolvedTickets.length > 0) {
+        const totalHours = resolvedTickets.reduce((sum, t) => {
+          return sum + (t.resolvedAt.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60);
+        }, 0);
+        avgResolutionHours = Math.round((totalHours / resolvedTickets.length) * 10) / 10;
+      }
+
       return {
         id: m.masterCategoryId,
+        name: masterMap[m.masterCategoryId]?.name || 'Unknown',
+        isAcademic: masterMap[m.masterCategoryId]?.isAcademic || false,
+        count: m._count.id,
         byStatus: statuses.reduce((acc, s) => ({ ...acc, [s.status]: s._count.id }), {}),
+        byPriority: priorities.reduce((acc, p) => ({ ...acc, [p.priority]: p._count.id }), {}),
+        resolved: resolvedTickets.length,
+        avgResolutionHours,
+        escalations,
+        avgRating: ratings._avg.rating ? Math.round(ratings._avg.rating * 10) / 10 : null,
+        totalRatings: ratings._count.id,
       };
     })
   );
-  const masterStatusMap = Object.fromEntries(masterStatusBreakdowns.map((m) => [m.id, m.byStatus]));
+
+  // Per-category: status breakdown, avg resolution
+  const categoryEnriched = await Promise.all(
+    byCategory.map(async (c) => {
+      const cWhere = { ...where, categoryId: c.categoryId };
+      const [statuses, resolvedTickets] = await Promise.all([
+        prisma.tmsTicket.groupBy({
+          by: ['status'],
+          where: cWhere,
+          _count: { id: true },
+        }),
+        prisma.tmsTicket.findMany({
+          where: { ...cWhere, resolvedAt: { not: null } },
+          select: { createdAt: true, resolvedAt: true },
+        }),
+      ]);
+
+      let avgResolutionHours = 0;
+      if (resolvedTickets.length > 0) {
+        const totalHours = resolvedTickets.reduce((sum, t) => {
+          return sum + (t.resolvedAt.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60);
+        }, 0);
+        avgResolutionHours = Math.round((totalHours / resolvedTickets.length) * 10) / 10;
+      }
+
+      return {
+        id: c.categoryId,
+        name: catMap[c.categoryId]?.name || 'Unknown',
+        masterCategory: catMap[c.categoryId]?.masterCategory || 'Unknown',
+        count: c._count.id,
+        byStatus: statuses.reduce((acc, s) => ({ ...acc, [s.status]: s._count.id }), {}),
+        resolved: resolvedTickets.length,
+        avgResolutionHours,
+      };
+    })
+  );
+
+  // Per-sub-category: status breakdown
+  const subCategoryEnriched = await Promise.all(
+    bySubCategory.map(async (s) => {
+      const sWhere = { ...where, subCategoryId: s.subCategoryId };
+      const statuses = await prisma.tmsTicket.groupBy({
+        by: ['status'],
+        where: sWhere,
+        _count: { id: true },
+      });
+
+      return {
+        id: s.subCategoryId,
+        name: subCatMap[s.subCategoryId]?.name || 'Unknown',
+        category: subCatMap[s.subCategoryId]?.category || 'Unknown',
+        masterCategory: subCatMap[s.subCategoryId]?.masterCategory || 'Unknown',
+        count: s._count.id,
+        byStatus: statuses.reduce((acc, st) => ({ ...acc, [st.status]: st._count.id }), {}),
+      };
+    })
+  );
+
+  // Summary totals
+  const totalResolved = masterEnriched.reduce((s, m) => s + m.resolved, 0);
+  const totalEscalations = masterEnriched.reduce((s, m) => s + m.escalations, 0);
+  const academicCount = masterEnriched.filter((m) => m.isAcademic).reduce((s, m) => s + m.count, 0);
+  const nonAcademicCount = masterEnriched.filter((m) => !m.isAcademic).reduce((s, m) => s + m.count, 0);
 
   return {
-    byMasterCategory: byMaster.map((m) => ({
-      id: m.masterCategoryId,
-      name: masterMap[m.masterCategoryId]?.name || 'Unknown',
-      isAcademic: masterMap[m.masterCategoryId]?.isAcademic || false,
-      count: m._count.id,
-      byStatus: masterStatusMap[m.masterCategoryId] || {},
-    })),
-    byCategory: byCategory.map((c) => ({
-      id: c.categoryId,
-      name: catMap[c.categoryId]?.name || 'Unknown',
-      masterCategory: catMap[c.categoryId]?.masterCategory || 'Unknown',
-      count: c._count.id,
-    })),
-    bySubCategory: bySubCategory.map((s) => ({
-      id: s.subCategoryId,
-      name: subCatMap[s.subCategoryId]?.name || 'Unknown',
-      category: subCatMap[s.subCategoryId]?.category || 'Unknown',
-      masterCategory: subCatMap[s.subCategoryId]?.masterCategory || 'Unknown',
-      count: s._count.id,
-    })),
+    summary: {
+      totalTickets,
+      totalCategories: catIds.length,
+      totalSubCategories: subCatIds.length,
+      totalMasterCategories: masterIds.length,
+      totalResolved,
+      totalEscalations,
+      academicCount,
+      nonAcademicCount,
+    },
+    byMasterCategory: masterEnriched,
+    byCategory: categoryEnriched,
+    bySubCategory: subCategoryEnriched,
   };
 }
 
@@ -258,6 +355,7 @@ async function listAllTickets(filters = {}) {
   if (priority) where.priority = priority;
   if (masterCategoryId) where.masterCategoryId = masterCategoryId;
   if (categoryId) where.categoryId = categoryId;
+  if (filters.subCategoryId) where.subCategoryId = filters.subCategoryId;
   if (assignedToId) where.assignedToId = assignedToId;
   if (createdById) where.createdById = createdById;
   if (currentLevel) where.currentLevel = currentLevel;
@@ -269,6 +367,7 @@ async function listAllTickets(filters = {}) {
   if (search) {
     where.OR = [
       { requestId: { contains: search, mode: 'insensitive' } },
+      { subject: { contains: search, mode: 'insensitive' } },
       { description: { contains: search, mode: 'insensitive' } },
     ];
   }
