@@ -168,6 +168,10 @@ const startServer = async () => {
     const { auditReportScheduler } = require('./modules/audit/services/auditScheduler.service');
     await auditReportScheduler.initialize();
     
+    // Initialize TMS auto-escalation scheduler
+    const { tmsEscalationScheduler } = require('./modules/tms/services/tmsScheduler.service');
+    await tmsEscalationScheduler.initialize();
+    
     // Initialize email service
     const { emailService } = require('./modules/core/services/email.service');
     await emailService.initialize();
@@ -178,6 +182,7 @@ const startServer = async () => {
       console.log(`🗄️  Database connected via Prisma`);
       console.log(`📦 Cache initialized (${cache.isConnected() ? 'Redis' : 'Memory fallback'})`);
       console.log(`📊 Audit report scheduler initialized`);
+      console.log(`🎫 TMS auto-escalation scheduler initialized`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error.message);

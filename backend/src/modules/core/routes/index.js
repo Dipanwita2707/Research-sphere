@@ -38,6 +38,7 @@ const financeModule = require('../../finance');
 const notingModule = require('../../noting');
 const dswModule = require('../../dsw');
 const eventManagementModule = require('../../event-management/routes/event.routes');
+const tmsModule = require('../../tms');
 
 // ============================================
 // MOUNT CORE ROUTES
@@ -71,6 +72,7 @@ router.use('/finance', financeModule);
 router.use('/noting', notingModule);
 router.use('/dsw', dswModule);
 router.use('/events', eventManagementModule);
+router.use('/tms', tmsModule);
 
 // ============================================
 // BACKWARD COMPATIBILITY ROUTES
