@@ -8,6 +8,7 @@ const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
 const eventService = require('../services/event.service');
 const { formatEventResponse } = require('../utils/eventHelpers');
+const { canUserSeeEvent } = require('../services/eventSettings.service');
 
 /**
  * Get list of events
@@ -17,13 +18,15 @@ const { formatEventResponse } = require('../utils/eventHelpers');
  */
 const listEvents = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { page, limit, status, eventType, search, myEvents } = req.query;
-  
+  const { page, limit, status, eventType, search, myEvents, filter, studentApply } = req.query;
+
   const filters = {
     status,
     eventType,
     search,
     myEvents: myEvents === 'true',
+    filter,
+    studentApply,
   };
   
   const pagination = {
@@ -52,6 +55,18 @@ const getEvent = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   
   const event = await eventService.getEventDetails(id, userId);
+
+  // ── Visibility enforcement: check if user is allowed to see this event ──
+  // Event creators and superadmins bypass visibility checks
+  if (event.createdById !== userId && req.user.role !== 'superadmin') {
+    const canSee = await canUserSeeEvent(event.id, userId);
+    if (!canSee) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this event',
+      });
+    }
+  }
   
   return ApiResponse.success(res, formatEventResponse(event), 'Event fetched successfully');
 });
@@ -182,31 +197,134 @@ const scanQRCode = asyncHandler(async (req, res) => {
 });
 
 /**
- * Get event registrations (for event creator)
+ * Get event registrations (for event creator) — with advanced server-side filters
  * 
  * @route GET /api/events/:id/registrations
  * @access Protected (Event Creator only)
+ *
+ * Query params:
+ *   page, limit, status, search,
+ *   role        – "student" | "faculty" | "staff" | "admin" | "superadmin" | "parent"
+ *   gender      – e.g. "Male", "Female"
+ *   schoolId    – UUID of FacultySchoolList
+ *   departmentId – UUID of Department
+ *   programId   – UUID of Program
+ *   passOutYear – graduation year (integer)
+ *   uid         – UID / REGNO search (students)
+ *   empId       – EMPID search (employees)
  */
 const getEventRegistrations = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  const { page, limit, status, search } = req.query;
+  const {
+    page, limit, status, search,
+    role, gender, schoolId, departmentId, programId, passOutYear,
+    uid, empId,
+  } = req.query;
   
   const event = await eventService.getEventDetails(id, userId);
   
-  // Verify user is event creator
+  // Verify user is event creator or has manage_all
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can view registrations');
   }
   
   const pageNum = parseInt(page) || 1;
-  const limitNum = parseInt(limit) || 20;
-  
-  const where = { eventId: id };
-  if (status) where.status = status;
+  const limitNum = Math.min(parseInt(limit) || 20, 100);
   
   const prisma = require('../../../shared/config/database');
-  
+
+  // ── Build WHERE clause ──────────────────────────────────────
+  const where = { eventId: id };
+  if (status && status !== 'all') where.status = status;
+
+  // Build user_login relation filter
+  const userFilter = {};
+
+  // Role filter
+  if (role) userFilter.role = role;
+
+  // UID / REGNO search (works on user uid OR student registrationNo / studentId)
+  if (uid) {
+    const uidSearch = uid.trim();
+    userFilter.OR = [
+      { uid: { contains: uidSearch, mode: 'insensitive' } },
+      { studentLogin: { studentId: { contains: uidSearch, mode: 'insensitive' } } },
+      { studentLogin: { registrationNo: { contains: uidSearch, mode: 'insensitive' } } },
+    ];
+  }
+
+  // EMPID search
+  if (empId) {
+    const empSearch = empId.trim();
+    // combine with existing OR if already present? No — empId and uid are mutually exclusive
+    userFilter.employeeDetails = { empId: { contains: empSearch, mode: 'insensitive' } };
+  }
+
+  // Gender filter — student gender or employee metadata
+  if (gender) {
+    // Students store gender directly; employees don't have a gender field in DB
+    // We filter on StudentDetails.gender
+    if (!userFilter.studentLogin) userFilter.studentLogin = {};
+    userFilter.studentLogin.gender = { equals: gender, mode: 'insensitive' };
+  }
+
+  // School filter (student → program → department → school OR employee → primarySchool)
+  if (schoolId) {
+    userFilter.OR = [
+      ...(userFilter.OR || []),
+      { studentLogin: { program: { department: { facultyId: schoolId } } } },
+      { employeeDetails: { primarySchoolId: schoolId } },
+    ];
+  }
+
+  // Department filter
+  if (departmentId) {
+    userFilter.OR = [
+      ...(userFilter.OR || []),
+      { studentLogin: { program: { departmentId } } },
+      { employeeDetails: { primaryDepartmentId: departmentId } },
+    ];
+  }
+
+  // Program filter (student only)
+  if (programId) {
+    if (!userFilter.studentLogin) userFilter.studentLogin = {};
+    userFilter.studentLogin.programId = programId;
+  }
+
+  // Pass-out year (graduation year)
+  if (passOutYear) {
+    const year = parseInt(passOutYear);
+    if (!isNaN(year)) {
+      if (!userFilter.studentLogin) userFilter.studentLogin = {};
+      userFilter.studentLogin.graduationDate = {
+        gte: new Date(`${year}-01-01`),
+        lt: new Date(`${year + 1}-01-01`),
+      };
+    }
+  }
+
+  // General text search (name, email, uid, registrationId)
+  if (search && search.trim()) {
+    const q = search.trim();
+    where.OR = [
+      { registrationId: { contains: q, mode: 'insensitive' } },
+      { user_login: { uid: { contains: q, mode: 'insensitive' } } },
+      { user_login: { email: { contains: q, mode: 'insensitive' } } },
+      { user_login: { studentLogin: { firstName: { contains: q, mode: 'insensitive' } } } },
+      { user_login: { studentLogin: { lastName: { contains: q, mode: 'insensitive' } } } },
+      { user_login: { employeeDetails: { firstName: { contains: q, mode: 'insensitive' } } } },
+      { user_login: { employeeDetails: { lastName: { contains: q, mode: 'insensitive' } } } },
+    ];
+  }
+
+  // Apply user relation filter only if we have conditions
+  if (Object.keys(userFilter).length > 0) {
+    where.user_login = userFilter;
+  }
+
+  // ── Execute Query ───────────────────────────────────────────
   const [registrations, total] = await Promise.all([
     prisma.eventRegistration.findMany({
       where,
@@ -216,11 +334,17 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
             id: true,
             uid: true,
             email: true,
+            role: true,
             employeeDetails: {
               select: {
                 firstName: true,
                 lastName: true,
                 displayName: true,
+                empId: true,
+                primarySchoolId: true,
+                primaryDepartmentId: true,
+                primarySchool: { select: { id: true, facultyName: true } },
+                primaryDepartment: { select: { id: true, departmentName: true } },
               },
             },
             studentLogin: {
@@ -230,6 +354,22 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
                 displayName: true,
                 registrationNo: true,
                 studentId: true,
+                gender: true,
+                graduationDate: true,
+                programId: true,
+                program: {
+                  select: {
+                    id: true,
+                    programName: true,
+                    department: {
+                      select: {
+                        id: true,
+                        departmentName: true,
+                        faculty: { select: { id: true, facultyName: true } },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -253,6 +393,132 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
       totalPages: Math.ceil(total / limitNum),
     },
   }, 'Registrations fetched successfully');
+});
+
+/**
+ * Get dynamic filter options for event registrations.
+ * Returns distinct values that actually exist in the registration data.
+ * 
+ * @route GET /api/events/:id/registrations/filter-options
+ * @access Protected (Event Creator only)
+ */
+const getRegistrationFilterOptions = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const event = await eventService.getEventDetails(id, userId);
+  if (event.createdById !== userId) {
+    throw new ForbiddenError('Only the event creator can view registration filter options');
+  }
+
+  const prisma = require('../../../shared/config/database');
+
+  // Get all user IDs registered for this event
+  const registrations = await prisma.eventRegistration.findMany({
+    where: { eventId: id },
+    select: { userId: true },
+  });
+  const userIds = registrations.map(r => r.userId);
+
+  if (userIds.length === 0) {
+    return ApiResponse.success(res, {
+      roles: [],
+      genders: [],
+      schools: [],
+      departments: [],
+      programs: [],
+      passOutYears: [],
+    }, 'Filter options fetched');
+  }
+
+  // Fetch all relevant user data in one go
+  const users = await prisma.userLogin.findMany({
+    where: { id: { in: userIds } },
+    select: {
+      role: true,
+      studentLogin: {
+        select: {
+          gender: true,
+          graduationDate: true,
+          programId: true,
+          program: {
+            select: {
+              id: true,
+              programName: true,
+              departmentId: true,
+              department: {
+                select: {
+                  id: true,
+                  departmentName: true,
+                  facultyId: true,
+                  faculty: { select: { id: true, facultyName: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+      employeeDetails: {
+        select: {
+          primarySchoolId: true,
+          primaryDepartmentId: true,
+          primarySchool: { select: { id: true, facultyName: true } },
+          primaryDepartment: { select: { id: true, departmentName: true } },
+        },
+      },
+    },
+  });
+
+  // Extract distinct values
+  const rolesSet = new Set();
+  const gendersSet = new Set();
+  const schoolsMap = new Map();
+  const departmentsMap = new Map();
+  const programsMap = new Map();
+  const passOutYearsSet = new Set();
+
+  for (const u of users) {
+    rolesSet.add(u.role);
+
+    // Student data
+    if (u.studentLogin) {
+      const s = u.studentLogin;
+      if (s.gender) gendersSet.add(s.gender);
+      if (s.graduationDate) {
+        passOutYearsSet.add(new Date(s.graduationDate).getFullYear());
+      }
+      if (s.program) {
+        programsMap.set(s.program.id, { id: s.program.id, name: s.program.programName });
+        if (s.program.department) {
+          const d = s.program.department;
+          departmentsMap.set(d.id, { id: d.id, name: d.departmentName });
+          if (d.faculty) {
+            schoolsMap.set(d.faculty.id, { id: d.faculty.id, name: d.faculty.facultyName });
+          }
+        }
+      }
+    }
+
+    // Employee data
+    if (u.employeeDetails) {
+      const e = u.employeeDetails;
+      if (e.primarySchool) {
+        schoolsMap.set(e.primarySchool.id, { id: e.primarySchool.id, name: e.primarySchool.facultyName });
+      }
+      if (e.primaryDepartment) {
+        departmentsMap.set(e.primaryDepartment.id, { id: e.primaryDepartment.id, name: e.primaryDepartment.departmentName });
+      }
+    }
+  }
+
+  return ApiResponse.success(res, {
+    roles: [...rolesSet].sort(),
+    genders: [...gendersSet].sort(),
+    schools: [...schoolsMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    departments: [...departmentsMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    programs: [...programsMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    passOutYears: [...passOutYearsSet].sort((a, b) => b - a),
+  }, 'Filter options fetched');
 });
 
 /**
@@ -364,6 +630,7 @@ module.exports = {
   assignVolunteer,
   scanQRCode,
   getEventRegistrations,
+  getRegistrationFilterOptions,
   getEventVolunteers,
   getMyVolunteerAssignments,
   getMyVolunteerActivity,

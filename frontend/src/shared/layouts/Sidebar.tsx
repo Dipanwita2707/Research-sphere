@@ -28,7 +28,9 @@ import {
   List,
   UserPlus,
   CheckSquare,
-  Shield
+  Shield,
+  Store,
+  QrCode
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -163,7 +165,9 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
       { name: 'Browse Events', href: '/events', icon: List },
       { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
       { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
+      { name: 'Stall Application', href: '/events/stall-opportunities', icon: Store },
       { name: 'Volunteer', href: '/events/volunteer', icon: Shield },
+      { name: 'Event Feedback Scanner', href: '/event-feedback-scanner', icon: QrCode },
     ]
   });
   

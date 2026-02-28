@@ -1,100 +1,590 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Award, Users, Calendar, UserCheck, Crown } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useMyClubs } from '@/features/dsw/hooks';
-import { getErrorMessage } from '@/shared/utils/errorHandler';
-import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import React from "react";
+import {
+  Award,
+  Users,
+  Calendar,
+  UserCheck,
+  Crown,
+  Clock,
+  FileText,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Plus,
+  RefreshCw,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMyClubs, useMyClubRequests } from "@/features/dsw/hooks";
+import { useEffect, useRef } from "react";
+import dswAPI from "@/features/dsw/services/api";
+import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
+import { getErrorMessage } from "@/shared/utils/errorHandler";
+import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { ClubCreationRequest } from "@/features/dsw/types";
 
+// ─── Noting status → human-readable label + style ───────────────────────────
+const NOTING_STATUS_CONFIG: Record<
+  string,
+  { label: string; icon: React.ReactNode; className: string }
+> = {
+  pending: {
+    label: "Pending Review",
+    icon: <Clock className="w-3.5 h-3.5" />,
+    className:
+      "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+  },
+  draft: {
+    label: "Draft",
+    icon: <FileText className="w-3.5 h-3.5" />,
+    className: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  },
+  approved: {
+    label: "Approved",
+    icon: <CheckCircle className="w-3.5 h-3.5" />,
+    className:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+  },
+  rejected: {
+    label: "Rejected",
+    icon: <XCircle className="w-3.5 h-3.5" />,
+    className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
+  },
+  withdrawn: {
+    label: "Withdrawn",
+    icon: <AlertCircle className="w-3.5 h-3.5" />,
+    className: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+  },
+};
+
+function NotingStatusBadge({ status }: { status: string }) {
+  const cfg = NOTING_STATUS_CONFIG[status] ?? {
+    label: status,
+    icon: <Clock className="w-3.5 h-3.5" />,
+    className: "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.className}`}
+    >
+      {cfg.icon}
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Approval chain steps ────────────────────────────────────────────────────
+const APPROVAL_STEPS = ["Faculty", "HOD", "Dean", "DSW", "Higher Auth"];
+
+// Maps the backend approval-chain holder role (or final status) to how many
+// steps are fully done.  The chain is: Faculty(0) → HOD(1) → Dean(2) → DSW(3) → Higher Auth(4)
+function resolveApprovalDoneIndex(req: ClubCreationRequest): number {
+  if (req.status === "approved") return APPROVAL_STEPS.length; // all done
+  if (req.status === "rejected" || req.status === "withdrawn") {
+    // Show progress up to the step where it stopped — derive from lastAction
+    // We don't have a dedicated field, so fall back to "at least Faculty done"
+    return 1;
+  }
+  // For pending notings, try to infer current position from currentHolder role.
+  // The backend returns currentHolder but not their role directly.
+  // As a best-effort heuristic we use lastAction remarks / currentHolder uid
+  // patterns; if we can't tell, default to "Faculty approved, now at HOD".
+  const remarks = req.lastAction?.remarks ?? "";
+  const action = req.lastAction?.action ?? "";
+  if (/higher.auth|vc|vice.chancellor/i.test(remarks + action)) return 4;
+  if (/dsw/i.test(remarks + action)) return 3;
+  if (/dean/i.test(remarks + action)) return 2;
+  if (/hod/i.test(remarks + action)) return 1;
+  // Default: just submitted, waiting at Faculty
+  return 0;
+}
+
+function ApprovalChain({ req }: { req: ClubCreationRequest }) {
+  const doneIndex = resolveApprovalDoneIndex(req);
+  const isRejected = req.status === "rejected" || req.status === "withdrawn";
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-2">
+      {APPROVAL_STEPS.map((step, i) => (
+        <React.Fragment key={step}>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+              i < doneIndex
+                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                : i === doneIndex && !isRejected
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 ring-1 ring-amber-400 dark:ring-amber-600"
+                  : "bg-gray-100 text-gray-400 dark:bg-gray-700/50 dark:text-gray-500"
+            }`}
+          >
+            {i < doneIndex && <span className="mr-0.5">✓</span>}
+            {step}
+          </span>
+          {i < APPROVAL_STEPS.length - 1 && (
+            <ArrowRight className="w-3 h-3 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// ─── Pending Request Card ────────────────────────────────────────────────────
+function PendingRequestCard({
+  req,
+  compact = false,
+}: {
+  req: ClubCreationRequest;
+  compact?: boolean;
+}) {
+  const submittedAt = new Date(req.createdAt).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-amber-200 dark:border-amber-800/60 shadow-sm p-5 flex flex-col gap-3">
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+            {req.clubName ?? "Unnamed Club"}
+          </h3>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            {req.categoryName ?? "Unknown Category"}{" "}
+            {req.clubAcademicSession ? `· ${req.clubAcademicSession}` : ""}
+          </p>
+        </div>
+        <NotingStatusBadge status={req.status} />
+      </div>
+
+      {/* Purpose */}
+      {req.clubPurpose && (
+        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+          {req.clubPurpose}
+        </p>
+      )}
+
+      {/* Approval chain */}
+      <ApprovalChain req={req} />
+
+      {/* Footer meta */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+        {/* Noting ID */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="font-mono">{req.notingId}</span>
+        </div>
+
+        {/* Submitted date */}
+        <span className="text-xs text-gray-400 dark:text-gray-500">
+          Submitted {submittedAt}
+        </span>
+      </div>
+
+      {/* Current holder */}
+      {req.currentHolder && (
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 -mt-1">
+          <UserCheck className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>
+            Currently with{" "}
+            <span className="font-medium text-gray-700 dark:text-gray-300">
+              {req.currentHolder.name}
+            </span>
+          </span>
+        </div>
+      )}
+
+      {/* Last action */}
+      {req.lastAction && (
+        <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+          <span className="font-medium text-gray-600 dark:text-gray-300">
+            Last action:
+          </span>{" "}
+          {req.lastAction.action}
+          {req.lastAction.remarks && (
+            <span className="ml-1 text-gray-400">
+              — {req.lastAction.remarks}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 export default function MyClubsPage() {
   const router = useRouter();
-  const { data: response, isLoading, error } = useMyClubs();
-  const clubs = response?.success ? response.data ?? [] : [];
-  const errorMessage = error ? getErrorMessage(error) : null;
+  const patchRanRef = useRef(false);
+
+  const {
+    data: clubsResponse,
+    isLoading: clubsLoading,
+    error: clubsError,
+    refetch: refetchClubs,
+  } = useMyClubs();
+
+  const {
+    data: requests,
+    isLoading: requestsLoading,
+    error: requestsError,
+    refetch: refetchRequests,
+  } = useMyClubRequests();
+
+  // ── One-time repair for old notings whose student UUID was never stored ──
+  // Runs silently on first mount; if it patches anything it re-fetches requests.
+  useEffect(() => {
+    if (patchRanRef.current) return;
+    patchRanRef.current = true;
+
+    dswAPI.clubs
+      .patchOldClubRequests()
+      .then((res) => {
+        if (res?.data?.patched && res.data.patched.length > 0) {
+          console.log(
+            `[my-clubs] Patched ${res.data.patched.length} old noting(s):`,
+            res.data.patched,
+          );
+          refetchRequests();
+        }
+      })
+      .catch(() => {
+        // Silently ignore — patch is best-effort
+      });
+  }, [refetchRequests]);
+
+  const clubs = clubsResponse?.success ? (clubsResponse.data ?? []) : [];
+  const allRequests = requests ?? [];
+
+  // ── Split requests by lifecycle stage ─────────────────────────────────────
+  // Active = still moving through the approval chain
+  const activeRequests = allRequests.filter(
+    (r) => r.status === "pending" || r.status === "draft",
+  );
+  // Resolved = finished (approved, rejected, withdrawn)
+  const resolvedRequests = allRequests.filter(
+    (r) =>
+      r.status === "approved" ||
+      r.status === "rejected" ||
+      r.status === "withdrawn",
+  );
+
+  // Legacy alias so the rest of the page doesn't need renaming
+  const pendingRequests = activeRequests;
+
+  const isLoading = clubsLoading || requestsLoading;
+  const clubsErrorMsg = clubsError ? getErrorMessage(clubsError) : null;
+  const requestsErrorMsg = requestsError
+    ? getErrorMessage(requestsError)
+    : null;
 
   if (isLoading) {
     return <PageSkeleton message="Loading your clubs..." />;
   }
 
+  const hasAnything = clubs.length > 0 || allRequests.length > 0;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">My Clubs</h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          {clubs.length === 0
-            ? 'You are not part of any clubs yet'
-            : `You are part of ${clubs.length} club${clubs.length === 1 ? '' : 's'}`}
-        </p>
+    <div className="space-y-8">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            My Clubs
+          </h1>
+          <p className="mt-1 text-gray-500 dark:text-gray-400 text-sm">
+            {!hasAnything
+              ? "You have no clubs or pending requests yet."
+              : `${clubs.length} club${clubs.length !== 1 ? "s" : ""} · ${activeRequests.length} pending request${activeRequests.length !== 1 ? "s" : ""}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              refetchClubs();
+              refetchRequests();
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </button>
+          <button
+            onClick={() => router.push("/dsw/create-club")}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New Club Request
+          </button>
+        </div>
       </div>
 
-      {errorMessage && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-red-800 dark:text-red-200">{errorMessage}</p>
+      {/* ── Error Banners ── */}
+      {(clubsErrorMsg || requestsErrorMsg) && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 space-y-1">
+          {clubsErrorMsg && (
+            <p className="text-sm text-red-800 dark:text-red-200">
+              Clubs: {clubsErrorMsg}
+            </p>
+          )}
+          {requestsErrorMsg && (
+            <p className="text-sm text-red-800 dark:text-red-200">
+              Requests: {requestsErrorMsg}
+            </p>
+          )}
         </div>
       )}
 
-      {clubs.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
-          <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+      {/* ── Empty state ── */}
+      {!hasAnything && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
+          <Award className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            You&apos;re Not Part of Any Club Yet
+            Nothing here yet
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Join clubs to connect with like-minded students and participate in activities.
+          <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+            You haven&apos;t joined any clubs and have no pending club creation
+            requests. Browse existing clubs or start a new one.
           </p>
-          <button
-            onClick={() => router.push('/dsw/clubs')}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Users className="w-5 h-5" />
-            Browse All Clubs
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {clubs.map((club) => (
-            <div
-              key={club.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => router.push(`/dsw/clubs/${club.id}`)}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => router.push("/dsw/clubs")}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                    {club.name}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{club.clubId}</p>
+              <Users className="w-4 h-4" />
+              Browse All Clubs
+            </button>
+            <button
+              onClick={() => router.push("/dsw/create-club")}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Create Club Request
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ SECTION 1 — Pending Club Creation Requests ═══ */}
+      {pendingRequests.length > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-amber-500" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Pending Club Requests
+              </h2>
+            </div>
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold">
+              {pendingRequests.length}
+            </span>
+          </div>
+
+          {/* Info note */}
+          <div className="mb-4 flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg text-xs text-amber-700 dark:text-amber-300">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>
+              These club creation requests are currently going through the
+              approval workflow. Your club will be created automatically once
+              all approvals are received.
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {pendingRequests.map((req) => (
+              <PendingRequestCard key={req.id} req={req} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ═══ SECTION 2 — My Clubs ═══ */}
+      {clubs.length > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-blue-500" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                My Active Clubs
+              </h2>
+            </div>
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-bold">
+              {clubs.length}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {clubs.map((club) => (
+              <div
+                key={club.id}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => router.push(`/dsw/clubs/${club.id}`)}
+              >
+                {/* Club card header */}
+                <div className="flex items-start justify-between mb-3 gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                      {club.name}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {club.clubId}
+                    </p>
+                  </div>
+                  <ClubStatusBadge status={club.status} size="sm" />
                 </div>
-                <Crown className="w-5 h-5 text-yellow-500" />
+
+                {/* Purpose */}
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                  {club.purpose}
+                </p>
+
+                {/* Meta rows */}
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                    <Users className="w-4 h-4 flex-shrink-0" />
+                    <span>{club._count?.members ?? 0} members</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                    <Calendar className="w-4 h-4 flex-shrink-0" />
+                    <span>Session {club.academicSession}</span>
+                  </div>
+                  {club.facultyFacilitator && (
+                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                      <UserCheck className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">
+                        {club.facultyFacilitator.employeeDetails?.firstName}{" "}
+                        {club.facultyFacilitator.employeeDetails?.lastName}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-                {club.purpose}
-              </p>
+      {/* ── Browse hint when only active requests exist ── */}
+      {activeRequests.length > 0 && clubs.length === 0 && (
+        <div className="text-center py-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Want to join an existing club while you wait?{" "}
+            <button
+              onClick={() => router.push("/dsw/clubs")}
+              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+            >
+              Browse all clubs →
+            </button>
+          </p>
+        </div>
+      )}
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <Users className="w-4 h-4" />
-                  <span>{club._count?.members || 0} members</span>
+      {/* ═══ SECTION 3 — Completed / Resolved Requests ═══ */}
+      {resolvedRequests.length > 0 && (
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Completed Requests
+              </h2>
+            </div>
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold">
+              {resolvedRequests.length}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {resolvedRequests.map((req) => (
+              <div
+                key={req.id}
+                className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm p-5 flex flex-col gap-3 opacity-80 ${
+                  req.status === "approved"
+                    ? "border-green-200 dark:border-green-800/60"
+                    : req.status === "rejected"
+                      ? "border-red-200 dark:border-red-800/60"
+                      : "border-gray-200 dark:border-gray-700"
+                }`}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                      {req.clubName ?? "Unnamed Club"}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                      {req.categoryName ?? "Unknown Category"}
+                      {req.clubAcademicSession
+                        ? ` · ${req.clubAcademicSession}`
+                        : ""}
+                    </p>
+                  </div>
+                  <NotingStatusBadge status={req.status} />
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <Calendar className="w-4 h-4" />
-                  <span>Session {club.academicSession}</span>
+
+                {/* Approval chain (all steps shown as done for approved) */}
+                <ApprovalChain req={req} />
+
+                {/* Footer */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="font-mono">{req.notingId}</span>
+                  </div>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    {new Date(req.createdAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
                 </div>
-                {club.facultyFacilitator && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <UserCheck className="w-4 h-4" />
-                    <span className="truncate">
-                      Faculty: {club.facultyFacilitator.employeeDetails?.firstName}
-                    </span>
+
+                {/* Last action remark */}
+                {req.lastAction && (
+                  <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                      Last action:
+                    </span>{" "}
+                    {req.lastAction.action}
+                    {req.lastAction.remarks && (
+                      <span className="ml-1 text-gray-400">
+                        — {req.lastAction.remarks}
+                      </span>
+                    )}
                   </div>
                 )}
+
+                {/* Status-specific contextual message */}
+                {req.status === "approved" && clubs.length === 0 && (
+                  <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded px-3 py-2">
+                    ✅ Fully approved — your club is being set up and will
+                    appear in "My Active Clubs" shortly. Try refreshing.
+                  </p>
+                )}
+                {req.status === "approved" && clubs.length > 0 && (
+                  <p className="text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 rounded px-3 py-2">
+                    ✅ Club created successfully — see "My Active Clubs" above.
+                  </p>
+                )}
+                {req.status === "rejected" && (
+                  <p className="text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-900/20 rounded px-3 py-2">
+                    ❌ This request was rejected. You can submit a new club
+                    request if needed.
+                  </p>
+                )}
+                {req.status === "withdrawn" && (
+                  <p className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/40 rounded px-3 py-2">
+                    ↩ This request was withdrawn.
+                  </p>
+                )}
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

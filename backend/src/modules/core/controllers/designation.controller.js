@@ -1,8 +1,8 @@
 const prisma = require('../../../shared/config/database');
-const { 
-  DSW_PERMISSIONS, 
-  NOTING_PERMISSIONS, 
-  EVENT_PERMISSIONS 
+const {
+  DSW_PERMISSIONS,
+  NOTING_PERMISSIONS,
+  EVENT_PERMISSIONS
 } = require('../../../shared/config/permissions.config');
 
 // Permission categories and their options
@@ -151,6 +151,8 @@ const PERMISSION_CATEGORIES = {
       { key: 'noting_forward', label: 'Forward Notings', description: 'Can forward notings to next approval level' },
       { key: 'noting_return', label: 'Return Notings', description: 'Can return notings to previous level with comments' },
       { key: 'noting_add_comment', label: 'Add Noting Comments', description: 'Can add comments/observations to notings' },
+      { key: 'noting_reject', label: 'Reject Notings', description: 'Can reject noting requests (also granted via Approve or Return)' },
+      { key: 'noting_not_recommend', label: 'Not Recommend', description: 'Can mark notings as not recommended (also granted via Approve)' },
     ]
   },
   // ===========================================
@@ -182,7 +184,7 @@ const DESIGNATION_TEMPLATES = {
       examinations: ['schedule_exams', 'generate_hall_tickets', 'view_exam_results', 'publish_results'],
       reports: ['view_reports', 'generate_custom_reports', 'export_data'],
       // Noting permissions for approvals
-      noting: ['noting_view_all', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment'],
+      noting: ['noting_view_all', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment', 'noting_reject', 'noting_not_recommend'],
     }
   },
   'Assistant Registrar': {
@@ -263,7 +265,7 @@ const DESIGNATION_TEMPLATES = {
       research: ['view_research', 'review_research', 'approve_research', 'manage_patents'],
       reports: ['view_reports', 'generate_custom_reports', 'view_analytics'],
       // Dean has approval authority
-      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment'],
+      noting: ['noting_create', 'noting_view_department', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment', 'noting_reject', 'noting_not_recommend'],
       dsw: ['dsw_view_club', 'dsw_view_all_clubs', 'dsw_approve_club', 'dsw_view_audit_logs'],
       events: ['event_create', 'event_manage_own', 'event_view_all', 'event_publish', 'event_view_reports'],
     }
@@ -315,7 +317,7 @@ const DESIGNATION_TEMPLATES = {
       system: ['manage_users', 'manage_roles', 'manage_permissions', 'view_audit_logs', 'system_settings', 'backup_restore'],
       reports: ['view_reports', 'generate_custom_reports', 'export_data', 'view_analytics'],
       // Full admin access to all modules
-      noting: ['noting_view_all', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment'],
+      noting: ['noting_view_all', 'noting_approve', 'noting_forward', 'noting_return', 'noting_add_comment', 'noting_reject', 'noting_not_recommend'],
       dsw: ['dsw_view_club', 'dsw_view_all_clubs', 'dsw_approve_club', 'dsw_suspend_club', 'dsw_approve_club_change', 'dsw_view_audit_logs'],
       events: ['event_view_all', 'event_manage_all', 'event_view_reports'],
     }
@@ -445,8 +447,8 @@ exports.getUserPermissions = async (req, res) => {
 
     // Get designation-based default permissions
     const designation = user.employeeDetails?.designation;
-    const designationDefaults = designation && DESIGNATION_TEMPLATES[designation] 
-      ? DESIGNATION_TEMPLATES[designation].defaultPermissions 
+    const designationDefaults = designation && DESIGNATION_TEMPLATES[designation]
+      ? DESIGNATION_TEMPLATES[designation].defaultPermissions
       : {};
 
     // Get user's custom permissions from database

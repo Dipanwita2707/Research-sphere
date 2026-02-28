@@ -49,7 +49,7 @@ export default function ReportingStructureManagement() {
 
   // Assign dialog state
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [hierarchyLevels, setHierarchyLevels] = useState(1);
+  const [hierarchyLevels, setHierarchyLevels] = useState(2);
   const [managerChain, setManagerChain] = useState<string[]>(['']); // Array of manager IDs for each level
   const [assigning, setAssigning] = useState(false);
 
@@ -185,8 +185,8 @@ export default function ReportingStructureManagement() {
       // Reset and refresh
       setShowAssignDialog(false);
       setSelectedUserId('');
-      setHierarchyLevels(1);
-      setManagerChain(['']);
+      setHierarchyLevels(2);
+      setManagerChain(['', '']);
       fetchData();
     } catch (error: unknown) {
       logger.error('Failed to assign manager chain:', error);
@@ -224,8 +224,8 @@ export default function ReportingStructureManagement() {
 
   const openAssignDialog = (userId?: string) => {
     setSelectedUserId(userId || '');
-    setHierarchyLevels(1);
-    setManagerChain(['']);
+    setHierarchyLevels(2);
+    setManagerChain(['', '']);
     setEmployeeSearch('');
     setManagerSearches(['']);
     setShowEmployeeDropdown(false);
@@ -646,14 +646,14 @@ export default function ReportingStructureManagement() {
                     onChange={(e) => handleLevelChange(Number(e.target.value))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    {[1, 2, 3, 4, 5].map((level) => (
+                    {[2, 3, 4, 5].map((level) => (
                       <option key={level} value={level}>
                         {level} Level{level > 1 ? 's' : ''}
                       </option>
                     ))}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    Select how many management levels you want to assign (Employee → Level 1 → Level 2 → ... → Level {hierarchyLevels})
+                    {`Select how many management levels you want to assign (Employee → ${Array.from({ length: hierarchyLevels }, (_, i) => `Level ${i + 1}`).join(' → ')})`}
                   </p>
                 </div>
 
@@ -745,17 +745,12 @@ export default function ReportingStructureManagement() {
                     <strong>Note:</strong> You are creating a {hierarchyLevels}-level hierarchy:
                   </p>
                   <div className="text-xs text-blue-700 mt-2 pl-4">
-                    {hierarchyLevels === 1 && (
-                      <div>Employee → Level 1 Manager</div>
-                    )}
-                    {hierarchyLevels > 1 && (
-                      <div className="space-y-1">
-                        <div>Employee (bottom)</div>
-                        {Array.from({ length: hierarchyLevels }, (_, i) => (
-                          <div key={i}>↑ Level {i + 1} Manager {i === hierarchyLevels - 1 && '(top)'}</div>
-                        ))}
-                      </div>
-                    )}
+                    <div className="space-y-1">
+                      <div>Employee (bottom)</div>
+                      {Array.from({ length: hierarchyLevels }, (_, i) => (
+                        <div key={i}>↑ Level {i + 1} Manager {i === hierarchyLevels - 1 && '(top)'}</div>
+                      ))}
+                    </div>
                   </div>
                   <p className="text-xs text-blue-700 mt-2">
                     The system prevents circular reporting chains and duplicate selections.

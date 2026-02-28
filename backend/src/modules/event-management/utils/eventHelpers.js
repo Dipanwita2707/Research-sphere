@@ -87,6 +87,7 @@ const getEventById = async (prisma, eventId, include = {}) => {
           eventHasResources: true,
           eventDutyLeaveAvailable: true,
           eventDutyLeaveEligibility: true,
+          subEvents: true, // For festival: sponsors/resources live in subEvents[].venueFormData
         },
       },
       ...include,
@@ -94,7 +95,7 @@ const getEventById = async (prisma, eventId, include = {}) => {
   });
   
   if (!event) {
-    throw new NotFoundError(ERRORS.EVENT_NOT_FOUND);
+    throw new NotFoundError('Event');
   }
   
   return event;
@@ -220,31 +221,76 @@ const validateQRCodeAndGetRegistration = async (prisma, qrCode, eventId) => {
  */
 const formatEventResponse = (event) => {
   const note = event.note;
-  const rawSponsors = (Array.isArray(event.sponsors) && event.sponsors.length > 0)
+  let rawSponsors = (Array.isArray(event.sponsors) && event.sponsors.length > 0)
     ? event.sponsors
     : (Array.isArray(note?.eventSponsors) && note.eventSponsors.length > 0)
       ? note.eventSponsors
       : [];
-  const sponsors = rawSponsors.map((s) => ({
-    name: String(s?.name ?? '').trim(),
-    amount: typeof s?.amount === 'number' ? s.amount : Number(s?.amount) || 0,
-    type: s?.type === 'in_kind' ? 'in_kind' : 'cash',
-    notes: s?.notes != null ? String(s.notes).trim() : undefined,
-  })).filter((s) => s.name);
-  const hasSponsorship = event.hasSponsorship ?? note?.eventHasSponsorship ?? (sponsors.length > 0 ? true : null);
+  // Festival fallback: sponsors live in subEvents[].venueFormData.eventSponsors
+  if (rawSponsors.length === 0 && note?.subEvents && Array.isArray(note.subEvents)) {
+    const match = note.subEvents.find((se) => {
+      const v = se?.venueFormData || se;
+      return v?.eventName === event.name || (v?.eventStartDate && new Date(v.eventStartDate).getTime() === new Date(event.startDate).getTime());
+    });
+    const v = match?.venueFormData || match;
+    if (Array.isArray(v?.eventSponsors) && v.eventSponsors.length > 0) {
+      rawSponsors = v.eventSponsors;
+    }
+  }
+  const sponsors = rawSponsors.map((s) => {
+    // Support name, company, or sponsorName (legacy/alternate keys)
+    const name = String(s?.name ?? s?.company ?? s?.sponsorName ?? '').trim();
+    return {
+      name,
+      amount: typeof s?.amount === 'number' ? s.amount : Number(s?.amount) || 0,
+      type: s?.type === 'in_kind' ? 'in_kind' : 'cash',
+      notes: s?.notes != null ? String(s.notes).trim() : undefined,
+    };
+  }).filter((s) => s.name);
+  // When we have sponsors (from event, note, or festival subEvents), ensure hasSponsorship is true for display
+  const hasSponsorship = sponsors.length > 0 ? true : (event.hasSponsorship ?? note?.eventHasSponsorship ?? null);
 
   const hasResources = event.hasResources ?? note?.eventHasResources ?? null;
-  const rawResources = (Array.isArray(event.resources) && event.resources.length > 0)
+  let rawResources = (Array.isArray(event.resources) && event.resources.length > 0)
     ? event.resources
     : (Array.isArray(note?.eventResources) && note.eventResources.length > 0)
       ? note.eventResources
       : [];
-  const resources = rawResources.map((r) => ({
-    category: String(r?.category ?? 'internal').trim() || 'internal',
-    type: String(r?.type ?? '').trim(),
-    description: String(r?.description ?? '').trim(),
-    estimatedCost: typeof r?.estimatedCost === 'number' ? r.estimatedCost : (r?.estimatedCost ? Number(r.estimatedCost) : undefined),
-  }));
+  // Festival fallback: resources live in subEvents[].venueFormData.eventResources
+  if (rawResources.length === 0 && note?.subEvents && Array.isArray(note.subEvents)) {
+    const match = note.subEvents.find((se) => {
+      const v = se?.venueFormData || se;
+      return v?.eventName === event.name || (v?.eventStartDate && new Date(v.eventStartDate).getTime() === new Date(event.startDate).getTime());
+    });
+    const v = match?.venueFormData || match;
+    if (Array.isArray(v?.eventResources) && v.eventResources.length > 0) {
+      rawResources = v.eventResources;
+    }
+  }
+  const resources = rawResources.map((r) => {
+    const type = String(r?.type ?? '').trim();
+    const description = String(r?.description ?? '').trim();
+    let pricePerPiece = r?.pricePerPiece != null && r?.pricePerPiece !== '' ? Number(r.pricePerPiece) : null;
+    let quantity = r?.quantity != null && r?.quantity !== '' ? Number(r.quantity) : null;
+    const estimatedCost = typeof r?.estimatedCost === 'number' ? r.estimatedCost
+      : (r?.estimatedCost ? Number(r.estimatedCost) : null);
+    let computedCost = (estimatedCost == null && pricePerPiece != null && quantity != null)
+      ? pricePerPiece * quantity
+      : estimatedCost;
+    // Fallback: when only estimatedCost exists (legacy data), derive pricePerPiece & quantity for display
+    if (computedCost != null && (pricePerPiece == null || quantity == null)) {
+      pricePerPiece = pricePerPiece ?? computedCost;
+      quantity = quantity ?? 1;
+    }
+    return {
+      category: String(r?.category ?? 'internal').trim() || 'internal',
+      type,
+      description,
+      pricePerPiece: pricePerPiece ?? undefined,
+      quantity: quantity ?? undefined,
+      estimatedCost: computedCost ?? undefined,
+    };
+  });
   const hasResourcesResolved = event.hasResources ?? note?.eventHasResources ?? (resources.length > 0 ? true : null);
   const dutyLeaveAvailable = event.dutyLeaveAvailable ?? note?.eventDutyLeaveAvailable ?? null;
   const dutyLeaveEligibility = (Array.isArray(event.dutyLeaveEligibility) && event.dutyLeaveEligibility.length > 0)
@@ -252,6 +298,7 @@ const formatEventResponse = (event) => {
     : (Array.isArray(note?.eventDutyLeaveEligibility) && note.eventDutyLeaveEligibility.length > 0)
       ? note.eventDutyLeaveEligibility
       : null;
+  const dutyLeaveRoleType = event.dutyLeaveRoleType ?? note?.eventDutyLeaveRoleType ?? null;
 
   return {
     id: event.id,
@@ -271,8 +318,10 @@ const formatEventResponse = (event) => {
     teamRegistrationFee: event.teamRegistrationFee,
     dutyLeaveAvailable,
     dutyLeaveEligibility,
+    dutyLeaveRoleType,
     hasSponsorship,
     sponsors: sponsors.length > 0 ? sponsors : null,
+    showSponsorshipPublicly: event.showSponsorshipPublicly ?? false,
     hasResources: hasResourcesResolved,
     resources: resources.length > 0 ? resources : null,
     currentRegistrations: event.currentRegistrations,
@@ -299,28 +348,33 @@ const formatEventResponse = (event) => {
     socialMediaLinks: event.socialMediaLinks,
     // Additional Information
     eligibilityCriteria: event.eligibilityCriteria,
+    eligibilityDisplayFormat: event.eligibilityDisplayFormat || 'paragraph',
     rulesAndGuidelines: event.rulesAndGuidelines,
+    rulesDisplayFormat: event.rulesDisplayFormat || 'paragraph',
     prizeDetails: event.prizeDetails,
     certificateAvailable: event.certificateAvailable,
     faqs: event.faqs,
     // Advanced Registration Settings
-    autoApproveRegistration: event.autoApproveRegistration,
     maxTeamLimit: event.maxTeamLimit,
     teamRegistrationDeadline: event.teamRegistrationDeadline,
-    allowEditAfterSubmission: event.allowEditAfterSubmission,
     requireFormSubmission: event.requireFormSubmission,
     lookingForTeammatesEnabled: event.lookingForTeammatesEnabled,
     allowCrossInstituteTeams: event.allowCrossInstituteTeams,
     allowTeamEditAfterSubmission: event.allowTeamEditAfterSubmission,
     autoApproveTeams: event.autoApproveTeams,
     registrationCap: event.registrationCap,
-    showParticipantsPublicly: event.showParticipantsPublicly,
-    allowWithdrawRegistration: event.allowWithdrawRegistration,
     lockTeamAfterDeadline: event.lockTeamAfterDeadline,
     allowPublicTeamListing: event.allowPublicTeamListing,
     allowJoinRequests: event.allowJoinRequests,
     allowInviteSystem: event.allowInviteSystem,
     prizesEnabled: event.prizesEnabled,
+    // Stall & Festival fields
+    notingEventType: event.notingEventType,
+    stallConfig: event.stallConfig,
+    hasStalls: event.hasStalls,
+    applicationDeadline: event.applicationDeadline,
+    festivalMeta: event.festivalMeta,
+    festivalNotingId: event.festivalNotingId,
     // Dynamic data (included when queried)
     customFields: event.EventCustomField || [],
     prizes: event.EventPrize || [],

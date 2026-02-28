@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Coin outer circle -->
+  <circle cx="32" cy="32" r="22" fill="#FFF3CD" stroke="#F5A623" stroke-width="2.5"/>
+
+  <!-- Coin inner ring -->
+  <circle cx="32" cy="32" r="17" fill="none" stroke="#F5A623" stroke-width="1.5" stroke-dasharray="3 2" opacity="0.5"/>
+
+  <!-- Rupee symbol -->
+  <text x="32" y="38" text-anchor="middle" font-size="20" font-weight="bold" fill="#D97706" font-family="Arial, sans-serif">₹</text>
+
+  <!-- Shine top-left -->
+  <ellipse cx="22" cy="22" rx="4" ry="2.5" fill="white" opacity="0.45" transform="rotate(-35 22 22)"/>
+</svg>

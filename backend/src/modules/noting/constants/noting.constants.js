@@ -12,6 +12,8 @@ const LIMITS = {
   PENDING_NOTES_FETCH_LIMIT: 100, // Reduced from 500 for better performance
   DEFAULT_PAGE_SIZE: 20,
   MAX_PAGE_SIZE: 100,
+  FILE_MAX_SIZE_BYTES: 5 * 1024 * 1024, // 5MB per file for noting attachments
+  AMOUNT_MAX: 10_00_000, // 10 lakh max for budget/amount
 };
 
 // Note Status Values
@@ -31,6 +33,11 @@ const NOTE_ACTIONS = {
   FORWARDED: 'forwarded',
   REVERTED: 'reverted',
   RESUBMITTED: 'resubmitted',
+  RECOMMENDED: 'recommended',
+  NOT_RECOMMENDED: 'not_recommended',
+  COPY_SENT: 'copy_sent',
+  COPY_REPLIED: 'copy_replied',
+  COPY_FORWARDED: 'copy_forwarded',
 };
 
 // Approval Period Options

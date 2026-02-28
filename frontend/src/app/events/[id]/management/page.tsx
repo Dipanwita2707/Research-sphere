@@ -4,19 +4,25 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
- ArrowLeft, TrendingUp, TrendingDown, Users, UserCheck, UserX, UserMinus, Clock,
+  ArrowLeft, TrendingUp, TrendingDown, Users, UserCheck, UserX, UserMinus, Clock,
   Calendar, Loader2, AlertCircle, Download, BarChart3, PieChart, Activity,
   IndianRupee, Search, Filter, RefreshCw, Eye, LogIn, LogOut, Shield,
   ChevronDown, ChevronUp, FileSpreadsheet, Percent, Target, Zap, CheckCircle2,
   XCircle, ArrowUpRight, Settings, QrCode, UserPlus, MapPin, Globe, Award,
-  Trash2,
+  Trash2, Store, CheckCheck, XCircle as XCircleIcon,
+  FileText, ExternalLink, X, MessageSquare, Plus, Pencil,
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend,
 } from 'recharts';
 import { eventService } from '@/features/event-management/services/event.service';
-import type { Event, EventStatistics, EventVolunteer } from '@/features/event-management/types/event.types';
+import type { Event, EventStatistics, EventVolunteer, StallApplication, Stall, StallMetadata, StallType } from '@/features/event-management/types/event.types';
+import CreateStallForm, { type CreateStallFormData } from '@/features/event-management/components/CreateStallForm';
+import EventSettings from '@/features/event-management/components/EventSettings';
+import RegistrationFilters from '@/features/event-management/components/RegistrationFilters';
+import type { RegistrationFilterParams, RegistrationFilterOptions, RegistrationRow } from '@/features/event-management/types/registrationFilter.types';
+import { getRegistrationDisplayName, getRegistrationIdentifier, getRegistrationSchool, getRegistrationDepartment, getRegistrationProgram } from '@/features/event-management/types/registrationFilter.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 
@@ -42,9 +48,43 @@ interface UserSearchResult {
   uid?: string;
 }
 
-type TabType = 'overview' | 'registrations' | 'volunteers' | 'analytics';
+type TabType = 'overview' | 'registrations' | 'volunteers' | 'analytics' | 'stalls' | 'feedback' | 'settings';
 
-const VALID_TABS: TabType[] = ['overview', 'registrations', 'volunteers', 'analytics'];
+const VALID_TABS: TabType[] = ['overview', 'registrations', 'volunteers', 'analytics', 'stalls', 'feedback', 'settings'];
+
+// ── Metric Card Component ──────────────────────────────────────
+const MetricCard = ({
+  icon: Icon,
+  iconBg,
+  label,
+  value,
+  subtitle,
+  trend,
+}: {
+  icon: any;
+  iconBg: string;
+  label: string;
+  value: string | number;
+  subtitle?: string;
+  trend?: { value: string; positive: boolean } | null;
+}) => (
+  <div className={METRIC_CARD}>
+    <div className="flex items-center justify-between mb-3">
+      <div className={`p-2.5 rounded-lg ${iconBg}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      {trend && (
+        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${trend.positive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
+          {trend.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          {trend.value}
+        </span>
+      )}
+    </div>
+    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
+    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
+    {subtitle && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{subtitle}</p>}
+  </div>
+);
 
 export default function EventManagementPage() {
   const params = useParams();
@@ -63,8 +103,6 @@ export default function EventManagementPage() {
   const [volunteers, setVolunteers] = useState<EventVolunteer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
 
   // Sync activeTab when URL tab changes (e.g. back from volunteer detail)
@@ -86,23 +124,311 @@ export default function EventManagementPage() {
   const [assignedGate, setAssignedGate] = useState('');
   const [canScanQr, setCanScanQr] = useState(false);
 
+  // Stall Management State
+  const [stallApplications, setStallApplications] = useState<StallApplication[]>([]);
+  const [stalls, setStalls] = useState<Stall[]>([]);
+  const [stallsLoading, setStallsLoading] = useState(false);
+  const [stallStatusFilter, setStallStatusFilter] = useState<string>('all');
+  const [stallActionLoading, setStallActionLoading] = useState<string | null>(null);
+  const [stallToggleLoading, setStallToggleLoading] = useState(false);
+  const [selectedStallApp, setSelectedStallApp] = useState<StallApplication | null>(null);
+  const [showStallAppModal, setShowStallAppModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectingAppId, setRejectingAppId] = useState<string | null>(null);
+  const [showCreateStallModal, setShowCreateStallModal] = useState(false);
+  const [selectedStall, setSelectedStall] = useState<Stall | null>(null);
+  const [selectedStallForEdit, setSelectedStallForEdit] = useState<Stall | null>(null);
+
+  // Feedback tab state
+  const [feedbackList, setFeedbackList] = useState<Array<{ id: string; points: number[]; shortDescription: string | null; createdAt: string }>>([]);
+  const [feedbackSummary, setFeedbackSummary] = useState<{ totalFeedback: number; overallAvg: number } | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [showFeedbackQR, setShowFeedbackQR] = useState(false);
+  const [feedbackQRUrl, setFeedbackQRUrl] = useState<string | null>(null);
+
+  // Registration Advanced Filtering State
+  const [regFilters, setRegFilters] = useState<RegistrationFilterParams>({ page: 1, limit: 20 });
+  const [regFilterOptions, setRegFilterOptions] = useState<RegistrationFilterOptions | null>(null);
+  const [regFilterOptionsLoading, setRegFilterOptionsLoading] = useState(false);
+  const [regData, setRegData] = useState<RegistrationRow[]>([]);
+  const [regPagination, setRegPagination] = useState<{ page: number; limit: number; total: number; totalPages: number } | null>(null);
+  const [regLoading, setRegLoading] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const regDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // ── Data Loading ───────────────────────────────────────────────
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
+  // Load stall data when stalls tab is active
+  useEffect(() => {
+    if (activeTab === 'stalls' && event?.hasStalls) {
+      loadStallData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, event?.hasStalls]);
+
+  // Load feedback when feedback tab is active
+  useEffect(() => {
+    if (activeTab === 'feedback' && eventId) {
+      setFeedbackLoading(true);
+      eventService.getFeedback(eventId)
+        .then((res) => {
+          setFeedbackList(res.feedback);
+          setFeedbackSummary(res.summary);
+        })
+        .catch(() => toast({ type: 'error', message: 'Failed to load feedback' }))
+        .finally(() => setFeedbackLoading(false));
+    }
+  }, [activeTab, eventId, toast]);
+
+  // Load registrations when registrations tab is active or filters change
+  const loadRegistrations = useCallback(async (f: RegistrationFilterParams) => {
+    setRegLoading(true);
+    try {
+      const { page, limit, status, search, ...advancedFilters } = f;
+      const result = await eventService.getEventRegistrations(
+        eventId,
+        page || 1,
+        limit || 20,
+        status,
+        { search, ...advancedFilters } as Record<string, string | number | undefined>,
+      );
+      setRegData(result.registrations as RegistrationRow[]);
+      setRegPagination(result.pagination);
+    } catch {
+      toast({ type: 'error', message: 'Failed to load registrations' });
+    } finally {
+      setRegLoading(false);
+    }
+  }, [eventId, toast]);
+
+  useEffect(() => {
+    if (activeTab === 'registrations' && eventId) {
+      // Load filter options once
+      if (!regFilterOptions && !regFilterOptionsLoading) {
+        setRegFilterOptionsLoading(true);
+        eventService.getRegistrationFilterOptions(eventId)
+          .then((opts: RegistrationFilterOptions) => setRegFilterOptions(opts))
+          .catch(() => {}) // silently fail — filters just won't show
+          .finally(() => setRegFilterOptionsLoading(false));
+      }
+      // Load registration data (debounced for text searches)
+      if (regDebounceRef.current) clearTimeout(regDebounceRef.current);
+      regDebounceRef.current = setTimeout(() => loadRegistrations(regFilters), 300);
+    }
+    return () => { if (regDebounceRef.current) clearTimeout(regDebounceRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, eventId, regFilters]);
+
+  const handleRegFilterChange = useCallback((newFilters: RegistrationFilterParams) => {
+    setRegFilters(newFilters);
+  }, []);
+
+  const handleRegPageChange = useCallback((page: number) => {
+    setRegFilters(prev => ({ ...prev, page }));
+  }, []);
+
+  const loadStallData = async () => {
+    setStallsLoading(true);
+    try {
+      const [appsResult, stallsResult] = await Promise.allSettled([
+        eventService.getStallApplications(eventId, { limit: 100 }),
+        eventService.getStalls(eventId),
+      ]);
+      if (appsResult.status === 'fulfilled') {
+        const appsData = appsResult.value as any;
+        setStallApplications(appsData.applications || appsData || []);
+      }
+      if (stallsResult.status === 'fulfilled') {
+        const v = stallsResult.value as any;
+        // backend returns { stalls: [...] }; service returns that object directly
+        setStalls(Array.isArray(v) ? v : Array.isArray(v?.stalls) ? v.stalls : []);
+      }
+    } catch {
+      toast({ type: 'error', message: 'Failed to load stall data' });
+    } finally {
+      setStallsLoading(false);
+    }
+  };
+
+  const handleStallApplicationAction = async (appId: string, status: 'approved' | 'rejected', reason?: string) => {
+    if (status === 'rejected' && !reason) {
+      setRejectingAppId(appId);
+      setRejectReason('');
+      setShowRejectModal(true);
+      return;
+    }
+
+    setStallActionLoading(appId);
+    try {
+      await eventService.updateStallApplication(eventId, appId, { status, rejectionReason: reason });
+      await loadStallData(); // Reload to get updated status
+      toast({ type: 'success', message: `Application ${status}` });
+      if (status === 'rejected') {
+        setShowRejectModal(false);
+        setRejectingAppId(null);
+      }
+      // If we are in the details modal, close it or update it?
+      // Better to close it if rejected/approved to update list view context
+      if (showStallAppModal && selectedStallApp?.id === appId) {
+        setShowStallAppModal(false);
+      }
+    } catch (err: any) {
+      toast({ type: 'error', message: err?.response?.data?.message || `Failed to ${status}` });
+    } finally {
+      setStallActionLoading(null);
+    }
+  };
+
+  const handleConfirmRejection = () => {
+    if (!rejectingAppId) return;
+    if (!rejectReason.trim()) {
+      toast({ type: 'error', message: 'Please provide a reason for rejection' });
+      return;
+    }
+    handleStallApplicationAction(rejectingAppId, 'rejected', rejectReason);
+  };
+
+  const stallToFormData = (stall: Stall & { stallCategory?: string; description?: string; size?: string; stallMetadata?: { businessName?: string; electricityRequired?: boolean; waterRequired?: boolean; specialRequirements?: string; products?: string[] } }): CreateStallFormData => {
+    const meta = stall.stallMetadata && typeof stall.stallMetadata === 'object' ? stall.stallMetadata : {};
+    const spaceMatch = stall.size?.match(/(\d+)/);
+    return {
+      stallName: stall.stallName,
+      stallType: (stall.stallType as StallType) || 'non_food',
+      category: stall.stallCategory || stall.category || '',
+      businessName: meta.businessName || '',
+      businessDescription: stall.description || '',
+      products: (meta.products && meta.products.length > 0) ? meta.products : [''],
+      spaceRequired: spaceMatch ? parseInt(spaceMatch[1], 10) : undefined,
+      electricityRequired: meta.electricityRequired ?? false,
+      waterRequired: meta.waterRequired ?? false,
+      specialRequirements: meta.specialRequirements || '',
+    };
+  };
+
+  const handleUpdateStall = async (data: CreateStallFormData) => {
+    if (!selectedStallForEdit) return;
+    const descParts = [
+      data.businessDescription,
+      data.products?.filter(Boolean).join(', '),
+      data.specialRequirements,
+    ].filter(Boolean);
+    const description = descParts.length > 0 ? descParts.join('\n\n') : undefined;
+    const size = data.spaceRequired ? `${data.spaceRequired} sq ft` : undefined;
+    try {
+      const updated = await eventService.updateStall(eventId, selectedStallForEdit.stallId, {
+        stallName: data.stallName,
+        stallType: data.stallType,
+        category: data.category,
+        description,
+        size,
+        businessName: data.businessName,
+        electricityRequired: data.electricityRequired,
+        waterRequired: data.waterRequired,
+        specialRequirements: data.specialRequirements,
+        products: data.products?.filter(Boolean),
+      });
+      setStalls((prev) => prev.map((s) => (s.stallId === updated.stallId || s.id === updated.id ? { ...s, ...updated } : s)));
+      setSelectedStallForEdit(null);
+      toast({ type: 'success', message: 'Stall updated successfully' });
+    } catch (err: unknown) {
+      toast({ type: 'error', message: getErrorMessage(err) });
+      throw err;
+    }
+  };
+
+  const handleCreateStall = async (data: CreateStallFormData) => {
+    const descParts = [
+      data.businessDescription,
+      data.products?.filter(Boolean).join(', '),
+      data.specialRequirements,
+    ].filter(Boolean);
+    const description = descParts.length > 0 ? descParts.join('\n\n') : undefined;
+    const size = data.spaceRequired ? `${data.spaceRequired} sq ft` : undefined;
+    try {
+      const created = await eventService.createStall(eventId, {
+        stallName: data.stallName,
+        stallType: data.stallType,
+        category: data.category,
+        description,
+        size,
+        businessName: data.businessName,
+        electricityRequired: data.electricityRequired,
+        waterRequired: data.waterRequired,
+        specialRequirements: data.specialRequirements,
+        products: data.products?.filter(Boolean),
+      });
+      setStalls((prev) => [...prev, created]);
+      toast({ type: 'success', message: 'Stall created successfully' });
+    } catch (err: unknown) {
+      toast({ type: 'error', message: getErrorMessage(err) });
+      throw err;
+    }
+  };
+
+  const handleToggleStallApplications = async () => {
+    setStallToggleLoading(true);
+    try {
+      const result = await eventService.toggleStallApplications(eventId);
+      setEvent((prev) => prev ? { ...prev, stallConfig: result.stallConfig } : prev);
+      toast({
+        type: 'success',
+        message: result.stallApplicationsOpen
+          ? 'Student stall applications are now OPEN'
+          : 'Student stall applications are now CLOSED',
+      });
+    } catch (err: any) {
+      toast({ type: 'error', message: err?.response?.data?.message || 'Failed to toggle stall applications' });
+    } finally {
+      setStallToggleLoading(false);
+    }
+  };
+
+  const openStallAppDetails = (app: StallApplication) => {
+    setSelectedStallApp(app);
+    setShowStallAppModal(true);
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [eventData, statsData, volunteersData] = await Promise.all([
-        eventService.getEventById(eventId),
+      const eventData = await eventService.getEventById(eventId);
+      setEvent(eventData);
+
+      // Load stats and volunteers in parallel - stats may fail for draft events
+      const [statsData, volunteersData] = await Promise.allSettled([
         eventService.getStatistics(eventId),
         eventService.getVolunteers(eventId)
       ]);
-      setEvent(eventData);
-      setStatistics(statsData);
-      setVolunteers(volunteersData);
+
+      if (statsData.status === 'fulfilled') {
+        setStatistics(statsData.value);
+      } else {
+        // Provide empty statistics for draft events
+        setStatistics({
+          totalRegistrations: 0,
+          confirmedRegistrations: 0,
+          pendingRegistrations: 0,
+          cancelledRegistrations: 0,
+          waitlistedRegistrations: 0,
+          totalAttended: 0,
+          totalEntries: 0,
+          totalExits: 0,
+          currentlyInside: 0,
+          totalRevenue: 0,
+          volunteerCount: 0,
+          recentRegistrations: [],
+          registrationsByDate: [],
+        } as unknown as EventStatistics);
+      }
+
+      if (volunteersData.status === 'fulfilled') {
+        setVolunteers(volunteersData.value);
+      }
     } catch (error: any) {
       toast({
         type: 'error',
@@ -172,25 +498,6 @@ export default function EventManagementPage() {
     });
   }, [statistics]);
 
-  const filteredRegistrations = useMemo(() => {
-    if (!statistics?.recentRegistrations) return [];
-    let list = statistics.recentRegistrations;
-    if (statusFilter !== 'all') {
-      list = list.filter((r) => r.status === statusFilter);
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.user?.name?.toLowerCase().includes(q) ||
-          r.user?.email?.toLowerCase().includes(q) ||
-          r.user?.uid?.toLowerCase().includes(q) ||
-          r.registrationId?.toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [statistics, statusFilter, searchQuery]);
-
   // ── Volunteer Management Functions ────────────────────────────
   const handleSearchUsers = async (query: string) => {
     if (!query.trim() || query.length < 2) {
@@ -244,14 +551,14 @@ export default function EventManagementPage() {
       });
 
       toast({ type: 'success', message: 'Volunteer assigned successfully' });
-      
+
       // Reset form
       setSelectedUserId('');
       setSelectedUserName('');
       setVolunteerRole('');
       setAssignedGate('');
       setCanScanQr(false);
-      
+
       // Reload volunteers
       const volunteersData = await eventService.getVolunteers(eventId);
       setVolunteers(volunteersData);
@@ -288,9 +595,9 @@ export default function EventManagementPage() {
       await eventService.updateVolunteer(eventId, volunteerId, {
         canScanQr: !currentStatus
       });
-      toast({ 
-        type: 'success', 
-        message: `QR scanning permission ${!currentStatus ? 'granted' : 'revoked'}` 
+      toast({
+        type: 'success',
+        message: `QR scanning permission ${!currentStatus ? 'granted' : 'revoked'}`
       });
       const volunteersData = await eventService.getVolunteers(eventId);
       setVolunteers(volunteersData);
@@ -378,38 +685,7 @@ export default function EventManagementPage() {
   };
 
   // ── Metric Card Component ──────────────────────────────────────
-  const MetricCard = ({
-    icon: Icon,
-    iconBg,
-    label,
-    value,
-    subtitle,
-    trend,
-  }: {
-    icon: any;
-    iconBg: string;
-    label: string;
-    value: string | number;
-    subtitle?: string;
-    trend?: { value: string; positive: boolean } | null;
-  }) => (
-    <div className={METRIC_CARD}>
-      <div className="flex items-center justify-between mb-3">
-        <div className={`p-2.5 rounded-lg ${iconBg}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-        {trend && (
-          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${trend.positive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
-            {trend.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            {trend.value}
-          </span>
-        )}
-      </div>
-      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
-      {subtitle && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{subtitle}</p>}
-    </div>
-  );
+
 
   // ── Tab Navigation ─────────────────────────────────────────────
   const tabs: { id: TabType; label: string; icon: any }[] = [
@@ -417,7 +693,28 @@ export default function EventManagementPage() {
     { id: 'registrations', label: 'Registrations', icon: Users },
     { id: 'volunteers', label: 'Volunteer Management', icon: Shield },
     { id: 'analytics', label: 'Analytics', icon: Activity },
+    { id: 'feedback', label: 'Feedback Section', icon: MessageSquare },
   ];
+
+  if (event?.hasStalls) {
+    tabs.push({ id: 'stalls', label: 'Stall Management', icon: Store });
+  }
+
+  // Settings tab is always available (uses Settings icon already imported)
+  tabs.push({ id: 'settings', label: 'Event Settings', icon: Settings });
+
+  const handleShowFeedbackQR = async () => {
+    if (typeof window === 'undefined') return;
+    const url = `${window.location.origin}/events/${eventId}/feedback`;
+    try {
+      const QRCodeGenerator = (await import('qrcode')).default;
+      const dataUrl = await QRCodeGenerator.toDataURL(url, { width: 256, margin: 2 });
+      setFeedbackQRUrl(dataUrl);
+      setShowFeedbackQR(true);
+    } catch {
+      toast({ type: 'error', message: 'Failed to generate QR code' });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -445,6 +742,14 @@ export default function EventManagementPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleShowFeedbackQR}
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                title="Feedback QR Code"
+              >
+                <QrCode className="w-4 h-4" />
+                Feedback QR
+              </button>
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
@@ -474,11 +779,10 @@ export default function EventManagementPage() {
                   setActiveTab(tab.id);
                   router.replace(`/events/${eventId}/management?tab=${tab.id}`, { scroll: false });
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'bg-sgt-600 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${activeTab === tab.id
+                  ? 'bg-sgt-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 {tab.label}
@@ -490,6 +794,18 @@ export default function EventManagementPage() {
 
       {/* ── Tab Content ───────────────────────────────────────── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Draft Mode Banner */}
+        {event.status === 'draft' && (
+          <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div>
+              <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-300">Draft Event</h4>
+              <p className="text-xs text-amber-800 dark:text-amber-400 mt-0.5">
+                You can assign volunteers now. Registrations & analytics will be available after publishing.
+              </p>
+            </div>
+          </div>
+        )}
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
@@ -811,113 +1127,230 @@ export default function EventManagementPage() {
           </div>
         )}
 
-        {/* Registrations Tab */}
+        {/* Registrations Tab — Server-side filtered + paginated */}
         {activeTab === 'registrations' && (
           <div className="space-y-4">
-            {/* Filters */}
+            {/* Search + Filter Toggle */}
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={regFilters.search || ''}
+                  onChange={(e) => setRegFilters(prev => ({ ...prev, search: e.target.value || undefined, page: 1 }))}
                   placeholder="Search by name, email, UID, or registration ID..."
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
                 />
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+              <button
+                type="button"
+                onClick={() => setShowFilters(!showFilters)}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                  showFilters
+                    ? 'bg-sgt-50 dark:bg-sgt-900/30 border-sgt-500 text-sgt-700 dark:text-sgt-300'
+                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                }`}
               >
-                <option value="all">All Status</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="pending">Pending</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="waitlisted">Waitlisted</option>
-              </select>
+                <Filter className="w-4 h-4" />
+                Filters
+                {(() => {
+                  let cnt = 0;
+                  if (regFilters.role) cnt++;
+                  if (regFilters.gender) cnt++;
+                  if (regFilters.schoolId) cnt++;
+                  if (regFilters.departmentId) cnt++;
+                  if (regFilters.programId) cnt++;
+                  if (regFilters.passOutYear) cnt++;
+                  if (regFilters.uid) cnt++;
+                  if (regFilters.empId) cnt++;
+                  if (regFilters.status && regFilters.status !== 'all') cnt++;
+                  return cnt > 0 ? (
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sgt-500 text-white text-[10px] font-bold">{cnt}</span>
+                  ) : null;
+                })()}
+              </button>
             </div>
 
-            {/* Registrations List */}
-            <div className={CARD}>
-              <div className={CARD_HEADER}>
-                <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-                  Registrations ({filteredRegistrations.length})
-                </h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 dark:bg-gray-700/50">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                        Participant
-                      </th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                        Registration ID
-                      </th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                        Registered At
-                      </th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                        Attendance
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filteredRegistrations.length > 0 ? (
-                      filteredRegistrations.map((reg) => (
-                        <tr key={reg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                          <td className="px-5 py-4">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                {reg.user?.name || 'N/A'}
-                              </p>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
-                                {reg.user?.email || 'N/A'}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="px-5 py-4">
-                            <p className="text-sm font-mono text-gray-900 dark:text-white">
-                              {reg.registrationId}
-                            </p>
-                          </td>
-                          <td className="px-5 py-4">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[reg.status as keyof typeof STATUS_COLORS]?.bg || 'bg-gray-100'} ${STATUS_COLORS[reg.status as keyof typeof STATUS_COLORS]?.text || 'text-gray-600'}`}>
-                              {reg.status}
-                            </span>
-                          </td>
-                          <td className="px-5 py-4">
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {reg.createdAt ? new Date(reg.createdAt).toLocaleDateString('en-IN', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              }) : 'N/A'}
-                            </p>
-                          </td>
-                          <td className="px-5 py-4">
-                            {reg.hasEntered ? (
-                              <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-gray-400" />
-                            )}
-                          </td>
+            {/* Layout: Filters sidebar (if open) + Table */}
+            <div className={`flex gap-4 ${showFilters ? 'flex-col lg:flex-row' : ''}`}>
+              {/* Filter Panel */}
+              {showFilters && (
+                <div className="w-full lg:w-72 lg:min-w-[18rem] flex-shrink-0">
+                  <div className="lg:sticky lg:top-24">
+                    <RegistrationFilters
+                      filters={regFilters}
+                      options={regFilterOptions}
+                      optionsLoading={regFilterOptionsLoading}
+                      onFilterChange={handleRegFilterChange}
+                      onClose={() => setShowFilters(false)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Registrations Table */}
+              <div className="flex-1 min-w-0">
+                <div className={CARD}>
+                  <div className={`${CARD_HEADER} flex items-center justify-between`}>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                      Registrations {regPagination ? `(${regPagination.total})` : ''}
+                    </h3>
+                    {regLoading && <Loader2 className="w-4 h-4 animate-spin text-sgt-600" />}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 dark:bg-gray-700/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            Participant
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            ID / Reg No
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            School / Dept
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            Registered At
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                            Attendance
+                          </th>
                         </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="px-5 py-12 text-center">
-                          <p className="text-gray-500 dark:text-gray-400">No registrations found</p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {regData.length > 0 ? (
+                          regData.map((reg) => (
+                            <tr key={reg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                              <td className="px-4 py-3.5">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {getRegistrationDisplayName(reg)}
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {reg.user_login?.email || reg.user_login?.uid || 'N/A'}
+                                  </p>
+                                  {reg.user_login?.role && (
+                                    <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 capitalize">
+                                      {reg.user_login.role}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <p className="text-sm font-mono text-gray-900 dark:text-white">
+                                  {getRegistrationIdentifier(reg)}
+                                </p>
+                                <p className="text-[10px] font-mono text-gray-400 mt-0.5">
+                                  {reg.registrationId}
+                                </p>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <p className="text-xs text-gray-700 dark:text-gray-300">
+                                  {getRegistrationSchool(reg) || '—'}
+                                </p>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                                  {getRegistrationDepartment(reg)}
+                                </p>
+                                {getRegistrationProgram(reg) && (
+                                  <p className="text-[10px] text-gray-400">
+                                    {getRegistrationProgram(reg)}
+                                  </p>
+                                )}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[reg.status as keyof typeof STATUS_COLORS]?.bg || 'bg-gray-100'} ${STATUS_COLORS[reg.status as keyof typeof STATUS_COLORS]?.text || 'text-gray-600'}`}>
+                                  {reg.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  {reg.registeredAt ? new Date(reg.registeredAt).toLocaleDateString('en-IN', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  }) : 'N/A'}
+                                </p>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                {reg.hasEntered ? (
+                                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                ) : (
+                                  <XCircle className="w-5 h-5 text-gray-400" />
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="px-5 py-12 text-center">
+                              <p className="text-gray-500 dark:text-gray-400">
+                                {regLoading ? 'Loading registrations...' : 'No registrations found'}
+                              </p>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {regPagination && regPagination.totalPages > 1 && (
+                    <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Showing {((regPagination.page - 1) * regPagination.limit) + 1}–{Math.min(regPagination.page * regPagination.limit, regPagination.total)} of {regPagination.total}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={regPagination.page <= 1}
+                          onClick={() => handleRegPageChange(regPagination.page - 1)}
+                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        >
+                          Previous
+                        </button>
+                        {/* Page numbers */}
+                        {Array.from({ length: Math.min(regPagination.totalPages, 5) }, (_, i) => {
+                          let pageNum: number;
+                          if (regPagination.totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (regPagination.page <= 3) {
+                            pageNum = i + 1;
+                          } else if (regPagination.page >= regPagination.totalPages - 2) {
+                            pageNum = regPagination.totalPages - 4 + i;
+                          } else {
+                            pageNum = regPagination.page - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              onClick={() => handleRegPageChange(pageNum)}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                                regPagination.page === pageNum
+                                  ? 'bg-sgt-500 text-white'
+                                  : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          disabled={regPagination.page >= regPagination.totalPages}
+                          onClick={() => handleRegPageChange(regPagination.page + 1)}
+                          className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1134,11 +1567,10 @@ export default function EventManagementPage() {
                                 <div className="flex items-center gap-2 mt-2">
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleToggleQrPermission(volunteer.id, volunteer.canScanQr); }}
-                                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                                      volunteer.canScanQr
-                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-200'
-                                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
-                                    }`}
+                                    className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium transition-colors ${volunteer.canScanQr
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 hover:bg-emerald-200'
+                                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
+                                      }`}
                                   >
                                     {volunteer.canScanQr ? (
                                       <>
@@ -1372,7 +1804,690 @@ export default function EventManagementPage() {
             </div>
           </div>
         )}
+
+        {/* Feedback Section Tab */}
+        {activeTab === 'feedback' && (
+          <div className="space-y-6">
+            <div className={`${CARD} p-5`}>
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5 text-sgt-500" />
+                    Event Feedback
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    Scan the Feedback QR to collect ratings (10 points) and short description from attendees.
+                  </p>
+                </div>
+                <button
+                  onClick={handleShowFeedbackQR}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors"
+                >
+                  <QrCode className="w-4 h-4" />
+                  Show Feedback QR
+                </button>
+              </div>
+              {feedbackSummary && (
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 rounded-lg bg-sgt-50 dark:bg-sgt-900/20">
+                    <p className="text-2xl font-bold text-sgt-600 dark:text-sgt-400">{feedbackSummary.totalFeedback}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Total Responses</p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                    <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{feedbackSummary.overallAvg.toFixed(1)}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Avg Rating (out of 10)</p>
+                  </div>
+                </div>
+              )}
+              {feedbackLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-sgt-600" /></div>
+              ) : feedbackList.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">No feedback yet. Share the QR code with attendees to collect responses.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {feedbackList.map((fb) => (
+                    <div key={fb.id} className="p-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-800/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(fb.createdAt).toLocaleString()}
+                        </span>
+                        <span className="text-sm font-semibold text-sgt-600 dark:text-sgt-400">
+                          Avg: {(fb.points.reduce((a, b) => a + b, 0) / 10).toFixed(1)}/10
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {fb.points.map((p, i) => (
+                          <span key={i} className="inline-flex items-center justify-center w-7 h-7 rounded bg-sgt-100 dark:bg-sgt-900/30 text-xs font-medium text-sgt-700 dark:text-sgt-300">
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                      {fb.shortDescription && (
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                          {fb.shortDescription}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Stall Management Tab */}
+        {activeTab === 'stalls' && (
+          <div className="space-y-6">
+            {/* Toggle Banner */}
+            <div className={`${CARD} p-4`}>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Store className="w-4 h-4 text-sgt-500" />
+                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Student Stall Applications Portal</h4>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {event.stallConfig?.enableStudentApplied
+                      ? 'Portal is OPEN — students can apply for stalls right now'
+                      : 'Portal is CLOSED — students cannot apply for stalls'}
+                  </p>
+                  {event.status === 'draft' && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                      Event is in draft mode but you can still open applications early.
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className={`text-xs font-semibold ${event.stallConfig?.enableStudentApplied ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {event.stallConfig?.enableStudentApplied ? 'OPEN' : 'CLOSED'}
+                  </span>
+                  <button
+                    onClick={handleToggleStallApplications}
+                    disabled={stallToggleLoading}
+                    title={event.stallConfig?.enableStudentApplied ? 'Click to close applications' : 'Click to open applications'}
+                    className={`relative inline-flex h-7 w-14 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sgt-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed ${event.stallConfig?.enableStudentApplied
+                      ? 'bg-emerald-500 hover:bg-emerald-600'
+                      : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
+                      }`}
+                  >
+                    {stallToggleLoading ? (
+                      <Loader2 className="w-4 h-4 text-white animate-spin mx-auto" />
+                    ) : (
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200 ${event.stallConfig?.enableStudentApplied ? 'translate-x-8' : 'translate-x-1'
+                          }`}
+                      />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {stallsLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-sgt-600" /></div>
+            ) : (
+              <>
+                {/* Summary Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Total Applications', value: stallApplications.length, color: 'text-sgt-600', bg: 'bg-sgt-50 dark:bg-sgt-900/20' },
+                    { label: 'Pending', value: stallApplications.filter((a) => a.status === 'pending').length, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+                    { label: 'Approved', value: stallApplications.filter((a) => a.status === 'approved').length, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+                    { label: 'Active Stalls', value: stalls.filter((s) => s.isActive).length, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+                  ].map((m) => (
+                    <div key={m.label} className={`${CARD} p-4 flex flex-col gap-1`}>
+                      <span className={`text-2xl font-bold ${m.color}`}>{m.value}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">{m.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Applications */}
+                <div className={`${CARD} overflow-hidden`}>
+                  <div className={`${CARD_HEADER} flex items-center justify-between flex-wrap gap-2`}>
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      <Store className="w-4 h-4 text-sgt-500" />
+                      Stall Applications
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateStallModal(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Create Stall
+                      </button>
+                      <select
+                        value={stallStatusFilter}
+                        onChange={(e) => setStallStatusFilter(e.target.value)}
+                        className="text-xs px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
+                      >
+                        <option value="all">All</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {stallApplications.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-gray-400">No stall applications yet.</div>
+                  ) : (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {stallApplications
+                        .filter((a) => stallStatusFilter === 'all' || a.status === stallStatusFilter)
+                        .map((app) => (
+                          <div key={app.id} className="px-5 py-4 flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="font-medium text-sm text-gray-900 dark:text-white">{app.stallName}</span>
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{app.stallType}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${app.status === 'approved' ? 'bg-emerald-100 text-emerald-700'
+                                  : app.status === 'rejected' ? 'bg-red-100 text-red-700'
+                                    : app.status === 'pending' ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}>{app.status}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                <p>{app.ownerName || 'Unknown'} · {app.ownerEmail} </p>
+                                {(app.ownerSchool || app.ownerDepartment) && (
+                                  <p className="text-gray-400 dark:text-gray-500">
+                                    {app.ownerSchool || ''} {app.ownerSchool && app.ownerDepartment ? '•' : ''} {app.ownerDepartment || ''}
+                                  </p>
+                                )}
+                              </div>
+                              {app.businessName && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{app.businessName}</p>
+                              )}
+                              {app.rejectionReason && (
+                                <p className="text-xs text-red-500 italic mt-0.5">Note: {app.rejectionReason}</p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 shrink-0">
+                              <button
+                                onClick={() => openStallAppDetails(app)}
+                                className="p-1.5 text-gray-500 hover:text-sgt-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
+                                title="View Details"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              {app.status === 'pending' && (
+                                <>
+                                  <button
+                                    disabled={stallActionLoading === app.id}
+                                    onClick={() => handleStallApplicationAction(app.id, 'approved')}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    {stallActionLoading === app.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCheck className="w-3 h-3" />}
+                                    Approve
+                                  </button>
+                                  <button
+                                    disabled={stallActionLoading === app.id}
+                                    onClick={() => handleStallApplicationAction(app.id, 'rejected')}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+                                  >
+                                    <XCircleIcon className="w-3 h-3" />
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Active Stalls */}
+                {stalls.length > 0 && (
+                  <div className={`${CARD} overflow-hidden`}>
+                    <div className={CARD_HEADER}>
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                        <Store className="w-4 h-4 text-purple-500" />
+                        Active Stalls
+                      </h3>
+                    </div>
+                    <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {stalls.map((stall) => (
+                        <div key={stall.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm text-gray-900 dark:text-white">{stall.stallName}</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">{stall.stallType}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${stall.source === 'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                {stall.source === 'creator' ? 'Organizer' : 'Student'}
+                              </span>
+                            </div>
+                            {stall.location && <p className="text-xs text-gray-400 mt-0.5">Location: {stall.location}</p>}
+                            {(stall as Stall & { ownerName?: string; owner?: { name?: string } }).ownerName && (
+                              <p className="text-xs text-gray-400">{(stall as Stall & { ownerName?: string }).ownerName}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setSelectedStall(stall)}
+                              className="p-1.5 text-gray-500 hover:text-sgt-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            {stall.source === 'creator' && (
+                              <button
+                                onClick={() => setSelectedStallForEdit(stall)}
+                                className="p-1.5 text-gray-500 hover:text-sgt-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                            )}
+                            <span className="text-xs font-mono text-gray-400 ml-1">{stall.stallId}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Event Settings Tab */}
+        {activeTab === 'settings' && (
+          <EventSettings
+            eventId={event.id}
+            onToast={toast}
+          />
+        )}
+
       </div>
+
+      {/* ===== Stall Application Details Modal ===== */}
+      {showStallAppModal && selectedStallApp && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Stall Application Details</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Applied on {new Date(selectedStallApp.appliedAt).toLocaleDateString()}</p>
+              </div>
+              <button onClick={() => setShowStallAppModal(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Status Band */}
+              <div className={`px-4 py-2 rounded-md flex items-center justify-between ${selectedStallApp.status === 'approved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300' :
+                selectedStallApp.status === 'rejected' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300' :
+                  selectedStallApp.status === 'pending' ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300' :
+                    'bg-gray-50 text-gray-700 dark:bg-gray-900/20 dark:text-gray-300'
+                }`}>
+                <span className="text-sm font-medium">Status: {selectedStallApp.status.toUpperCase()}</span>
+                {selectedStallApp.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { handleStallApplicationAction(selectedStallApp.id, 'approved'); setShowStallAppModal(false); }}
+                      className="px-3 py-1 bg-emerald-600 text-white text-xs font-medium rounded-md hover:bg-emerald-700"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => { handleStallApplicationAction(selectedStallApp.id, 'rejected'); setShowStallAppModal(false); }}
+                      className="px-3 py-1 bg-white border border-red-200 text-red-600 text-xs font-medium rounded-md hover:bg-red-50"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Applicant Info */}
+              <div>
+                <h4 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Applicant Information</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="block text-xs text-gray-500 mb-1">Name</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{selectedStallApp.ownerName || 'N/A'}</span>
+                    <div className="mt-2">
+                      <span className="block text-xs text-gray-500 mb-1">School/Faculty</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{selectedStallApp.ownerSchool || 'N/A'}</span>
+                    </div>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <span className="block text-xs text-gray-500 mb-1">Email</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{selectedStallApp.ownerEmail || 'N/A'}</span>
+                    <div className="mt-2">
+                      <span className="block text-xs text-gray-500 mb-1">Department</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{selectedStallApp.ownerDepartment || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stall Basic Info */}
+              <div>
+                <h4 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Stall Information</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm bg-gray-50 dark:bg-gray-900/20 p-4 rounded-lg">
+                  <div>
+                    <span className="block text-xs text-gray-500 mb-1">Stall Name</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{selectedStallApp.stallName}</span>
+                  </div>
+                  <div>
+                    <span className="block text-xs text-gray-500 mb-1">Type</span>
+                    <span className="font-medium text-gray-900 dark:text-white capitalize">{selectedStallApp.stallType.replace('_', ' ')}</span>
+                  </div>
+                  {selectedStallApp.category && (
+                    <div>
+                      <span className="block text-xs text-gray-500 mb-1">Category</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{selectedStallApp.category}</span>
+                    </div>
+                  )}
+                  {selectedStallApp.spaceRequired && (
+                    <div>
+                      <span className="block text-xs text-gray-500 mb-1">Space Required</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{selectedStallApp.spaceRequired} sq ft</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Business Details */}
+              {(selectedStallApp.businessName || selectedStallApp.businessDescription || selectedStallApp.products) && (
+                <div>
+                  <h4 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Business Details</h4>
+                  <div className="space-y-3 text-sm">
+                    {selectedStallApp.businessName && (
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Business Name</span>
+                        <p className="text-gray-900 dark:text-white">{selectedStallApp.businessName}</p>
+                      </div>
+                    )}
+                    {selectedStallApp.businessDescription && (
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Description</span>
+                        <p className="text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/20 p-3 rounded-md">{selectedStallApp.businessDescription}</p>
+                      </div>
+                    )}
+                    {selectedStallApp.products && selectedStallApp.products.length > 0 && (
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Products/Services</span>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedStallApp.products.map((prod, i) => (
+                            <span key={i} className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-md">
+                              {prod}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Requirements & Licenses */}
+              <div>
+                <h4 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Requirements & Compliance</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${selectedStallApp.electricityRequired ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                      <span className="text-gray-700 dark:text-gray-300">Electricity Required</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${selectedStallApp.waterRequired ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                      <span className="text-gray-700 dark:text-gray-300">Water Required</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-xs text-gray-500">GST Number: </span>
+                      <span className="text-gray-900 dark:text-white font-mono">{selectedStallApp.gstNumber || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Food License: </span>
+                      <span className="text-gray-900 dark:text-white font-mono">{selectedStallApp.foodLicenseNumber || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+                {selectedStallApp.specialRequirements && (
+                  <div className="mt-3">
+                    <span className="block text-xs text-gray-500 mb-1">Special Requirements</span>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 italic">{selectedStallApp.specialRequirements}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Documents */}
+              {selectedStallApp.documentUrls && selectedStallApp.documentUrls.length > 0 && (
+                <div>
+                  <h4 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Documents</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedStallApp.documentUrls.map((url, i) => (
+                      <a
+                        key={i}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm text-sgt-600 dark:text-sgt-400"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span>Document {i + 1}</span>
+                        <ExternalLink className="w-3 h-3 text-gray-400" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+              <button
+                onClick={() => setShowStallAppModal(false)}
+                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Rejection Feedack Modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Reject Application</h3>
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Please provide a reason for rejecting this stall application. This will be shared with the applicant.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Rejection Reason <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                    placeholder="E.g., Incomplete documentation, stall type not allowed..."
+                    autoFocus
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-200 transition-colors"
+                disabled={stallActionLoading !== null}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRejection}
+                disabled={stallActionLoading !== null || !rejectReason.trim()}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {stallActionLoading === rejectingAppId ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <XCircleIcon className="w-4 h-4" />
+                )}
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Feedback QR Modal */}
+      {showFeedbackQR && feedbackQRUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowFeedbackQR(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Feedback QR Code</h3>
+              <button onClick={() => setShowFeedbackQR(false)} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Scan to give event feedback (10 points + short description)</p>
+            <div className="flex justify-center p-4 bg-white rounded-lg">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={feedbackQRUrl} alt="Feedback QR" className="w-64 h-64" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Stall Modal */}
+      {showCreateStallModal && (
+        <CreateStallForm
+          onClose={() => setShowCreateStallModal(false)}
+          onSubmit={handleCreateStall}
+        />
+      )}
+
+      {/* Stall Details Modal (View) */}
+      {selectedStall && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Stall Details</h3>
+              <button onClick={() => setSelectedStall(null)} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-gray-900 dark:text-white">{selectedStall.stallName}</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">{selectedStall.stallType}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${selectedStall.source === 'creator' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {selectedStall.source === 'creator' ? 'Organizer' : 'Student'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="block text-xs text-gray-500 mb-1">Stall ID</span>
+                  <span className="font-mono font-medium text-gray-900 dark:text-white">{selectedStall.stallId}</span>
+                </div>
+                {(selectedStall as { stallCategory?: string }).stallCategory && (
+                  <div>
+                    <span className="block text-xs text-gray-500 mb-1">Category</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{(selectedStall as { stallCategory?: string }).stallCategory}</span>
+                  </div>
+                )}
+                {(selectedStall as { size?: string }).size && (
+                  <div>
+                    <span className="block text-xs text-gray-500 mb-1">Size</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{(selectedStall as { size?: string }).size}</span>
+                  </div>
+                )}
+                {(selectedStall as { location?: string }).location && (
+                  <div>
+                    <span className="block text-xs text-gray-500 mb-1">Location</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{(selectedStall as { location?: string }).location}</span>
+                  </div>
+                )}
+                {(selectedStall as { ownerName?: string }).ownerName && (
+                  <div className="col-span-2">
+                    <span className="block text-xs text-gray-500 mb-1">Owner</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{(selectedStall as { ownerName?: string }).ownerName}</span>
+                  </div>
+                )}
+              </div>
+              {(selectedStall as { description?: string }).description && (
+                <div>
+                  <span className="block text-xs text-gray-500 mb-1">Description</span>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{(selectedStall as { description?: string }).description}</p>
+                </div>
+              )}
+              {(() => {
+                const meta = (selectedStall as Stall & { stallMetadata?: StallMetadata }).stallMetadata;
+                if (!meta) return null;
+                return (
+                  <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Infrastructure & Business</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {meta.businessName && (
+                        <div>
+                          <span className="block text-xs text-gray-500 mb-1">Business Name</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{meta.businessName}</span>
+                        </div>
+                      )}
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Electricity</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{meta.electricityRequired ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Water</span>
+                        <span className="font-medium text-gray-900 dark:text-white">{meta.waterRequired ? 'Yes' : 'No'}</span>
+                      </div>
+                    </div>
+                    {meta.specialRequirements && (
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Special Requirements</span>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{meta.specialRequirements}</p>
+                      </div>
+                    )}
+                    {meta.products?.length ? (
+                      <div>
+                        <span className="block text-xs text-gray-500 mb-1">Products / Services</span>
+                        <ul className="text-sm text-gray-700 dark:text-gray-300 list-disc list-inside">
+                          {meta.products.map((p, i) => (
+                            <li key={i}>{p}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Stall Modal */}
+      {selectedStallForEdit && (
+        <CreateStallForm
+          onClose={() => setSelectedStallForEdit(null)}
+          onSubmit={handleUpdateStall}
+          initialData={stallToFormData(selectedStallForEdit as Stall & { stallCategory?: string; description?: string; size?: string; stallMetadata?: { businessName?: string; electricityRequired?: boolean; waterRequired?: boolean; specialRequirements?: string; products?: string[] } })}
+        />
+      )}
     </div>
   );
 }

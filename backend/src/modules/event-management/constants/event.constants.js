@@ -54,10 +54,17 @@ const ENTRY_TYPE = {
 const LIMITS = {
   MAX_EVENT_NAME_LENGTH: 256,
   MAX_DESCRIPTION_LENGTH: 5000,
+  MAX_LONG_DESCRIPTION_LENGTH: 50000,
   MAX_VENUE_LENGTH: 512,
+  MAX_CONTACT_NAME_LENGTH: 256,
+  REGISTRATION_CAP_MIN: 1,
+  REGISTRATION_CAP_MAX: 100000,
   DEFAULT_PAGE_SIZE: 20,
   MAX_PAGE_SIZE: 100,
 };
+
+/** Basic email regex for validation */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ERRORS = {
   EVENT_NOT_FOUND: 'Event not found',
@@ -85,4 +92,5 @@ module.exports = {
   ENTRY_TYPE,
   LIMITS,
   ERRORS,
+  EMAIL_REGEX,
 };

@@ -1,0 +1,63 @@
+/**
+ * Gate Entry - Guardian/Parent Fetcher
+ * Get student's parents/guardians for pass creation
+ */
+
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+/**
+ * Get guardians for logged-in student
+ * @param {string} userId - User Login ID
+ * @returns {Array} List of guardians
+ */
+async function getStudentGuardians(userId) {
+  try {
+    // Get student details from UserLogin
+    const userWithStudent = await prisma.userLogin.findUnique({
+      where: { id: userId },
+      include: {
+        studentLogin: {
+          include: {
+            parents: {
+              where: { isActive: true },
+              orderBy: [
+                { isPrimaryContact: 'desc' },
+                { firstName: 'asc' }
+              ]
+            }
+          }
+        }
+      }
+    });
+
+    if (!userWithStudent || !userWithStudent.studentLogin) {
+      return [];
+    }
+
+    const guardians = userWithStudent.studentLogin.parents || [];
+
+    // Transform to frontend format
+    return guardians.map(parent => ({
+      id: parent.id,
+      name: `${parent.firstName} ${parent.lastName || ''}`.trim(),
+      firstName: parent.firstName,
+      lastName: parent.lastName,
+      relationship: parent.relationship, // Father, Mother, Guardian
+      phone: parent.phone,
+      email: parent.email,
+      occupation: parent.occupation,
+      organization: parent.organization,
+      address: parent.address,
+      isPrimary: parent.isPrimaryContact
+    }));
+
+  } catch (error) {
+    console.error('[GET GUARDIANS] Error:', error);
+    throw error;
+  }
+}
+
+module.exports = {
+  getStudentGuardians
+};

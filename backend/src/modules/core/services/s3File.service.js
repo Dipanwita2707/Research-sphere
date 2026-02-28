@@ -94,6 +94,16 @@ const upload = multer({
   },
 });
 
+/** Noting attachments: 5MB per file */
+const NOTING_FILE_MAX_BYTES = 5 * 1024 * 1024;
+const uploadNoting = multer({
+  storage: memoryStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: NOTING_FILE_MAX_BYTES,
+  },
+});
+
 const uploadPrototype = multer({
   storage: memoryStorage,
   fileFilter: prototypeFileFilter,
@@ -356,6 +366,7 @@ const deleteFile = async (req, res) => {
 
 module.exports = {
   upload,
+  uploadNoting,
   uploadPrototype,
   uploadFile,
   uploadPrototypeFile,

@@ -35,5 +35,6 @@ export function useEvent(id: string) {
     queryKey: EVENT_QUERY_KEYS.detail(id),
     queryFn: () => eventService.getEventById(id),
     enabled: !!id,
+    staleTime: 2 * 60 * 1000,
   });
 }

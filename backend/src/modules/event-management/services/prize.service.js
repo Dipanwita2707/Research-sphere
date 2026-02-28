@@ -4,6 +4,7 @@
  */
 
 const prisma = require('../../../shared/config/database');
+const { ValidationError } = require('../../../shared/utils/AppError');
 
 /**
  * Get all prizes for an event
@@ -44,6 +45,11 @@ const createPrize = async (eventId, prizeData, userId) => {
     throw new Error('Only the event creator can manage prizes');
   }
 
+  // Prizes are fixed when event comes from noting
+  if (event.notingId) {
+    throw new ValidationError('Prizes were set during noting approval and cannot be changed.');
+  }
+
   // Get max sort order
   const maxOrder = await prisma.eventPrize.aggregate({
     where: { eventId },
@@ -73,7 +79,7 @@ const createPrize = async (eventId, prizeData, userId) => {
 const updatePrize = async (prizeId, prizeData, userId) => {
   const prize = await prisma.eventPrize.findUnique({
     where: { id: prizeId },
-    include: { Event: { select: { createdById: true } } },
+    include: { Event: { select: { createdById: true, notingId: true } } },
   });
 
   if (!prize) {
@@ -82,6 +88,10 @@ const updatePrize = async (prizeId, prizeData, userId) => {
 
   if (prize.Event.createdById !== userId) {
     throw new Error('Only the event creator can manage prizes');
+  }
+
+  if (prize.Event.notingId) {
+    throw new ValidationError('Prizes were set during noting approval and cannot be changed.');
   }
 
   return prisma.eventPrize.update({
@@ -106,7 +116,7 @@ const updatePrize = async (prizeId, prizeData, userId) => {
 const deletePrize = async (prizeId, userId) => {
   const prize = await prisma.eventPrize.findUnique({
     where: { id: prizeId },
-    include: { Event: { select: { createdById: true } } },
+    include: { Event: { select: { createdById: true, notingId: true } } },
   });
 
   if (!prize) {
@@ -115,6 +125,10 @@ const deletePrize = async (prizeId, userId) => {
 
   if (prize.Event.createdById !== userId) {
     throw new Error('Only the event creator can manage prizes');
+  }
+
+  if (prize.Event.notingId) {
+    throw new ValidationError('Prizes were set during noting approval and cannot be changed.');
   }
 
   return prisma.eventPrize.delete({
@@ -134,6 +148,10 @@ const reorderPrizes = async (eventId, prizeOrders, userId) => {
 
   if (event.createdById !== userId) {
     throw new Error('Only the event creator can manage prizes');
+  }
+
+  if (event.notingId) {
+    throw new ValidationError('Prizes were set during noting approval and cannot be changed.');
   }
 
   // Update each prize's sort order
@@ -161,6 +179,10 @@ const bulkUpsertPrizes = async (eventId, prizes, userId) => {
 
   if (event.createdById !== userId) {
     throw new Error('Only the event creator can manage prizes');
+  }
+
+  if (event.notingId) {
+    throw new ValidationError('Prizes were set during noting approval and cannot be changed.');
   }
 
   // Get existing prizes
@@ -237,6 +259,10 @@ const togglePrizesEnabled = async (eventId, enabled, userId) => {
 
   if (event.createdById !== userId) {
     throw new Error('Only the event creator can manage prizes');
+  }
+
+  if (event.notingId) {
+    throw new ValidationError('Prizes were set during noting approval and cannot be changed.');
   }
 
   return prisma.event.update({

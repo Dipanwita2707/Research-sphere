@@ -346,6 +346,16 @@ export default function NavigationHeader() {
         { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
       ],
     },
+    // Events & Stalls
+    {
+      name: '🎪 Events & Stalls',
+      description: 'Browse events and stall opportunities',
+      children: [
+        { name: '📅 All Events', href: '/events', description: 'Browse and register for events' },
+        { name: '🪄 Stall Opportunities', href: '/events/stall-opportunities', description: 'Apply for stalls at events' },
+        { name: '📋 My Registrations', href: '/events/registrations', description: 'View your event registrations' },
+      ],
+    },
   ];
 
   // Add Research and Development if there are sub-items
@@ -418,6 +428,18 @@ export default function NavigationHeader() {
             { name: '🔐 Role Permissions', href: '/admin/permissions', description: 'Configure access rights' },
             { name: '� Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
             { name: '�📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+          ],
+        },
+        
+        // Gate Entry Management
+        {
+          name: '🚪 Gate Entry',
+          description: 'Manage campus gate entries',
+          children: [
+            { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' },
+            { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' },
+            { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' },
+            { name: '📊 Analytics', href: '/admin/gate-entry/analytics', description: 'Comprehensive analytics & insights' },
           ],
         },
       ],

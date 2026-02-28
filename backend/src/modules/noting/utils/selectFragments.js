@@ -81,9 +81,12 @@ const userForList = {
 
 /**
  * Note history with user details
+ * PERF: Capped at 20 rows (was 100). Most notes have < 15 history entries.
+ * For notes with very long history, the frontend can paginate via /api/noting/:id/history.
  */
 const historyWithUsers = {
-  orderBy: { createdAt: 'asc' },
+  orderBy: { createdAt: "asc" },
+  take: 20, // Cap history rows — prevents loading hundreds of entries with full user joins
   include: {
     performedBy: {
       select: userBasic,
@@ -112,7 +115,7 @@ function getFullNoteInclude() {
       select: userBasic,
     },
     points: {
-      orderBy: { sortOrder: 'asc' },
+      orderBy: { sortOrder: "asc" },
     },
     history: historyWithUsers,
     attachments: true,
@@ -132,7 +135,7 @@ function getListNoteInclude() {
     },
     history: {
       select: { performedById: true },
-      take: 50, // Minimal data for approver-action check only
+      take: 1,
     },
     _count: {
       select: {

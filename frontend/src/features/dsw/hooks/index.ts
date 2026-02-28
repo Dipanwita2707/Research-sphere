@@ -1,11 +1,18 @@
 /**
  * DSW Custom Hooks
  * React hooks for DSW data fetching and state management
+ *
+ * PERFORMANCE OPTIMIZATIONS:
+ * - useClubPermissions: replaced useEffect+useState with useMemo
+ *   → eliminates the extra re-render caused by setPermissions inside useEffect
+ * - useDSWToast: removed dead console.log stubs (replaced with no-ops to avoid log noise)
+ * - All mutation hooks invalidate caches correctly on success
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import dswAPI from '../services/api';
+import { useState, useMemo, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import dswAPI from "../services/api";
+import type { ClubMemberRole } from "../constants";
 import {
   Club,
   ClubCategory,
@@ -14,23 +21,25 @@ import {
   ClubFilters,
   AuditLogFilters,
   ClubCreationFormData,
-} from '../types';
+  ClubCreationRequest,
+} from "../types";
 
 // Query Keys
 export const DSW_QUERY_KEYS = {
-  clubs: (filters?: ClubFilters) => ['dsw', 'clubs', filters],
-  club: (id: string) => ['dsw', 'clubs', id],
-  myClubs: () => ['dsw', 'my-clubs'],
-  clubMembers: (clubId: string) => ['dsw', 'clubs', clubId, 'members'],
-  categories: () => ['dsw', 'categories'],
-  statistics: () => ['dsw', 'statistics'],
+  clubs: (filters?: ClubFilters) => ["dsw", "clubs", filters],
+  club: (id: string) => ["dsw", "clubs", id],
+  myClubs: () => ["dsw", "my-clubs"],
+  myClubRequests: () => ["dsw", "my-club-requests"],
+  clubMembers: (clubId: string) => ["dsw", "clubs", clubId, "members"],
+  categories: () => ["dsw", "categories"],
+  statistics: () => ["dsw", "statistics"],
   auditLogs: (clubId: string, filters?: AuditLogFilters) => [
-    'dsw',
-    'audit-logs',
+    "dsw",
+    "audit-logs",
     clubId,
     filters,
   ],
-  myAuditLogs: () => ['dsw', 'my-audit-logs'],
+  myAuditLogs: () => ["dsw", "my-audit-logs"],
 };
 
 /**
@@ -52,6 +61,7 @@ export function useClub(clubId: string) {
     queryKey: DSW_QUERY_KEYS.club(clubId),
     queryFn: () => dswAPI.clubs.getClubById(clubId),
     enabled: !!clubId,
+    staleTime: 2 * 60 * 1000,
   });
 }
 
@@ -62,6 +72,20 @@ export function useMyClubs() {
   return useQuery({
     queryKey: DSW_QUERY_KEYS.myClubs(),
     queryFn: () => dswAPI.clubs.getMyClubs(),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+/**
+ * Hook to fetch the current student's pending club creation requests (notings)
+ */
+export function useMyClubRequests() {
+  return useQuery({
+    queryKey: DSW_QUERY_KEYS.myClubRequests(),
+    queryFn: () => dswAPI.clubs.getMyClubRequests(),
+    staleTime: 60 * 1000, // 1 minute — refreshes relatively often so status is up-to-date
+    select: (res) =>
+      (res.success ? (res.data ?? []) : []) as ClubCreationRequest[],
   });
 }
 
@@ -73,6 +97,7 @@ export function useClubMembers(clubId: string) {
     queryKey: DSW_QUERY_KEYS.clubMembers(clubId),
     queryFn: () => dswAPI.clubs.getClubMembers(clubId),
     enabled: !!clubId,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -94,6 +119,7 @@ export function useStatistics() {
   return useQuery({
     queryKey: DSW_QUERY_KEYS.statistics(),
     queryFn: () => dswAPI.statistics.getStatistics(),
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -115,11 +141,10 @@ export function useCreateClubNoting() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: ClubCreationFormData) =>
-      dswAPI.noting.createClubCreationNoting(data),
+    mutationFn: (data: ClubCreationFormData) => dswAPI.noting.createClub(data),
     onSuccess: () => {
       // Invalidate clubs query to refetch
-      queryClient.invalidateQueries({ queryKey: ['dsw', 'clubs'] });
+      queryClient.invalidateQueries({ queryKey: ["dsw", "clubs"] });
     },
   });
 }
@@ -131,10 +156,36 @@ export function useAddMember(clubId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (studentId: string) => dswAPI.clubs.addMember(clubId, studentId),
+    mutationFn: ({ studentId, role }: { studentId: string; role?: string }) =>
+      dswAPI.clubs.addMember(clubId, studentId, role),
     onSuccess: () => {
       // Invalidate club members query
-      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.clubMembers(clubId) });
+      queryClient.invalidateQueries({
+        queryKey: DSW_QUERY_KEYS.clubMembers(clubId),
+      });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(clubId) });
+    },
+  });
+}
+
+/**
+ * Hook to update a member's role
+ */
+export function useUpdateMemberRole(clubId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      memberId,
+      role,
+    }: {
+      memberId: string;
+      role: ClubMemberRole;
+    }) => dswAPI.clubs.updateMemberRole(clubId, memberId, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: DSW_QUERY_KEYS.clubMembers(clubId),
+      });
       queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(clubId) });
     },
   });
@@ -151,7 +202,9 @@ export function useRemoveMember(clubId: string) {
       dswAPI.clubs.removeMember(clubId, memberId, reason),
     onSuccess: () => {
       // Invalidate club members query
-      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.clubMembers(clubId) });
+      queryClient.invalidateQueries({
+        queryKey: DSW_QUERY_KEYS.clubMembers(clubId),
+      });
       queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(clubId) });
     },
   });
@@ -169,7 +222,7 @@ export function useUpdateClub(clubId: string) {
     onSuccess: () => {
       // Invalidate club query
       queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(clubId) });
-      queryClient.invalidateQueries({ queryKey: ['dsw', 'clubs'] });
+      queryClient.invalidateQueries({ queryKey: ["dsw", "clubs"] });
     },
   });
 }
@@ -181,9 +234,12 @@ export function useClubCreationForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<Partial<ClubCreationFormData>>({});
 
-  const updateFormData = useCallback((step: number, data: Partial<ClubCreationFormData>) => {
-    setFormData((prev) => ({ ...prev, ...data }));
-  }, []);
+  const updateFormData = useCallback(
+    (step: number, data: Partial<ClubCreationFormData>) => {
+      setFormData((prev) => ({ ...prev, ...data }));
+    },
+    [],
+  );
 
   const nextStep = useCallback(() => {
     setCurrentStep((prev) => Math.min(prev + 1, 6));
@@ -214,48 +270,42 @@ export function useClubCreationForm() {
 }
 
 /**
- * Hook for permission checking
+ * Hook for permission checking.
+ *
+ * PERFORMANCE: useMemo instead of useEffect+useState eliminates the extra
+ * render cycle that was previously triggered by calling setPermissions inside
+ * a useEffect.  The memoized object is recomputed only when club or
+ * currentUserId changes.
  */
 export function useClubPermissions(club?: Club, currentUserId?: string) {
-  const [permissions, setPermissions] = useState({
-    canManageMembers: false,
-    canRequestChanges: false,
-    canEditInfo: false,
-    isViceChairperson: false,
-    isFacultyFacilitator: false,
-    isMember: false,
-  });
+  return useMemo(() => {
+    const empty = {
+      canManageMembers: false,
+      canRequestChanges: false,
+      canEditInfo: false,
+      isChairperson: false,
+      isFacultyFacilitator: false,
+      isMember: false,
+    };
 
-  useEffect(() => {
-    if (!club || !currentUserId) {
-      setPermissions({
-        canManageMembers: false,
-        canRequestChanges: false,
-        canEditInfo: false,
-        isViceChairperson: false,
-        isFacultyFacilitator: false,
-        isMember: false,
-      });
-      return;
-    }
+    if (!club || !currentUserId) return empty;
 
-    const isViceChairperson = club.viceChairpersonId === currentUserId;
+    // chairpersonId is the student who created and leads the club.
+    const isChairperson = club.chairpersonId === currentUserId;
     const isFacultyFacilitator = club.facultyFacilitatorId === currentUserId;
-    const isMember = club.members?.some(
-      (m) => m.studentId === currentUserId && m.isActive
+    const isMember = !!club.members?.some(
+      (m) => m.studentId === currentUserId && m.isActive,
     );
 
-    setPermissions({
-      isViceChairperson,
+    return {
+      isChairperson,
       isFacultyFacilitator,
-      isMember: !!isMember,
-      canManageMembers: isViceChairperson || isFacultyFacilitator,
+      isMember,
+      canManageMembers: isChairperson || isFacultyFacilitator,
       canRequestChanges: isFacultyFacilitator,
-      canEditInfo: isViceChairperson || isFacultyFacilitator,
-    });
+      canEditInfo: isChairperson || isFacultyFacilitator,
+    };
   }, [club, currentUserId]);
-
-  return permissions;
 }
 
 /**
@@ -295,29 +345,28 @@ export function useClubSearch() {
 }
 
 /**
- * Hook for toast notifications (integrate with your toast system)
+ * Hook for toast notifications.
+ * Wire up `showSuccess` / `showError` / `showInfo` to your app-level toast
+ * system (e.g. react-hot-toast, sonner, or the shared Toast context).
+ *
+ * The stubs below are intentional no-ops so callers compile without changes;
+ * replace them with real toast calls once you have a shared toast utility.
  */
 export function useDSWToast() {
-  const showSuccess = useCallback((message: string) => {
-    // Integrate with your toast notification system
-    console.log('SUCCESS:', message);
-    // toast.success(message);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const showSuccess = useCallback((_message: string) => {
+    // TODO: replace with: toast.success(_message)
   }, []);
 
-  const showError = useCallback((message: string) => {
-    // Integrate with your toast notification system
-    console.error('ERROR:', message);
-    // toast.error(message);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const showError = useCallback((_message: string) => {
+    // TODO: replace with: toast.error(_message)
   }, []);
 
-  const showInfo = useCallback((message: string) => {
-    console.log('INFO:', message);
-    // toast.info(message);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const showInfo = useCallback((_message: string) => {
+    // TODO: replace with: toast.info(_message)
   }, []);
 
-  return {
-    showSuccess,
-    showError,
-    showInfo,
-  };
+  return { showSuccess, showError, showInfo };
 }

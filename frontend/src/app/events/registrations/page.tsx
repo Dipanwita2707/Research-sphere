@@ -10,7 +10,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import TicketModal from '@/components/TicketModal';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', icon: Clock },
@@ -400,7 +400,7 @@ export default function MyRegistrationsPage() {
                   />
                 ) : (
                   <div className="flex items-center justify-center h-48 w-48">
-                    <LoadingSpinner size="lg" className="!border-gray-300" />
+                    <CardSkeleton className="w-full max-w-sm" />
                   </div>
                 )}
                 <div className="mt-4 px-3 py-1.5 bg-gray-100 rounded-md font-mono text-xs font-bold text-gray-600 tracking-wider">
