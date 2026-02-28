@@ -310,6 +310,28 @@ export default function NavigationHeader() {
   // Level 1: Academics, Research and Development
   // Level 2 (under R&D): Submit & Track, Review & Approve
   // ============================================
+  // ============================================
+  // Build TMS (Ticket Management) children - role-based
+  // ============================================
+  const tmsChildren: SubMenuItem[] = [];
+  if (isStudent) {
+    tmsChildren.push(
+      { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
+      { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
+    );
+  }
+  if (isFaculty || isAdmin) {
+    tmsChildren.push(
+      { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
+    );
+  }
+  if (isAdmin) {
+    tmsChildren.push(
+      { name: '📊 TMS Dashboard', href: '/tms/admin', description: 'Analytics & overview' },
+      { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
+    );
+  }
+
   const navigationSubItems: SubMenuItem[] = [
     // Academics
     {
@@ -342,6 +364,15 @@ export default function NavigationHeader() {
       name: '🔬 Research & Development',
       description: 'Research, Patents & Reviews',
       children: rndSubItems,
+    });
+  }
+
+  // Add Ticket Management if there are sub-items
+  if (tmsChildren.length > 0) {
+    navigationSubItems.push({
+      name: '🎫 Ticket Management',
+      description: 'Grievances, Assistance & Enquiries',
+      children: tmsChildren,
     });
   }
 

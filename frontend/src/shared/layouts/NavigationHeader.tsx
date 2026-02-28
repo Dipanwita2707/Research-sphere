@@ -471,6 +471,38 @@ export default function NavigationHeader() {
     description: 'RFID access system',
   });
 
+  // Add Ticket Management (TMS) - role-based
+  {
+    const tmsChildren: SubMenuItem[] = [];
+    if (isStudent) {
+      tmsChildren.push(
+        { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
+        { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
+      );
+    }
+    if (isFaculty || isAdmin) {
+      tmsChildren.push(
+        { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
+        { name: '📜 Request History', href: '/tms/history', description: 'Track your past actions on tickets' },
+      );
+    }
+    if (isAdmin) {
+      tmsChildren.push(
+        { name: '📊 TMS Dashboard', href: '/tms/admin', description: 'Analytics & overview' },
+        { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
+      );
+    }
+    if (tmsChildren.length > 0) {
+      navigationSubItems.push({
+        name: '🎫 Ticket Management',
+        description: 'Grievances, Assistance & Enquiries',
+        children: tmsChildren,
+      });
+    }
+  }
+
+  // Add DSW (Division of Student Welfare) for Faculty, Staff, and Admin
+  if (isFaculty || isAdmin) {
   // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
   if (isStudent || isFaculty || isAdmin) {
     navigationSubItems.push({
@@ -684,8 +716,9 @@ export default function NavigationHeader() {
                 >
                   <div className="max-w-7xl mx-auto px-6 py-4 relative">
                     {/* Main Menu */}
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 transition-all duration-300 ${activeSubmenu ? 'hidden' : 'block'
-                      }`}>
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 transition-all duration-300 ${
+                      activeSubmenu ? 'invisible pointer-events-none' : 'visible'
+                    }`}>
                       {item.subItems.map((subItem) => (
                         subItem.href ? (
                           <Link
@@ -747,7 +780,7 @@ export default function NavigationHeader() {
 
                     {/* Nested Submenu Slide - Level 2 */}
                     {activeSubmenu && !activeSubmenu2 && (
-                      <div className="transition-all duration-300">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
                         {/* Back Button */}
                         <div className="mb-3">
                           <button
@@ -856,7 +889,7 @@ export default function NavigationHeader() {
 
                     {/* Nested Submenu Slide - Level 3 (Third level) */}
                     {activeSubmenu && activeSubmenu2 && !activeSubmenu3 && (
-                      <div className="transition-all duration-300">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
                         {/* Back Button */}
                         <div className="mb-3">
                           <button
@@ -975,7 +1008,7 @@ export default function NavigationHeader() {
 
                     {/* Nested Submenu Slide - Level 4 (Fourth level) */}
                     {activeSubmenu && activeSubmenu2 && activeSubmenu3 && (
-                      <div className="transition-all duration-300">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
                         {/* Back Button */}
                         <div className="mb-3">
                           <button

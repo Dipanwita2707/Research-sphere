@@ -1,3 +1,6 @@
+-- CreateEnum: Participation Type
+CREATE TYPE "ParticipationType" AS ENUM ('individual', 'team');
+
 -- AlterTable: Add extended event fields to Note
 ALTER TABLE "note" ADD COLUMN "event_participation_type" "ParticipationType";
 ALTER TABLE "note" ADD COLUMN "event_registration_fee_individual" DOUBLE PRECISION;

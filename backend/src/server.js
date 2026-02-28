@@ -223,7 +223,11 @@ const startServer = async () => {
       auditReportScheduler,
     } = require("./modules/audit/services/auditScheduler.service");
     await auditReportScheduler.initialize();
-
+    
+    // Initialize TMS auto-escalation scheduler
+    const { tmsEscalationScheduler } = require('./modules/tms/services/tmsScheduler.service');
+    await tmsEscalationScheduler.initialize();
+    
     // Initialize email service
     const { emailService } = require("./modules/core/services/email.service");
     await emailService.initialize();
@@ -244,6 +248,7 @@ const startServer = async () => {
         `📦 Cache initialized (${cache.isConnected() ? "Redis" : "Memory fallback"})`,
       );
       console.log(`📊 Audit report scheduler initialized`);
+      console.log(`🎫 TMS auto-escalation scheduler initialized`);
       console.log(`🎫 QR activation job started for gate entry`);
     });
   } catch (error) {

@@ -26,7 +26,7 @@
     "@aws-sdk/client-s3": "^3.981.0",
     "@aws-sdk/lib-storage": "^3.981.0",
     "@aws-sdk/s3-request-presigner": "^3.981.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^5.19.0",
     "@types/multer": "^2.0.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",
@@ -48,13 +48,14 @@
     "nodemailer": "^7.0.12",
     "path": "^0.12.7",
     "pg": "^8.16.3",
+    "prisma": "^5.19.0",
+    "redis-server": "^1.2.2"
     "qrcode": "^1.5.4",
     "redis-server": "^1.2.2",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "nodemon": "^3.0.2",
-    "prisma": "^5.7.1"
+    "nodemon": "^3.0.2"
   }
 }
