@@ -54,10 +54,13 @@ router.use(protect);
 // CATEGORY ROUTES (placed before param routes)
 // ============================================
 
-// Public: Get active categories for ticket submission form
+// Get active categories (for ticket form & filters)
 router.get(
   '/categories',
-  checkAnyPermission(['tms_submit_ticket', 'tms_view_own_tickets'], { checkDefaultPermissions: true }),
+  checkAnyPermission(
+    ['tms_submit_ticket', 'tms_view_own_tickets', 'tms_view_assigned_tickets', 'tms_view_analytics'],
+    { checkDefaultPermissions: true }
+  ),
   categoryController.getActiveCategories
 );
 
@@ -207,10 +210,13 @@ router.get(
   ticketController.getAssignedTickets
 );
 
-// Employee: Request history (tickets they acted on)
+// Employee/Admin: Request history (tickets they acted on)
 router.get(
   '/tickets/history',
-  checkPermission('tms_view_assigned_tickets', { checkDefaultPermissions: true }),
+  checkAnyPermission(
+    ['tms_view_assigned_tickets', 'tms_view_analytics'],
+    { checkDefaultPermissions: true }
+  ),
   validators.listTicketsValidation,
   ticketController.getMyHistory
 );
