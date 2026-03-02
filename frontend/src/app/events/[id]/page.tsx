@@ -16,6 +16,7 @@ import {
   ChevronUp,
   CheckCircle2,
   IndianRupee,
+  CreditCard,
   Settings,
   Monitor,
   Building2,
@@ -116,6 +117,10 @@ export default function EventDetailPage() {
   const hasIncompleteRegistration =
     !!event?.userRegistration &&
     event?.userRegistration?.status === "incomplete_team";
+  const hasPendingPayment =
+    !!event?.userRegistration &&
+    event?.userRegistration?.status === "pending" &&
+    event?.paymentType === "paid";
   const isTeamBased = event?.participationType === "team";
   const registrationOpen = event?.registrationEndDate
     ? new Date(event.registrationEndDate) >= new Date()
@@ -415,6 +420,24 @@ export default function EventDetailPage() {
                       className="inline-flex items-center justify-center px-6 py-3 bg-orange-600 dark:bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-700 dark:hover:bg-orange-600 transition-all shadow-sm w-full md:w-auto"
                     >
                       Setup Team
+                    </Link>
+                  </div>
+                )}
+
+                {hasPendingPayment && event.userRegistration && (
+                  <div className="flex flex-col gap-3 items-start md:items-end mb-1">
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-full">
+                      <CreditCard className="w-5 h-5 text-amber-700 dark:text-amber-400" />
+                      <span className="text-sm font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wide">
+                        Payment Pending
+                      </span>
+                    </div>
+                    <Link
+                      href={isTeamBased ? `/events/${event.id}/registration/team` : `/events/${event.id}/registration/payment`}
+                      className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white text-sm font-bold rounded-xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-all shadow-sm w-full md:w-auto"
+                    >
+                      <IndianRupee className="w-4 h-4 mr-1" />
+                      Pay Now
                     </Link>
                   </div>
                 )}

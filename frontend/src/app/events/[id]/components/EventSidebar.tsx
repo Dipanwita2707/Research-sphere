@@ -245,13 +245,6 @@ export default function EventSidebar({
               </div>
             )}
 
-            {/* View Ticket CTA */}
-            <Link
-              href="/events/registrations"
-              className="block w-full px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 text-center transition-colors"
-            >
-              View QR & Ticket
-            </Link>
           </div>
         </div>
       )}
@@ -331,6 +324,25 @@ export default function EventSidebar({
               </p>
             </div>
           </div>
+          {/* Team event quick actions */}
+          {isTeamBased && (
+            <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+              <Link
+                href={`/events/${event.id}/registration`}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                View Team & QR
+              </Link>
+              <Link
+                href={`/events/${event.id}/registration/team`}
+                className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600 text-sm font-medium rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              >
+                <Users2 className="w-4 h-4" />
+                Manage Team
+              </Link>
+            </div>
+          )}
         </div>
       )}
 

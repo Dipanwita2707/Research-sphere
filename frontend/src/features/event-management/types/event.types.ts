@@ -433,10 +433,28 @@ export interface RegistrationFormData {
     id: string;
     registrationId: string;
     status: RegistrationStatus;
+    paymentStatus?: string | null;
+    qrCode?: string;
+    amountPaid?: number | null;
     formData?: Record<string, any>;
     teamId?: string;
     isTeamLeader: boolean;
-    team?: EventTeam;
+    team?: {
+      id: string;
+      teamId: string;
+      name: string;
+      leaderId: string;
+      members: {
+        id: string;
+        userId: string;
+        role: string;
+        name: string;
+        email?: string | null;
+        phone?: string | null;
+        uid?: string | null;
+        registrationNo?: string | null;
+      }[];
+    } | null;
   };
 }
 
@@ -459,6 +477,9 @@ export interface EventTeam {
     maxTeamSize?: number;
     interCollegeAllowed?: boolean;
     teamRegistrationDeadline?: string;
+    paymentType?: string;
+    registrationFee?: number;
+    teamRegistrationFee?: number;
   };
   members: TeamMember[];
   memberCount: {
@@ -466,6 +487,16 @@ export interface EventTeam {
     min?: number;
     max?: number;
   };
+  /** Each viewer's own EventRegistration for this event (contains their QR code) */
+  myRegistration?: {
+    id: string;
+    registrationId: string;
+    status: string;
+    paymentStatus?: string | null;
+    qrCode: string;
+    amountPaid?: number | null;
+    isTeamLeader: boolean;
+  } | null;
   pendingInvitations?: TeamInvitation[];
   pendingRequests?: TeamRequest[];
   createdAt: string;
@@ -802,4 +833,98 @@ export interface StallApplicationFormData {
   foodLicenseNumber?: string;
   documentUrls?: string[];
   termsAccepted: boolean;
+}
+
+// ============================================
+// Razorpay Payment Types
+// ============================================
+
+export type PaymentRecordStatus = 'created' | 'authorized' | 'captured' | 'failed' | 'refunded';
+export type PaymentFor = 'individual' | 'team';
+
+export interface PaymentRecord {
+  id: string;
+  registrationId?: string;
+  eventId: string;
+  userId: string;
+  teamId?: string;
+  razorpayOrderId: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  amount: number;
+  currency: string;
+  status: PaymentRecordStatus;
+  paymentFor: PaymentFor;
+  receipt: string;
+  attempts: number;
+  paidAt?: string;
+  failedAt?: string;
+  refundedAt?: string;
+  webhookVerified: boolean;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RazorpayOrderResponse {
+  order: {
+    id: string;
+    amount: number; // in paise
+    currency: string;
+  };
+  payment: PaymentRecord;
+  key: string; // Razorpay public key
+  registrationId?: string;
+  teamId?: string;
+}
+
+export interface PaymentVerificationRequest {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+export interface PaymentVerificationResponse {
+  success: boolean;
+  message: string;
+  payment: PaymentRecord;
+}
+
+export interface PaymentStatusResponse {
+  isPaid: boolean;
+  latestPayment: PaymentRecord | null;
+  payments: PaymentRecord[];
+}
+
+/** Razorpay Checkout options (subset used by our integration) */
+export interface RazorpayCheckoutOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: PaymentVerificationRequest) => void;
+  prefill?: {
+    name?: string;
+    email?: string;
+    contact?: string;
+  };
+  notes?: Record<string, string>;
+  theme?: {
+    color?: string;
+  };
+  modal?: {
+    ondismiss?: () => void;
+  };
+}
+
+/** Global Razorpay Checkout constructor (loaded via script tag) */
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayCheckoutOptions) => {
+      open: () => void;
+      close: () => void;
+    };
+  }
 }

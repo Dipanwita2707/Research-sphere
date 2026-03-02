@@ -121,6 +121,7 @@ model UserLogin {
   eventTeamMemberships                               EventTeamMember[]                    @relation("TeamMemberUser")
   stallApplications                                  StallApplication[]                   @relation("StallApplicant")
   stallsOwned                                        Stall[]                              @relation("StallOwner")
+  payments                                           Payment[]                            @relation("PaymentUser")
 
   @@map("user_login")
 }
@@ -2267,6 +2268,7 @@ model Event {
   EventCustomField           EventCustomField[]
   EventTeam                  EventTeam[]
   EventPrize                 EventPrize[]
+  Payment                    Payment[]
   StallApplication           StallApplication[]
   Stall                      Stall[]
   EventFeedback              EventFeedback[]
@@ -2359,6 +2361,7 @@ model EventRegistration {
   user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
   EventFieldResponse    EventFieldResponse[]
+  Payment               Payment[]
 
   @@unique([eventId, userId])
   @@index([eventId])
@@ -2474,6 +2477,7 @@ model EventTeam {
   EventTeamInvitation   EventTeamInvitation[]
   EventTeamRequest      EventTeamRequest[]
   EventRegistration     EventRegistration[]
+  Payment               Payment[]
 
   @@unique([eventId, name])
   @@index([eventId])
@@ -3474,4 +3478,63 @@ enum ClubChangeRequestStatusEnum {
   rejected
 
   @@map("club_change_request_status_enum")
+}
+
+// ============================================
+// Payment Model for Razorpay Integration
+// ============================================
+
+model Payment {
+  id                    String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  registrationId        String?
+  eventId               String
+  userId                String        @db.Uuid
+  teamId                String?       @db.Uuid
+  razorpayOrderId       String        @unique @map("razorpay_order_id")
+  razorpayPaymentId     String?       @unique @map("razorpay_payment_id")
+  razorpaySignature     String?       @map("razorpay_signature")
+  amount                Float
+  currency              String        @default("INR") @db.VarChar(3)
+  status                PaymentRecordStatus @default(created)
+  paymentFor            PaymentFor    @default(individual)
+  receipt               String        @unique @db.VarChar(128)
+  attempts              Int           @default(0)
+  paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
+  failedAt              DateTime?     @map("failed_at") @db.Timestamptz(6)
+  refundedAt            DateTime?     @map("refunded_at") @db.Timestamptz(6)
+  webhookVerified       Boolean       @default(false) @map("webhook_verified")
+  metadata              Json?         @default("{}")
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  EventRegistration     EventRegistration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  Event                 Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user_login            UserLogin          @relation("PaymentUser", fields: [userId], references: [id])
+  EventTeam             EventTeam?         @relation(fields: [teamId], references: [id])
+
+  @@index([registrationId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([teamId])
+  @@index([razorpayOrderId])
+  @@index([status])
+  @@index([receipt])
+  @@map("payment")
+}
+
+enum PaymentRecordStatus {
+  created
+  authorized
+  captured
+  failed
+  refunded
+
+  @@map("payment_record_status_enum")
+}
+
+enum PaymentFor {
+  individual
+  team
+
+  @@map("payment_for_enum")
 }

@@ -3,24 +3,73 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import QRCode from 'qrcode';
 import {
   ArrowLeft, Users, UserPlus, Search, X, Send, Clock,
   AlertCircle, CheckCircle2, XCircle, Plus, Trash2,
-  Crown, Mail, Info, Eye, ExternalLink, UserMinus, Bell, ArrowRight
+  Crown, Mail, Info, Eye, EyeOff, ExternalLink, UserMinus, Bell, ArrowRight,
+  CreditCard, IndianRupee, Shield, Loader2, Phone, Hash, Lock, QrCode,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
+import { usePayment } from '@/features/event-management/hooks/usePayment';
 import type {
   EventTeam,
   TeamMember,
   TeamInvitation,
   TeamRequest,
   SearchableUser,
-  TeamSearchResult
+  TeamSearchResult,
+  PaymentStatusResponse,
 } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { useAuthStore } from '@/shared/auth/authStore';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
+
+// ─── QR Code Display ────────────────────────────────────────────────────────
+const QRCodeDisplay: React.FC<{ value: string; size?: number; onClick?: () => void }> = ({
+  value,
+  size = 160,
+  onClick,
+}) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (!value) return;
+    QRCode.toDataURL(value, {
+      width: size,
+      margin: 1,
+      color: { dark: '#111827', light: '#ffffff' },
+    }).then(setQrDataUrl).catch(console.error);
+  }, [value, size]);
+
+  if (!qrDataUrl) {
+    return (
+      <div
+        style={{ width: size, height: size }}
+        className="bg-white/30 rounded-xl animate-pulse mx-auto"
+      />
+    );
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      className={`flex flex-col items-center gap-2 ${onClick ? 'cursor-pointer group' : ''}`}
+      title={onClick ? 'View all registrations' : undefined}
+    >
+      <div className={`p-3 bg-white rounded-xl shadow-md ${onClick ? 'group-hover:shadow-lg group-hover:scale-105 transition-all duration-200' : ''}`}>
+        <img src={qrDataUrl} alt="Entry QR Code" className="rounded-lg block" style={{ width: size, height: size }} />
+      </div>
+      {onClick && (
+        <p className="text-xs text-white/70 group-hover:text-white transition-colors flex items-center gap-1">
+          <QrCode className="w-3 h-3" /> Click to view registrations
+        </p>
+      )}
+    </div>
+  );
+};
 
 type TabType = 'create' | 'join';
 type SectionType = 'invitations' | 'requests';
@@ -99,8 +148,20 @@ const MemberCard: React.FC<MemberCardProps> = ({
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
             <Mail className="w-3 h-3" />
-            {user?.email || searchUser?.email}
+            {user?.email || searchUser?.email || member?.email}
           </p>
+          {(member?.phone) && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5">
+              <Phone className="w-3 h-3" />
+              {member.phone}
+            </p>
+          )}
+          {member?.uid && (
+            <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5 font-mono">
+              <Hash className="w-3 h-3" />
+              {member.uid}
+            </p>
+          )}
         </div>
       </div>
 
@@ -285,6 +346,7 @@ export default function TeamManagementPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuthStore();
   const eventId = params?.id as string;
 
   const [loading, setLoading] = useState(true);
@@ -317,7 +379,14 @@ export default function TeamManagementPage() {
     minTeamSize: number;
     maxTeamSize: number;
     teamRegistrationDeadline?: string;
+    paymentType?: string;
+    teamRegistrationFee?: number;
+    registrationFee?: number;
+    eventName?: string;
   } | null>(null);
+
+  // Payment state
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatusResponse | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -336,7 +405,21 @@ export default function TeamManagementPage() {
               minTeamSize: team.event.minTeamSize || 1,
               maxTeamSize: team.event.maxTeamSize || 4,
               teamRegistrationDeadline: team.event.teamRegistrationDeadline,
+              paymentType: team.event.paymentType,
+              teamRegistrationFee: team.event.teamRegistrationFee,
+              registrationFee: team.event.registrationFee,
+              eventName: team.event.name,
             });
+          }
+
+          // Load payment status for paid events
+          if (team.event?.paymentType === 'paid') {
+            try {
+              const status = await eventService.getPaymentStatus(eventId, { teamId: team.id });
+              setPaymentStatus(status);
+            } catch (e) {
+              // Payment status not available yet
+            }
           }
         }
       } catch (e) {
@@ -391,6 +474,8 @@ export default function TeamManagementPage() {
       const team = await eventService.createTeam(eventId, teamName);
       setMyTeam(team);
       toast({ type: 'success', message: 'Team created successfully!' });
+      // Reload all data to properly set eventSettings (paymentType) and paymentStatus
+      await loadData();
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
@@ -475,6 +560,40 @@ export default function TeamManagementPage() {
     }
   };
 
+  // Payment hook for team payments
+  const isPaidEvent = eventSettings?.paymentType === 'paid';
+  const teamFee = eventSettings?.teamRegistrationFee || eventSettings?.registrationFee || 0;
+  const isTeamPaid = paymentStatus?.isPaid;
+
+  const {
+    initiateTeamPayment,
+    isProcessing: paymentProcessing,
+    isLoading: paymentLoading,
+    error: paymentError,
+    clearError: clearPaymentError,
+  } = usePayment({
+    eventId,
+    eventName: eventSettings?.eventName || 'Event',
+    user: user
+      ? {
+          name: user.employee?.displayName || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          email: user.email || '',
+          phone: (user as any).employeeDetails?.phone || '',
+        }
+      : undefined,
+    onSuccess: () => {
+      toast({ type: 'success', message: 'Payment successful! Team registration confirmed.' });
+      loadData(); // Refresh to show paid status
+      setTimeout(() => router.push(`/events/${eventId}`), 1500);
+    },
+    onError: (msg) => {
+      toast({ type: 'error', message: msg });
+    },
+    onDismiss: () => {
+      toast({ type: 'info', message: 'Payment cancelled. You can try again.' });
+    },
+  });
+
   const handleFinalizeRegistration = async () => {
     if (!myTeam) return;
 
@@ -501,20 +620,46 @@ export default function TeamManagementPage() {
     setFinalizingTeam(true);
     try {
       await eventService.finalizeTeamRegistration(eventId, myTeam.teamId);
-      toast({ type: 'success', message: 'Registration completed successfully!' });
       
-      // Reload team data to get updated status
-      await loadData();
-      
-      // Navigate back to event page
-      setTimeout(() => {
-        router.push(`/events/${eventId}`);
-      }, 1500);
+      // For paid events, after finalization -> proceed to payment
+      if (isPaidEvent && !isTeamPaid) {
+        toast({ type: 'success', message: 'Team finalized! Proceeding to payment...' });
+        await loadData(); // Reload to get updated team status
+      } else {
+        toast({ type: 'success', message: 'Registration completed successfully!' });
+        await loadData();
+        setTimeout(() => {
+          router.push(`/events/${eventId}`);
+        }, 1500);
+      }
     } catch (error: any) {
       console.error('Finalize error:', error);
       toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setFinalizingTeam(false);
+    }
+  };
+
+  /** Initiate Razorpay payment for the team */
+  const handleTeamPayment = async () => {
+    if (!myTeam) return;
+    await initiateTeamPayment(myTeam.id);
+  };
+
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
+
+  const handleToggleLookingForMembers = async () => {
+    if (!myTeam) return;
+    setTogglingVisibility(true);
+    try {
+      const newValue = !myTeam.lookingForMembers;
+      await eventService.toggleTeamLookingForMembers(eventId, myTeam.id, newValue);
+      setMyTeam({ ...myTeam, lookingForMembers: newValue });
+      toast({ type: 'success', message: newValue ? 'Team is now visible to others!' : 'Team is now private.' });
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) });
+    } finally {
+      setTogglingVisibility(false);
     }
   };
 
@@ -705,8 +850,23 @@ export default function TeamManagementPage() {
                           </button>
                         )}
 
-                        {/* Completed Badge - Show when team is finalized */}
-                        {myTeam.isComplete && (
+                        {myTeam.isComplete && isPaidEvent && !isTeamPaid && (
+                          <div className="px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                            <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                              Payment Pending
+                            </span>
+                          </div>
+                        )}
+                        {myTeam.isComplete && isPaidEvent && isTeamPaid && (
+                          <div className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            <span className="text-sm font-semibold text-green-700 dark:text-green-300">
+                              Paid & Confirmed
+                            </span>
+                          </div>
+                        )}
+                        {myTeam.isComplete && !isPaidEvent && (
                           <div className="px-3 py-1.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 flex items-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
                             <span className="text-sm font-semibold text-green-700 dark:text-green-300">
@@ -729,7 +889,59 @@ export default function TeamManagementPage() {
                             <p className="text-xs text-green-700 dark:text-green-300">
                               Your team meets the minimum requirements ({myTeam.memberCount?.min || myTeam.event?.minTeamSize || eventSettings?.minTeamSize || 1} member(s)). 
                               You can complete the registration now or add more members (up to {myTeam.memberCount?.max || myTeam.event?.maxTeamSize || eventSettings?.maxTeamSize || 4}) before submitting.
+                              {isPaidEvent && (
+                                <span className="block mt-1 font-medium">
+                                  After finalizing, the team leader must pay ₹{teamFee.toLocaleString('en-IN')} to confirm registration.
+                                </span>
+                              )}
                             </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Payment error display */}
+                      {myTeam.isComplete && isPaidEvent && !isTeamPaid && paymentError && (
+                        <div className="mx-6 mb-4 flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-600 dark:text-red-400">
+                          <XCircle className="w-4 h-4 flex-shrink-0" />
+                          <span className="flex-1">{paymentError}</span>
+                          <button onClick={clearPaymentError} className="underline">Dismiss</button>
+                        </div>
+                      )}
+
+                      {/* Make Team Public Toggle */}
+                      {myTeam.isLeader && (myTeam.memberCount?.current || myTeam.members?.length || 1) < (myTeam.memberCount?.max || myTeam.event?.maxTeamSize || eventSettings?.maxTeamSize || 4) && (
+                        <div className="mx-6 mb-4 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              {myTeam.lookingForMembers ? (
+                                <Eye className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                              ) : (
+                                <EyeOff className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                              )}
+                              <div>
+                                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  Make Team Public
+                                </h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {myTeam.lookingForMembers
+                                    ? 'Others can find and request to join your team'
+                                    : 'Only invited users can join your team'}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleToggleLookingForMembers}
+                              disabled={togglingVisibility}
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
+                                myTeam.lookingForMembers ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 shadow-sm ${
+                                  myTeam.lookingForMembers ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                              />
+                            </button>
                           </div>
                         </div>
                       )}
@@ -748,7 +960,7 @@ export default function TeamManagementPage() {
                               key={member.id}
                               member={member}
                               isLeader={member.role === 'leader'}
-                              showRemove={member.role !== 'leader'}
+                              showRemove={member.role !== 'leader' && !myTeam.isComplete}
                               onRemove={() => handleRemoveMember(member.id)}
                             />
                           ))}
@@ -756,7 +968,8 @@ export default function TeamManagementPage() {
                       </div>
                     </div>
 
-                    {/* Invite Section */}
+                    {/* Invite Section - hidden after registration is complete */}
+                    {!myTeam.isComplete && (
                     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden p-6">
                       <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
                         Invite New Members
@@ -804,6 +1017,7 @@ export default function TeamManagementPage() {
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -832,6 +1046,18 @@ export default function TeamManagementPage() {
                 </div>
 
                 <div className="p-6">
+                  {/* Warning: already in a team */}
+                  {myTeam && (
+                    <div className="mb-5 flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                      <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">You&apos;re already in a team</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                          You are currently a member of <strong>{myTeam.name}</strong>. You cannot join another team while you&apos;re part of one.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   {/* Teams Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {availableTeams
@@ -840,8 +1066,8 @@ export default function TeamManagementPage() {
                         <TeamCard
                           key={team.id}
                           team={team}
-                          onRequestJoin={() => handleRequestJoinTeam(team.id)}
-                          hasRequested={sentRequests.some(r => r.teamId === team.id && r.status === 'pending')}
+                          onRequestJoin={() => !myTeam && handleRequestJoinTeam(team.id)}
+                          hasRequested={!!myTeam || sentRequests.some(r => r.teamId === team.id && r.status === 'pending')}
                         />
                       ))}
                   </div>
@@ -866,7 +1092,7 @@ export default function TeamManagementPage() {
           <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-8">
 
             {/* Finalize Action Card */}
-            {myTeam && (
+            {myTeam && !myTeam.isComplete && (
               <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 shadow-lg shadow-green-200 dark:shadow-none text-white overflow-hidden relative">
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
                   <CheckCircle2 className="w-40 h-40" />
@@ -874,14 +1100,134 @@ export default function TeamManagementPage() {
                 <h3 className="text-lg font-bold mb-2 relative z-10">Ready to go?</h3>
                 <p className="text-green-50 text-sm mb-6 relative z-10 opacity-90">
                   Once your team is ready, complete your registration to secure your spot in the event.
+                  {isPaidEvent && (
+                    <span className="block mt-1 font-medium text-white/90">
+                      Team fee: ₹{teamFee.toLocaleString('en-IN')}
+                    </span>
+                  )}
                 </p>
                 <button
                   onClick={handleFinalizeRegistration}
-                  className="w-full py-3 bg-white text-emerald-700 rounded-xl font-bold hover:bg-green-50 active:translate-y-[1px] transition-all flex items-center justify-center gap-2 shadow-sm relative z-10"
+                  disabled={finalizingTeam}
+                  className="w-full py-3 bg-white text-emerald-700 rounded-xl font-bold hover:bg-green-50 active:translate-y-[1px] transition-all flex items-center justify-center gap-2 shadow-sm relative z-10 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-5 h-5" />
-                  Complete Registration
+                  {finalizingTeam ? 'Completing...' : isPaidEvent ? 'Finalize Team' : 'Complete Registration'}
                 </button>
+              </div>
+            )}
+
+            {/* Non-leader: waiting for leader to pay */}
+            {myTeam && myTeam.isComplete && isPaidEvent && !isTeamPaid && !myTeam.isLeader && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5">
+                <div className="flex items-start gap-3">
+                  <CreditCard className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">Awaiting Payment</h4>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                      Your team leader needs to complete the payment of ₹{teamFee.toLocaleString('en-IN')} to confirm all registrations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Card — Show after team is finalized but payment pending */}
+            {myTeam && myTeam.isComplete && isPaidEvent && !isTeamPaid && myTeam.isLeader && (
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg shadow-blue-200 dark:shadow-none text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
+                  <CreditCard className="w-40 h-40" />
+                </div>
+                <h3 className="text-lg font-bold mb-2 relative z-10">Complete Payment</h3>
+                <p className="text-blue-100 text-sm mb-4 relative z-10 opacity-90">
+                  Your team is finalized. Pay to confirm all registrations.
+                </p>
+                <div className="flex items-center gap-1 text-2xl font-bold mb-4 relative z-10">
+                  <IndianRupee className="w-5 h-5" />
+                  {teamFee.toLocaleString('en-IN')}
+                </div>
+                <button
+                  onClick={handleTeamPayment}
+                  disabled={paymentProcessing || paymentLoading}
+                  className="w-full py-3 bg-white text-blue-700 rounded-xl font-bold hover:bg-blue-50 active:translate-y-[1px] transition-all flex items-center justify-center gap-2 shadow-sm relative z-10 disabled:opacity-50"
+                >
+                  {paymentProcessing || paymentLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="w-5 h-5" />
+                      Pay Now
+                    </>
+                  )}
+                </button>
+                <div className="flex items-center gap-1 mt-3 text-[11px] text-white/60 relative z-10">
+                  <Shield className="w-3 h-3" /> Secured by Razorpay
+                </div>
+              </div>
+            )}
+
+            {/* Paid & Confirmed Card */}
+            {myTeam && myTeam.isComplete && isPaidEvent && isTeamPaid && (
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 shadow-lg shadow-green-200 dark:shadow-none text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
+                  <CheckCircle2 className="w-40 h-40" />
+                </div>
+                <h3 className="text-lg font-bold mb-2 relative z-10 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" /> All Set!
+                </h3>
+                <p className="text-green-50 text-sm relative z-10 opacity-90">
+                  Payment complete. Your team registration is confirmed.
+                </p>
+                {paymentStatus?.latestPayment?.razorpayPaymentId && (
+                  <p className="text-green-100/80 text-xs mt-2 relative z-10">
+                    Payment ID: {paymentStatus.latestPayment.razorpayPaymentId}
+                  </p>
+                )}
+                {/* Each member's own unique QR code */}
+                {myTeam.myRegistration?.qrCode && (
+                  <div className="mt-5 relative z-10 flex flex-col items-center gap-2">
+                    <p className="text-xs text-white/80 font-medium uppercase tracking-wide">Your Entry QR Code</p>
+                    <QRCodeDisplay
+                      value={myTeam.myRegistration.qrCode}
+                      size={160}
+                      onClick={() => router.push('/events/registrations')}
+                    />
+                    <p className="text-[10px] text-white/60 font-mono">
+                      {myTeam.myRegistration.registrationId}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Free event completed card */}
+            {myTeam && myTeam.isComplete && !isPaidEvent && (
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 shadow-lg shadow-green-200 dark:shadow-none text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
+                  <CheckCircle2 className="w-40 h-40" />
+                </div>
+                <h3 className="text-lg font-bold mb-2 relative z-10 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5" /> Registration Complete
+                </h3>
+                <p className="text-green-50 text-sm relative z-10 opacity-90">
+                  Your team is finalized. You&apos;re all set for the event!
+                </p>
+                {myTeam.myRegistration?.qrCode && (
+                  <div className="mt-5 relative z-10 flex flex-col items-center gap-2">
+                    <p className="text-xs text-white/80 font-medium uppercase tracking-wide">Your Entry QR Code</p>
+                    <QRCodeDisplay
+                      value={myTeam.myRegistration.qrCode}
+                      size={160}
+                      onClick={() => router.push('/events/registrations')}
+                    />
+                    <p className="text-[10px] text-white/60 font-mono">
+                      {myTeam.myRegistration.registrationId}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -920,9 +1266,32 @@ export default function TeamManagementPage() {
 
               {/* Content Area */}
               <div className="p-4 min-h-[300px] max-h-[500px] overflow-y-auto custom-scrollbar">
+                {/* Locked state when registration is complete */}
+                {myTeam?.isComplete ? (
+                  <div className="flex flex-col items-center justify-center h-48 text-center gap-3 opacity-80">
+                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      <Lock className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Registration Confirmed</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-[200px]">
+                        Invitations & join requests are disabled after registration is complete.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                <>
                 {activeSection === 'invitations' && (
                   <div className="space-y-6">
-                    {/* Received Invitations */}
+                    {/* Warning if user already has a team and received an invitation */}
+                    {myTeam && invitations.filter(i => i.status === 'pending').length > 0 && (
+                      <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl">
+                        <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          You already belong to a team. Accepting another invitation will not be possible once registration is finalized.
+                        </p>
+                      </div>
+                    )}
                     {invitations.filter(i => i.status === 'pending').length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
@@ -1046,6 +1415,8 @@ export default function TeamManagementPage() {
                       </div>
                     )}
                   </div>
+                )}
+                </>
                 )}
               </div>
             </div>

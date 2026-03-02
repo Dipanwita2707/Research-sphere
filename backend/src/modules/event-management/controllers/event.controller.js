@@ -219,7 +219,7 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
   const {
     page, limit, status, search,
     role, gender, schoolId, departmentId, programId, passOutYear,
-    uid, empId,
+    uid, empId, paymentStatus, teamSearch,
   } = req.query;
   
   const event = await eventService.getEventDetails(id, userId);
@@ -237,6 +237,7 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
   // ── Build WHERE clause ──────────────────────────────────────
   const where = { eventId: id };
   if (status && status !== 'all') where.status = status;
+  if (paymentStatus && paymentStatus !== 'all') where.paymentStatus = paymentStatus;
 
   // Build user_login relation filter
   const userFilter = {};
@@ -305,7 +306,7 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
     }
   }
 
-  // General text search (name, email, uid, registrationId)
+  // General text search (name, email, uid, registrationId, team name)
   if (search && search.trim()) {
     const q = search.trim();
     where.OR = [
@@ -316,7 +317,20 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
       { user_login: { studentLogin: { lastName: { contains: q, mode: 'insensitive' } } } },
       { user_login: { employeeDetails: { firstName: { contains: q, mode: 'insensitive' } } } },
       { user_login: { employeeDetails: { lastName: { contains: q, mode: 'insensitive' } } } },
+      { EventTeam: { name: { contains: q, mode: 'insensitive' } } },
+      { EventTeam: { teamId: { contains: q, mode: 'insensitive' } } },
     ];
+  }
+
+  // Team name filter (dedicated, for chip/input filter)
+  if (teamSearch && teamSearch.trim()) {
+    const tq = teamSearch.trim();
+    where.EventTeam = {
+      OR: [
+        { name: { contains: tq, mode: 'insensitive' } },
+        { teamId: { contains: tq, mode: 'insensitive' } },
+      ],
+    };
   }
 
   // Apply user relation filter only if we have conditions
@@ -374,18 +388,55 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
             },
           },
         },
+        // Include team info
+        EventTeam: {
+          select: {
+            id: true,
+            teamId: true,
+            name: true,
+            status: true,
+            isComplete: true,
+            isLocked: true,
+            leaderId: true,
+          },
+        },
+        // Include latest successful payment
+        Payment: {
+          where: { status: { in: ['captured', 'authorized'] } },
+          select: {
+            razorpayPaymentId: true,
+            razorpayOrderId: true,
+            amount: true,
+            status: true,
+            paidAt: true,
+            paymentFor: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
-      orderBy: {
-        registeredAt: 'desc',
-      },
+      orderBy: [
+        // Group by team (null teamId last), then by team id, then by registeredAt
+        { teamId: 'asc' },
+        { registeredAt: 'asc' },
+      ],
       skip: (pageNum - 1) * limitNum,
       take: limitNum,
     }),
     prisma.eventRegistration.count({ where }),
   ]);
   
+  // Flatten payment array to single object for easier frontend consumption
+  const flatRegistrations = registrations.map(r => ({
+    ...r,
+    team: r.EventTeam || null,
+    latestPayment: r.Payment?.[0] || null,
+    Payment: undefined,
+    EventTeam: undefined,
+  }));
+
   return ApiResponse.success(res, {
-    registrations,
+    registrations: flatRegistrations,
     pagination: {
       page: pageNum,
       limit: limitNum,

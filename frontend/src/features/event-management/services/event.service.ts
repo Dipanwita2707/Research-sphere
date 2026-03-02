@@ -847,4 +847,58 @@ export const eventService = {
     const response = await api.get(`${BASE_URL}/${eventId}/stalls/${stallId}/owner-feedback`, { params: { page, limit } });
     return response.data.data;
   },
+
+  // ============================================
+  // Payment API — Razorpay Integration
+  // ============================================
+
+  /**
+   * Create a Razorpay order for individual event registration.
+   * Backend calculates the amount — never trust frontend values.
+   */
+  async createIndividualPaymentOrder(eventId: string) {
+    const response = await api.post(`${BASE_URL}/${eventId}/payments/individual/create-order`);
+    return response.data.data;
+  },
+
+  /**
+   * Verify individual payment after Razorpay Checkout.
+   */
+  async verifyIndividualPayment(eventId: string, paymentData: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) {
+    const response = await api.post(`${BASE_URL}/${eventId}/payments/individual/verify`, paymentData);
+    return response.data.data;
+  },
+
+  /**
+   * Create a Razorpay order for team event registration.
+   * Only the team leader can initiate this.
+   */
+  async createTeamPaymentOrder(eventId: string, teamId: string) {
+    const response = await api.post(`${BASE_URL}/${eventId}/teams/${teamId}/payments/create-order`);
+    return response.data.data;
+  },
+
+  /**
+   * Verify team payment after Razorpay Checkout.
+   */
+  async verifyTeamPayment(eventId: string, teamId: string, paymentData: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  }) {
+    const response = await api.post(`${BASE_URL}/${eventId}/teams/${teamId}/payments/verify`, paymentData);
+    return response.data.data;
+  },
+
+  /**
+   * Get payment status for a registration or team.
+   */
+  async getPaymentStatus(eventId: string, params?: { registrationId?: string; teamId?: string }) {
+    const response = await api.get(`${BASE_URL}/${eventId}/payments/status`, { params });
+    return response.data.data;
+  },
 };

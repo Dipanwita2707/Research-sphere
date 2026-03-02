@@ -7,6 +7,7 @@
 const prisma = require('../../../shared/config/database');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
 const crypto = require('crypto');
+const { generateQRCode } = require('../utils/qrCodeGenerator');
 
 const TEAM_STATUS = {
   FORMING: 'forming',
@@ -132,6 +133,13 @@ const createTeam = async (eventId, userId, teamName) => {
   // Check if minimum team size is met with just the leader
   const minTeamSize = event.minTeamSize || 1;
   const meetsMinimumRequirement = minTeamSize === 1;
+  // For paid events, even if min size is met, don't auto-confirm — payment is required first
+  const isPaidEvent = event.paymentType === 'paid';
+  const shouldAutoComplete = meetsMinimumRequirement && !isPaidEvent;
+
+  // Team should be visible (looking for members) if it can still accept more members
+  const maxTeamSize = event.maxTeamSize || 999;
+  const canAcceptMoreMembers = maxTeamSize > 1; // leader counts as 1 member
 
   // Create team and add creator as leader
   const team = await prisma.$transaction(async (tx) => {
@@ -143,7 +151,7 @@ const createTeam = async (eventId, userId, teamName) => {
         name: teamName,
         leaderId: userId,
         status: meetsMinimumRequirement ? 'complete' : 'forming',
-        lookingForMembers: !meetsMinimumRequirement,
+        lookingForMembers: canAcceptMoreMembers,
         isComplete: meetsMinimumRequirement,
         isLocked: false,
       },
@@ -160,12 +168,21 @@ const createTeam = async (eventId, userId, teamName) => {
     });
 
     // Update registration with team info
+    // For paid events: set to 'pending' (awaiting payment) even if team is complete
+    // For free events: set to 'confirmed' if team meets min size, else 'incomplete_team'
+    const regStatus = shouldAutoComplete
+      ? 'confirmed'
+      : meetsMinimumRequirement && isPaidEvent
+        ? 'pending'
+        : 'incomplete_team';
+
     await tx.eventRegistration.update({
       where: { id: registration.id },
       data: {
         teamId: newTeam.id,
         isTeamLeader: true,
-        status: meetsMinimumRequirement ? 'confirmed' : 'incomplete_team',
+        status: regStatus,
+        paymentStatus: isPaidEvent ? 'pending' : undefined,
         updatedAt: new Date(),
       },
     });
@@ -198,6 +215,9 @@ const getTeamDetails = async (teamId, userId) => {
           maxTeamSize: true,
           interCollegeAllowed: true,
           teamRegistrationDeadline: true,
+          paymentType: true,
+          registrationFee: true,
+          teamRegistrationFee: true,
         },
       },
       EventTeamMember: {
@@ -273,6 +293,23 @@ const getTeamDetails = async (teamId, userId) => {
   // Check if team meets minimum requirements (for UI display)
   const meetsMinimumRequirement = team.Event.minTeamSize ? confirmedMemberCount >= team.Event.minTeamSize : true;
 
+  // Fetch the requesting user's own EventRegistration so each member sees their own QR
+  let myRegistration = null;
+  if (userId) {
+    myRegistration = await prisma.eventRegistration.findFirst({
+      where: { eventId: team.eventId, userId },
+      select: {
+        id: true,
+        registrationId: true,
+        status: true,
+        paymentStatus: true,
+        qrCode: true,
+        amountPaid: true,
+        isTeamLeader: true,
+      },
+    });
+  }
+
   return {
     id: team.id,
     teamId: team.teamId,
@@ -286,6 +323,7 @@ const getTeamDetails = async (teamId, userId) => {
     isLeader,
     event: team.Event,
     members,
+    myRegistration, // Each user's own registration (with their unique QR code)
     memberCount: {
       current: confirmedMemberCount,
       min: team.Event.minTeamSize,
@@ -649,6 +687,27 @@ const respondToInvitation = async (invitationId, userId, accept) => {
         data: {
           teamId: team.id,
           isTeamLeader: false,
+          status: 'incomplete_team',
+          paymentStatus: team.Event.paymentType === 'paid' ? 'pending' : null,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // Member has no prior registration — create one now so they get their own QR code
+      const qrCode = generateQRCode(team.Event.eventId || team.eventId, userId);
+      const regCount = await tx.eventRegistration.count({ where: { eventId: team.eventId } });
+      const registrationId = `REG-${(team.Event.eventId || team.eventId).substring(0, 8).toUpperCase()}-${(regCount + 1).toString().padStart(4, '0')}`;
+      await tx.eventRegistration.create({
+        data: {
+          id: crypto.randomUUID(),
+          registrationId,
+          eventId: team.eventId,
+          userId,
+          teamId: team.id,
+          isTeamLeader: false,
+          status: 'incomplete_team',
+          paymentStatus: team.Event.paymentType === 'paid' ? 'pending' : null,
+          qrCode,
           updatedAt: new Date(),
         },
       });
@@ -667,14 +726,28 @@ const respondToInvitation = async (invitationId, userId, accept) => {
         },
       });
 
-      // Update all team member registrations to confirmed
-      await tx.eventRegistration.updateMany({
-        where: { teamId: team.id },
-        data: {
-          status: 'confirmed',
-          updatedAt: new Date(),
-        },
-      });
+      // For paid events: set to 'pending' (awaiting payment), not 'confirmed'
+      if (team.Event.paymentType === 'paid') {
+        await tx.eventRegistration.updateMany({
+          where: {
+            teamId: team.id,
+            status: { in: ['incomplete_team'] },
+          },
+          data: {
+            status: 'pending',
+            paymentStatus: 'pending',
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.eventRegistration.updateMany({
+          where: { teamId: team.id },
+          data: {
+            status: 'confirmed',
+            updatedAt: new Date(),
+          },
+        });
+      }
     }
 
     // Cancel invitations to this user from other teams
@@ -883,6 +956,27 @@ const respondToJoinRequest = async (requestId, leaderId, accept) => {
         data: {
           teamId: team.id,
           isTeamLeader: false,
+          status: 'incomplete_team',
+          paymentStatus: team.Event.paymentType === 'paid' ? 'pending' : null,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // Member has no prior registration — create one now so they get their own QR code
+      const qrCode = generateQRCode(team.Event.eventId || team.eventId, request.requesterId);
+      const regCount = await tx.eventRegistration.count({ where: { eventId: team.eventId } });
+      const registrationId = `REG-${(team.Event.eventId || team.eventId).substring(0, 8).toUpperCase()}-${(regCount + 1).toString().padStart(4, '0')}`;
+      await tx.eventRegistration.create({
+        data: {
+          id: crypto.randomUUID(),
+          registrationId,
+          eventId: team.eventId,
+          userId: request.requesterId,
+          teamId: team.id,
+          isTeamLeader: false,
+          status: 'incomplete_team',
+          paymentStatus: team.Event.paymentType === 'paid' ? 'pending' : null,
+          qrCode,
           updatedAt: new Date(),
         },
       });
@@ -901,13 +995,28 @@ const respondToJoinRequest = async (requestId, leaderId, accept) => {
         },
       });
 
-      await tx.eventRegistration.updateMany({
-        where: { teamId: team.id },
-        data: {
-          status: 'confirmed',
-          updatedAt: new Date(),
-        },
-      });
+      // For paid events: set to 'pending' (awaiting payment), not 'confirmed'
+      if (team.Event.paymentType === 'paid') {
+        await tx.eventRegistration.updateMany({
+          where: {
+            teamId: team.id,
+            status: { in: ['incomplete_team'] },
+          },
+          data: {
+            status: 'pending',
+            paymentStatus: 'pending',
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.eventRegistration.updateMany({
+          where: { teamId: team.id },
+          data: {
+            status: 'confirmed',
+            updatedAt: new Date(),
+          },
+        });
+      }
     }
 
     // Cancel other pending requests from this user
@@ -1387,24 +1496,8 @@ const getUserTeamForEvent = async (eventId, userId) => {
         eventId: event.id,
       },
     },
-    include: {
-      EventTeam: {
-        include: {
-          EventTeamMember: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  uid: true,
-                  email: true,
-                  employeeDetails: { select: { firstName: true, lastName: true, displayName: true } },
-                  studentLogin: { select: { firstName: true, lastName: true, displayName: true } },
-                },
-              },
-            },
-          },
-        },
-      },
+    select: {
+      EventTeam: { select: { id: true } },
     },
   });
 
@@ -1412,32 +1505,8 @@ const getUserTeamForEvent = async (eventId, userId) => {
     return null;
   }
 
-  const team = teamMembership.EventTeam;
-  
-  return {
-    id: team.id,
-    teamId: team.teamId,
-    name: team.name,
-    status: team.status,
-    lookingForMembers: team.lookingForMembers,
-    members: team.EventTeamMember.map(m => {
-      const profile = m.user?.studentLogin || m.user?.employeeDetails;
-      return {
-        id: m.id,
-        role: m.role,
-        status: m.status,
-        user: {
-          id: m.user?.id,
-          uid: m.user?.uid,
-          email: m.user?.email,
-          firstName: profile?.firstName || '',
-          lastName: profile?.lastName || '',
-          displayName: profile?.displayName || profile?.firstName || '',
-        },
-        joinedAt: m.joinedAt,
-      };
-    }),
-  };
+  // Reuse getTeamDetails for consistent, complete response
+  return getTeamDetails(teamMembership.EventTeam.id, userId);
 };
 
 /**
@@ -1462,6 +1531,7 @@ const finalizeTeamRegistration = async (teamId, userId) => {
           minTeamSize: true,
           maxTeamSize: true,
           teamRegistrationDeadline: true,
+          paymentType: true,
         },
       },
       EventTeamMember: {
@@ -1518,6 +1588,13 @@ const finalizeTeamRegistration = async (teamId, userId) => {
     }
   }
 
+  // Check if event is paid — if so, don't confirm registrations yet (payment required first)
+  const isPaidEvent = team.Event.paymentType === 'paid';
+
+  // Check if team can still accept more members after finalization
+  const maxTeamSize = team.Event.maxTeamSize || 999;
+  const canStillAcceptMembers = currentMemberCount < maxTeamSize;
+
   // Finalize team registration
   await prisma.$transaction(async (tx) => {
     // Update team status
@@ -1526,22 +1603,37 @@ const finalizeTeamRegistration = async (teamId, userId) => {
       data: {
         isComplete: true,
         status: 'complete',
-        lookingForMembers: false,
+        lookingForMembers: canStillAcceptMembers,
         updatedAt: new Date(),
       },
     });
 
-    // Update all team member registrations to confirmed
-    await tx.eventRegistration.updateMany({
-      where: { 
-        teamId: team.id,
-        status: { in: ['incomplete_team', 'pending'] },
-      },
-      data: {
-        status: 'confirmed',
-        updatedAt: new Date(),
-      },
-    });
+    if (isPaidEvent) {
+      // For paid events: set registrations to 'pending' (awaiting payment)
+      await tx.eventRegistration.updateMany({
+        where: { 
+          teamId: team.id,
+          status: { in: ['incomplete_team'] },
+        },
+        data: {
+          status: 'pending',
+          paymentStatus: 'pending',
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      // For free events: confirm registrations immediately
+      await tx.eventRegistration.updateMany({
+        where: { 
+          teamId: team.id,
+          status: { in: ['incomplete_team', 'pending'] },
+        },
+        data: {
+          status: 'confirmed',
+          updatedAt: new Date(),
+        },
+      });
+    }
   });
 
   // Return updated team details
