@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Cup body -->
+  <path d="M20 10 H44 V30 C44 40.493 38.627 49 32 49 C25.373 49 20 40.493 20 30 Z" fill="#7C83FD" opacity="0.15"/>
+  <path d="M20 10 H44 V30 C44 40.493 38.627 49 32 49 C25.373 49 20 40.493 20 30 Z" stroke="#5B5FCF" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Left handle -->
+  <path d="M20 16 H13 C10.239 16 8 18.239 8 21 C8 23.761 10.239 26 13 26 H20" stroke="#5B5FCF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Right handle -->
+  <path d="M44 16 H51 C53.761 16 56 18.239 56 21 C56 23.761 53.761 26 51 26 H44" stroke="#5B5FCF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Stem -->
+  <path d="M32 49 V55" stroke="#5B5FCF" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Base -->
+  <rect x="22" y="55" width="20" height="4" rx="2" fill="#7C83FD" opacity="0.2" stroke="#5B5FCF" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Star highlight inside cup -->
+  <path d="M32 21 L33.5 25.5 H38 L34.5 28 L36 32.5 L32 30 L28 32.5 L29.5 28 L26 25.5 H30.5 Z" fill="#5B5FCF" opacity="0.5"/>
+</svg>

@@ -3,6 +3,8 @@
  * Shows layout placeholder while content loads - improves perceived performance
  */
 
+import { CardSkeleton } from '@/components/skeletons';
+
 interface PageSkeletonProps {
   message?: string;
   className?: string;
@@ -11,13 +13,13 @@ interface PageSkeletonProps {
 export function PageSkeleton({ message = 'Loading...', className = '' }: PageSkeletonProps) {
   return (
     <div
-      className={`flex items-center justify-center min-h-[400px] ${className}`}
+      className={`flex flex-col items-center justify-center min-h-[400px] gap-6 w-full ${className}`}
       role="status"
       aria-label={message}
     >
-      <div className="text-center">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4" />
-        <p className="text-gray-600 dark:text-gray-400">{message}</p>
+      <div className="w-full max-w-sm">
+        <CardSkeleton />
+        <p className="text-center text-gray-500 dark:text-gray-400 mt-4 text-sm font-medium animate-pulse">{message}</p>
       </div>
     </div>
   );

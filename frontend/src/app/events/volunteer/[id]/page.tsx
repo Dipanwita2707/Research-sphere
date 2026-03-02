@@ -30,7 +30,7 @@ import type { Event } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage, getErrorStatusCode, isNetworkError } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
@@ -595,7 +595,7 @@ export default function VolunteerEventPage() {
               >
                 {scanning ? (
                   <>
-                    <LoadingSpinner size="sm" />
+                    <Skeleton className="w-4 h-4 rounded-sm" />
                     Processing...
                   </>
                 ) : (

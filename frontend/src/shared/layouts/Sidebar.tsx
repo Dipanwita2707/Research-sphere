@@ -28,7 +28,9 @@ import {
   List,
   UserPlus,
   CheckSquare,
-  Shield
+  Shield,
+  Store,
+  QrCode
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -163,9 +165,12 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
       { name: 'Browse Events', href: '/events', icon: List },
       { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
       { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
+      { name: 'Stall Application', href: '/events/stall-opportunities', icon: Store },
       { name: 'Volunteer', href: '/events/volunteer', icon: Shield },
+      { name: 'Event Feedback Scanner', href: '/event-feedback-scanner', icon: QrCode },
     ]
   });
+  
   
   // Common items
   items.push(
@@ -233,7 +238,7 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, and Event Management expanded by default
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, Event Management, and Ticket Management expanded by default
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
 
   useEffect(() => {

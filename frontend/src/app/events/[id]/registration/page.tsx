@@ -16,6 +16,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
+import { useAuthStore } from '@/shared/auth/authStore';
 
 interface DynamicFieldProps {
   field: EventCustomField;
@@ -167,7 +168,7 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
         </p>
       )}
       {error && (
-        <div className="flex items-center gap-2 mt-2 text-sm text-red-500 animate-in slide-in-from-top-1 fade-in">
+        <div data-validation-error className="flex items-center gap-2 mt-2 text-sm text-red-500 animate-in slide-in-from-top-1 fade-in">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -180,6 +181,7 @@ export default function EventRegistrationPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuthStore();
   const eventId = params?.id as string;
 
   const [loading, setLoading] = useState(true);
@@ -188,6 +190,7 @@ export default function EventRegistrationPage() {
   const [values, setValues] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [step] = useState<'form' | 'team'>('form');
+  const [profileFields, setProfileFields] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const loadForm = async () => {
@@ -195,15 +198,30 @@ export default function EventRegistrationPage() {
         const data = await eventService.getRegistrationForm(eventId);
         setFormData(data);
 
+        // Store profile field availability from backend
+        const pf = data.profileFields || {};
+        setProfileFields(pf);
+
         const initialValues: Record<string, any> = {};
-        if (data.userProfile) {
-          initialValues.firstName = data.userProfile.firstName;
-          initialValues.lastName = data.userProfile.lastName;
-          initialValues.email = data.userProfile.email;
-          initialValues.phone = data.userProfile.phone;
-          initialValues.location = data.userProfile.location;
-          initialValues.institute = data.userProfile.institute;
-        }
+        const profile = data.userProfile || {};
+        const displayName = user?.employee?.displayName || user?.student?.displayName || '';
+        const nameParts = displayName.trim().split(/\s+/);
+        initialValues.firstName = profile.firstName || user?.firstName || nameParts[0] || '';
+        initialValues.lastName = profile.lastName || user?.lastName || (nameParts.length > 1 ? nameParts.slice(1).join(' ') : '');
+        initialValues.email = profile.email || user?.email || '';
+        initialValues.phone = profile.phone || user?.employeeDetails?.phone || '';
+        initialValues.location = profile.location || '';
+        initialValues.institute = profile.institute || user?.employeeDetails?.department?.school?.name || 'SGT University';
+
+        // Initialize new academic/identity fields only if NOT available from profile
+        // (if available, backend will merge them silently on submission)
+        if (!pf.registrationNo && !pf.studentId) initialValues.registrationNo = '';
+        if (!pf.employeeId) initialValues.employeeId = '';
+        if (!pf.gender) initialValues.gender = '';
+        if (!pf.school) initialValues.school = '';
+        if (!pf.department) initialValues.department = '';
+        if (!pf.program) initialValues.program = '';
+        if (!pf.passOutYear) initialValues.passOutYear = '';
 
         if (data.existingRegistration?.formData) {
           Object.assign(initialValues, data.existingRegistration.formData);
@@ -220,19 +238,57 @@ export default function EventRegistrationPage() {
     if (eventId) {
       loadForm();
     }
-  }, [eventId, toast]);
+  }, [eventId, toast, user]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!values.firstName?.trim()) newErrors.firstName = 'First name is required';
-    if (!values.email?.trim()) newErrors.email = 'Email is required';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneDigits = (v: string) => String(v || '').replace(/\D/g, '');
 
+    // Basic Details - all required
+    if (!values.firstName?.trim()) newErrors.firstName = 'First name is required';
+    if (!values.lastName?.trim()) newErrors.lastName = 'Last name is required';
+    if (!values.email?.trim()) newErrors.email = 'Email is required';
+    else if (!emailRegex.test(values.email.trim())) newErrors.email = 'Please enter a valid email address';
+    if (!values.phone?.trim()) newErrors.phone = 'Mobile number is required';
+    else if (phoneDigits(values.phone).length !== 10) newErrors.phone = 'Please enter a valid 10-digit mobile number';
+    if (!values.location?.trim()) newErrors.location = 'City / Location is required';
+    if (!values.institute?.trim()) newErrors.institute = 'Institute is required';
+
+    // Academic/Identity fields — only validate if visible (i.e. NOT filled from profile)
+    const isStudent = formData?.userProfile?.userType === 'student';
+    if (isStudent && !profileFields.registrationNo && !profileFields.studentId) {
+      if (!values.registrationNo?.trim()) newErrors.registrationNo = 'Registration No / UID is required';
+    }
+    if (!isStudent && !profileFields.employeeId) {
+      if (!values.employeeId?.trim()) newErrors.employeeId = 'Employee ID is required';
+    }
+    if (!profileFields.gender) {
+      if (!values.gender?.trim()) newErrors.gender = 'Gender is required';
+    }
+    if (!profileFields.school) {
+      if (!values.school?.trim()) newErrors.school = 'School / Faculty is required';
+    }
+    if (!profileFields.department) {
+      if (!values.department?.trim()) newErrors.department = 'Department is required';
+    }
+    if (isStudent && !profileFields.program) {
+      if (!values.program?.trim()) newErrors.program = 'Program is required';
+    }
+    if (isStudent && !profileFields.passOutYear) {
+      if (!values.passOutYear?.trim()) newErrors.passOutYear = 'Pass Out Year is required';
+    }
+
+    // Custom fields
     formData?.customFields.forEach(field => {
-      if (field.isRequired && !values[field.fieldName]) {
+      const val = values[field.fieldName];
+      const isEmpty = val === undefined || val === null || (typeof val === 'string' && !val.trim()) || (Array.isArray(val) && val.length === 0);
+      if (field.isRequired && isEmpty) {
         newErrors[field.fieldName] = `${field.fieldLabel} is required`;
-      }
-      if (field.fieldType === 'email' && values[field.fieldName] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values[field.fieldName])) {
+      } else if (field.fieldType === 'email' && val && !emailRegex.test(String(val).trim())) {
         newErrors[field.fieldName] = 'Please enter a valid email';
+      } else if (field.fieldType === 'phone' && val && phoneDigits(String(val)).length !== 10) {
+        newErrors[field.fieldName] = 'Please enter a valid 10-digit mobile number';
       }
     });
 
@@ -244,9 +300,11 @@ export default function EventRegistrationPage() {
     e.preventDefault();
     if (!validateForm()) {
       toast({ type: 'error', message: 'Please fix the errors before submitting' });
-      // Scroll to first error
-      const firstError = document.querySelector('.text-red-500');
-      firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Scroll to first error after state updates
+      setTimeout(() => {
+        const firstError = document.querySelector('[data-validation-error]');
+        firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
       return;
     }
 
@@ -367,7 +425,7 @@ export default function EventRegistrationPage() {
                 </div>
 
                 <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-                  {/* Name Fields */}
+                  {/* Name Fields - locked from account */}
                   <div className="space-y-2 group">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
                       First Name <span className="text-red-500">*</span>
@@ -375,25 +433,26 @@ export default function EventRegistrationPage() {
                     <input
                       type="text"
                       value={values.firstName || ''}
-                      onChange={(e) => setValues({ ...values, firstName: e.target.value })}
-                      className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all ${errors.firstName ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700 hover:border-blue-300'
+                      readOnly
+                      className={`w-full px-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.firstName ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'
                         }`}
                       placeholder="Ex. John"
                     />
-                    {errors.firstName && <p className="text-xs text-red-500 font-medium pl-1">{errors.firstName}</p>}
+                    {errors.firstName && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.firstName}</p>}
                   </div>
 
                   <div className="space-y-2 group">
                     <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
-                      Last Name
+                      Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={values.lastName || ''}
-                      onChange={(e) => setValues({ ...values, lastName: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300 transition-all"
+                      readOnly
+                      className={`w-full px-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.lastName ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'}`}
                       placeholder="Ex. Doe"
                     />
+                    {errors.lastName && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.lastName}</p>}
                   </div>
 
                   {/* Contact Fields */}
@@ -408,16 +467,14 @@ export default function EventRegistrationPage() {
                       <input
                         type="email"
                         value={values.email || ''}
-                        onChange={(e) => setValues({ ...values, email: e.target.value })}
-                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-gray-50/50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed ${errors.email ? 'border-red-300' : 'border-gray-200 dark:border-gray-700'
-                          }`}
                         readOnly
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-gray-50/50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed ${errors.email ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'}`}
                       />
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                       </div>
                     </div>
-                    <p className="text-xs text-gray-500 pl-1">Email is locked to your account.</p>
+                    {errors.email ? <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.email}</p> : <p className="text-xs text-gray-500 pl-1">Email is locked to your account.</p>}
                   </div>
 
                   <div className="space-y-2 group">
@@ -431,11 +488,12 @@ export default function EventRegistrationPage() {
                       <input
                         type="tel"
                         value={values.phone || ''}
-                        onChange={(e) => setValues({ ...values, phone: e.target.value })}
-                        className="w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300 transition-all font-mono"
+                        onChange={(e) => { setValues({ ...values, phone: e.target.value }); if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' })); }}
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none font-mono transition-all ${errors.phone ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
                         placeholder="+91 99999 99999"
                       />
                     </div>
+                    {errors.phone && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.phone}</p>}
                   </div>
 
                   <div className="space-y-2 group">
@@ -449,11 +507,12 @@ export default function EventRegistrationPage() {
                       <input
                         type="text"
                         value={values.location || ''}
-                        onChange={(e) => setValues({ ...values, location: e.target.value })}
-                        className="w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300 transition-all"
+                        onChange={(e) => { setValues({ ...values, location: e.target.value }); if (errors.location) setErrors((prev) => ({ ...prev, location: '' })); }}
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.location ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
                         placeholder="City, State"
                       />
                     </div>
+                    {errors.location && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.location}</p>}
                   </div>
 
                   <div className="space-y-2 group md:col-span-2">
@@ -467,14 +526,175 @@ export default function EventRegistrationPage() {
                       <input
                         type="text"
                         value={values.institute || ''}
-                        onChange={(e) => setValues({ ...values, institute: e.target.value })}
-                        className="w-full pl-11 pr-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300 transition-all"
+                        readOnly
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.institute ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'}`}
                         placeholder="Full Name of Institute"
                       />
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                      </div>
                     </div>
+                    {errors.institute ? <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.institute}</p> : <p className="text-xs text-gray-500 pl-1">Institute is locked to your account.</p>}
                   </div>
                 </div>
               </div>
+
+              {/* 1b. Academic / Identity Details - Only show fields NOT available from profile */}
+              {(() => {
+                const isStudent = formData.userProfile?.userType === 'student';
+                const showRegNo = isStudent && !profileFields.registrationNo && !profileFields.studentId;
+                const showEmpId = !isStudent && !profileFields.employeeId;
+                const showGender = !profileFields.gender;
+                const showSchool = !profileFields.school;
+                const showDept = !profileFields.department;
+                const showProgram = isStudent && !profileFields.program;
+                const showPassOutYear = isStudent && !profileFields.passOutYear;
+                const hasAnyVisible = showRegNo || showEmpId || showGender || showSchool || showDept || showProgram || showPassOutYear;
+
+                if (!hasAnyVisible) return null;
+
+                return (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                      <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span className="w-1 h-5 bg-indigo-500 rounded-full" />
+                        Academic Details
+                      </h2>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Please fill in the details not found in your profile.</p>
+                    </div>
+
+                    <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
+                      {/* Registration No / UID (students) */}
+                      {showRegNo && (
+                        <div className="space-y-2 group">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                            Registration No / UID <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={values.registrationNo || ''}
+                            onChange={(e) => { setValues({ ...values, registrationNo: e.target.value }); if (errors.registrationNo) setErrors((prev) => ({ ...prev, registrationNo: '' })); }}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.registrationNo ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            placeholder="e.g., 2021-ABC-1234"
+                          />
+                          {errors.registrationNo && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.registrationNo}</p>}
+                        </div>
+                      )}
+
+                      {/* Employee ID (employees) */}
+                      {showEmpId && (
+                        <div className="space-y-2 group">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                            Employee ID <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={values.employeeId || ''}
+                            onChange={(e) => { setValues({ ...values, employeeId: e.target.value }); if (errors.employeeId) setErrors((prev) => ({ ...prev, employeeId: '' })); }}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.employeeId ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            placeholder="e.g., EMP-001"
+                          />
+                          {errors.employeeId && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.employeeId}</p>}
+                        </div>
+                      )}
+
+                      {/* Gender */}
+                      {showGender && (
+                        <div className="space-y-2 group">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                            Gender <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <select
+                              value={values.gender || ''}
+                              onChange={(e) => { setValues({ ...values, gender: e.target.value }); if (errors.gender) setErrors((prev) => ({ ...prev, gender: '' })); }}
+                              className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none appearance-none cursor-pointer transition-all ${errors.gender ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            >
+                              <option value="">Select Gender</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                              <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                          </div>
+                          {errors.gender && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.gender}</p>}
+                        </div>
+                      )}
+
+                      {/* School / Faculty */}
+                      {showSchool && (
+                        <div className="space-y-2 group">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                            School / Faculty <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={values.school || ''}
+                            onChange={(e) => { setValues({ ...values, school: e.target.value }); if (errors.school) setErrors((prev) => ({ ...prev, school: '' })); }}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.school ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            placeholder="e.g., Faculty of Engineering"
+                          />
+                          {errors.school && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.school}</p>}
+                        </div>
+                      )}
+
+                      {/* Department */}
+                      {showDept && (
+                        <div className="space-y-2 group">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                            Department <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={values.department || ''}
+                            onChange={(e) => { setValues({ ...values, department: e.target.value }); if (errors.department) setErrors((prev) => ({ ...prev, department: '' })); }}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.department ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            placeholder="e.g., Computer Science & Engineering"
+                          />
+                          {errors.department && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.department}</p>}
+                        </div>
+                      )}
+
+                      {/* Program (students only) */}
+                      {showProgram && (
+                        <div className="space-y-2 group">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                            Program <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={values.program || ''}
+                            onChange={(e) => { setValues({ ...values, program: e.target.value }); if (errors.program) setErrors((prev) => ({ ...prev, program: '' })); }}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.program ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            placeholder="e.g., B.Tech Computer Science"
+                          />
+                          {errors.program && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.program}</p>}
+                        </div>
+                      )}
+
+                      {/* Pass Out Year (students only) */}
+                      {showPassOutYear && (
+                        <div className="space-y-2 group">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                            Pass Out Year <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={values.passOutYear || ''}
+                            onChange={(e) => { setValues({ ...values, passOutYear: e.target.value }); if (errors.passOutYear) setErrors((prev) => ({ ...prev, passOutYear: '' })); }}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.passOutYear ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            placeholder="e.g., 2025"
+                          />
+                          {errors.passOutYear && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.passOutYear}</p>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* 2. Additional Fields Card (if any) */}
               {formData.customFields.length > 0 && (
@@ -492,7 +712,7 @@ export default function EventRegistrationPage() {
                         <DynamicField
                           field={field}
                           value={values[field.fieldName]}
-                          onChange={(val) => setValues({ ...values, [field.fieldName]: val })}
+                          onChange={(val) => { setValues({ ...values, [field.fieldName]: val }); if (errors[field.fieldName]) setErrors((prev) => ({ ...prev, [field.fieldName]: '' })); }}
                           error={errors[field.fieldName]}
                         />
                       </div>

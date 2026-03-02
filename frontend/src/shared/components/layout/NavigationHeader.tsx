@@ -86,6 +86,7 @@ export default function NavigationHeader() {
 
   const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
+  const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
   const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
@@ -310,6 +311,32 @@ export default function NavigationHeader() {
   // Level 1: Academics, Research and Development
   // Level 2 (under R&D): Submit & Track, Review & Approve
   // ============================================
+  // ============================================
+  // Build TMS (Ticket Management) children - role-based
+  // === TMS HIDDEN — Development in progress ===
+  // Uncomment the block below to re-enable Ticket Management in navigation
+  // ============================================
+  const tmsChildren: SubMenuItem[] = [];
+  /*
+  if (isStudent) {
+    tmsChildren.push(
+      { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
+      { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
+    );
+  }
+  if (isFaculty || isStaff || isAdmin) {
+    tmsChildren.push(
+      { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
+    );
+  }
+  if (isAdmin) {
+    tmsChildren.push(
+      { name: '📊 TMS Dashboard', href: '/tms/admin', description: 'Analytics & overview' },
+      { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
+    );
+  }
+  */
+
   const navigationSubItems: SubMenuItem[] = [
     // Academics
     {
@@ -324,6 +351,16 @@ export default function NavigationHeader() {
         { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
       ],
     },
+    // Events & Stalls
+    {
+      name: '🎪 Events & Stalls',
+      description: 'Browse events and stall opportunities',
+      children: [
+        { name: '📅 All Events', href: '/events', description: 'Browse and register for events' },
+        { name: '🪄 Stall Opportunities', href: '/events/stall-opportunities', description: 'Apply for stalls at events' },
+        { name: '📋 My Registrations', href: '/events/registrations', description: 'View your event registrations' },
+      ],
+    },
   ];
 
   // Add Research and Development if there are sub-items
@@ -332,6 +369,15 @@ export default function NavigationHeader() {
       name: '🔬 Research & Development',
       description: 'Research, Patents & Reviews',
       children: rndSubItems,
+    });
+  }
+
+  // Add Ticket Management if there are sub-items
+  if (tmsChildren.length > 0) {
+    navigationSubItems.push({
+      name: '🎫 Ticket Management',
+      description: 'Grievances, Assistance & Enquiries',
+      children: tmsChildren,
     });
   }
 

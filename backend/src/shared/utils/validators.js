@@ -24,6 +24,22 @@ const sanitizeInput = (input) => {
 };
 
 /**
+ * Sanitize HTML to prevent XSS - strips script, iframe, object, embed, and event handlers
+ */
+const sanitizeHtml = (html) => {
+  if (typeof html !== 'string') return html;
+  let out = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+    .replace(/<embed\b[^>]*>/gi, '')
+    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+    .replace(/javascript:/gi, '');
+  return out;
+};
+
+/**
  * Sanitize sponsors array (used by Noting and Event)
  * Cash: name + amount (₹). In-kind: name + notes (description)
  */
@@ -45,11 +61,32 @@ const sanitizeSponsors = (sponsors) => {
     .filter(Boolean);
 };
 
+/** Mobile: exactly 10 digits (strips spaces/dashes before check) */
+const isValidMobile = (mobile) => {
+  if (!mobile || !String(mobile).trim()) return true;
+  const digits = String(mobile).replace(/\D/g, '');
+  return digits.length === 10;
+};
+
+/** Basic URL validation */
+const isValidUrl = (url) => {
+  if (!url || !String(url).trim()) return true;
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return ['http:', 'https:'].includes(u.protocol);
+  } catch {
+    return false;
+  }
+};
+
 module.exports = {
   isValidStudentRegNo,
   isValidStaffUID,
   isValidEmail,
   isValidPassword,
   sanitizeInput,
-  sanitizeSponsors
+  sanitizeHtml,
+  sanitizeSponsors,
+  isValidMobile,
+  isValidUrl,
 };

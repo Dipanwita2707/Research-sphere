@@ -53,6 +53,20 @@ const getRegistrationForm = async (eventId, userId) => {
   // Get user profile data for auto-fill
   const userProfile = await getUserProfileData(userId);
 
+  // Build profileFields map — indicates which fields have data from the user's profile
+  // Frontend uses this to hide fields that are already known (silent auto-fill)
+  const profileFields = {
+    uid: !!userProfile.uid,
+    registrationNo: !!userProfile.registrationNo,
+    studentId: !!userProfile.studentId,
+    employeeId: !!userProfile.employeeId,
+    gender: !!userProfile.gender,
+    school: !!userProfile.school,
+    department: !!userProfile.department,
+    program: !!userProfile.program,
+    passOutYear: !!userProfile.passOutYear,
+  };
+
   // Check if user already registered
   const existingRegistration = await prisma.eventRegistration.findFirst({
     where: {
@@ -99,6 +113,7 @@ const getRegistrationForm = async (eventId, userId) => {
       defaultValue: field.defaultValue,
     })),
     userProfile,
+    profileFields,
     existingRegistration: existingRegistration ? {
       id: existingRegistration.id,
       registrationId: existingRegistration.registrationId,
@@ -122,14 +137,22 @@ const getUserProfileData = async (userId) => {
         include: {
           program: {
             include: {
-              department: true,
+              department: {
+                include: {
+                  faculty: true,
+                },
+              },
             },
           },
         },
       },
       employeeDetails: {
         include: {
-          primaryDepartment: true,
+          primaryDepartment: {
+            include: {
+              faculty: true,
+            },
+          },
           primarySchool: true,
         },
       },
@@ -144,6 +167,11 @@ const getUserProfileData = async (userId) => {
   const isStudent = !!user.studentLogin;
   const profile = isStudent ? user.studentLogin : user.employeeDetails;
 
+  // Extract pass-out year from graduation date
+  const passOutYear = isStudent && profile?.graduationDate
+    ? new Date(profile.graduationDate).getFullYear().toString()
+    : null;
+
   return {
     userId: user.id,
     uid: user.uid,
@@ -154,14 +182,17 @@ const getUserProfileData = async (userId) => {
     lastName: profile?.lastName || '',
     displayName: profile?.displayName || `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim(),
     registrationNo: isStudent ? profile?.registrationNo || profile?.studentId : null,
+    studentId: isStudent ? profile?.studentId : null,
     employeeId: !isStudent ? profile?.empId : null,
+    gender: isStudent ? profile?.gender || null : null,
     department: isStudent 
-      ? profile?.program?.department?.name 
-      : profile?.primaryDepartment?.name,
-    program: isStudent ? profile?.program?.name : null,
+      ? profile?.program?.department?.departmentName || null
+      : profile?.primaryDepartment?.departmentName || null,
+    program: isStudent ? profile?.program?.programName || null : null,
     school: isStudent 
-      ? profile?.program?.department?.school?.name 
-      : profile?.primarySchool?.name,
+      ? profile?.program?.department?.faculty?.facultyName || null
+      : profile?.primarySchool?.facultyName || null,
+    passOutYear,
     institute: 'SGT University', // Can be made dynamic
     location: profile?.address || '',
   };
@@ -266,14 +297,35 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
     }
   }
 
-  // Determine initial status
+  // Fetch user profile data and merge into formData
+  // Profile fields take precedence to ensure data integrity
+  const userProfile = await getUserProfileData(userId);
+  const mergedFormData = {
+    ...formData,
+    // Always include profile data (overrides user input for profile-sourced fields)
+    firstName: userProfile.firstName || formData.firstName,
+    lastName: userProfile.lastName || formData.lastName,
+    email: userProfile.email || formData.email,
+    institute: userProfile.institute || formData.institute,
+    // Silently merge profile fields that frontend may have hidden
+    uid: userProfile.uid || formData.uid || null,
+    registrationNo: userProfile.registrationNo || formData.registrationNo || null,
+    studentId: userProfile.studentId || formData.studentId || null,
+    employeeId: userProfile.employeeId || formData.employeeId || null,
+    gender: userProfile.gender || formData.gender || null,
+    school: userProfile.school || formData.school || null,
+    department: userProfile.department || formData.department || null,
+    program: userProfile.program || formData.program || null,
+    passOutYear: userProfile.passOutYear || formData.passOutYear || null,
+    userType: userProfile.userType,
+  };
+
+  // Determine initial status (auto-approve: free→confirmed, paid→pending)
   let initialStatus;
   if (event.participationType === 'team') {
     initialStatus = REGISTRATION_STATUS.INCOMPLETE_TEAM;
-  } else if (event.autoApproveRegistration) {
-    initialStatus = event.paymentType === 'paid' ? REGISTRATION_STATUS.PENDING : REGISTRATION_STATUS.CONFIRMED;
   } else {
-    initialStatus = REGISTRATION_STATUS.PENDING;
+    initialStatus = event.paymentType === 'paid' ? REGISTRATION_STATUS.PENDING : REGISTRATION_STATUS.CONFIRMED;
   }
 
   // Generate IDs
@@ -290,7 +342,7 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
         where: { id: existingRegistration.id },
         data: {
           status: initialStatus,
-          formData: formData,
+          formData: mergedFormData,
           formSubmittedAt: new Date(),
           paymentStatus: event.paymentType === 'paid' ? PAYMENT_STATUS.PENDING : null,
           updatedAt: new Date(),
@@ -306,7 +358,7 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
           userId,
           qrCode,
           status: initialStatus,
-          formData: formData,
+          formData: mergedFormData,
           formSubmittedAt: new Date(),
           paymentStatus: event.paymentType === 'paid' ? PAYMENT_STATUS.PENDING : null,
           updatedAt: new Date(),

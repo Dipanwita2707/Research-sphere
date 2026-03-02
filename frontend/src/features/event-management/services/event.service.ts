@@ -17,6 +17,10 @@ import type {
   EventListResponse,
   EventPrize,
   PrizeFormData,
+  StallApplication,
+  StallApplicationFormData,
+  StallOpportunity,
+  Stall,
 } from '../types/event.types';
 
 const BASE_URL = '/events';
@@ -33,12 +37,12 @@ export const eventService = {
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', limit.toString());
-    
+
     if (filters.status) params.append('status', filters.status);
     if (filters.eventType) params.append('eventType', filters.eventType);
     if (filters.search) params.append('search', filters.search);
     if (filters.myEvents) params.append('myEvents', 'true');
-    
+
     const response = await api.get(`${BASE_URL}?${params.toString()}`);
     return response.data.data;
   },
@@ -94,26 +98,44 @@ export const eventService = {
     params.append('page', page.toString());
     params.append('limit', limit.toString());
     if (status) params.append('status', status);
-    
+
     const response = await api.get(`${BASE_URL}/registrations/my?${params.toString()}`);
     return response.data.data;
   },
 
   /**
-   * Get event registrations (for event creator)
+   * Get event registrations (for event creator) — with advanced server-side filters
    */
   async getEventRegistrations(
     id: string,
     page: number = 1,
     limit: number = 20,
-    status?: string
-  ): Promise<{ registrations: EventRegistration[]; pagination: any }> {
+    status?: string,
+    filters?: Record<string, string | number | undefined>
+  ): Promise<{ registrations: any[]; pagination: any }> {
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', limit.toString());
-    if (status) params.append('status', status);
-    
+    if (status && status !== 'all') params.append('status', status);
+
+    // Append advanced filter params
+    if (filters) {
+      for (const [key, val] of Object.entries(filters)) {
+        if (val !== undefined && val !== '' && val !== null) {
+          params.append(key, String(val));
+        }
+      }
+    }
+
     const response = await api.get(`${BASE_URL}/${id}/registrations?${params.toString()}`);
+    return response.data.data;
+  },
+
+  /**
+   * Get registration filter options (distinct values from actual registrations)
+   */
+  async getRegistrationFilterOptions(id: string): Promise<any> {
+    const response = await api.get(`${BASE_URL}/${id}/registrations/filter-options`);
     return response.data.data;
   },
 
@@ -236,7 +258,7 @@ export const eventService = {
     if (filters.search) params.append('search', filters.search);
     if (filters.startDate) params.append('startDate', filters.startDate);
     if (filters.endDate) params.append('endDate', filters.endDate);
-    
+
     const response = await api.get(`${BASE_URL}/volunteers/my/activity?${params.toString()}`);
     return response.data.data;
   },
@@ -550,5 +572,216 @@ export const eventService = {
   async togglePrizesEnabled(eventId: string, enabled: boolean): Promise<Event> {
     const response = await api.patch(`${BASE_URL}/${eventId}/prizes-enabled`, { enabled });
     return response.data;
+  },
+
+  // ============================================
+  // Stall Management Methods
+  // ============================================
+
+  /**
+   * Get events open for stall applications (browse page)
+   */
+  async getStallOpportunities(): Promise<StallOpportunity[]> {
+    const response = await api.get(`${BASE_URL}/stall-opportunities`);
+    const data = response.data?.data;
+    const events = data?.events ?? [];
+    return events.map((e: Record<string, unknown>) => ({
+      id: e.id,
+      eventId: e.eventId,
+      name: e.eventName ?? e.name ?? '',
+      startDate: e.eventDate ?? e.startDate ?? '',
+      endDate: e.endDate ?? '',
+      venue: e.venue,
+      applicationDeadline: e.applicationDeadline,
+      maxStudentStalls: e.maxStudentStalls,
+      stallFee: e.stallFee,
+      stallsApproved: e.appliedCount ?? 0,
+      stallsRemaining: e.spotsLeft,
+      myApplication: e.myApplication,
+    }));
+  },
+
+  /**
+   * Submit a stall application for an event
+   */
+  async submitStallApplication(
+    eventId: string,
+    data: StallApplicationFormData
+  ): Promise<StallApplication> {
+    const response = await api.post(`${BASE_URL}/${eventId}/stall-applications`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Get my stall application for an event
+   */
+  async getMyStallApplication(eventId: string): Promise<StallApplication | null> {
+    const response = await api.get(`${BASE_URL}/${eventId}/stall-applications/my`);
+    return response.data.data;
+  },
+
+  /**
+   * Get all stall applications for an event (creator view)
+   */
+  async getStallApplications(
+    eventId: string,
+    params: { status?: string; page?: number; limit?: number } = {}
+  ): Promise<{ applications: StallApplication[]; pagination: any }> {
+    const query = new URLSearchParams();
+    if (params.status) query.append('status', params.status);
+    if (params.page) query.append('page', String(params.page));
+    if (params.limit) query.append('limit', String(params.limit));
+    const response = await api.get(`${BASE_URL}/${eventId}/stall-applications?${query}`);
+    return response.data.data;
+  },
+
+  /**
+   * Toggle student stall application portal open / closed.
+   * Works regardless of event draft/publish status.
+   */
+  async toggleStallApplications(
+    eventId: string
+  ): Promise<{ stallApplicationsOpen: boolean; stallConfig: any }> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/stall-applications/toggle-open`);
+    return response.data.data;
+  },
+
+  /**
+   * Approve or reject a stall application
+   */
+  async updateStallApplication(
+    eventId: string,
+    appId: string,
+    data: { status: 'approved' | 'rejected'; rejectionReason?: string }
+  ): Promise<StallApplication> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/stall-applications/${appId}`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Bulk approve/reject stall applications
+   */
+  async bulkUpdateStallApplications(
+    eventId: string,
+    data: { applicationIds: string[]; status: 'approved' | 'rejected'; reviewNote?: string }
+  ): Promise<{ updated: number }> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/stall-applications/bulk`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Get all stalls for an event (creator view)
+   */
+  async getStalls(eventId: string): Promise<Stall[]> {
+    const response = await api.get(`${BASE_URL}/${eventId}/stalls`);
+    const data = response.data?.data;
+    return Array.isArray(data) ? data : (data?.stalls ?? []);
+  },
+
+  /**
+   * Create a stall directly (creator-made, no approval needed)
+   */
+  async createStall(
+    eventId: string,
+    data: {
+      stallName: string;
+      stallType: string;
+      category?: string;
+      description?: string;
+      size?: string;
+      location?: string;
+      businessName?: string;
+      electricityRequired?: boolean;
+      waterRequired?: boolean;
+      specialRequirements?: string;
+      products?: string[];
+    }
+  ): Promise<Stall> {
+    const payload: Record<string, unknown> = {
+      stallName: data.stallName,
+      stallType: data.stallType,
+      stallCategory: data.category,
+      description: data.description,
+      size: data.size,
+      location: data.location,
+      businessName: data.businessName,
+      electricityRequired: data.electricityRequired,
+      waterRequired: data.waterRequired,
+      specialRequirements: data.specialRequirements,
+      products: data.products,
+    };
+    const response = await api.post(`${BASE_URL}/${eventId}/stalls`, payload);
+    return response.data.data;
+  },
+
+  /**
+   * Update a stall (creator-made only)
+   */
+  async updateStall(
+    eventId: string,
+    stallId: string,
+    data: {
+      stallName?: string;
+      stallType?: string;
+      category?: string;
+      description?: string;
+      size?: string;
+      location?: string;
+      businessName?: string;
+      electricityRequired?: boolean;
+      waterRequired?: boolean;
+      specialRequirements?: string;
+      products?: string[];
+    }
+  ): Promise<Stall> {
+    const payload: Record<string, unknown> = {};
+    if (data.stallName !== undefined) payload.stallName = data.stallName;
+    if (data.stallType !== undefined) payload.stallType = data.stallType;
+    if (data.category !== undefined) payload.stallCategory = data.category;
+    if (data.description !== undefined) payload.description = data.description;
+    if (data.size !== undefined) payload.size = data.size;
+    if (data.location !== undefined) payload.location = data.location;
+    if (data.businessName !== undefined) payload.businessName = data.businessName;
+    if (data.electricityRequired !== undefined) payload.electricityRequired = data.electricityRequired;
+    if (data.waterRequired !== undefined) payload.waterRequired = data.waterRequired;
+    if (data.specialRequirements !== undefined) payload.specialRequirements = data.specialRequirements;
+    if (data.products !== undefined) payload.products = data.products;
+    const response = await api.patch(`${BASE_URL}/${eventId}/stalls/${stallId}`, payload);
+    return response.data.data;
+  },
+
+  /**
+   * Delete a stall
+   */
+  async deleteStall(eventId: string, stallId: string): Promise<void> {
+    await api.delete(`${BASE_URL}/${eventId}/stalls/${stallId}`);
+  },
+
+  /**
+   * Get minimal event info for feedback form (public - no auth, for QR scanner users)
+   */
+  async getFeedbackFormInfo(eventId: string): Promise<{ id: string; name: string }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/feedback-info`);
+    return response.data.data;
+  },
+
+  /**
+   * Submit event feedback (public - no auth required)
+   */
+  async submitFeedback(eventId: string, data: { points: number[]; shortDescription?: string }): Promise<{ id: string }> {
+    const response = await api.post(`${BASE_URL}/${eventId}/feedback`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Get event feedback list (event creator only)
+   */
+  async getFeedback(eventId: string, page = 1, limit = 20): Promise<{
+    feedback: Array<{ id: string; points: number[]; shortDescription: string | null; createdAt: string }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+    summary: { totalFeedback: number; overallAvg: number };
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/feedback`, { params: { page, limit } });
+    return response.data.data;
   },
 };

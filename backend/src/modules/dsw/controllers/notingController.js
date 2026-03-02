@@ -3,9 +3,9 @@
  * Handles HTTP requests for DSW-Noting integration
  */
 
-const prisma = require('../../../shared/config/database');
-const notingIntegrationService = require('../services/notingIntegrationService');
-const { SuccessMessages } = require('../constants');
+const prisma = require("../../../shared/config/database");
+const notingIntegrationService = require("../services/notingIntegrationService");
+const { SuccessMessages } = require("../constants");
 
 /**
  * Create Club Creation Noting
@@ -18,19 +18,14 @@ async function createClubCreationNoting(req, res) {
       categoryId: req.body.categoryId,
       purpose: req.body.purpose,
       academicSession: req.body.academicSession,
-      viceChairpersonId: req.body.viceChairpersonId,
+      facultyFacilitatorId: req.body.facultyFacilitatorId,
+      chairpersonId: req.body.chairpersonId,
       targetStudentGroup: req.body.targetStudentGroup,
       expectedActivityTypes: req.body.expectedActivityTypes,
       codeOfConductAccepted: req.body.codeOfConductAccepted,
       antiDiscriminationAccepted: req.body.antiDiscriminationAccepted,
       meetingFrequency: req.body.meetingFrequency,
       estimatedAnnualActivityCount: req.body.estimatedAnnualActivityCount,
-      infrastructureRequirements: req.body.infrastructureRequirements,
-      fundingRequired: req.body.fundingRequired,
-      estimatedFundingAmount: req.body.estimatedFundingAmount,
-      visibility: req.body.visibility,
-      allowInternalCollaboration: req.body.allowInternalCollaboration,
-      allowExternalCollaboration: req.body.allowExternalCollaboration,
       proposedEmail: req.body.proposedEmail,
       socialMediaHandles: req.body.socialMediaHandles,
       expectedStudentStrength: req.body.expectedStudentStrength,
@@ -39,7 +34,7 @@ async function createClubCreationNoting(req, res) {
 
     const noting = await notingIntegrationService.createClubCreationNoting(
       clubData,
-      req.user.id
+      req.user.id,
     );
 
     res.status(201).json({
@@ -48,10 +43,10 @@ async function createClubCreationNoting(req, res) {
       data: noting,
     });
   } catch (error) {
-    console.error('Error in createClubCreationNoting:', error);
+    console.error("Error in createClubCreationNoting:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create club creation noting',
+      message: "Failed to create club creation noting",
       error: error.message,
     });
   }
@@ -73,7 +68,7 @@ async function createClubChangeRequestNoting(req, res) {
     const result = await notingIntegrationService.createClubChangeRequestNoting(
       clubId,
       changeData,
-      req.user.id
+      req.user.id,
     );
 
     res.status(201).json({
@@ -82,10 +77,10 @@ async function createClubChangeRequestNoting(req, res) {
       data: result,
     });
   } catch (error) {
-    console.error('Error in createClubChangeRequestNoting:', error);
+    console.error("Error in createClubChangeRequestNoting:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create change request noting',
+      message: "Failed to create change request noting",
       error: error.message,
     });
   }
@@ -108,20 +103,21 @@ async function processApprovedNoting(req, res) {
     if (!noting) {
       return res.status(404).json({
         success: false,
-        message: 'Noting not found',
+        message: "Noting not found",
       });
     }
 
     // Check if this is a club creation noting
-    if (noting.metadata?.dswModule === 'club_creation') {
-      const club = await notingIntegrationService.processApprovedClubCreationNoting(
-        noting,
-        approvedById
-      );
+    if (noting.metadata?.dswModule === "club_creation") {
+      const club =
+        await notingIntegrationService.processApprovedClubCreationNoting(
+          noting,
+          approvedById,
+        );
 
       return res.json({
         success: true,
-        message: 'Club created successfully from approved noting',
+        message: "Club created successfully from approved noting",
         data: club,
       });
     }
@@ -130,13 +126,13 @@ async function processApprovedNoting(req, res) {
 
     res.json({
       success: true,
-      message: 'Noting processed',
+      message: "Noting processed",
     });
   } catch (error) {
-    console.error('Error in processApprovedNoting:', error);
+    console.error("Error in processApprovedNoting:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to process approved noting',
+      message: "Failed to process approved noting",
       error: error.message,
     });
   }
