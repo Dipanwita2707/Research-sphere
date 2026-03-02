@@ -505,8 +505,6 @@ export default function NavigationHeader() {
   }
   */
 
-  // Add DSW (Division of Student Welfare) for Faculty, Staff, and Admin
-  if (isFaculty || isAdmin) {
   // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
   if (isStudent || isFaculty || isAdmin) {
     navigationSubItems.push({
@@ -1333,129 +1331,6 @@ export default function NavigationHeader() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Mobile Slide-out Menu */}
-      <div
-        className={`lg:hidden fixed inset-0 z-40 transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-          }`}
-      >
-        {/* Backdrop */}
-        <div
-          className="absolute inset-0 bg-black/50"
-          onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
-          aria-hidden="true"
-        />
-        {/* Drawer */}
-        <div
-          className={`absolute top-0 left-0 h-full w-[min(320px,85vw)] max-w-sm bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-300 ease-out overflow-y-auto ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
-        >
-          <div className="sticky top-0 z-10 px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex items-center justify-between">
-            <span className="font-semibold text-gray-900 dark:text-white">Menu</span>
-            <button
-              onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <nav className="p-4 space-y-1">
-            <Link
-              href="/dashboard"
-              onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
-              className={`block px-4 py-3 rounded-lg text-sm font-medium ${pathname === '/dashboard'
-                ? 'bg-[#005b96]/15 text-[#005b96] dark:text-blue-400'
-                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-            >
-              Dashboard
-            </Link>
-            {menuItems.map((item) => (
-              <div key={item.name} className="space-y-1">
-                <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  {item.name}
-                </div>
-                {item.subItems?.map((subItem) => {
-                  const sectionKey = `${item.name}-${subItem.name}`;
-                  const isExpanded = expandedMobileSection === sectionKey;
-
-                  if (subItem.href) {
-                    return (
-                      <Link
-                        key={subItem.href}
-                        href={subItem.href}
-                        onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
-                        className="block px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      >
-                        {subItem.name}
-                      </Link>
-                    );
-                  }
-
-                  if (subItem.children) {
-                    return (
-                      <div key={subItem.name} className="space-y-0.5">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedMobileSection(isExpanded ? null : sectionKey)}
-                          className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
-                        >
-                          {subItem.name}
-                          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                        </button>
-                        {isExpanded && (
-                          <div className="pl-4 space-y-0.5 border-l-2 border-gray-200 dark:border-gray-600 ml-2">
-                            {subItem.children.map((child) =>
-                              child.href && child.href !== '#' ? (
-                                <Link
-                                  key={child.href}
-                                  href={child.href}
-                                  onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
-                                  className="block px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                >
-                                  {child.name}
-                                </Link>
-                              ) : child.children?.length ? (
-                                <div key={child.name} className="space-y-0.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setExpandedMobileSection(expandedMobileSection === `${sectionKey}-${child.name}` ? sectionKey : `${sectionKey}-${child.name}`)}
-                                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 text-left"
-                                  >
-                                    {child.name}
-                                    <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 shrink-0 ${expandedMobileSection === `${sectionKey}-${child.name}` ? 'rotate-180' : ''}`} />
-                                  </button>
-                                  {expandedMobileSection === `${sectionKey}-${child.name}` && (
-                                    <div className="pl-4 space-y-0.5 border-l-2 border-gray-100 dark:border-gray-700 ml-2">
-                                      {child.children.map((gc) =>
-                                        gc.href && gc.href !== '#' ? (
-                                          <Link
-                                            key={gc.href}
-                                            href={gc.href}
-                                            onClick={() => { setMobileMenuOpen(false); setExpandedMobileSection(null); }}
-                                            className="block px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-                                          >
-                                            {gc.name}
-                                          </Link>
-                                        ) : null
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : null
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
-              </div>
-            ))}
-          </nav>
         </div>
       </div>
 

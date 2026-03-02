@@ -669,17 +669,15 @@ function VerifyPassPageContent() {
 
   const handleCancelAndCheckout = async () => {
     if (!pass) return;
-    
-    if (!cancelReason.trim()) {
-      toast.warning(t('verifyPass.toast.reasonRequired'), t('verifyPass.toast.reasonRequiredTitle'));
-      return;
-    }
 
     try {
       setCancellingPass(true);
       
+      // For after check-in, use a default reason since visitor is already inside
+      const reason = cancelReason.trim() || 'Cancelled after check-in - proceeding to checkout';
+      
       // Cancel the pass first
-      const cancelResponse = await gateEntryService.cancelPass(pass.passId, cancelReason);
+      const cancelResponse = await gateEntryService.cancelPass(pass.passId, reason);
       
       if (cancelResponse.success && cancelResponse.pass) {
         // Update pass data with cancelled pass
@@ -1775,23 +1773,6 @@ function VerifyPassPageContent() {
                 </div>
               </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {t('verifyPass.cancelModal.reasonLabel')} <span className="text-red-500">{t('verifyPass.cancelModal.reasonRequired')}</span>
-                </label>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder={t('verifyPass.cancelModal.reasonPlaceholder')}
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
-                  disabled={cancellingPass}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  {t('verifyPass.cancelModal.reasonNote')}
-                </p>
-              </div>
-
               <div className="flex gap-3">
                 <button
                   onClick={() => {
@@ -1805,7 +1786,7 @@ function VerifyPassPageContent() {
                 </button>
                 <button
                   onClick={handleCancelAndCheckout}
-                  disabled={cancellingPass || !cancelReason.trim()}
+                  disabled={cancellingPass}
                   className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {cancellingPass ? (

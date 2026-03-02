@@ -424,14 +424,22 @@ function AllPassesPageContent() {
   };
 
   const handleCancelPassConfirm = async () => {
-    if (!selectedPass || !cancelReason.trim()) {
+    if (!selectedPass) {
+      return;
+    }
+    
+    // Check if reason is required (only for before check-in)
+    const isBeforeCheckIn = selectedPass.passStatus === 'created' || selectedPass.status === 'created';
+    if (isBeforeCheckIn && !cancelReason.trim()) {
       toast.error(t('allPasses.cancel.noReason'), t('allPasses.cancel.reasonRequired'));
       return;
     }
     
     setCancellingPass(true);
     try {
-      const response = await gateEntryService.cancelPass(selectedPass.passId, cancelReason);
+      // For after check-in, use a generic reason if not provided
+      const reason = cancelReason.trim() || 'Cancelled after check-in by admin';
+      const response = await gateEntryService.cancelPass(selectedPass.passId, reason);
       const cancelledPass = response.pass || response.data;
       const cancellationType = cancelledPass.cancellation_type || cancelledPass.cancellationType;
       const backendMessage = response.message || '';
@@ -809,7 +817,7 @@ function AllPassesPageContent() {
                   </tr>
                 ) : (
                   filteredPasses.map((pass, index) => {
-                    const statusConfig = STATUS_CONFIG[pass.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+                    const statusConfig = STATUS_CONFIG[(pass.passStatus || pass.status) as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
                     const StatusIcon = statusConfig.icon;
                     return (
                       <tr key={pass.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-300 animate-fade-in" style={{animationDelay: `${index * 50}ms`}}>
@@ -884,7 +892,7 @@ function AllPassesPageContent() {
                         <td className="px-4 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
                             <StatusIcon className="w-3 h-3" />
-                            {getStatusLabel(pass.status)}
+                            {getStatusLabel(pass.passStatus || pass.status)}
                           </span>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
@@ -899,6 +907,7 @@ function AllPassesPageContent() {
                             
                             {/* Cancel button - Context-dependent (after check-in) */}
                             {(pass.status === 'checked_in' || pass.passStatus === 'checked_in') && 
+                             (pass.passStatus !== 'expired' && pass.status !== 'expired') &&
                              canCancelPass(user, pass) && (
                               <button
                                 onClick={() => {
@@ -913,7 +922,8 @@ function AllPassesPageContent() {
                             )}
                             
                             {/* Cancel button - Before check-in (only Creator/Admin) */}
-                            {(pass.status === 'active' || pass.status === 'pending' || pass.status === 'created') && (
+                            {(pass.status === 'active' || pass.status === 'pending' || pass.status === 'created' || pass.passStatus === 'created') && 
+                             (pass.passStatus !== 'expired' && pass.status !== 'expired') && (
                               <>
                                 <button
                                   onClick={() => handleResendNotification(pass)}
@@ -1207,43 +1217,77 @@ function AllPassesPageContent() {
         {showCancelModal && selectedPass && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col">
-              {/* Fixed Header */}
-              <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200 bg-white rounded-t-xl flex-shrink-0">
-                <h3 className="text-xl font-semibold text-gray-900">{t('allPasses.cancel.title')}</h3>
-                <button
-                  onClick={() => {
-                    setShowCancelModal(false);
-                    setCancelReason('');
-                    setRefundPreview(null);
-                    setSelectedPass(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                  disabled={cancellingPass}
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+              {/* Fixed Header - Different styles for before/after check-in */}
+              {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? (
+                <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200 bg-white rounded-t-xl flex-shrink-0">
+                  <h3 className="text-xl font-semibold text-gray-900">{t('allPasses.cancel.title')}</h3>
+                  <button
+                    onClick={() => {
+                      setShowCancelModal(false);
+                      setCancelReason('');
+                      setRefundPreview(null);
+                      setSelectedPass(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                    disabled={cancellingPass}
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 px-6 py-4 rounded-t-xl flex-shrink-0">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      🔔 Cancel Pass & Record Checkout
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setShowCancelModal(false);
+                        setCancelReason('');
+                        setRefundPreview(null);
+                        setSelectedPass(null);
+                      }}
+                      className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+                      disabled={cancellingPass}
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                  <p className="text-orange-100 text-sm mt-1">Cancel checked-in pass and proceed with checkout</p>
+                </div>
+              )}
 
               {/* Scrollable Content */}
               <div className="p-6 pt-4 overflow-y-auto flex-1">
 
               {/* Warning Message - Dynamic based on pass status */}
-              <div className={`border rounded-lg p-4 mb-6 ${
-                selectedPass.passStatus === 'created' 
-                  ? 'bg-blue-50 border-blue-200' 
-                  : 'bg-red-50 border-red-200'
-              }`}>
-                <p className={`text-sm ${
-                  selectedPass.passStatus === 'created' 
-                    ? 'text-blue-800' 
-                    : 'text-red-800'
-                }`}>
-                  {selectedPass.passStatus === 'created' 
-                    ? t('allPasses.cancel.warningBeforeCheckIn')
-                    : t('allPasses.cancel.warningAfterCheckIn')
-                  }
-                </p>
-              </div>
+              {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-blue-800 font-medium mb-1">
+                    📌 Note: This pass has not been checked in yet.
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    Cancelling will {selectedPass.stayRequired ? 'cancel guest house booking and ' : ''}revoke pass access.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-orange-50 border-l-4 border-orange-400 p-4 mb-6">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-6 h-6 text-orange-600 mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <h3 className="font-semibold text-orange-900 mb-2">⚠️ Pass Must Be Cancelled Before Checkout</h3>
+                      <p className="text-sm text-orange-700">
+                        This pass is currently checked-in. You can cancel it now and proceed with checkout:
+                      </p>
+                      <ol className="text-sm text-orange-700 mt-2 ml-4 list-decimal space-y-1">
+                        <li>System will generate 1-hour checkout QR</li>
+                        <li>Visitor will receive QR via email/WhatsApp</li>
+                        <li>Then verify using QR code or verification code to checkout</li>
+                      </ol>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">{t('allPasses.cancel.passDetails')}</h4>
@@ -1256,7 +1300,7 @@ function AllPassesPageContent() {
               </div>
 
               {/* Refund Preview (Before Check-in with Hostel Booking) */}
-              {selectedPass.passStatus === 'created' && selectedPass.stayRequired && (
+              {(selectedPass.passStatus === 'created' || selectedPass.status === 'created') && selectedPass.stayRequired && (
                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-4">
                   <h4 className="text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1333,20 +1377,23 @@ function AllPassesPageContent() {
 
               {/* Fixed Footer with Reason & Actions */}
               <div className="p-6 pt-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex-shrink-0">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('allPasses.cancel.reasonLabel')} <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={cancelReason}
-                  onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder={t('allPasses.cancel.reasonPlaceholder')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                  rows={3}
-                  required
-                  disabled={cancellingPass}
-                />
-              </div>
+              {/* Show reason input only for BEFORE check-in cancellations */}
+              {(selectedPass.passStatus === 'created' || selectedPass.status === 'created') && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('allPasses.cancel.reasonLabel')} <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder={t('allPasses.cancel.reasonPlaceholder')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    rows={3}
+                    required
+                    disabled={cancellingPass}
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button
@@ -1359,11 +1406,11 @@ function AllPassesPageContent() {
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   disabled={cancellingPass}
                 >
-                  {t('allPasses.cancel.keepPass')}
+                  {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? t('allPasses.cancel.keepPass') : 'Cancel'}
                 </button>
                 <button
                   onClick={handleCancelPassConfirm}
-                  disabled={!cancelReason.trim() || cancellingPass}
+                  disabled={(selectedPass.passStatus === 'created' || selectedPass.status === 'created') ? (!cancelReason.trim() || cancellingPass) : cancellingPass}
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {cancellingPass ? (
@@ -1377,7 +1424,7 @@ function AllPassesPageContent() {
                   ) : (
                     <>
                       <X className="w-4 h-4" />
-                      {t('allPasses.cancel.confirm')}
+                      {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? t('allPasses.cancel.confirm') : 'Cancel Pass & Proceed to Checkout'}
                     </>
                   )}
                 </button>
