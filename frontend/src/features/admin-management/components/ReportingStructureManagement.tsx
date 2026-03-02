@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   reportingStructureService,
   HierarchyNode,
   AssignManagerRequest,
+  UserHierarchyInfo,
+  BulkHierarchyInfoMap,
 } from '@/shared/services/reportingStructure.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
@@ -21,6 +23,9 @@ import {
   GitBranch,
   RefreshCw,
   Upload,
+  AlertTriangle,
+  ArrowRightLeft,
+  Shield,
 } from 'lucide-react';
 
 interface UserOption {
@@ -42,6 +47,7 @@ export default function ReportingStructureManagement() {
   const [hierarchyTree, setHierarchyTree] = useState<HierarchyNode[]>([]);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'tree'>('table');
@@ -49,7 +55,7 @@ export default function ReportingStructureManagement() {
 
   // Assign dialog state
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [hierarchyLevels, setHierarchyLevels] = useState(2);
+  const [hierarchyLevels, setHierarchyLevels] = useState(1);
   const [managerChain, setManagerChain] = useState<string[]>(['']); // Array of manager IDs for each level
   const [assigning, setAssigning] = useState(false);
 
@@ -58,6 +64,18 @@ export default function ReportingStructureManagement() {
   const [managerSearches, setManagerSearches] = useState<string[]>(['']);
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [showManagerDropdowns, setShowManagerDropdowns] = useState<boolean[]>([false]);
+
+  // Hierarchy-aware search: maps userId → hierarchy info (or null)
+  const [hierarchyInfoMap, setHierarchyInfoMap] = useState<BulkHierarchyInfoMap>({});
+
+  // Move user dialog state
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [moveUserId, setMoveUserId] = useState('');
+  const [moveUserName, setMoveUserName] = useState('');
+  const [moveNewManagerId, setMoveNewManagerId] = useState('');
+  const [moveManagerSearch, setMoveManagerSearch] = useState('');
+  const [showMoveManagerDropdown, setShowMoveManagerDropdown] = useState(false);
+  const [moving, setMoving] = useState(false);
 
   // Filter users by search query
   const filterUsers = (query: string, excludeIds: string[] = []) => {
@@ -75,6 +93,31 @@ export default function ReportingStructureManagement() {
       })
       .slice(0, 10); // Show max 10 results
   };
+
+  // Fetch hierarchy info for a batch of user IDs (for search dropdown badges)
+  const pendingFetchRef = useRef<Set<string>>(new Set());
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchHierarchyInfo = useCallback((userIds: string[]) => {
+    // Only queue IDs we don't already have cached
+    const toFetch = userIds.filter((id) => !(id in hierarchyInfoMap));
+    if (!toFetch.length) return;
+    toFetch.forEach((id) => pendingFetchRef.current.add(id));
+
+    // Debounce: batch API call 150ms after last invocation
+    if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+    fetchTimerRef.current = setTimeout(async () => {
+      const ids = Array.from(pendingFetchRef.current);
+      pendingFetchRef.current.clear();
+      if (!ids.length) return;
+      try {
+        const res = await reportingStructureService.getBulkHierarchyInfo(ids);
+        setHierarchyInfoMap((prev) => ({ ...prev, ...res.data }));
+      } catch {
+        // Silently fail — badges just won't show
+      }
+    }, 150);
+  }, [hierarchyInfoMap]);
 
   // Get selected user display
   const getSelectedUserDisplay = (userId: string) => {
@@ -101,16 +144,23 @@ export default function ReportingStructureManagement() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchData = async () => {
+  /**
+   * Fetch hierarchy + users.
+   * @param silent  When true the full-page loading spinner is NOT shown
+   *                (used after mutations so the UI stays stable).
+   */
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      setRefreshing(true);
+
       const [treeRes, usersRes] = await Promise.all([
         reportingStructureService.getHierarchyTree(),
         reportingStructureService.getAllUsers(),
       ]);
 
       setHierarchyTree(treeRes.data || []);
-      
+
       // Transform users for display
       const transformedUsers = (usersRes.data || []).map((user) => ({
         id: user.id,
@@ -139,6 +189,7 @@ export default function ReportingStructureManagement() {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -185,9 +236,9 @@ export default function ReportingStructureManagement() {
       // Reset and refresh
       setShowAssignDialog(false);
       setSelectedUserId('');
-      setHierarchyLevels(2);
-      setManagerChain(['', '']);
-      fetchData();
+      setHierarchyLevels(1);
+      setManagerChain(['']);
+      fetchData(true);
     } catch (error: unknown) {
       logger.error('Failed to assign manager chain:', error);
       toast({
@@ -212,7 +263,7 @@ export default function ReportingStructureManagement() {
     try {
       await reportingStructureService.removeReportingRelationship(userId);
       toast({ type: 'success', message: 'Reporting relationship removed successfully' });
-      fetchData();
+      fetchData(true);
     } catch (error: unknown) {
       logger.error('Failed to remove relationship:', error);
       toast({
@@ -222,10 +273,51 @@ export default function ReportingStructureManagement() {
     }
   };
 
+  const openMoveDialog = (userId: string, userName: string) => {
+    setMoveUserId(userId);
+    setMoveUserName(userName);
+    setMoveNewManagerId('');
+    setMoveManagerSearch('');
+    setShowMoveManagerDropdown(false);
+    setShowMoveDialog(true);
+  };
+
+  const handleMove = async () => {
+    if (!moveUserId || !moveNewManagerId) {
+      toast({ type: 'warning', message: 'Please select a new manager' });
+      return;
+    }
+
+    if (moveUserId === moveNewManagerId) {
+      toast({ type: 'error', message: 'A user cannot report to themselves' });
+      return;
+    }
+
+    try {
+      setMoving(true);
+      await reportingStructureService.moveUser({
+        userId: moveUserId,
+        newManagerId: moveNewManagerId,
+      });
+      toast({ type: 'success', message: `Successfully moved ${moveUserName} to new position` });
+      setShowMoveDialog(false);
+      setHierarchyInfoMap({}); // Clear cached info since tree changed
+      fetchData(true);
+    } catch (error: unknown) {
+      logger.error('Failed to move user:', error);
+      toast({
+        type: 'error',
+        message: extractErrorMessage(error, 'Failed to move user'),
+      });
+    } finally {
+      setMoving(false);
+    }
+  };
+
   const openAssignDialog = (userId?: string) => {
     setSelectedUserId(userId || '');
-    setHierarchyLevels(2);
-    setManagerChain(['', '']);
+    setHierarchyLevels(1);
+    setManagerChain(['']);
     setEmployeeSearch('');
     setManagerSearches(['']);
     setShowEmployeeDropdown(false);
@@ -352,13 +444,22 @@ export default function ReportingStructureManagement() {
               <UserPlus size={16} />
             </button>
             {node.managerId && (
-              <button
-                onClick={() => handleRemove(node.userId, node.name)}
-                className="p-1 text-red-600 hover:bg-red-50 rounded"
-                title="Remove Relationship"
-              >
-                <Trash2 size={16} />
-              </button>
+              <>
+                <button
+                  onClick={() => openMoveDialog(node.userId, node.name)}
+                  className="p-1 text-amber-600 hover:bg-amber-50 rounded"
+                  title="Move to Different Level"
+                >
+                  <ArrowRightLeft size={16} />
+                </button>
+                <button
+                  onClick={() => handleRemove(node.userId, node.name)}
+                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                  title="Remove Relationship"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -439,11 +540,12 @@ export default function ReportingStructureManagement() {
               Assign Manager
             </button>
             <button
-              onClick={fetchData}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors flex items-center gap-2"
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              className="px-4 py-2 bg-gray-600 text-white rounded-lg font-medium hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-60"
             >
-              <RefreshCw size={20} />
-              Refresh
+              <RefreshCw size={20} className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
         </div>
@@ -529,13 +631,22 @@ export default function ReportingStructureManagement() {
                             <UserPlus size={16} />
                           </button>
                           {user.managerId && (
-                            <button
-                              onClick={() => handleRemove(user.userId, user.userName)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Remove Relationship"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            <>
+                              <button
+                                onClick={() => openMoveDialog(user.userId, user.userName)}
+                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                title="Move to Different Level"
+                              >
+                                <ArrowRightLeft size={16} />
+                              </button>
+                              <button
+                                onClick={() => handleRemove(user.userId, user.userName)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Remove Relationship"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </td>
@@ -592,10 +703,9 @@ export default function ReportingStructureManagement() {
                       onChange={(e) => {
                         setEmployeeSearch(e.target.value);
                         setSelectedUserId('');
-                        setShowEmployeeDropdown(true);
+                        setShowEmployeeDropdown(e.target.value.trim().length > 0);
                       }}
-                      onFocus={() => setShowEmployeeDropdown(true)}
-                      placeholder="Search by name, UID, or email..."
+                      placeholder="Type name, UID, or email to search..."
                       className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     {selectedUserId && (
@@ -610,30 +720,74 @@ export default function ReportingStructureManagement() {
                       </button>
                     )}
                   </div>
-                  {showEmployeeDropdown && !selectedUserId && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                      {filterUsers(employeeSearch).length === 0 ? (
+                  {showEmployeeDropdown && !selectedUserId && employeeSearch.trim().length > 0 && (() => {
+                    const results = filterUsers(employeeSearch);
+                    // Trigger hierarchy info fetch for visible results
+                    const ids = results.map(u => u.id);
+                    if (ids.length) fetchHierarchyInfo(ids);
+                    return (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                      {results.length === 0 ? (
                         <div className="px-4 py-2 text-gray-500 text-sm">No employees found</div>
                       ) : (
-                        filterUsers(employeeSearch).map((user) => (
-                          <button
-                            key={user.id}
-                            onClick={() => {
-                              setSelectedUserId(user.id);
-                              setEmployeeSearch('');
-                              setShowEmployeeDropdown(false);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100 last:border-0"
-                          >
-                            <div className="font-medium">{user.displayName}</div>
-                            <div className="text-xs text-gray-500">
-                              {user.uid}{user.empId && ` | ${user.empId}`} | {user.department || 'No Dept'} | {user.email}
-                            </div>
-                          </button>
-                        ))
+                        results.map((user) => {
+                          const hInfo = hierarchyInfoMap[user.id];
+                          const isInHierarchy = hInfo?.isInHierarchy === true;
+                          return (
+                            <button
+                              key={user.id}
+                              onClick={() => {
+                                if (isInHierarchy) return; // Prevent selection
+                                setSelectedUserId(user.id);
+                                setEmployeeSearch('');
+                                setShowEmployeeDropdown(false);
+                              }}
+                              disabled={isInHierarchy}
+                              className={`w-full px-4 py-2 text-left text-sm border-b border-gray-100 last:border-0 ${
+                                isInHierarchy
+                                  ? 'bg-gray-50 cursor-not-allowed opacity-75'
+                                  : 'hover:bg-blue-50 cursor-pointer'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="font-medium text-gray-900">{user.displayName}</div>
+                                {isInHierarchy && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                                    <Shield size={10} />
+                                    Already in Hierarchy
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {user.uid}{user.empId && ` | ${user.empId}`} | {user.department || 'No Dept'} | {user.email}
+                              </div>
+                              {isInHierarchy && hInfo && (
+                                <div className="mt-1 flex items-center gap-2 text-xs">
+                                  <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                    Level {hInfo.currentLevel}
+                                  </span>
+                                  {hInfo.parentName && (
+                                    <span className="text-gray-500">
+                                      Reports to: <span className="font-medium text-gray-700">{hInfo.parentName}</span>
+                                    </span>
+                                  )}
+                                  {!hInfo.parentName && (
+                                    <span className="text-gray-500 italic">Top-level (no manager)</span>
+                                  )}
+                                  {hInfo.subordinateCount > 0 && (
+                                    <span className="text-gray-500">
+                                      • {hInfo.subordinateCount} subordinate{hInfo.subordinateCount > 1 ? 's' : ''}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })
                       )}
                     </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* Hierarchy Levels Selector */}
@@ -646,7 +800,7 @@ export default function ReportingStructureManagement() {
                     onChange={(e) => handleLevelChange(Number(e.target.value))}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    {[2, 3, 4, 5].map((level) => (
+                    {[1, 2, 3, 4, 5].map((level) => (
                       <option key={level} value={level}>
                         {level} Level{level > 1 ? 's' : ''}
                       </option>
@@ -682,15 +836,10 @@ export default function ReportingStructureManagement() {
                             setManagerSearches(newSearches);
                             handleManagerChange(index, '');
                             const newDropdowns = [...showManagerDropdowns];
-                            newDropdowns[index] = true;
+                            newDropdowns[index] = e.target.value.trim().length > 0;
                             setShowManagerDropdowns(newDropdowns);
                           }}
-                          onFocus={() => {
-                            const newDropdowns = [...showManagerDropdowns];
-                            newDropdowns[index] = true;
-                            setShowManagerDropdowns(newDropdowns);
-                          }}
-                          placeholder={`Search Level ${levelNumber} manager...`}
+                          placeholder={`Type name/UID to search Level ${levelNumber} manager...`}
                           className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                         {currentManagerId && (
@@ -707,34 +856,55 @@ export default function ReportingStructureManagement() {
                           </button>
                         )}
                       </div>
-                      {isDropdownOpen && !currentManagerId && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          {filterUsers(currentSearch, excludedIds).length === 0 ? (
+                      {isDropdownOpen && !currentManagerId && currentSearch.trim().length > 0 && (() => {
+                        const results = filterUsers(currentSearch, excludedIds);
+                        const ids = results.map(u => u.id);
+                        if (ids.length) fetchHierarchyInfo(ids);
+                        return (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                          {results.length === 0 ? (
                             <div className="px-4 py-2 text-gray-500 text-sm">No managers found</div>
                           ) : (
-                            filterUsers(currentSearch, excludedIds).map((user) => (
-                              <button
-                                key={user.id}
-                                onClick={() => {
-                                  handleManagerChange(index, user.id);
-                                  const newSearches = [...managerSearches];
-                                  newSearches[index] = '';
-                                  setManagerSearches(newSearches);
-                                  const newDropdowns = [...showManagerDropdowns];
-                                  newDropdowns[index] = false;
-                                  setShowManagerDropdowns(newDropdowns);
-                                }}
-                                className="w-full px-4 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100 last:border-0"
-                              >
-                                <div className="font-medium">{user.displayName}</div>
-                                <div className="text-xs text-gray-500">
-                                  {user.uid}{user.empId && ` | ${user.empId}`} | {user.designation || 'No Designation'} | {user.email}
-                                </div>
-                              </button>
-                            ))
+                            results.map((user) => {
+                              const hInfo = hierarchyInfoMap[user.id];
+                              const isInHierarchy = hInfo?.isInHierarchy === true;
+                              return (
+                                <button
+                                  key={user.id}
+                                  onClick={() => {
+                                    handleManagerChange(index, user.id);
+                                    const newSearches = [...managerSearches];
+                                    newSearches[index] = '';
+                                    setManagerSearches(newSearches);
+                                    const newDropdowns = [...showManagerDropdowns];
+                                    newDropdowns[index] = false;
+                                    setShowManagerDropdowns(newDropdowns);
+                                  }}
+                                  className="w-full px-4 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100 last:border-0"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="font-medium">{user.displayName}</div>
+                                    {isInHierarchy && (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                                        Level {hInfo!.currentLevel}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {user.uid}{user.empId && ` | ${user.empId}`} | {user.designation || 'No Designation'} | {user.email}
+                                  </div>
+                                  {isInHierarchy && hInfo?.parentName && (
+                                    <div className="text-xs text-gray-400 mt-0.5">
+                                      Currently reports to: {hInfo.parentName}
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })
                           )}
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   );
                 })}
@@ -780,6 +950,141 @@ export default function ReportingStructureManagement() {
                 <button
                   onClick={() => setShowAssignDialog(false)}
                   disabled={assigning}
+                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move User Dialog */}
+      {showMoveDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                  <ArrowRightLeft className="h-6 w-6 text-amber-600" />
+                  Move User
+                </h2>
+                <button
+                  onClick={() => setShowMoveDialog(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <span className="text-2xl">&times;</span>
+                </button>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-amber-800">
+                  <strong>Moving:</strong> {moveUserName}
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  This will remove the user from their current position, re-parent their subordinates
+                  to their current manager, and place them under the new manager. All operations are atomic.
+                </p>
+              </div>
+
+              <div className="relative search-dropdown-container">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  New Manager
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={moveNewManagerId ? getSelectedUserDisplay(moveNewManagerId) : moveManagerSearch}
+                    onChange={(e) => {
+                      setMoveManagerSearch(e.target.value);
+                      setMoveNewManagerId('');
+                      setShowMoveManagerDropdown(e.target.value.trim().length > 0);
+                    }}
+                    placeholder="Type name/UID to search new manager..."
+                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  />
+                  {moveNewManagerId && (
+                    <button
+                      onClick={() => {
+                        setMoveNewManagerId('');
+                        setMoveManagerSearch('');
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+                {showMoveManagerDropdown && !moveNewManagerId && moveManagerSearch.trim().length > 0 && (() => {
+                  const results = filterUsers(moveManagerSearch, [moveUserId]);
+                  const ids = results.map(u => u.id);
+                  if (ids.length) fetchHierarchyInfo(ids);
+                  return (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    {results.length === 0 ? (
+                      <div className="px-4 py-2 text-gray-500 text-sm">No users found</div>
+                    ) : (
+                      results.map((user) => {
+                        const hInfo = hierarchyInfoMap[user.id];
+                        const isInHierarchy = hInfo?.isInHierarchy === true;
+                        return (
+                          <button
+                            key={user.id}
+                            onClick={() => {
+                              setMoveNewManagerId(user.id);
+                              setMoveManagerSearch('');
+                              setShowMoveManagerDropdown(false);
+                            }}
+                            className="w-full px-4 py-2 text-left hover:bg-amber-50 text-sm border-b border-gray-100 last:border-0"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="font-medium">{user.displayName}</div>
+                              {isInHierarchy && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                                  Level {hInfo!.currentLevel}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {user.uid}{user.empId && ` | ${user.empId}`} | {user.department || 'No Dept'} | {user.email}
+                            </div>
+                            {isInHierarchy && hInfo?.parentName && (
+                              <div className="text-xs text-gray-400 mt-0.5">
+                                Currently reports to: {hInfo.parentName}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex items-center gap-3 mt-6 pt-6 border-t">
+                <button
+                  onClick={handleMove}
+                  disabled={moving || !moveNewManagerId}
+                  className="flex-1 px-6 py-3 bg-amber-600 text-white rounded-lg font-medium hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {moving ? (
+                    <>
+                      <RefreshCw className="animate-spin" size={20} />
+                      Moving...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowRightLeft size={20} />
+                      Move User
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowMoveDialog(false)}
+                  disabled={moving}
                   className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel

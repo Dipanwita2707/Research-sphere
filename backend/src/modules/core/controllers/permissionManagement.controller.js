@@ -1,4 +1,5 @@
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 const {
   getSchoolDeptPermissions,
   getCentralDeptPermissions,
@@ -331,6 +332,9 @@ exports.grantSchoolDeptPermissions = async (req, res) => {
     );
     // === END AUDIT LOGGING ===
 
+    // Invalidate user cache so new permissions take effect immediately
+    await cache.invalidateUser(userId);
+
     res.json({
       success: true,
       message: 'School department permissions granted successfully',
@@ -483,6 +487,9 @@ exports.grantCentralDeptPermissions = async (req, res) => {
     );
     // === END AUDIT LOGGING ===
 
+    // Invalidate user cache so new permissions take effect immediately
+    await cache.invalidateUser(userId);
+
     res.json({
       success: true,
       message: 'Central department permissions granted successfully',
@@ -559,6 +566,9 @@ exports.revokeSchoolDeptPermissions = async (req, res) => {
       req
     );
     // === END AUDIT LOGGING ===
+
+    // Invalidate user cache so revoked permissions take effect immediately
+    await cache.invalidateUser(userId);
 
     res.json({
       success: true,
@@ -645,6 +655,9 @@ exports.revokeCentralDeptPermissions = async (req, res) => {
       req
     );
     // === END AUDIT LOGGING ===
+
+    // Invalidate user cache so revoked permissions take effect immediately
+    await cache.invalidateUser(userId);
 
     res.json({
       success: true,
@@ -3244,6 +3257,9 @@ exports.assignRolesToUser = async (req, res) => {
       req.user.id,
       req
     );
+
+    // Invalidate user cache so new role permissions take effect immediately
+    await cache.invalidateUser(userId);
 
     res.json({
       success: true,

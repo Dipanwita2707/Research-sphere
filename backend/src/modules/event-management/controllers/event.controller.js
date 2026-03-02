@@ -413,10 +413,12 @@ const getRegistrationFilterOptions = asyncHandler(async (req, res) => {
 
   const prisma = require('../../../shared/config/database');
 
-  // Get all user IDs registered for this event
+  // Get all user IDs registered for this event (bounded to prevent unbounded queries)
+  const MAX_FILTER_USERS = 5000;
   const registrations = await prisma.eventRegistration.findMany({
     where: { eventId: id },
     select: { userId: true },
+    take: MAX_FILTER_USERS,
   });
   const userIds = registrations.map(r => r.userId);
 

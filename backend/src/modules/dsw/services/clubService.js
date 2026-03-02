@@ -204,22 +204,21 @@ async function createClub(clubData, user) {
       },
     });
 
-    // Add initial members if provided
+    // Add initial members if provided — use createMany for batch efficiency
     if (clubData.initialMembers && clubData.initialMembers.length > 0) {
-      const memberPromises = clubData.initialMembers.map((studentId) =>
-        prisma.clubMember.create({
-          data: {
-            clubId: club.id,
-            studentId: studentId,
-            role: "member",
-            joinedAt: new Date(),
-            addedById: user.id,
-            isActive: true,
-          },
-        }),
-      );
+      const memberData = clubData.initialMembers.map((studentId) => ({
+        clubId: club.id,
+        studentId: studentId,
+        role: "member",
+        joinedAt: new Date(),
+        addedById: user.id,
+        isActive: true,
+      }));
 
-      await Promise.all(memberPromises);
+      await prisma.clubMember.createMany({
+        data: memberData,
+        skipDuplicates: true,
+      });
     }
 
     // Create audit log
@@ -270,15 +269,6 @@ async function createClubFromNoting(noteId, userId) {
       throw new Error("Noting must be approved before creating club");
     }
 
-    // Check if club already exists for this noting
-    const existingClub = await prisma.club.findUnique({
-      where: { notingId: noteId },
-    });
-
-    if (existingClub) {
-      throw new Error("Club already created from this noting");
-    }
-
     // Validate required club fields in noting
     if (
       !noting.clubName ||
@@ -293,25 +283,55 @@ async function createClubFromNoting(noteId, userId) {
       throw new Error("Noting must have all required club fields");
     }
 
-    // Check for duplicate club name
-    const duplicateClub = await prisma.club.findFirst({
-      where: {
-        name: {
-          equals: noting.clubName,
-          mode: "insensitive",
+    // Check if club already exists for this noting
+    // Parallelize independent validation queries — all can run concurrently
+    const [existingClub, duplicateClub, category, facilitator, chairpersonStudent] = await Promise.all([
+      // Check existing club for this noting
+      prisma.club.findUnique({
+        where: { notingId: noteId },
+      }),
+      // Check for duplicate club name
+      prisma.club.findFirst({
+        where: {
+          name: {
+            equals: noting.clubName,
+            mode: "insensitive",
+          },
         },
-      },
-    });
+      }),
+      // Validate category (must be sub-category)
+      prisma.clubCategory.findUnique({
+        where: { id: noting.clubCategoryId },
+        include: { parent: true },
+      }),
+      // Validate faculty facilitator
+      prisma.userLogin.findUnique({
+        where: { id: noting.clubFacultyFacilitatorId },
+        select: { role: true },
+      }),
+      // Validate chairperson (noting stores StudentDetails UUID)
+      prisma.studentDetails.findUnique({
+        where: { id: noting.clubChairpersonId },
+        select: {
+          id: true,
+          userLoginId: true,
+          userLogin: {
+            select: {
+              id: true,
+              role: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    if (existingClub) {
+      throw new Error("Club already created from this noting");
+    }
 
     if (duplicateClub) {
       throw new Error(`Club with name "${noting.clubName}" already exists`);
     }
-
-    // Validate category (must be sub-category)
-    const category = await prisma.clubCategory.findUnique({
-      where: { id: noting.clubCategoryId },
-      include: { parent: true },
-    });
 
     if (!category) {
       throw new Error("Invalid category ID");
@@ -321,30 +341,9 @@ async function createClubFromNoting(noteId, userId) {
       throw new Error("Category must be a sub-category (not main category)");
     }
 
-    // Validate faculty facilitator
-    const facilitator = await prisma.userLogin.findUnique({
-      where: { id: noting.clubFacultyFacilitatorId },
-      select: { role: true },
-    });
-
     if (!facilitator || facilitator.role !== "faculty") {
       throw new Error("Faculty facilitator must be a faculty member");
     }
-
-    // Validate chairperson (noting stores StudentDetails UUID)
-    const chairpersonStudent = await prisma.studentDetails.findUnique({
-      where: { id: noting.clubChairpersonId },
-      select: {
-        id: true,
-        userLoginId: true,
-        userLogin: {
-          select: {
-            id: true,
-            role: true,
-          },
-        },
-      },
-    });
 
     if (
       !chairpersonStudent ||

@@ -30,10 +30,9 @@ const generateStallId = async (eventId) => {
   return stallId;
 };
 
-const generateStallQrCode = (stallId) => {
-  const payload = `/feedback/stall/${stallId}`;
-  // Return the URL path (frontend renders QR from this)
-  return payload;
+const generateStallQrCode = (stallId, eventId) => {
+  // Full frontend path that the feedback scanner will recognise
+  return `/events/${eventId}/stalls/${stallId}/feedback`;
 };
 
 const getEventOrFail = async (eventId) => {
@@ -224,7 +223,7 @@ const submitStallApplication = asyncHandler(async (req, res) => {
 
   // Generate unique stall ID
   const stallId = await generateStallId(event.id);
-  const stallQrCode = generateStallQrCode(stallId);
+  const stallQrCode = generateStallQrCode(stallId, event.id);
 
   const application = await prisma.stallApplication.create({
     data: {
@@ -494,6 +493,15 @@ const updateStallApplication = asyncHandler(async (req, res) => {
 
     // If approved, create a Stall record
     if (status === 'approved') {
+      // Always use a fresh QR URL with the correct /events/{eventId}/stalls/{stallId}/feedback path
+      const freshQrCode = generateStallQrCode(application.stallId, event.id);
+
+      // Also update the application's QR so its stall_qr_code is current
+      await tx.stallApplication.update({
+        where: { id: application.id },
+        data: { stallQrCode: freshQrCode },
+      });
+
       await tx.stall.upsert({
         where: { stallId: application.stallId },
         create: {
@@ -507,10 +515,10 @@ const updateStallApplication = asyncHandler(async (req, res) => {
           ownerId: application.applicantId,
           source: 'student-approved',
           size: application.stallSize === 'custom' ? application.customStallSize : application.stallSize,
-          stallQrCode: application.stallQrCode,
+          stallQrCode: freshQrCode,
           isActive: true,
         },
-        update: {},
+        update: { stallQrCode: freshQrCode },
       });
     }
 
@@ -583,6 +591,11 @@ const bulkUpdateStallApplications = asyncHandler(async (req, res) => {
       });
 
       if (status === 'approved') {
+        const freshQrCode = generateStallQrCode(app.stallId, event.id);
+        await tx.stallApplication.update({
+          where: { id: app.id },
+          data: { stallQrCode: freshQrCode },
+        });
         await tx.stall.upsert({
           where: { stallId: app.stallId },
           create: {
@@ -595,10 +608,10 @@ const bulkUpdateStallApplications = asyncHandler(async (req, res) => {
             ownerId: app.applicantId,
             source: 'student-approved',
             size: app.stallSize === 'custom' ? app.customStallSize : app.stallSize,
-            stallQrCode: app.stallQrCode,
+            stallQrCode: freshQrCode,
             isActive: true,
           },
-          update: {},
+          update: { stallQrCode: freshQrCode },
         });
       }
     }
@@ -705,7 +718,7 @@ const createStall = asyncHandler(async (req, res) => {
 
   // Generate stall ID
   const stallId = await generateStallId(event.id);
-  const stallQrCode = generateStallQrCode(stallId);
+  const stallQrCode = generateStallQrCode(stallId, event.id);
 
   const stall = await prisma.stall.create({
     data: {

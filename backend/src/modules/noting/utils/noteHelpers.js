@@ -6,7 +6,7 @@
 const prisma = require('../../../shared/config/database');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../../../shared/utils/AppError');
 const { NOTE_STATUS } = require('../constants/noting.constants');
-const { noteForValidation, getFullNoteInclude } = require('./selectFragments');
+const { noteForValidation, getFullNoteInclude, getFullNoteSelect } = require('./selectFragments');
 
 /**
  * Get note by ID with validation
@@ -30,11 +30,13 @@ async function getNoteById(id, options = null) {
 
 /**
  * Get note with full details
+ * PERF: Uses select{} + relationLoadStrategy:"join" instead of include{}.
+ * This reduces Neon round-trips from 5-6 to 1 (single SQL with JOINs).
  * @param {string} id - Note UUID
  * @returns {Promise<Object>} Note with all relations
  */
 async function getNoteWithDetails(id) {
-  const note = await getNoteById(id, { include: getFullNoteInclude() });
+  const note = await getNoteById(id, getFullNoteSelect());
 
   // ── Enrich DSW club creation notings with resolved names ──────────────
   if (note.subcategory === 'dsw_club_creation' && note.clubName) {
@@ -61,80 +63,88 @@ async function resolveDswClubDetails(note) {
   };
 
   try {
-    // Category
-    if (note.clubCategoryId) {
-      const cat = await prisma.clubCategory.findUnique({
-        where: { id: note.clubCategoryId },
-        select: { name: true, parent: { select: { name: true } } },
-      });
-      if (cat) {
-        details.categoryName = cat.name;
-        details.parentCategoryName = cat.parent?.name || null;
-      }
-    }
-
-    // Faculty Facilitator
-    if (note.clubFacultyFacilitatorId) {
-      const user = await prisma.userLogin.findUnique({
-        where: { id: note.clubFacultyFacilitatorId },
-        select: {
-          id: true, uid: true,
-          employeeDetails: {
+    // Parallelize independent lookups: category, facilitator, and chairperson
+    // are all independent queries that can run concurrently
+    const [cat, facilitatorUser, chairpersonUser] = await Promise.all([
+      // Category lookup
+      note.clubCategoryId
+        ? prisma.clubCategory.findUnique({
+            where: { id: note.clubCategoryId },
+            select: { name: true, parent: { select: { name: true } } },
+          })
+        : null,
+      // Faculty Facilitator lookup
+      note.clubFacultyFacilitatorId
+        ? prisma.userLogin.findUnique({
+            where: { id: note.clubFacultyFacilitatorId },
             select: {
-              firstName: true, lastName: true, displayName: true,
-              designation: true,
-              primaryDepartment: { select: { departmentName: true } },
-            },
-          },
-        },
-      });
-      if (user) {
-        const emp = user.employeeDetails;
-        details.facultyFacilitator = {
-          id: user.id,
-          uid: user.uid,
-          name: emp?.displayName || [emp?.firstName, emp?.lastName].filter(Boolean).join(' ') || user.uid,
-          department: emp?.primaryDepartment?.departmentName || null,
-          designation: emp?.designation || null,
-        };
-      }
-    }
-
-    // Chairperson
-    if (note.clubChairpersonId) {
-      const user = await prisma.userLogin.findUnique({
-        where: { id: note.clubChairpersonId },
-        select: {
-          id: true, uid: true,
-          studentLogin: {
-            select: {
-              displayName: true, firstName: true, lastName: true, studentId: true,
-              program: {
-                select: { programName: true, department: { select: { departmentName: true } } },
+              id: true, uid: true,
+              employeeDetails: {
+                select: {
+                  firstName: true, lastName: true, displayName: true,
+                  designation: true,
+                  primaryDepartment: { select: { departmentName: true } },
+                },
               },
             },
-          },
-          employeeDetails: {
-            select: { displayName: true, firstName: true, lastName: true },
-          },
-        },
-      });
-      if (user) {
-        const stu = user.studentLogin;
-        const emp = user.employeeDetails;
-        details.chairperson = {
-          id: user.id,
-          uid: user.uid,
-          name: stu?.displayName || [stu?.firstName, stu?.lastName].filter(Boolean).join(' ')
-                || emp?.displayName || [emp?.firstName, emp?.lastName].filter(Boolean).join(' ')
-                || user.uid,
-          department: stu?.program?.department?.departmentName || null,
-          program: stu?.program?.programName || null,
-        };
-      }
+          })
+        : null,
+      // Chairperson lookup
+      note.clubChairpersonId
+        ? prisma.userLogin.findUnique({
+            where: { id: note.clubChairpersonId },
+            select: {
+              id: true, uid: true,
+              studentLogin: {
+                select: {
+                  displayName: true, firstName: true, lastName: true, studentId: true,
+                  program: {
+                    select: { programName: true, department: { select: { departmentName: true } } },
+                  },
+                },
+              },
+              employeeDetails: {
+                select: { displayName: true, firstName: true, lastName: true },
+              },
+            },
+          })
+        : null,
+    ]);
+
+    // Map category result
+    if (cat) {
+      details.categoryName = cat.name;
+      details.parentCategoryName = cat.parent?.name || null;
     }
 
-    // Initial Members (batch)
+    // Map faculty facilitator result
+    if (facilitatorUser) {
+      const emp = facilitatorUser.employeeDetails;
+      details.facultyFacilitator = {
+        id: facilitatorUser.id,
+        uid: facilitatorUser.uid,
+        name: emp?.displayName || [emp?.firstName, emp?.lastName].filter(Boolean).join(' ') || facilitatorUser.uid,
+        department: emp?.primaryDepartment?.departmentName || null,
+        designation: emp?.designation || null,
+      };
+    }
+
+    // Map chairperson result
+    if (chairpersonUser) {
+      const stu = chairpersonUser.studentLogin;
+      const emp = chairpersonUser.employeeDetails;
+      details.chairperson = {
+        id: chairpersonUser.id,
+        uid: chairpersonUser.uid,
+        name: stu?.displayName || [stu?.firstName, stu?.lastName].filter(Boolean).join(' ')
+              || emp?.displayName || [emp?.firstName, emp?.lastName].filter(Boolean).join(' ')
+              || chairpersonUser.uid,
+        department: stu?.program?.department?.departmentName || null,
+        program: stu?.program?.programName || null,
+      };
+    }
+
+    // Initial Members (batch) — already efficient, runs after parallel lookups
     if (note.clubInitialMembers && note.clubInitialMembers.length > 0) {
       const users = await prisma.userLogin.findMany({
         where: { id: { in: note.clubInitialMembers } },

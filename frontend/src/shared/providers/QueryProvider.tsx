@@ -11,6 +11,7 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
           queries: {
             staleTime: 60 * 1000, // 1 minute
             retry: 1,
+            refetchOnWindowFocus: false, // Prevent refetch storms on Alt-Tab (university WiFi)
           },
         },
       })

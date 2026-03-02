@@ -95,6 +95,32 @@ router.delete(
 );
 
 /**
+ * Move user to a new position in the hierarchy
+ * Atomically removes from current position and re-inserts under new manager
+ */
+router.post(
+  '/move',
+  restrictTo('admin'),
+  [
+    body('userId').notEmpty().withMessage('User ID is required'),
+    body('newManagerId').notEmpty().withMessage('New Manager ID is required'),
+  ],
+  reportingStructureController.moveUser
+);
+
+/**
+ * Get hierarchy info for multiple users (batch)
+ * Returns level, parent, subordinate count for users already in hierarchy
+ */
+router.post(
+  '/hierarchy-info',
+  [
+    body('userIds').isArray({ min: 1 }).withMessage('userIds must be a non-empty array'),
+  ],
+  reportingStructureController.getBulkHierarchyInfo
+);
+
+/**
  * Bulk import reporting structure
  * Admin only - for initial setup or mass updates
  */

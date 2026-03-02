@@ -229,11 +229,11 @@ function validateNoteForSubmission(note) {
     if (!eventPaymentType) throw new ValidationError('Please select Payment Type: Free or Paid.');
     if (eventPaymentType === 'paid') {
       const isTeam = eventParticipationType === 'team';
-      if (isTeam && (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam === '' || Number(eventRegistrationFeeTeam) < 0)) {
-        throw new ValidationError('Please enter the Fee per Team (₹) for paid team events.');
+      if (isTeam && (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam === '' || Number(eventRegistrationFeeTeam) < 1)) {
+        throw new ValidationError('Participation fee must be at least ₹1.');
       }
-      if (!isTeam && (eventRegistrationFeeIndividual == null || eventRegistrationFeeIndividual === '' || Number(eventRegistrationFeeIndividual) < 0)) {
-        throw new ValidationError('Please enter the Participation Fee (₹) for paid individual events.');
+      if (!isTeam && (eventRegistrationFeeIndividual == null || eventRegistrationFeeIndividual === '' || Number(eventRegistrationFeeIndividual) < 1)) {
+        throw new ValidationError('Participation fee must be at least ₹1.');
       }
     }
   }
@@ -301,11 +301,11 @@ function validateNoteForSubmission(note) {
       if (!v.eventPaymentType) throw new ValidationError(`${label}: Please select Payment Type (Free or Paid).`);
       if (v.eventPaymentType === 'paid') {
         const isTeam = v.eventParticipationType === 'team';
-        if (isTeam && (v.eventRegistrationFeeTeam == null || v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
-          throw new ValidationError(`${label}: Please enter the Fee per Team (₹) for paid events.`);
+        if (isTeam && (v.eventRegistrationFeeTeam == null || v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 1)) {
+          throw new ValidationError(`${label}: Participation fee must be at least ₹1.`);
         }
-        if (!isTeam && (v.eventRegistrationFeeIndividual == null || v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
-          throw new ValidationError(`${label}: Please enter the Participation Fee (₹) for paid events.`);
+        if (!isTeam && (v.eventRegistrationFeeIndividual == null || v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 1)) {
+          throw new ValidationError(`${label}: Participation fee must be at least ₹1.`);
         }
       }
     }

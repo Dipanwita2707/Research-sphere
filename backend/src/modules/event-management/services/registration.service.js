@@ -433,79 +433,78 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
  * Get user's registration dashboard data
  */
 const getRegistrationDashboard = async (userId) => {
-  const registrations = await prisma.eventRegistration.findMany({
-    where: { userId },
-    include: {
-      Event: {
-        select: {
-          id: true,
-          eventId: true,
-          name: true,
-          eventType: true,
-          startDate: true,
-          endDate: true,
-          venue: true,
-          participationType: true,
-          status: true,
+  // Parallelize all 3 independent queries — registrations, invitations, requests
+  const [registrations, pendingInvitations, sentRequests] = await Promise.all([
+    prisma.eventRegistration.findMany({
+      where: { userId },
+      include: {
+        Event: {
+          select: {
+            id: true,
+            eventId: true,
+            name: true,
+            eventType: true,
+            startDate: true,
+            endDate: true,
+            venue: true,
+            participationType: true,
+            status: true,
+          },
         },
-      },
-      EventTeam: {
-        include: {
-          EventTeamMember: true,
-          Event: {
-            select: {
-              minTeamSize: true,
-              maxTeamSize: true,
+        EventTeam: {
+          include: {
+            EventTeamMember: true,
+            Event: {
+              select: {
+                minTeamSize: true,
+                maxTeamSize: true,
+              },
             },
           },
         },
       },
-    },
-    orderBy: { registeredAt: 'desc' },
-  });
-
-  // Get pending invitations
-  const pendingInvitations = await prisma.eventTeamInvitation.findMany({
-    where: {
-      inviteeId: userId,
-      status: 'pending',
-    },
-    include: {
-      EventTeam: {
-        include: {
-          Event: {
-            select: {
-              id: true,
-              eventId: true,
-              name: true,
+      orderBy: { registeredAt: 'desc' },
+    }),
+    prisma.eventTeamInvitation.findMany({
+      where: {
+        inviteeId: userId,
+        status: 'pending',
+      },
+      include: {
+        EventTeam: {
+          include: {
+            Event: {
+              select: {
+                id: true,
+                eventId: true,
+                name: true,
+              },
             },
+            EventTeamMember: true,
           },
-          EventTeamMember: true,
         },
       },
-    },
-  });
-
-  // Get sent requests
-  const sentRequests = await prisma.eventTeamRequest.findMany({
-    where: {
-      requesterId: userId,
-      status: 'pending',
-    },
-    include: {
-      EventTeam: {
-        include: {
-          Event: {
-            select: {
-              id: true,
-              eventId: true,
-              name: true,
+    }),
+    prisma.eventTeamRequest.findMany({
+      where: {
+        requesterId: userId,
+        status: 'pending',
+      },
+      include: {
+        EventTeam: {
+          include: {
+            Event: {
+              select: {
+                id: true,
+                eventId: true,
+                name: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   return {
     registrations: registrations.map(reg => ({

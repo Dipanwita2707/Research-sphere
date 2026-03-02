@@ -10,14 +10,25 @@ import type { NotingPermissions } from '@/features/noting-management/services/no
 import type { NoteConfig, CreatorInfo, CreateNotePayload } from '@/features/noting-management/types/noting.types';
 import {
   EventTypeSelector,
-  StallConfigSection,
-  FestivalForm,
-  EventFormFields,
   defaultStallConfig,
   defaultFestivalForm,
   defaultVenueForm,
 } from '@/features/noting-management/components';
 import type { NotingEventType, StallConfig, FestivalFormData, VenueFormData } from '@/features/noting-management/components';
+
+// Dynamic imports for MUI-heavy form components (~90 KB DateTimePicker bundle)
+const FestivalForm = dynamic(
+  () => import('@/features/noting-management/components/FestivalForm').then(mod => ({ default: mod.FestivalForm })),
+  { ssr: false },
+);
+const StallConfigSection = dynamic(
+  () => import('@/features/noting-management/components/StallConfigSection').then(mod => ({ default: mod.StallConfigSection })),
+  { ssr: false },
+);
+const EventFormFields = dynamic(
+  () => import('@/features/noting-management/components/EventFormFields').then(mod => ({ default: mod.EventFormFields })),
+  { ssr: false },
+);
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
@@ -248,7 +259,23 @@ export default function NewNotePage() {
           setSubcategory(c.categories[0].subcategories[0].value);
         }
       })
-      .catch(() => toast({ type: 'error', message: 'Failed to load form config' }))
+      .catch((err) => {
+        const status = err?.response?.status;
+        const serverMsg = err?.response?.data?.message;
+        let userMessage = 'Something went wrong while loading the form. Please try again.';
+
+        if (status === 403) {
+          userMessage = serverMsg || 'You do not have permission to create a noting. Please contact your administrator.';
+        } else if (status === 401) {
+          userMessage = 'Your session has expired. Please log in again.';
+        } else if (status >= 500) {
+          userMessage = 'Server is temporarily unavailable. Please try again in a moment.';
+        } else if (!navigator.onLine) {
+          userMessage = 'No internet connection. Please check your network and try again.';
+        }
+
+        toast({ type: 'error', message: userMessage });
+      })
       .finally(() => setLoading(false));
   }, [toast]);
 

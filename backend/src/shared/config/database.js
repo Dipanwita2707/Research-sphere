@@ -13,8 +13,8 @@ if (process.env.NODE_ENV === "production") {
       },
     },
     transactionOptions: {
-      maxWait: 20000, // 20 seconds max wait
-      timeout: 30000, // 30 seconds transaction timeout
+      maxWait: 5000,  // 5s max wait (reduced from 20s — fail fast)
+      timeout: 10000, // 10s transaction timeout (reduced from 30s)
       isolationLevel: "ReadCommitted",
     },
   });
@@ -23,7 +23,13 @@ if (process.env.NODE_ENV === "production") {
   if (!global.prisma) {
     global.prisma = new PrismaClient({
       log:
-        process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+        process.env.NODE_ENV === "development"
+          ? [
+              "warn",
+              "error",
+              { level: "query", emit: "event" }, // Emit query events for slow-query logging
+            ]
+          : ["error"],
       datasources: {
         db: {
           url:
@@ -31,11 +37,21 @@ if (process.env.NODE_ENV === "production") {
         },
       },
       transactionOptions: {
-        maxWait: 20000,
-        timeout: 30000,
+        maxWait: 5000,  // 5s max wait (reduced from 20s — fail fast)
+        timeout: 10000, // 10s transaction timeout (reduced from 30s)
         isolationLevel: "ReadCommitted",
       },
     });
+
+    // Log slow queries (>500ms) in development — pretty formatted
+    if (process.env.NODE_ENV === "development") {
+      const log = require("../utils/logger");
+      global.prisma.$on("query", (e) => {
+        if (e.duration > 500) {
+          log.slowQuery(e.duration, e.query);
+        }
+      });
+    }
   }
   prisma = global.prisma;
 }
@@ -46,22 +62,22 @@ const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
 const connectWithRetry = async () => {
+  const log = require("../utils/logger");
   try {
     await prisma.$connect();
-    console.log("✅ Database connected successfully via Prisma");
+    log.ok("Database connected successfully via Prisma");
     connectionAttempts = 0; // Reset on success
   } catch (error) {
     connectionAttempts++;
-    console.error(
-      `❌ Database connection attempt ${connectionAttempts} failed:`,
-      error.message,
+    log.error(
+      `Database connection attempt ${connectionAttempts} failed: ${error.message}`,
     );
 
     if (connectionAttempts < MAX_RETRIES) {
-      console.log(`⏳ Retrying in ${RETRY_DELAY / 1000} seconds...`);
+      log.warn(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
       setTimeout(connectWithRetry, RETRY_DELAY);
     } else {
-      console.error("❌ Max connection retries reached. Exiting...");
+      log.error("Max connection retries reached. Exiting...");
       process.exit(1);
     }
   }

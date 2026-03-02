@@ -80,12 +80,12 @@ export default function NotingListPage() {
 
   // ── URL is the single source of truth ────────────────────────────────────
   // Read directly from searchParams — no useState mirrors, no sync useEffect.
-  const VALID_FILTERS = ["mine", "pending", "handled", "copies"] as const;
+  const VALID_FILTERS = ["mine", "pending", "handled_approved", "handled_rejected", "copies"] as const;
   const VALID_COPIES_FILTERS = ["all", "my_work", "complaints"] as const;
 
   const rawTab = searchParams.get("tab") ?? "mine";
   const filter = VALID_FILTERS.includes(rawTab as any)
-    ? (rawTab as "mine" | "pending" | "handled" | "copies")
+    ? (rawTab as "mine" | "pending" | "handled_approved" | "handled_rejected" | "copies")
     : "mine";
 
   const rawPage = parseInt(searchParams.get("page") ?? "1", 10);
@@ -178,8 +178,12 @@ export default function NotingListPage() {
   );
 
   // ── Notes list query ──────────────────────────────────────────────────────
+  // Map UI filter keys to API filter + handledAction params
+  const apiFilter = (filter === "handled_approved" || filter === "handled_rejected") ? "handled" : filter;
+  const apiHandledAction = filter === "handled_approved" ? "approved" : filter === "handled_rejected" ? "rejected" : undefined;
+
   const listParams = {
-    filter,
+    filter: apiFilter as "mine" | "pending" | "handled" | "copies",
     page,
     limit: PAGE_SIZE,
     search: debouncedSearch || undefined,
@@ -187,6 +191,7 @@ export default function NotingListPage() {
     category: category || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
+    handledAction: apiHandledAction,
     // disable list query when on Copies tab
     enabled: filter !== "copies",
   };
@@ -215,6 +220,18 @@ export default function NotingListPage() {
   const myCopies = copiesData?.copies ?? [];
   const myManagerId = copiesData?.myManagerId ?? null;
   const copiesPagination = copiesData?.pagination;
+
+  // ── Background prefetch: warm the copies cache while the user is on another tab ──
+  // This ensures the copies tab loads instantly when the user clicks it.
+  useEffect(() => {
+    if (filter !== "copies" && user) {
+      queryClient.prefetchQuery({
+        queryKey: NOTING_QUERY_KEYS.myCopies(1, PAGE_SIZE),
+        queryFn: () => notingService.getMyCopies({ page: 1, limit: PAGE_SIZE }),
+        staleTime: 2 * 60 * 1000,
+      });
+    }
+  }, [filter, user, queryClient]);
 
   const pagination =
     filter === "copies"
@@ -323,11 +340,18 @@ export default function NotingListPage() {
         count: counts.pending,
       },
       {
-        key: "handled" as const,
-        label: "Handled by Me",
-        desc: "Actions you've taken",
-        icon: History,
-        count: counts.handled,
+        key: "handled_approved" as const,
+        label: "Approved / Recommended",
+        desc: "Notes you approved or recommended",
+        icon: CheckCircle,
+        count: 0,
+      },
+      {
+        key: "handled_rejected" as const,
+        label: "Rejected / Not Recommended",
+        desc: "Notes you rejected or did not recommend",
+        icon: XCircle,
+        count: 0,
       },
       {
         key: "copies" as const,
@@ -340,7 +364,6 @@ export default function NotingListPage() {
     [
       counts.mine,
       counts.pending,
-      counts.handled,
       copiesPagination?.total,
       myCopies.length,
     ],
@@ -787,15 +810,18 @@ export default function NotingListPage() {
               <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-1.5">
                 {filter === "mine" && "No Notes Created Yet"}
                 {filter === "pending" && "No Pending Approvals"}
-                {filter === "handled" && "No Handled Notes"}
+                {filter === "handled_approved" && "No Approved / Recommended Notes"}
+                {filter === "handled_rejected" && "No Rejected / Not Recommended Notes"}
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 max-w-sm mx-auto">
                 {filter === "mine" &&
                   "Start by creating your first approval request."}
                 {filter === "pending" &&
                   "No notes waiting for your review right now."}
-                {filter === "handled" &&
-                  "Notes you have acted upon will appear here."}
+                {filter === "handled_approved" &&
+                  "You haven\'t approved or recommended any notes yet."}
+                {filter === "handled_rejected" &&
+                  "You haven\'t rejected or not-recommended any notes yet."}
               </p>
               {filter === "mine" && (
                 <Link
@@ -882,7 +908,7 @@ export default function NotingListPage() {
                               </span>
                               {getDisplayName(note)}
                             </span>
-                            {filter !== "handled" && note.currentHolder && (
+                            {filter !== "handled_approved" && filter !== "handled_rejected" && note.currentHolder && (
                               <span className="flex items-center gap-1">
                                 <Send className="w-3 h-3" />
                                 With{" "}
@@ -903,7 +929,7 @@ export default function NotingListPage() {
                         </div>
 
                         <div className="flex flex-row flex-wrap items-center justify-end gap-2 shrink-0">
-                          {filter === "handled" && note.myAction ? (
+                          {(filter === "handled_approved" || filter === "handled_rejected") && note.myAction ? (
                             <div className="flex flex-col items-end gap-1.5">
                               {(() => {
                                 const actionConf =

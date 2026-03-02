@@ -784,4 +784,67 @@ export const eventService = {
     const response = await api.get(`${BASE_URL}/${eventId}/feedback`, { params: { page, limit } });
     return response.data.data;
   },
+
+  // ── Stall Feedback ────────────────────────────────────────────
+
+  /**
+   * Get stall info for stall feedback form (public - no auth)
+   */
+  async getStallFeedbackFormInfo(
+    eventId: string,
+    stallId: string,
+  ): Promise<{ id: string; eventName: string; stallId: string; stallName: string }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/stalls/${stallId}/feedback-info`);
+    return response.data.data;
+  },
+
+  /**
+   * Submit stall feedback (public - no auth required)
+   */
+  async submitStallFeedback(
+    eventId: string,
+    stallId: string,
+    data: { points: number[]; shortDescription?: string },
+  ): Promise<{ id: string }> {
+    const response = await api.post(`${BASE_URL}/${eventId}/stalls/${stallId}/feedback`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Get stall feedback list (event creator only)
+   */
+  async getStallFeedback(
+    eventId: string,
+    stallId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{
+    feedback: Array<{ id: string; points: number[]; shortDescription: string | null; createdAt: string }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+    summary: { totalFeedback: number; overallAvg: number };
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/stalls/${stallId}/feedback`, { params: { page, limit } });
+    return response.data.data;
+  },
+
+  /**
+   * Get stall feedback for the stall owner (auth required, ownership verified)
+   */
+  async getStallOwnerFeedback(
+    eventId: string,
+    stallId: string,
+    page = 1,
+    limit = 20,
+  ): Promise<{
+    feedback: Array<{ id: string; points: number[]; shortDescription: string | null; createdAt: string }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+    summary: {
+      totalFeedback: number;
+      overallAvg: number;
+      perCriterion: Array<{ label: string; avg: number }>;
+    };
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/stalls/${stallId}/owner-feedback`, { params: { page, limit } });
+    return response.data.data;
+  },
 };

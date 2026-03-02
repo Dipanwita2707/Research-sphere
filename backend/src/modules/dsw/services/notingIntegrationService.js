@@ -364,43 +364,56 @@ async function createClubCreationNoting(clubData, createdById) {
       `✅ Club creation noting created: ${notingId} - ${clubData.name}`,
     );
 
+    // Fetch creator info and create initial history entry in parallel —
+    // both depend only on the created noting, not on each other.
     let creatorInfo = createdById;
-    try {
-      const creatorUser = await prisma.userLogin.findUnique({
+    const [creatorUser] = await Promise.all([
+      prisma.userLogin.findUnique({
         where: { id: createdById },
         include: {
           studentDetails: true,
           employeeDetails: true,
         },
-      });
+      }).catch(() => null),
+      // The noting is created directly in the Faculty Facilitator's account.
+      // NO auto-forwarding. The Faculty must review and take action
+      // (forward/approve/reject) for the workflow to progress.
+      // When Faculty forwards, the existing reporting structure resolves normally.
+      prisma.noteHistory.create({
+        data: {
+          noteId: noting.id,
+          action: "SUBMITTED",
+          performedById: facultyFacilitatorUuid,
+          remarks: `Club creation request from student/user ${createdById} - pending Faculty Facilitator review`,
+          nextHolderId: facultyFacilitatorUuid,
+        },
+      }),
+    ]);
 
-      if (creatorUser) {
-        let name = "";
-        if (creatorUser.studentDetails) {
-          name =
-            `${creatorUser.studentDetails.firstName || ""} ${creatorUser.studentDetails.lastName || ""}`.trim();
-        } else if (creatorUser.employeeDetails) {
-          name =
-            `${creatorUser.employeeDetails.firstName || ""} ${creatorUser.employeeDetails.lastName || ""}`.trim();
-        }
-        if (!name) name = creatorUser.email?.split("@")[0] || creatorUser.uid;
-        creatorInfo = `${name} (${creatorUser.uid})`;
+    // Resolve creator display name for logging
+    if (creatorUser) {
+      let name = "";
+      if (creatorUser.studentDetails) {
+        name =
+          `${creatorUser.studentDetails.firstName || ""} ${creatorUser.studentDetails.lastName || ""}`.trim();
+      } else if (creatorUser.employeeDetails) {
+        name =
+          `${creatorUser.employeeDetails.firstName || ""} ${creatorUser.employeeDetails.lastName || ""}`.trim();
       }
-    } catch (_) {}
+      if (!name) name = creatorUser.email?.split("@")[0] || creatorUser.uid;
+      creatorInfo = `${name} (${creatorUser.uid})`;
+    }
 
-    // The noting is created directly in the Faculty Facilitator's account.
-    // NO auto-forwarding. The Faculty must review and take action
-    // (forward/approve/reject) for the workflow to progress.
-    // When Faculty forwards, the existing reporting structure resolves normally.
-    await prisma.noteHistory.create({
-      data: {
-        noteId: noting.id,
-        action: "SUBMITTED",
-        performedById: facultyFacilitatorUuid,
-        remarks: `Club creation request from student/user ${creatorInfo} - pending Faculty Facilitator review`,
-        nextHolderId: facultyFacilitatorUuid,
-      },
-    });
+    // Update the history remark with resolved creator display name
+    // (non-critical — best-effort update for readability)
+    if (creatorInfo !== createdById) {
+      prisma.noteHistory.updateMany({
+        where: { noteId: noting.id, action: "SUBMITTED" },
+        data: {
+          remarks: `Club creation request from student/user ${creatorInfo} - pending Faculty Facilitator review`,
+        },
+      }).catch(() => {}); // fire-and-forget
+    }
 
     console.log(
       `✅ Noting assigned to Faculty Facilitator ${clubData.facultyFacilitatorId} - awaiting faculty action`,

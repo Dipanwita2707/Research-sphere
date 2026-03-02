@@ -34,6 +34,10 @@ router.post('/:id/feedback', validateEventId, validateFeedback, feedbackControll
 // Public: Get minimal event info for feedback form (no auth - for QR scanner users)
 router.get('/:id/feedback-info', validateEventId, feedbackController.getFeedbackFormInfo);
 
+// Public: Stall feedback (no auth - scanned by customers at the stall)
+router.get('/:id/stalls/:stallId/feedback-info', feedbackController.getStallFeedbackFormInfo);
+router.post('/:id/stalls/:stallId/feedback', feedbackController.submitStallFeedback);
+
 // All routes require authentication
 router.use(protect);
 
@@ -217,6 +221,21 @@ router.get(
   validateEventId,
   checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
   feedbackController.getFeedback
+);
+
+// Authed: get stall feedback list (event creator only)
+router.get(
+  '/:id/stalls/:stallId/feedback',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  feedbackController.getStallFeedback
+);
+
+// Authed: stall owner views their own feedback (no special permission needed)
+router.get(
+  '/:id/stalls/:stallId/owner-feedback',
+  validateEventId,
+  feedbackController.getStallOwnerFeedback
 );
 
 // ============================================

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   ArrowLeft, TrendingUp, TrendingDown, Users, UserCheck, UserX, UserMinus, Clock,
   Calendar, Loader2, AlertCircle, Download, BarChart3, PieChart, Activity,
@@ -12,10 +13,6 @@ import {
   Trash2, Store, CheckCheck, XCircle as XCircleIcon,
   FileText, ExternalLink, X, MessageSquare, Plus, Pencil,
 } from 'lucide-react';
-import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend,
-} from 'recharts';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventStatistics, EventVolunteer, StallApplication, Stall, StallMetadata, StallType } from '@/features/event-management/types/event.types';
 import CreateStallForm, { type CreateStallFormData } from '@/features/event-management/components/CreateStallForm';
@@ -25,6 +22,14 @@ import type { RegistrationFilterParams, RegistrationFilterOptions, RegistrationR
 import { getRegistrationDisplayName, getRegistrationIdentifier, getRegistrationSchool, getRegistrationDepartment, getRegistrationProgram } from '@/features/event-management/types/registrationFilter.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
+
+// NOTE: recharts is tree-shaken via next.config.js `optimizePackageImports`.
+// This page is already code-split by Next.js App Router, so recharts only loads
+// when the user navigates to the management page.
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart as RechartsPieChart, Pie, Cell, Legend,
+} from 'recharts';
 
 // ── Design System Constants ──────────────────────────────────────
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
@@ -146,6 +151,8 @@ export default function EventManagementPage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [showFeedbackQR, setShowFeedbackQR] = useState(false);
   const [feedbackQRUrl, setFeedbackQRUrl] = useState<string | null>(null);
+  // Stall-level QR modal
+  const [stallQrModal, setStallQrModal] = useState<{ stallId: string; stallName: string; qrDataUrl: string } | null>(null);
 
   // Registration Advanced Filtering State
   const [regFilters, setRegFilters] = useState<RegistrationFilterParams>({ page: 1, limit: 20 });
@@ -713,6 +720,20 @@ export default function EventManagementPage() {
       setShowFeedbackQR(true);
     } catch {
       toast({ type: 'error', message: 'Failed to generate QR code' });
+    }
+  };
+
+  const handleShowStallQR = async (stall: Stall & { stallQrCode?: string | null; stallName: string; stallId: string }) => {
+    if (typeof window === 'undefined') return;
+    // stallQrCode is stored as a relative path; prefix with origin
+    const qrPath = stall.stallQrCode || `/events/${eventId}/stalls/${stall.stallId}/feedback`;
+    const url = qrPath.startsWith('http') ? qrPath : `${window.location.origin}${qrPath}`;
+    try {
+      const QRCodeGenerator = (await import('qrcode')).default;
+      const dataUrl = await QRCodeGenerator.toDataURL(url, { width: 260, margin: 2 });
+      setStallQrModal({ stallId: stall.stallId, stallName: stall.stallName, qrDataUrl: dataUrl });
+    } catch {
+      toast({ type: 'error', message: 'Failed to generate stall QR code' });
     }
   };
 
@@ -2075,6 +2096,13 @@ export default function EventManagementPage() {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
+                            <button
+                              onClick={() => handleShowStallQR(stall as any)}
+                              className="p-1.5 text-gray-500 hover:text-purple-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
+                              title="Show Feedback QR"
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </button>
                             {stall.source === 'creator' && (
                               <button
                                 onClick={() => setSelectedStallForEdit(stall)}
@@ -2370,6 +2398,36 @@ export default function EventManagementPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={feedbackQRUrl} alt="Feedback QR" className="w-64 h-64" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stall Feedback QR Modal */}
+      {stallQrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setStallQrModal(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Stall Feedback QR</h3>
+              <button onClick={() => setStallQrModal(null)} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <p className="text-sm text-purple-600 dark:text-purple-400 font-medium mb-1">{stallQrModal.stallName}</p>
+            <p className="text-xs text-gray-400 mb-4">
+              Place this QR at the stall — customers scan it to leave feedback anonymously.
+            </p>
+            <div className="flex justify-center p-4 bg-white rounded-lg border border-gray-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={stallQrModal.qrDataUrl} alt="Stall Feedback QR" className="w-64 h-64" />
+            </div>
+            <p className="text-center text-xs text-gray-400 mt-3 font-mono">{stallQrModal.stallId}</p>
+            <a
+              href={stallQrModal.qrDataUrl}
+              download={`stall-feedback-qr-${stallQrModal.stallId}.png`}
+              className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              Download QR
+            </a>
           </div>
         </div>
       )}

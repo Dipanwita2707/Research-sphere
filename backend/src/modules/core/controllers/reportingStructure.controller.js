@@ -152,7 +152,14 @@ exports.assignReportingManager = async (req, res) => {
     });
   } catch (error) {
     console.error('Assign reporting manager error:', error);
-    res.status(500).json({
+
+    const isValidationError = [
+      'circular reporting',
+      'cannot report to themselves',
+      'Manager not found',
+    ].some(msg => error.message?.toLowerCase().includes(msg.toLowerCase()));
+
+    res.status(isValidationError ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error assigning reporting relationship',
     });
@@ -220,7 +227,17 @@ exports.assignManagerChain = async (req, res) => {
     });
   } catch (error) {
     console.error('Assign manager chain error:', error);
-    res.status(500).json({
+
+    // Return 400 for known validation errors instead of 500
+    const isValidationError = [
+      'circular reporting',
+      'cannot report to themselves',
+      'do not exist',
+      'Maximum 5 hierarchy',
+      'User ID and manager chain',
+    ].some(msg => error.message?.toLowerCase().includes(msg.toLowerCase()));
+
+    res.status(isValidationError ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error assigning manager chain',
     });
@@ -238,22 +255,9 @@ exports.removeReportingRelationship = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    // Check if user has subordinates
-    const subordinates = await prisma.reportingStructure.findMany({
-      where: { managerId: userId },
-    });
-
-    if (subordinates.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot remove user with active subordinates. Reassign subordinates first.',
-      });
-    }
-
-    // Delete the reporting relationship
-    await prisma.reportingStructure.delete({
-      where: { userId },
-    });
+    // Delegates to service: subordinates are automatically re-parented to the
+    // deleted user's own manager rather than blocking with a 400 error.
+    await reportingStructureService.deleteReportingRelationship(userId);
 
     res.status(200).json({
       success: true,
@@ -262,7 +266,6 @@ exports.removeReportingRelationship = async (req, res) => {
   } catch (error) {
     console.error('Remove reporting relationship error:', error);
 
-    // Handle case where no relationship exists
     if (error.code === 'P2025') {
       return res.status(404).json({
         success: false,
@@ -426,6 +429,85 @@ exports.bulkImportReportingStructure = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Server error during bulk import',
+    });
+  }
+};
+
+/**
+ * Move a user to a new position in the hierarchy
+ * First removes them cleanly (re-parents children), then inserts under newManagerId.
+ * Atomic via Prisma transaction.
+ *
+ * @route POST /api/reporting-structure/move
+ * @access Protected - Admin only
+ */
+exports.moveUser = async (req, res) => {
+  try {
+    const { userId, newManagerId } = req.body;
+
+    if (!userId || !newManagerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Both userId and newManagerId are required',
+      });
+    }
+
+    if (userId === newManagerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'A user cannot report to themselves',
+      });
+    }
+
+    const createdById = req.user?.id || userId;
+    const result = await reportingStructureService.moveUser(userId, newManagerId, createdById);
+
+    console.log('\u2705 User moved:', { userId, newManagerId });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: 'User moved to new position successfully',
+    });
+  } catch (error) {
+    console.error('Move user error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error moving user',
+    });
+  }
+};
+
+/**
+ * Get hierarchy info for multiple users (batch)
+ * Returns which users are already in the hierarchy along with
+ * their level, parent name, subordinate count.
+ *
+ * @route POST /api/reporting-structure/hierarchy-info
+ * @access Protected
+ */
+exports.getBulkHierarchyInfo = async (req, res) => {
+  try {
+    const { userIds } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'userIds array is required',
+      });
+    }
+
+    const info = await reportingStructureService.getBulkHierarchyInfo(userIds);
+
+    res.status(200).json({
+      success: true,
+      data: info,
+    });
+  } catch (error) {
+    console.error('Get bulk hierarchy info error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error fetching hierarchy info',
     });
   }
 };
