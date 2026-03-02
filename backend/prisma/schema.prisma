@@ -2109,6 +2109,7 @@ model gate_pass {
   extension_count                                    Int                      @default(0)
   extension_reason                                   String?
   cancellation_time                                  DateTime?                @db.Timestamptz(6)
+  cancellation_reason                                String?                  @db.Text
   checkout_unique_id                                 String?                  @unique
   checkout_verification_code                         String?
   checkout_qr_code                                   String?
@@ -2123,6 +2124,7 @@ model gate_pass {
   user_login_gate_pass_person_to_meet_idTouser_login UserLogin?               @relation("gate_pass_person_to_meet_idTouser_login", fields: [person_to_meet_id], references: [id])
   gate_pass_history                                  gate_pass_history[]
   gate_pass_notification                             gate_pass_notification[]
+  refund_transactions                                RefundTransaction[]
 
   @@index([created_by_id])
   @@index([mobile_number])

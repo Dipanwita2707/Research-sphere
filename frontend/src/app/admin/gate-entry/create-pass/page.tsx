@@ -62,6 +62,7 @@ function CreatePassPageContent() {
   const { t } = useLanguage(); // Get translation function
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [entryTimeError, setEntryTimeError] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isStudentLocked, setIsStudentLocked] = useState(false);
   const [showHostelBooking, setShowHostelBooking] = useState(false);
@@ -290,6 +291,19 @@ function CreatePassPageContent() {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
+      // Entry time validation - Gate Entry allows 5 hours before entry time
+      // So we don't need strict past time validation
+      if (name === 'entryTime' && value) {
+        // Clear any existing error - we allow flexible entry times
+        setEntryTimeError(null);
+      }
+      
+      // Visit date validation - Gate Entry allows flexible entry times
+      if (name === 'visitDate' && value && formData.entryTime) {
+        // Clear any existing error - we allow flexible entry times for outsider passes
+        setEntryTimeError(null);
+      }
+      
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
@@ -879,7 +893,18 @@ function CreatePassPageContent() {
                   />
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 </div>
-                {formData.entryTime && (() => {
+                
+                {/* Entry Time Validation Error */}
+                {entryTimeError && (
+                  <div className="mt-2 animate-shake bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 p-3 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-red-800 font-bold text-sm">{entryTimeError}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {formData.entryTime && !entryTimeError && (() => {
                   const [hours, minutes] = formData.entryTime.split(':');
                   const hour = parseInt(hours, 10);
                   const ampm = hour >= 12 ? 'PM' : 'AM';

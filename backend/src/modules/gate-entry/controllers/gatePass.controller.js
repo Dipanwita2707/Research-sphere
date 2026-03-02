@@ -1,4 +1,6 @@
 const gatePassService = require('../services/gatePass.service');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 // Simple logger
 const logger = {
@@ -296,8 +298,20 @@ class GatePassController {
       // Transform pass data for frontend
       const transformedPass = gatePassService.transformPassToFrontend(pass);
 
+      // Different messages based on cancellation type
+      let successMessage = 'Pass cancelled successfully.';
+      if (pass.cancellation_type === 'after_check_in') {
+        successMessage = 'Pass cancelled successfully. Emergency checkout QR code sent to visitor (valid for 1 hour).';
+      } else if (pass.cancellation_type === 'before_check_in') {
+        successMessage = 'Pass cancelled successfully. Visitor has been notified via WhatsApp and email.';
+      }
+
       return res.status(200).json(
-        formatResponse(true, 'Pass cancelled successfully. Checkout QR code sent to visitor (valid for 1 hour).', { pass: transformedPass })
+        formatResponse(true, successMessage, { 
+          pass: transformedPass,
+          cancellationType: pass.cancellation_type,
+          hasCheckoutQR: !!pass.checkout_qr
+        })
       );
     } catch (error) {
       logger.error('[CANCEL PASS] Error:', error);
@@ -639,6 +653,262 @@ class GatePassController {
       logger.error('[ANALYTICS] Error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to fetch analytics', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Get system configuration by key
+   */
+  async getSystemConfig(req, res) {
+    try {
+      const { key } = req.params;
+
+      const config = await gatePassService.getSystemConfig(key);
+
+      if (!config) {
+        return res.status(404).json(
+          formatResponse(false, `Configuration '${key}' not found`, null)
+        );
+      }
+
+      return res.status(200).json(
+        formatResponse(true, 'Configuration retrieved successfully', config)
+      );
+    } catch (error) {
+      logger.error('[GET SYSTEM CONFIG] Error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to fetch configuration', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Update system configuration (admin only)
+   */
+  async updateSystemConfig(req, res) {
+    try {
+      const { key } = req.params;
+      const { value } = req.body;
+      const userId = req.user.id;
+
+      if (!value) {
+        return res.status(400).json(
+          formatResponse(false, 'Configuration value is required', null)
+        );
+      }
+
+      const config = await gatePassService.updateSystemConfig(key, value, userId);
+
+      return res.status(200).json(
+        formatResponse(true, 'Configuration updated successfully', config)
+      );
+    } catch (error) {
+      logger.error('[UPDATE SYSTEM CONFIG] Error:', error);
+      const statusCode = error.message.includes('Only administrators') ? 403 : 500;
+      return res.status(statusCode).json(
+        formatResponse(false, error.message || 'Failed to update configuration', null)
+      );
+    }
+  }
+
+  /**
+   * Get all system configurations (admin only)
+   */
+  async getAllSystemConfigs(req, res) {
+    try {
+      const userId = req.user.id;
+      const configs = await gatePassService.getAllSystemConfigs(userId);
+
+      return res.status(200).json(
+        formatResponse(true, 'Configurations retrieved successfully', configs)
+      );
+    } catch (error) {
+      logger.error('[GET ALL SYSTEM CONFIGS] Error:', error);
+      const statusCode = error.message.includes('Only administrators') ? 403 : 500;
+      return res.status(statusCode).json(
+        formatResponse(false, error.message || 'Failed to fetch configurations', null)
+      );
+    }
+  }
+
+  /**
+   * Get all refund transactions (admin only)
+   */
+  async getAllRefunds(req, res) {
+    try {
+      const userId = req.user.id;
+
+      // Check if user is admin
+      const user = await prisma.userLogin.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+
+      if (!user || user.role?.toLowerCase() !== 'admin') {
+        return res.status(403).json(
+          formatResponse(false, 'Only administrators can view all refunds', null)
+        );
+      }
+
+      const refunds = await prisma.refundTransaction.findMany({
+        include: {
+          booking: {
+            include: {
+              room: {
+                include: {
+                  hostel: true
+                }
+              }
+            }
+          },
+          gate_pass: {
+            select: {
+              pass_id: true,
+              visitor_name: true,
+              mobile_number: true
+            }
+          },
+          processed_by: {
+            select: {
+              uid: true,
+              employeeDetails: {
+                select: {
+                  displayName: true
+                }
+              }
+            }
+          }
+        },
+        orderBy: {
+          created_at: 'desc'
+        }
+      });
+
+      const formattedRefunds = refunds.map(r => ({
+        id: r.id,
+        booking_id: r.booking_id,
+        pass_id: r.gate_pass.pass_id,
+        visitor_name: r.gate_pass.visitor_name,
+        mobile_number: r.gate_pass.mobile_number,
+        hostel_name: r.booking.room.hostel.name,
+        room_number: r.booking.room.room_number,
+        original_amount: r.original_amount,
+        cancellation_fee_percent: r.cancellation_fee_percent,
+        cancellation_fee_amount: r.cancellation_fee_amount,
+        refund_amount: r.refund_amount,
+        refund_status: r.refund_status,
+        processed_by: r.processed_by?.employeeDetails?.displayName || r.processed_by?.uid || 'System',
+        processed_at: r.processed_at,
+        remarks: r.remarks,
+        created_at: r.created_at
+      }));
+
+      return res.status(200).json(
+        formatResponse(true, 'Refunds retrieved successfully', formattedRefunds)
+      );
+    } catch (error) {
+      logger.error('[GET ALL REFUNDS] Error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to fetch refunds', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Get refund transaction for specific booking
+   */
+  async getRefundByBooking(req, res) {
+    try {
+      const { bookingId } = req.params;
+      const userId = req.user.id;
+
+      const refund = await prisma.refundTransaction.findFirst({
+        where: { booking_id: bookingId },
+        include: {
+          booking: {
+            include: {
+              room: {
+                include: {
+                  hostel: true
+                }
+              },
+              created_by: {
+                select: {
+                  id: true,
+                  uid: true
+                }
+              }
+            }
+          },
+          gate_pass: {
+            select: {
+              pass_id: true,
+              visitor_name: true,
+              mobile_number: true,
+              created_by_id: true
+            }
+          },
+          processed_by: {
+            select: {
+              uid: true,
+              employeeDetails: {
+                select: {
+                  displayName: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!refund) {
+        return res.status(404).json(
+          formatResponse(false, 'Refund transaction not found', null)
+        );
+      }
+
+      // Check permission: only creator or admin can view
+      const user = await prisma.userLogin.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+
+      const isAdmin = user?.role?.toLowerCase() === 'admin';
+      const isCreator = refund.gate_pass.created_by_id === userId;
+
+      if (!isAdmin && !isCreator) {
+        return res.status(403).json(
+          formatResponse(false, 'You do not have permission to view this refund', null)
+        );
+      }
+
+      const formattedRefund = {
+        id: refund.id,
+        booking_id: refund.booking_id,
+        pass_id: refund.gate_pass.pass_id,
+        visitor_name: refund.gate_pass.visitor_name,
+        mobile_number: refund.gate_pass.mobile_number,
+        hostel_name: refund.booking.room.hostel.name,
+        room_number: refund.booking.room.room_number,
+        original_amount: refund.original_amount,
+        cancellation_fee_percent: refund.cancellation_fee_percent,
+        cancellation_fee_amount: refund.cancellation_fee_amount,
+        refund_amount: refund.refund_amount,
+        refund_status: refund.refund_status,
+        processed_by: refund.processed_by?.employeeDetails?.displayName || refund.processed_by?.uid || 'System',
+        processed_at: refund.processed_at,
+        remarks: refund.remarks,
+        created_at: refund.created_at
+      };
+
+      return res.status(200).json(
+        formatResponse(true, 'Refund retrieved successfully', formattedRefund)
+      );
+    } catch (error) {
+      logger.error('[GET REFUND BY BOOKING] Error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to fetch refund', null, error.message)
       );
     }
   }
