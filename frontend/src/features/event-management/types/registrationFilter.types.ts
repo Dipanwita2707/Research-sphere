@@ -18,6 +18,8 @@ export interface RegistrationFilterParams {
   passOutYear?: number | string;
   uid?: string;
   empId?: string;
+  paymentStatus?: string;
+  teamSearch?: string;
 }
 
 // ── Distinct filter options returned by the API ──────────────────
@@ -36,14 +38,35 @@ export interface RegistrationRow {
   registrationId: string;
   eventId: string;
   userId: string;
+  teamId?: string | null;
   status: string;
   qrCode: string;
   paymentStatus?: string;
   amountPaid?: number;
+  isTeamLeader?: boolean;
   hasEntered: boolean;
   enteredAt?: string;
   registeredAt: string;
   updatedAt: string;
+  /** Team info (populated when event is team-based) */
+  team?: {
+    id: string;
+    teamId: string;
+    name: string;
+    status: string;
+    isComplete: boolean;
+    isLocked: boolean;
+    leaderId: string;
+  } | null;
+  /** Latest successful payment for this registration */
+  latestPayment?: {
+    razorpayPaymentId?: string | null;
+    razorpayOrderId?: string;
+    amount?: number;
+    status?: string;
+    paidAt?: string | null;
+    paymentFor?: string;
+  } | null;
   user_login?: {
     id: string;
     uid: string;

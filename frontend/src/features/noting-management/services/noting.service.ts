@@ -122,6 +122,8 @@ export const notingService = {
     page?: number;
     limit?: number;
     includeCounts?: boolean;
+    /** Sub-filter for handled tab: 'approved' = approved+recommended, 'rejected' = rejected+not_recommended */
+    handledAction?: "approved" | "rejected";
   }) =>
     api.get(BASE, { params, timeout: 30000 }).then((res) => ({
       data: res.data.data,

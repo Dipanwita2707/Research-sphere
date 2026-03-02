@@ -14,25 +14,22 @@ const generateEventId = async (prisma) => {
   const year = new Date().getFullYear();
   const prefix = `EVT-${year}-`;
   
-  // Get the last event ID for this year
-  const lastEvent = await prisma.event.findFirst({
-    where: {
-      eventId: {
-        startsWith: prefix,
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-    select: {
-      eventId: true,
-    },
-  });
+  // Get the highest sequence number for this year using raw query
+  // to avoid ordering by createdAt which can return wrong results
+  const result = await prisma.$queryRawUnsafe(
+    `SELECT "eventId" FROM "public"."Event"
+     WHERE "eventId" LIKE $1
+     ORDER BY "eventId" DESC
+     LIMIT 1`,
+    `${prefix}%`
+  );
   
   let sequence = 1;
-  if (lastEvent) {
-    const lastSequence = parseInt(lastEvent.eventId.split('-')[2]);
-    sequence = lastSequence + 1;
+  if (result.length > 0) {
+    const lastSequence = parseInt(result[0].eventId.split('-')[2]);
+    if (!isNaN(lastSequence)) {
+      sequence = lastSequence + 1;
+    }
   }
   
   return `${prefix}${sequence.toString().padStart(4, '0')}`;

@@ -122,7 +122,7 @@ const activateQRCodes = async () => {
       where: {
         qr_status: 'active',
         pass_status: {
-          in: ['created', 'checked_in']
+          in: ['created', 'approved', 'active']
         },
         OR: [
           // Single-day passes: visit_date < today and no visit_end_date
@@ -153,7 +153,7 @@ const activateQRCodes = async () => {
         },
         data: {
           qr_status: 'expired',
-          pass_status: 'expired'
+          pass_status: 'completed'
         }
       });
 

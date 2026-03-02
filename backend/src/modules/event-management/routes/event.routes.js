@@ -27,12 +27,27 @@ const {
 } = require('../../../shared/middleware/auth');
 const { getDefaultPermissions } = require('../../../shared/config/permissions.config');
 const feedbackController = require('../controllers/feedback.controller');
+const paymentController = require('../controllers/payment.controller');
+
+// ============================================
+// Razorpay Webhook — Public (verified via signature)
+// Must use raw body parser for signature verification
+// ============================================
+router.post(
+  '/payments/webhook',
+  express.raw({ type: 'application/json' }),
+  paymentController.handleWebhook
+);
 
 // Public: Submit event feedback (no auth - for QR scanner users)
 router.post('/:id/feedback', validateEventId, validateFeedback, feedbackController.submitFeedback);
 
 // Public: Get minimal event info for feedback form (no auth - for QR scanner users)
 router.get('/:id/feedback-info', validateEventId, feedbackController.getFeedbackFormInfo);
+
+// Public: Stall feedback (no auth - scanned by customers at the stall)
+router.get('/:id/stalls/:stallId/feedback-info', feedbackController.getStallFeedbackFormInfo);
+router.post('/:id/stalls/:stallId/feedback', feedbackController.submitStallFeedback);
 
 // All routes require authentication
 router.use(protect);
@@ -219,6 +234,21 @@ router.get(
   feedbackController.getFeedback
 );
 
+// Authed: get stall feedback list (event creator only)
+router.get(
+  '/:id/stalls/:stallId/feedback',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  feedbackController.getStallFeedback
+);
+
+// Authed: stall owner views their own feedback (no special permission needed)
+router.get(
+  '/:id/stalls/:stallId/owner-feedback',
+  validateEventId,
+  feedbackController.getStallOwnerFeedback
+);
+
 // ============================================
 // Advanced Registration Routes
 // ============================================
@@ -287,6 +317,19 @@ router.patch(
   checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
   customFieldController.reorderCustomFields
 );
+
+// ============================================
+// Payment Routes (Individual)
+// ============================================
+router.post('/:id/payments/individual/create-order', paymentController.createIndividualOrder);
+router.post('/:id/payments/individual/verify', paymentController.verifyIndividualPayment);
+router.get('/:id/payments/status', paymentController.getPaymentStatus);
+
+// ============================================
+// Team Payment Routes
+// ============================================
+router.post('/:id/teams/:teamId/payments/create-order', paymentController.createTeamOrder);
+router.post('/:id/teams/:teamId/payments/verify', paymentController.verifyTeamPayment);
 
 // Team routes for specific event
 router.post('/:id/teams', teamController.createTeam);

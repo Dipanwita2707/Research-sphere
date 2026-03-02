@@ -40,6 +40,10 @@ const {
 const { generateNotingId } = require("../services/notingId.service");
 const approvalFlowService = require("../services/approvalFlow.service");
 
+// Cross-module services (moved to top-level to avoid repeated inline require() calls)
+const eventService = require("../../event-management/services/event.service");
+const dswNotingService = require("../../dsw/services/notingIntegrationService");
+
 // ── Centralized cache invalidation helper ────────────────────────────────────
 // Every state-changing handler (approve/reject/revert/forward/recommend/
 // sendCopy/replyCopy/forwardCopy/completeCopy/create/submit/delete) MUST call
@@ -62,6 +66,9 @@ const {
 const {
   getPaginationParams,
   createPaginationMeta,
+  getCursorPaginationParams,
+  buildCursorArgs,
+  createCursorPaginationMeta,
 } = require("../utils/pagination");
 const {
   validateDescription,
@@ -84,6 +91,11 @@ const {
 const {
   getFullNoteInclude,
   getListNoteInclude,
+  getFullNoteSelect,
+  getListNoteSelect,
+  noteFieldsForList,
+  userForList,
+  userBasic,
 } = require("../utils/selectFragments");
 
 /**
@@ -273,25 +285,21 @@ const create = asyncHandler(async (req, res) => {
       );
     }
 
-    // Validate fee for paid events
+    // Validate fee for paid events — minimum ₹1
     if (eventPaymentType === "paid") {
       const isTeam = eventParticipationType === "team";
       if (
         isTeam &&
-        (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam < 0)
+        (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam === '' || Number(eventRegistrationFeeTeam) < 1)
       ) {
-        throw new ValidationError(
-          "Please enter the Fee per Team (₹) for paid team events.",
-        );
+        throw new ValidationError("Participation fee must be at least \u20b91.");
       }
       if (
         !isTeam &&
         (eventRegistrationFeeIndividual == null ||
-          eventRegistrationFeeIndividual < 0)
+          eventRegistrationFeeIndividual === '' || Number(eventRegistrationFeeIndividual) < 1)
       ) {
-        throw new ValidationError(
-          "Please enter the Participation Fee (₹) for paid individual events.",
-        );
+        throw new ValidationError("Participation fee must be at least \u20b91.");
       }
     }
   }
@@ -512,10 +520,10 @@ const create = asyncHandler(async (req, res) => {
     return note.id;
   });
 
-  // Single fetch with full relations at the end
+  // Single fetch with full relations at the end — uses select + JOIN strategy
   const finalNote = await prisma.note.findUnique({
     where: { id: noteId_created },
-    include: getFullNoteInclude(),
+    ...getFullNoteSelect(),
   });
 
   // Invalidate all noting caches since a new note was created
@@ -605,6 +613,24 @@ const updateDraft = asyncHandler(async (req, res) => {
   // Sanitize attachments and points
   const validAttachments = sanitizeAttachments(attachmentsPayload);
   const validPoints = sanitizePoints(points);
+
+  // Fee validation for paid events — minimum ₹1
+  // Use effective values: from this request, or fall back to what's already saved
+  const effectivePaymentType = eventPaymentType !== undefined ? eventPaymentType : note.eventPaymentType;
+  const effectiveParticipationType = eventParticipationType !== undefined ? eventParticipationType : note.eventParticipationType;
+  if (effectivePaymentType === 'paid') {
+    const isTeam = effectiveParticipationType === 'team';
+    if (isTeam && eventRegistrationFeeTeam !== undefined) {
+      if (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam === '' || Number(eventRegistrationFeeTeam) < 1) {
+        throw new ValidationError('Participation fee must be at least \u20b91.');
+      }
+    }
+    if (!isTeam && eventRegistrationFeeIndividual !== undefined) {
+      if (eventRegistrationFeeIndividual == null || eventRegistrationFeeIndividual === '' || Number(eventRegistrationFeeIndividual) < 1) {
+        throw new ValidationError('Participation fee must be at least \u20b91.');
+      }
+    }
+  }
 
   // Prepare update data
   const updateData = {};
@@ -941,10 +967,10 @@ const submitDraft = asyncHandler(async (req, res) => {
 const getById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  // ── PERF: Cache note detail for 60s ─────────────────────────────────────
-  // Each detail page call runs 5+ Prisma sub-queries with deep includes over
-  // a serverless (Neon) DB. Caching avoids 3-7 second round-trips on every
-  // navigation/re-render while the 60s window covers rapid approve→view flows.
+  // ── PERF: Cache note detail for 120s ────────────────────────────────────
+  // With select{} + relationLoadStrategy:"join", queries are faster but
+  // caching still avoids Neon round-trips. invalidateNoteCaches() busts
+  // the cache on any state change, so 120s is safe.
   const cacheKey = `noting:detail:${id}`;
   const cached = await cache.get(cacheKey);
   if (cached) {
@@ -954,8 +980,8 @@ const getById = asyncHandler(async (req, res) => {
   // Fetch note with full details
   const note = await getNoteWithDetails(id);
 
-  // Cache for 60 seconds
-  await cache.set(cacheKey, note, 60);
+  // Cache for 120 seconds (invalidated on state changes)
+  await cache.set(cacheKey, note, 120);
 
   return ApiResponse.success(res, note, "Note details retrieved successfully");
 });
@@ -978,33 +1004,49 @@ const list = asyncHandler(async (req, res) => {
     startDate, // Date range start
     endDate, // Date range end
     includeCounts, // When true, include mine/pending/handled counts in response
+    cursor, // Cursor-based pagination (pass last item ID)
+    handledAction, // When filter=handled: 'approved' | 'rejected' to sub-filter by action type
   } = req.query;
   const { page, limit, skip } = getPaginationParams(req.query);
+  const useCursor = !!cursor;
   const wantCounts = includeCounts === "true" || includeCounts === true;
 
   // ── PERF: Cache list results per-user per-params for 30s ────────────────
   // The list endpoint runs 2-5 DB queries (findMany + count + optional counts).
   // On Neon serverless, each round-trip adds latency. 30s cache covers rapid
   // tab-switching & filter changes while invalidateNoteCaches() busts stale data.
-  const listCacheKey = `noting:list:${userId}:${filter}:${page}:${limit}:${status || ""}:${category || ""}:${search || ""}:${createdById || ""}:${startDate || ""}:${endDate || ""}:${wantCounts}`;
+  const paginationKey = useCursor ? `c:${cursor}:${limit}` : `${page}:${limit}`;
+  const listCacheKey = `noting:list:${userId}:${filter}:${paginationKey}:${status || ""}:${category || ""}:${search || ""}:${createdById || ""}:${startDate || ""}:${endDate || ""}:${wantCounts}:${handledAction || ""}`;
   const cachedList = await cache.get(listCacheKey);
   if (cachedList) {
     return res.status(200).json(cachedList);
   }
 
-  const include = getListNoteInclude();
+  // ── PERF: Use select{} + relationLoadStrategy:"join" instead of include{} ──
+  // This reduces round-trips from 5+ to 1 and only loads needed columns.
+  const listSelectOpts = getListNoteSelect();
 
   let notes;
   let total;
 
   if (filter === "handled") {
     // Get notes current user has acted on - use efficient paginated subquery instead of loading all history
-    const actions = [
-      NOTE_ACTIONS.APPROVED,
-      NOTE_ACTIONS.REJECTED,
-      NOTE_ACTIONS.FORWARDED,
-      NOTE_ACTIONS.REVERTED,
-    ];
+    // handledAction sub-filter: 'approved' → approved+recommended, 'rejected' → rejected+not_recommended
+    let actions;
+    if (handledAction === "approved") {
+      actions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.RECOMMENDED];
+    } else if (handledAction === "rejected") {
+      actions = [NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.NOT_RECOMMENDED];
+    } else {
+      actions = [
+        NOTE_ACTIONS.APPROVED,
+        NOTE_ACTIONS.REJECTED,
+        NOTE_ACTIONS.FORWARDED,
+        NOTE_ACTIONS.REVERTED,
+        NOTE_ACTIONS.RECOMMENDED,
+        NOTE_ACTIONS.NOT_RECOMMENDED,
+      ];
+    }
     const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
     const [totalResult, pageRows] = await Promise.all([
       prisma.$queryRaw(Prisma.sql`SELECT COUNT(*)::int as cnt FROM (
@@ -1031,7 +1073,7 @@ const list = asyncHandler(async (req, res) => {
     if (noteIds.length > 0) {
       const fetched = await prisma.note.findMany({
         where: { id: { in: noteIds } },
-        include,
+        ...listSelectOpts,
       });
       const noteMap = new Map(fetched.map((n) => [n.id, n]));
       notes = pageRows
@@ -1081,20 +1123,28 @@ const list = asyncHandler(async (req, res) => {
       }
     }
 
-    // Standard query with pagination
+    // ── PERF: Use select{} + relationLoadStrategy:"join" + cursor pagination ──
+    // Standard query with pagination (cursor or offset)
+    const cursorArgs = useCursor
+      ? { take: limit, skip: 1, cursor: { id: cursor } }
+      : { skip, take: limit };
+
     [notes, total] = await Promise.all([
       prisma.note.findMany({
         where,
-        include,
+        ...listSelectOpts,
         orderBy: { updatedAt: "desc" },
-        skip,
-        take: limit,
+        ...cursorArgs,
       }),
-      prisma.note.count({ where }),
+      // Only compute total on first page (offset) or when not using cursor
+      useCursor ? null : prisma.note.count({ where }),
     ]);
   }
 
-  const pagination = createPaginationMeta(page, limit, total);
+  // ── Build pagination metadata (supports both offset & cursor modes) ─────
+  const pagination = useCursor
+    ? createCursorPaginationMeta(notes, limit, total)
+    : createPaginationMeta(page, limit, total);
 
   if (wantCounts) {
     // ── PERF: Cache counts per-user in Redis (30s TTL) ─────────────────────
@@ -1126,25 +1176,18 @@ const list = asyncHandler(async (req, res) => {
       ]);
       const handledCount = handledResult?.[0]?.cnt ?? 0;
       counts = { mine: mineCount, pending: pendingCount, handled: handledCount };
-      // Cache for 30 seconds
-      await cache.set(countsCacheKey, counts, 30);
+      // Cache for 60 seconds (invalidated on state changes)
+      await cache.set(countsCacheKey, counts, 60);
     }
 
     const responseBody = {
       success: true,
       message: "Notes fetched successfully",
       data: notes,
-      pagination: {
-        page: pagination.page,
-        limit: pagination.limit,
-        total: pagination.total,
-        totalPages:
-          pagination.totalPages ||
-          Math.ceil(pagination.total / pagination.limit),
-      },
+      pagination,
       counts,
     };
-    await cache.set(listCacheKey, responseBody, 30);
+    await cache.set(listCacheKey, responseBody, 60);
     return res.status(200).json(responseBody);
   }
 
@@ -1153,14 +1196,9 @@ const list = asyncHandler(async (req, res) => {
     success: true,
     message: "Notes fetched successfully",
     data: notes,
-    pagination: {
-      page: pagination.page,
-      limit: pagination.limit,
-      total: pagination.total,
-      totalPages: pagination.totalPages || Math.ceil(pagination.total / pagination.limit),
-    },
+    pagination,
   };
-  await cache.set(listCacheKey, paginatedResponse, 30);
+  await cache.set(listCacheKey, paginatedResponse, 60);
   return res.status(200).json(paginatedResponse);
 });
 
@@ -1173,6 +1211,14 @@ const list = asyncHandler(async (req, res) => {
  */
 const getCounts = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+
+  // ── PERF: Check cache first (same key as list handler uses) ─────────────
+  const countsCacheKey = `noting:counts:${userId}`;
+  const cached = await cache.get(countsCacheKey);
+  if (cached) {
+    return ApiResponse.success(res, cached, "Counts fetched successfully");
+  }
+
   const actions = [
     NOTE_ACTIONS.APPROVED,
     NOTE_ACTIONS.REJECTED,
@@ -1196,16 +1242,12 @@ const getCounts = asyncHandler(async (req, res) => {
   ]);
 
   const handledCount = handledResult?.[0]?.cnt ?? 0;
+  const counts = { mine: mineCount, pending: pendingCount, handled: handledCount };
 
-  return ApiResponse.success(
-    res,
-    {
-      mine: mineCount,
-      pending: pendingCount,
-      handled: handledCount,
-    },
-    "Counts fetched successfully",
-  );
+  // Cache for 60 seconds (invalidated on state changes)
+  await cache.set(countsCacheKey, counts, 60);
+
+  return ApiResponse.success(res, counts, "Counts fetched successfully");
 });
 
 /**
@@ -1274,7 +1316,6 @@ const approve = asyncHandler(async (req, res) => {
       updated.subEvents.length > 0;
 
     if (hasFestivalSubEvents || hasBasicEventFields) {
-      const eventService = require("../../event-management/services/event.service");
       const result = await eventService.createEventFromNoting(
         updated.id,
         userId,
@@ -1307,7 +1348,6 @@ const approve = asyncHandler(async (req, res) => {
       updated.category === "administrative" &&
       updated.subcategory === "dsw_club_creation"
     ) {
-      const dswNotingService = require("../../dsw/services/notingIntegrationService");
       const club = await dswNotingService.processApprovedClubCreationNoting(
         updated,
         userId,
@@ -1919,6 +1959,20 @@ const recommend = asyncHandler(async (req, res) => {
     throw new ForbiddenError("Only the current holder can recommend this note");
   }
 
+  // Subcategory permission check — no noting_approve fallback
+  const isPrivileged = ['admin', 'superadmin', 'dean'].includes(req.user.role) || req.user.roleCode === 'DEAN';
+  if (!isPrivileged) {
+    const modulePermKey = approvalFlowService.getModulePermissionKey(note);
+    const { hasPermissionAsync } = require('../../../shared/config/permissions.config');
+    const hasSubcatPerm = await hasPermissionAsync(req.user, modulePermKey);
+    if (!hasSubcatPerm) {
+      const subcatLabel = (note.subcategory || 'unknown').replace(/_/g, ' ');
+      throw new ForbiddenError(
+        `You do not have the Subcategory Approval permission for "${subcatLabel}" notings. Required: ${modulePermKey}`
+      );
+    }
+  }
+
   // Get the next person in chain using the canonical reporting service
   const reportingService = require("../../core/services/reportingStructure.service");
   const manager = await reportingService.getDirectManager(userId);
@@ -1985,6 +2039,20 @@ const notRecommend = asyncHandler(async (req, res) => {
   }
   if (note.currentHolderId !== userId) {
     throw new ForbiddenError("Only the current holder can act on this note");
+  }
+
+  // Subcategory permission check — no noting_approve fallback
+  const isPrivileged = ['admin', 'superadmin', 'dean'].includes(req.user.role) || req.user.roleCode === 'DEAN';
+  if (!isPrivileged) {
+    const modulePermKey = approvalFlowService.getModulePermissionKey(note);
+    const { hasPermissionAsync } = require('../../../shared/config/permissions.config');
+    const hasSubcatPerm = await hasPermissionAsync(req.user, modulePermKey);
+    if (!hasSubcatPerm) {
+      const subcatLabel = (note.subcategory || 'unknown').replace(/_/g, ' ');
+      throw new ForbiddenError(
+        `You do not have the Subcategory Approval permission for "${subcatLabel}" notings. Required: ${modulePermKey}`
+      );
+    }
   }
 
   // Get the next person in chain using the canonical reporting service
@@ -2663,105 +2731,122 @@ const getCopies = asyncHandler(async (req, res) => {
 const getMyCopies = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  // Support optional pagination (default: no limit for backwards-compat,
-  // but callers should pass ?page=1&limit=20 for fast initial loads).
-  const { getPaginationParams } = require("../utils/pagination");
+  // Support optional pagination (default: paginated with limit 20)
   const rawPage = parseInt(req.query.page);
   const rawLimit = parseInt(req.query.limit);
+  const cursorParam = req.query.cursor || null;  // cursor-based pagination
   const usePagination = !isNaN(rawPage) && !isNaN(rawLimit);
+  const useCursorPag = !!cursorParam;
   const page = usePagination ? Math.max(1, rawPage) : null;
-  const limit = usePagination ? Math.min(100, Math.max(1, rawLimit)) : null;
+  const limit = usePagination || useCursorPag
+    ? Math.min(100, Math.max(1, rawLimit || 20))
+    : 50; // Default cap even for "all" — prevents unbounded loads
   const skip = usePagination ? (page - 1) * limit : undefined;
 
   // ── PERF: Cache my-copies per-user for 30s ─────────────────────────────
-  // getMyCopies runs 3+ round-trips (count + findMany + allCopiesForNotes + allReplies)
-  // across Neon serverless. Caching prevents 7-11 second response times.
-  const copiesCacheKey = `noting:mycopies:${userId}:${page || "all"}:${limit || "all"}`;
+  const pagKey = useCursorPag ? `c:${cursorParam}:${limit}` : `${page || "all"}:${limit || "all"}`;
+  const copiesCacheKey = `noting:mycopies:${userId}:${pagKey}`;
   const cachedCopies = await cache.get(copiesCacheKey);
   if (cachedCopies) {
     return ApiResponse.success(res, cachedCopies, "My copies fetched successfully");
   }
 
-  // Count total for pagination metadata (only when paginating)
-  const totalCount = usePagination
-    ? await prisma.noteCopy.count({ where: { assignedToId: userId } })
-    : null;
+  // ── PERF: Build pagination args + count in parallel ─────────────────────
+  const paginationArgs = useCursorPag
+    ? { take: limit, skip: 1, cursor: { id: cursorParam } }
+    : usePagination
+      ? { skip, take: limit }
+      : { take: limit };
 
-  let copies = await prisma.noteCopy.findMany({
-    where: { assignedToId: userId },
-    ...(usePagination ? { skip, take: limit } : {}),
-    include: {
-      note: {
-        select: {
-          id: true,
-          notingId: true,
-          category: true,
-          subcategory: true,
-          description: true,
-          status: true,
-          amount: true,
-          amountRequired: true,
-          approvalPeriod: true,
-          recurringFrequency: true,
-          policyWithinSgtu: true,
-          policyOutsideSgtu: true,
-          policyBoth: true,
-          policyJustification: true,
-          policyCompliant: true,
-          createdAt: true,
-          points: { select: { id: true, content: true, sortOrder: true } },
-          attachments: {
-            select: {
-              id: true,
-              filePath: true,
-              fileName: true,
-              fileDescription: true,
+  // ── PERF: Single query with select{} + relationLoadStrategy:"join" ──────
+  // This replaces the old include{} pattern which caused N+1 queries.
+  // With "join", Prisma emits ONE SQL query with LEFT JOINs, saving
+  // 3-5 Neon serverless round-trips (~50-200ms each = 150-1000ms saved).
+  const userDisplaySelect = {
+    id: true,
+    uid: true,
+    employeeDetails: { select: { displayName: true } },
+  };
+
+  const [copies, totalCount, managerId] = await Promise.all([
+    prisma.noteCopy.findMany({
+      where: { assignedToId: userId },
+      ...paginationArgs,
+      relationLoadStrategy: "join",
+      select: {
+        id: true,
+        noteId: true,
+        sentById: true,
+        assignedToId: true,
+        remarks: true,
+        status: true,
+        escalationLevel: true,
+        rootCopyId: true,
+        createdAt: true,
+        updatedAt: true,
+        note: {
+          select: {
+            id: true,
+            notingId: true,
+            category: true,
+            subcategory: true,
+            description: true,
+            status: true,
+            amount: true,
+            amountRequired: true,
+            approvalPeriod: true,
+            createdAt: true,
+            createdById: true,
+            points: { select: { id: true, content: true, sortOrder: true } },
+            attachments: {
+              select: {
+                id: true,
+                filePath: true,
+                fileName: true,
+                fileDescription: true,
+              },
             },
-          },
-          // createdBy name only, NOT full user details or workflow info
-          createdBy: {
-            select: {
-              uid: true,
-              employeeDetails: { select: { displayName: true } },
-            },
-          },
-        },
-      },
-      sentBy: {
-        select: {
-          id: true,
-          uid: true,
-          employeeDetails: { select: { displayName: true } },
-        },
-      },
-      rootCopy: {
-        select: { assignedToId: true },
-      },
-      replies: {
-        include: {
-          repliedBy: {
-            select: {
-              id: true,
-              uid: true,
-              employeeDetails: { select: { displayName: true } },
+            createdBy: {
+              select: {
+                uid: true,
+                employeeDetails: { select: { displayName: true } },
+              },
             },
           },
         },
-        orderBy: { createdAt: "asc" },
+        sentBy: { select: userDisplaySelect },
+        rootCopy: { select: { assignedToId: true } },
+        replies: {
+          select: {
+            id: true,
+            copyId: true,
+            remarks: true,
+            attachments: true,
+            createdAt: true,
+            repliedBy: { select: userDisplaySelect },
+          },
+          orderBy: { createdAt: "asc" },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    }),
+    // Count only when using offset pagination (cursor doesn't need total)
+    usePagination
+      ? prisma.noteCopy.count({ where: { assignedToId: userId } })
+      : null,
+    // Manager ID lookup (tiny indexed query)
+    prisma.reportingStructure
+      .findUnique({ where: { userId }, select: { managerId: true } })
+      .then((r) => r?.managerId || null)
+      .catch(() => null),
+  ]);
 
   // ── Pagination metadata ───────────────────────────────────────────────────
-  const paginationMeta = usePagination
-    ? {
-      page,
-      limit,
-      total: totalCount,
-      totalPages: Math.ceil(totalCount / limit),
-    }
-    : null;
+  const paginationMeta = useCursorPag
+    ? createCursorPaginationMeta(copies, limit)
+    : usePagination
+      ? { page, limit, total: totalCount, totalPages: Math.ceil(totalCount / limit) }
+      : null;
 
   // Dedupe per chain (rootCopyId), not per noteId.
   // Same note can have me as worker (chain A) AND boss (chain B) — both must stay.
@@ -2781,94 +2866,59 @@ const getMyCopies = asyncHandler(async (req, res) => {
       byChain.set(key, c);
     }
   }
-  copies = Array.from(byChain.values());
+  let dedupedCopies = Array.from(byChain.values());
 
   // For each copy, fetch replies from ALL copies of the same note (boss + our other copies)
   // so assignee sees full thread even when we deduped to one card per noting
-  const noteIds = [...new Set(copies.map((c) => c.noteId))];
+  const noteIds = [...new Set(dedupedCopies.map((c) => c.noteId))];
 
-  // ── OPTIMISED FETCH STRATEGY ─────────────────────────────────────────────
-  // OLD: two parallel queries where siblingReplies used a nested Prisma
-  //      subquery  (copy: { noteId: { in: [...] } })  which Prisma translates
-  //      to  WHERE copy_id IN (SELECT id FROM note_copy WHERE note_id IN (?))
-  //      and then joined back to note_copy AGAIN to resolve the "copy" include.
-  //      That produced 3 round-trips and heavy duplicate joins.
+  // ── OPTIMISED FETCH STRATEGY (v2) ───────────────────────────────────────
+  // v1 had 4 serial round-trips: count → findMany → allCopiesForNotes → allReplies
+  // v2 merges count + findMany + managerId into one parallel batch (above),
+  //    then does ONE more query for chain data + replies.
+  //    Total: 2 round-trips max (was 4).
   //
-  // NEW: three lean queries in just 2 round-trips:
-  //   Round-1 (parallel)  allCopiesForNotes + managerId
-  //   Round-2             allReplies via direct  copyId IN [known ids]  lookup
-  //
-  // Additionally we no longer load the full manager user-object (employeeDetails
-  // + all permissions).  We only need manager.id, so we read managerId straight
-  // from the reporting_structure row — one tiny indexed lookup.
+  // Uses relationLoadStrategy:"join" + select{} on chain copies so Prisma
+  // emits a single SQL with LEFT JOINs instead of N sub-queries.
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Kick off manager-id lookup immediately so it runs in parallel with copies
-  const managerIdPromise = prisma.reportingStructure
-    .findUnique({ where: { userId }, select: { managerId: true } })
-    .catch(() => null);
-
-  let myManagerId = null;
-
   if (noteIds.length > 0) {
-    // Round-1: fetch ALL NoteCopy rows for these notes (replaces both
-    // the old copyChains query AND the heavy "copy" join inside siblingReplies)
-    const [allCopiesForNotes, rsResult] = await Promise.all([
-      prisma.noteCopy.findMany({
-        where: { noteId: { in: noteIds } },
-        select: {
-          id: true,
-          noteId: true,
-          createdAt: true,
-          escalationLevel: true,
-          status: true,
-          sentById: true,
-          assignedToId: true,
-          rootCopyId: true,
-          remarks: true,
-          assignedTo: {
-            select: {
-              employeeDetails: { select: { displayName: true } },
-              uid: true,
-            },
-          },
-          sentBy: {
-            select: {
-              employeeDetails: { select: { displayName: true } },
-              uid: true,
-            },
-          },
-          note: { select: { createdById: true } },
-          rootCopy: {
-            select: {
-              assignedToId: true,
-              assignedTo: {
-                select: {
-                  employeeDetails: { select: { displayName: true } },
-                  uid: true,
-                },
-              },
-            },
+    const userDisplaySelectSmall = {
+      employeeDetails: { select: { displayName: true } },
+      uid: true,
+    };
+
+    // Single round-trip: fetch ALL NoteCopy rows for these notes WITH their replies
+    // Using relationLoadStrategy:"join" → 1 SQL query with JOINs
+    const allCopiesForNotes = await prisma.noteCopy.findMany({
+      where: { noteId: { in: noteIds } },
+      relationLoadStrategy: "join",
+      select: {
+        id: true,
+        noteId: true,
+        createdAt: true,
+        escalationLevel: true,
+        status: true,
+        sentById: true,
+        assignedToId: true,
+        rootCopyId: true,
+        remarks: true,
+        assignedTo: { select: userDisplaySelectSmall },
+        sentBy: { select: userDisplaySelectSmall },
+        note: { select: { createdById: true } },
+        rootCopy: {
+          select: {
+            assignedToId: true,
+            assignedTo: { select: userDisplaySelectSmall },
           },
         },
-        orderBy: { createdAt: "asc" },
-      }),
-      managerIdPromise,
-    ]);
-
-    myManagerId = rsResult?.managerId || null;
-
-    // Build an O(1) lookup map: copyId → copy data
-    const copyMap = new Map(allCopiesForNotes.map((c) => [c.id, c]));
-    const allCopyIds = allCopiesForNotes.map((c) => c.id);
-
-    // Round-2: fetch replies with a direct  copyId IN [...]  lookup.
-    // This is a simple indexed scan on note_copy_reply.copy_id — no subquery.
-    const allReplies =
-      allCopyIds.length > 0
-        ? await prisma.noteCopyReply.findMany({
-          where: { copyId: { in: allCopyIds } },
-          include: {
+        replies: {
+          select: {
+            id: true,
+            copyId: true,
+            remarks: true,
+            attachments: true,
+            createdAt: true,
             repliedBy: {
               select: {
                 id: true,
@@ -2878,16 +2928,28 @@ const getMyCopies = asyncHandler(async (req, res) => {
             },
           },
           orderBy: { createdAt: "asc" },
-        })
-        : [];
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
 
-    // Re-attach copy data to each reply (same shape the frontend expects)
-    const allRepliesWithCopy = allReplies.map((r) => ({
-      ...r,
-      copy: copyMap.get(r.copyId) || { noteId: null },
-    }));
+    // Build O(1) lookup map: copyId → copy data
+    const copyMap = new Map(allCopiesForNotes.map((c) => [c.id, c]));
 
-    // Group all replies by noteId (covers ours + boss copies in the chain)
+    // Flatten all replies from all copies, attach copy reference
+    const allRepliesWithCopy = [];
+    for (const copy of allCopiesForNotes) {
+      if (copy.replies) {
+        for (const reply of copy.replies) {
+          allRepliesWithCopy.push({
+            ...reply,
+            copy: { noteId: copy.noteId, ...copyMap.get(reply.copyId) },
+          });
+        }
+      }
+    }
+
+    // Group all replies by noteId
     const repliesByNote = {};
     for (const reply of allRepliesWithCopy) {
       const nid = reply.copy?.noteId;
@@ -2904,7 +2966,7 @@ const getMyCopies = asyncHandler(async (req, res) => {
     }
 
     // Attach allReplies + copyChain to every copy card in one pass
-    for (const copy of copies) {
+    for (const copy of dedupedCopies) {
       const all = repliesByNote[copy.noteId] || [];
       copy.allReplies = all.sort(
         (a, b) =>
@@ -2912,19 +2974,15 @@ const getMyCopies = asyncHandler(async (req, res) => {
       );
       copy.copyChain = chainByNote[copy.noteId] || [];
     }
-  } else {
-    // No copies at all — still resolve the manager-id promise
-    const rsResult = await managerIdPromise;
-    myManagerId = rsResult?.managerId || null;
   }
 
   const responseData = {
-    copies,
-    myManagerId,
+    copies: dedupedCopies,
+    myManagerId: managerId,
     ...(paginationMeta ? { pagination: paginationMeta } : {}),
   };
-  // Cache for 30 seconds
-  await cache.set(copiesCacheKey, responseData, 30);
+  // Cache for 60 seconds (invalidated on state changes)
+  await cache.set(copiesCacheKey, responseData, 60);
 
   return ApiResponse.success(
     res,
@@ -2950,18 +3008,9 @@ const getMyCopies = asyncHandler(async (req, res) => {
 const getMyNotingPermissions = asyncHandler(async (req, res) => {
   const user = req.user; // fully populated by protect middleware
 
-  // ── PERF: Cache per-user permissions for 5 min ──────────────────────────
-  // Permissions rarely change mid-session. This avoids the O(keys × deptPerms)
-  // iteration on every detail page load.
-  const permsCacheKey = `noting:perms:${user.id}`;
-  const cached = await cache.get(permsCacheKey);
-  if (cached) {
-    return ApiResponse.success(
-      res,
-      cached,
-      "Noting permissions fetched successfully",
-    );
-  }
+  // No caching — permissions must always reflect the latest admin changes.
+  // The protect middleware already caches the user session (with merged role perms)
+  // so this endpoint just does a lightweight in-memory iteration.
 
   // The canonical set of noting permission keys we expose to the frontend.
   const NOTING_PERM_KEYS = [
@@ -3045,9 +3094,6 @@ const getMyNotingPermissions = asyncHandler(async (req, res) => {
       console.error("Chairperson club check in permissions:", clubErr);
     }
   }
-
-  // Cache for 5 minutes
-  await cache.set(permsCacheKey, result, 300);
 
   return ApiResponse.success(
     res,

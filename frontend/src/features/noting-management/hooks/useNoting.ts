@@ -25,6 +25,8 @@ export type NotingListParams = {
   page?: number;
   limit?: number;
   includeCounts?: boolean;
+  /** Sub-filter for handled tab: 'approved' = approved+recommended, 'rejected' = rejected+not_recommended */
+  handledAction?: "approved" | "rejected";
 };
 
 export const NOTING_QUERY_KEYS = {
@@ -63,6 +65,7 @@ export function useNotingList(params: NotingListParams = {}) {
     endDate,
     includeCounts = true,
     enabled = true,
+    handledAction,
   } = params;
 
   return useQuery({
@@ -78,6 +81,7 @@ export function useNotingList(params: NotingListParams = {}) {
         startDate,
         endDate,
         includeCounts,
+        handledAction,
       }),
     // 1-minute stale time — short enough to feel fresh, long enough to
     // survive rapid tab switching without redundant requests.
@@ -218,8 +222,8 @@ export function useCreatorInfo(options: { enabled?: boolean } = {}) {
 
 /**
  * Fetch the current user's noting action permissions.
- * Cached for 5 minutes — permissions rarely change within a session.
- * Replaces manual useEffect fetch that fired on every mount with no caching.
+ * Always fetches fresh — permissions can change when admin updates roles.
+ * No caching to ensure buttons always reflect current permissions.
  */
 export function useNotingPermissions(options: { enabled?: boolean } = {}) {
   const { enabled = true } = options;
@@ -227,8 +231,8 @@ export function useNotingPermissions(options: { enabled?: boolean } = {}) {
     queryKey: NOTING_QUERY_KEYS.permissions(),
     queryFn: () => notingService.getMyNotingPermissions(),
     enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes — perms don't change mid-session
-    gcTime: 10 * 60 * 1000,
+    staleTime: 0, // Always refetch — admin can change permissions any time
+    gcTime: 30 * 1000, // Keep in garbage collection for 30s only
   });
 }
 

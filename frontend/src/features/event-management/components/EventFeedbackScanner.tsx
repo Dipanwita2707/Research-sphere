@@ -3,44 +3,54 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, QrCode, Camera, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, QrCode, Camera, AlertCircle, CheckCircle, Store } from 'lucide-react';
 import { useToast } from '@/shared/ui-components/Toast';
 
 function navigateToFeedback(router: ReturnType<typeof useRouter>, path: string) {
-  // Defer navigation to avoid "Cannot transition to a new state, already under transition"
   setTimeout(() => router.push(path), 0);
 }
 
-const FEEDBACK_URL_PATTERN = /\/events\/[^/]+\/feedback/;
+// Matches: /events/{id}/feedback  (event feedback)
+const EVENT_FEEDBACK_PATTERN = /\/events\/[^/]+\/feedback$/;
+// Matches: /events/{id}/stalls/{stallId}/feedback  (stall feedback)
+const STALL_FEEDBACK_PATTERN = /\/events\/[^/]+\/stalls\/[^/]+\/feedback$/;
 
-function isFeedbackUrl(text: string): boolean {
-  try {
-    const url = new URL(text, window.location.origin);
-    return FEEDBACK_URL_PATTERN.test(url.pathname);
-  } catch {
-    return FEEDBACK_URL_PATTERN.test(text);
-  }
+type FeedbackType = 'event' | 'stall' | null;
+
+function detectFeedbackType(text: string): FeedbackType {
+  const tryPath = (t: string) => {
+    try { return new URL(t, window.location.origin).pathname; } catch { return t; }
+  };
+  const path = tryPath(text);
+  if (STALL_FEEDBACK_PATTERN.test(path)) return 'stall';
+  if (EVENT_FEEDBACK_PATTERN.test(path)) return 'event';
+  return null;
 }
 
 function getFeedbackPath(text: string): string | null {
   try {
     const url = new URL(text, window.location.origin);
-    const match = url.pathname.match(FEEDBACK_URL_PATTERN);
-    return match ? match[0] : null;
+    const p = url.pathname;
+    if (STALL_FEEDBACK_PATTERN.test(p)) return p;
+    if (EVENT_FEEDBACK_PATTERN.test(p)) return p;
+    return null;
   } catch {
-    const match = text.match(FEEDBACK_URL_PATTERN);
-    return match ? match[0] : null;
+    if (STALL_FEEDBACK_PATTERN.test(text)) return text;
+    if (EVENT_FEEDBACK_PATTERN.test(text)) return text;
+    return null;
   }
 }
 
 export default function EventFeedbackScanner() {
   const router = useRouter();
   const { toast } = useToast();
-  const html5QrCodeRef = useRef<{ stop: () => Promise<void> } | null>(null);
+  const html5QrCodeRef = useRef<{ stop: () => Promise<void>; getState?: () => number } | null>(null);
+  const scannerStartedRef = useRef(false);
   const navigatingRef = useRef(false);
   const [scanMode, setScanMode] = useState<'camera' | 'input'>('camera');
   const [manualInput, setManualInput] = useState('');
   const [lastError, setLastError] = useState<string | null>(null);
+  const [lastDetected, setLastDetected] = useState<FeedbackType>(null);
 
   const startCameraScanner = useCallback(async () => {
     const readerEl = document.getElementById('event-feedback-qr-reader');
@@ -50,6 +60,7 @@ export default function EventFeedbackScanner() {
       const { Html5Qrcode } = await import('html5-qrcode');
       const html5QrCode = new Html5Qrcode('event-feedback-qr-reader');
       html5QrCodeRef.current = html5QrCode;
+      scannerStartedRef.current = false;
 
       await html5QrCode.start(
         { facingMode: 'environment' },
@@ -58,19 +69,26 @@ export default function EventFeedbackScanner() {
           const code = decodedText?.trim();
           if (!code || navigatingRef.current) return;
 
-          if (isFeedbackUrl(code)) {
+          const type = detectFeedbackType(code);
+          if (type) {
             const path = getFeedbackPath(code);
             if (path) {
               navigatingRef.current = true;
+              setLastDetected(type);
+              toast({
+                type: 'success',
+                message: type === 'stall' ? 'Stall feedback QR detected! Opening...' : 'Event feedback QR detected! Opening...',
+              });
               navigateToFeedback(router, path);
             }
           } else {
-            setLastError('Not a valid event feedback QR code');
-            toast({ type: 'warning', message: 'Invalid QR - scan an event feedback QR code' });
+            setLastError('Not a valid feedback QR code');
+            toast({ type: 'warning', message: 'Invalid QR — scan an event or stall feedback QR' });
           }
         },
         () => {}
       );
+      scannerStartedRef.current = true;
     } catch (err) {
       console.error('Camera scanner error:', err);
       toast({ type: 'error', message: 'Could not access camera. Use manual input below.' });
@@ -79,31 +97,31 @@ export default function EventFeedbackScanner() {
   }, [toast, router]);
 
   const stopCameraScanner = useCallback((): Promise<void> => {
-    if (html5QrCodeRef.current) {
+    if (html5QrCodeRef.current && scannerStartedRef.current) {
       const scanner = html5QrCodeRef.current;
       html5QrCodeRef.current = null;
-      return scanner.stop().catch(() => {});
+      scannerStartedRef.current = false;
+      try {
+        return scanner.stop().catch(() => {});
+      } catch {
+        return Promise.resolve();
+      }
     }
+    html5QrCodeRef.current = null;
+    scannerStartedRef.current = false;
     return Promise.resolve();
   }, []);
 
   const switchToInputMode = useCallback(() => {
-    stopCameraScanner().then(() => {
-      setScanMode('input');
-    });
+    stopCameraScanner().then(() => setScanMode('input'));
   }, [stopCameraScanner]);
 
-  const switchToCameraMode = useCallback(() => {
-    setScanMode('camera');
-  }, []);
+  const switchToCameraMode = useCallback(() => setScanMode('camera'), []);
 
   useEffect(() => {
     if (scanMode === 'camera') {
       const t = setTimeout(() => startCameraScanner(), 100);
-      return () => {
-        clearTimeout(t);
-        stopCameraScanner();
-      };
+      return () => { clearTimeout(t); stopCameraScanner(); };
     }
     return undefined;
   }, [scanMode, startCameraScanner, stopCameraScanner]);
@@ -111,12 +129,10 @@ export default function EventFeedbackScanner() {
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = manualInput.trim();
-    if (!trimmed) {
-      toast({ type: 'error', message: 'Enter or paste a feedback URL' });
-      return;
-    }
+    if (!trimmed) { toast({ type: 'error', message: 'Enter or paste a feedback URL' }); return; }
 
-    if (isFeedbackUrl(trimmed)) {
+    const type = detectFeedbackType(trimmed);
+    if (type) {
       const path = getFeedbackPath(trimmed);
       if (path) {
         navigateToFeedback(router, path);
@@ -124,8 +140,8 @@ export default function EventFeedbackScanner() {
         toast({ type: 'error', message: 'Could not parse feedback URL' });
       }
     } else {
-      setLastError('Not a valid event feedback URL');
-      toast({ type: 'warning', message: 'Invalid URL - use an event feedback link' });
+      setLastError('Not a valid feedback URL');
+      toast({ type: 'warning', message: 'Invalid URL — use an event or stall feedback link' });
     }
   };
 
@@ -144,11 +160,23 @@ export default function EventFeedbackScanner() {
           <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <QrCode className="w-6 h-6 text-sgt-500" />
-              Event Feedback Scanner
+              Feedback QR Scanner
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Scan the event feedback QR code to open the feedback form
+              Scan an event <em>or</em> stall feedback QR code — it auto-detects which type it is
             </p>
+
+            {/* Type legend */}
+            <div className="flex items-center gap-4 mt-3">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <QrCode className="w-3.5 h-3.5 text-sgt-500" />
+                Event feedback
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <Store className="w-3.5 h-3.5 text-purple-500" />
+                Stall feedback
+              </div>
+            </div>
           </div>
 
           <div className="p-6 space-y-6">
@@ -188,44 +216,31 @@ export default function EventFeedbackScanner() {
                   <input
                     type="text"
                     value={manualInput}
-                    onChange={(e) => {
-                      setManualInput(e.target.value);
-                      setLastError(null);
-                    }}
-                    placeholder="Paste event feedback URL (e.g. .../events/EVT-123/feedback)"
+                    onChange={(e) => { setManualInput(e.target.value); setLastError(null); }}
+                    placeholder="Paste event or stall feedback URL"
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500"
                   />
+                  {lastError && (
+                    <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" /> {lastError}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-3 bg-sgt-600 text-white rounded-lg hover:bg-sgt-700 font-medium flex items-center justify-center gap-2"
+                  className="w-full bg-sgt-600 hover:bg-sgt-700 text-white py-3 rounded-lg font-semibold transition-colors"
                 >
-                  <CheckCircle className="w-4 h-4" />
                   Open Feedback Form
                 </button>
               </form>
             )}
 
-            {lastError && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {lastError}
+            {lastDetected && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-sm">
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                {lastDetected === 'stall' ? 'Stall feedback QR detected — redirecting...' : 'Event feedback QR detected — redirecting...'}
               </div>
             )}
-          </div>
-        </div>
-
-        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-900 dark:text-blue-100">
-              <p className="font-medium mb-1">How to use</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
-                <li>Event organizers display a feedback QR on the Event Management page</li>
-                <li>Scan that QR to open the feedback form for that event</li>
-                <li>Or paste the feedback URL if you received it via link</li>
-              </ul>
-            </div>
           </div>
         </div>
       </div>

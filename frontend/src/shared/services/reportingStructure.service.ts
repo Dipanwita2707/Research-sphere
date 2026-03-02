@@ -37,6 +37,7 @@ export interface ReportingRelationship {
 export interface HierarchyNode {
   id: string;
   userId: string;
+  uid?: string;
   name: string;
   email: string;
   empId?: string;
@@ -72,6 +73,22 @@ export interface BulkImportRequest {
     managerId: string;
   }>;
 }
+
+export interface MoveUserRequest {
+  userId: string;
+  newManagerId: string;
+}
+
+export interface UserHierarchyInfo {
+  isInHierarchy: boolean;
+  currentLevel: number;
+  parentId: string | null;
+  parentName: string | null;
+  subordinateCount: number;
+  hierarchyPath: string;
+}
+
+export type BulkHierarchyInfoMap = Record<string, UserHierarchyInfo | null>;
 
 export const reportingStructureService = {
   /**
@@ -164,6 +181,31 @@ export const reportingStructureService = {
       };
       message: string;
     }>('/reporting-structure/bulk-import', request);
+    return response.data;
+  },
+
+  /**
+   * Move a user to a new position in the hierarchy
+   * Atomically removes from current position and inserts under new manager
+   */
+  async moveUser(request: MoveUserRequest) {
+    const response = await api.post<{
+      success: boolean;
+      data: ReportingRelationship;
+      message: string;
+    }>('/reporting-structure/move', request);
+    return response.data;
+  },
+
+  /**
+   * Get hierarchy info for multiple users (batch)
+   * Returns level, parent, subordinate count for users already in hierarchy
+   */
+  async getBulkHierarchyInfo(userIds: string[]) {
+    const response = await api.post<{
+      success: boolean;
+      data: BulkHierarchyInfoMap;
+    }>('/reporting-structure/hierarchy-info', { userIds });
     return response.data;
   },
 

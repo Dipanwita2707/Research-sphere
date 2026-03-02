@@ -14,10 +14,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light');
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     // Check for saved preference or system preference
     const savedTheme = localStorage.getItem('theme') as Theme | null;
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -37,10 +35,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme(theme === 'light' ? 'dark' : 'light');
   };
 
-  // Prevent flash of wrong theme
-  if (!mounted) {
-    return null;
-  }
+  // Render children immediately to avoid a flash-of-blank.
+  // The initial render uses the default 'light' theme; once the effect runs
+  // (client-only), the correct saved/system theme is applied. Any mismatch
+  // is a harmless class toggle (< 1 frame) instead of a full blank page.
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
