@@ -12,6 +12,8 @@ export interface EventVisibility {
   id: string;
   eventId: string;
   isActive: boolean;
+  autoClosed: boolean;          // system auto-closed due to registrationEndDate expiry
+  manuallyOverridden: boolean;  // admin has manually toggled after date expiry
   visibleToRoles: VisibleRole[];
   studentFilterType: StudentFilterType;
   allowedSchoolIds: string[];

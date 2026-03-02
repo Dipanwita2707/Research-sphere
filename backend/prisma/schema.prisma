@@ -50,6 +50,7 @@ model UserLogin {
   gate_pass_gate_pass_person_to_meet_idTouser_login gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
   bookingsVerified                                  HostelBooking[]                      @relation("BookingVerifiedBy")
   bookingsCreated                                   HostelBooking[]                      @relation("BookingCreatedBy")
+  refundsProcessed                                  RefundTransaction[]                  @relation("RefundProcessedBy")
   gate_pass_history                                 gate_pass_history[]
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
@@ -2304,7 +2305,9 @@ model Event {
 model EventVisibility {
   id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId               String   @unique                         // one-to-one with Event
-  isActive              Boolean  @default(true)                   // Global ON/OFF toggle
+  isActive              Boolean  @default(true)                   // Global ON/OFF toggle (admin-controlled)
+  autoClosed            Boolean  @default(false) @map("auto_closed")          // true = system auto-closed due to date expiry
+  manuallyOverridden    Boolean  @default(false) @map("manually_overridden")  // true = admin manually toggled after date expiry
   visibleToRoles        Json     @default("[]")                   // ["student","faculty","staff","parent","admin"]
   // Student-level granular filters (applied only when "student" is in visibleToRoles)
   studentFilterType     String   @default("all") @map("student_filter_type") @db.VarChar(32)  // all | custom
@@ -2599,14 +2602,39 @@ model HostelBooking {
   created_at      DateTime   @default(now()) @db.Timestamptz(6)
   updated_at      DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
 
-  gate_pass       gate_pass  @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
-  verified_by     UserLogin? @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
-  created_by      UserLogin  @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  gate_pass            gate_pass           @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  verified_by          UserLogin?          @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
+  created_by           UserLogin           @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  refund_transactions  RefundTransaction[]
 
   @@index([gate_pass_id])
   @@index([verified_by_id])
   @@index([created_by_id])
   @@map("hostel_booking")
+}
+
+model RefundTransaction {
+  id                       String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  booking_id               String             @db.Uuid
+  pass_id                  String             @db.Uuid
+  original_amount          Float
+  cancellation_fee_percent Float
+  cancellation_fee_amount  Float
+  refund_amount            Float
+  refund_status            refund_status_enum @default(pending)
+  processed_by_id          String?            @db.Uuid
+  processed_at             DateTime?          @db.Timestamptz(6)
+  remarks                  String?            @db.Text
+  created_at               DateTime           @default(now()) @db.Timestamptz(6)
+
+  booking      HostelBooking @relation(fields: [booking_id], references: [id])
+  gate_pass    gate_pass     @relation(fields: [pass_id], references: [id])
+  processed_by UserLogin?    @relation("RefundProcessedBy", fields: [processed_by_id], references: [id])
+
+  @@index([booking_id])
+  @@index([pass_id])
+  @@index([refund_status])
+  @@map("refund_transactions")
 }
 
 // ============================================
@@ -3748,5 +3776,12 @@ enum TmsTimelineActionEnum {
   rated
 
   @@map("tms_timeline_action_enum")
+}
+
+enum refund_status_enum {
+  pending
+  processed
+  failed
+  cancelled
 }
 
