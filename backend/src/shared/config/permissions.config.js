@@ -403,6 +403,78 @@ const REPORTING_STRUCTURE_PERMISSIONS = {
   },
 };
 
+// ===========================================
+// TMS (Ticket Management System) Permissions
+// Student grievance, assistance, enquiry & feedback
+// ===========================================
+const TMS_PERMISSIONS = {
+  TMS_CORE: {
+    category: 'Ticket Management System',
+    permissions: {
+      tms_submit_ticket: {
+        key: 'tms_submit_ticket',
+        label: 'Submit Ticket',
+        description: 'Can submit new tickets (grievance/assistance/enquiry/feedback)'
+      },
+      tms_view_own_tickets: {
+        key: 'tms_view_own_tickets',
+        label: 'View Own Tickets',
+        description: 'Can view tickets submitted by self'
+      },
+      tms_view_assigned_tickets: {
+        key: 'tms_view_assigned_tickets',
+        label: 'View Assigned Tickets',
+        description: 'Can view tickets assigned for handling'
+      },
+      tms_update_ticket: {
+        key: 'tms_update_ticket',
+        label: 'Update Ticket',
+        description: 'Can add remarks and update ticket status'
+      },
+      tms_escalate_ticket: {
+        key: 'tms_escalate_ticket',
+        label: 'Escalate Ticket',
+        description: 'Can escalate tickets to next level in the chain'
+      },
+      tms_resolve_ticket: {
+        key: 'tms_resolve_ticket',
+        label: 'Resolve Ticket',
+        description: 'Can mark tickets as resolved'
+      },
+      tms_close_ticket: {
+        key: 'tms_close_ticket',
+        label: 'Close Ticket',
+        description: 'Can close resolved or stale tickets'
+      },
+      tms_manage_categories: {
+        key: 'tms_manage_categories',
+        label: 'Manage TMS Categories',
+        description: 'Can create/edit/delete category hierarchy and employee mappings'
+      },
+      tms_view_analytics: {
+        key: 'tms_view_analytics',
+        label: 'View TMS Analytics',
+        description: 'Can view TMS dashboard analytics and all tickets (Admin)'
+      },
+      tms_registrar_handle: {
+        key: 'tms_registrar_handle',
+        label: 'Registrar Ticket Handling',
+        description: 'Can handle tickets escalated to Registrar level'
+      },
+      tms_dean_handle: {
+        key: 'tms_dean_handle',
+        label: 'Dean Academics Ticket Handling',
+        description: 'Can handle tickets escalated to Dean Academics level'
+      },
+      tms_vc_handle: {
+        key: 'tms_vc_handle',
+        label: 'Vice Chancellor Ticket Handling',
+        description: 'Can handle tickets escalated to Vice Chancellor level'
+      }
+    }
+  }
+};
+
 // Flat list of all permission keys for validation
 const ALL_IPR_PERMISSION_KEYS = Object.values(IPR_PERMISSIONS).flatMap(
   (category) => Object.keys(category.permissions),
@@ -440,6 +512,9 @@ const ALL_REPORTING_STRUCTURE_PERMISSION_KEYS = Object.values(
   REPORTING_STRUCTURE_PERMISSIONS,
 ).flatMap((category) => Object.keys(category.permissions));
 
+const ALL_TMS_PERMISSION_KEYS = Object.values(TMS_PERMISSIONS)
+  .flatMap(category => Object.keys(category.permissions));
+
 const ALL_PERMISSION_KEYS = [
   ...ALL_IPR_PERMISSION_KEYS,
   ...ALL_RESEARCH_PERMISSION_KEYS,
@@ -450,6 +525,7 @@ const ALL_PERMISSION_KEYS = [
   ...ALL_NOTING_PERMISSION_KEYS,
   ...ALL_EVENT_PERMISSION_KEYS,
   ...ALL_REPORTING_STRUCTURE_PERMISSION_KEYS,
+  ...ALL_TMS_PERMISSION_KEYS
 ];
 
 // Get all permissions as flat array for API response
@@ -522,6 +598,13 @@ const getPermissionsForUI = () => {
     permissions: Object.values(group.permissions),
   }));
 
+  
+  const tmsPerms = Object.entries(TMS_PERMISSIONS).map(([groupKey, group]) => ({
+    groupKey,
+    category: group.category,
+    permissions: Object.values(group.permissions)
+  }));
+  
   return [
     ...iprPerms,
     ...researchPerms,
@@ -532,6 +615,7 @@ const getPermissionsForUI = () => {
     ...notingPerms,
     ...eventPerms,
     ...reportingStructurePerms,
+    ...tmsPerms
   ];
 };
 
@@ -553,7 +637,10 @@ const getDefaultPermissions = (role) => {
       // DSW Permissions
       dsw_view_club: true, // Students can view clubs
       // Event Permissions
-      event_manage_own: true, // Students can manage events they create (via club)
+      event_manage_own: true,     // Students can manage events they create (via club)
+      // TMS Permissions
+      tms_submit_ticket: true,    // Students can submit tickets
+      tms_view_own_tickets: true  // Students can view their own tickets
     },
     faculty: {
       // DRD Permissions
@@ -569,16 +656,27 @@ const getDefaultPermissions = (role) => {
       noting_create: true, // Faculty can initiate notings for approval workflows
       noting_view_own: true, // Faculty can view their own notings
       // Event Permissions
-      event_create: true, // Faculty can create events (via noting)
-      event_manage_own: true, // Faculty can manage their own events
-      event_publish: true, // Faculty can publish their events
+      event_create: true,         // Faculty can create events (via noting)
+      event_manage_own: true,     // Faculty can manage their own events
+      event_publish: true,        // Faculty can publish their events
       event_assign_volunteers: true, // Faculty can assign volunteers
+      // TMS Permissions
+      tms_view_assigned_tickets: true, // Faculty can view assigned tickets
+      tms_update_ticket: true,    // Faculty can add remarks
+      tms_escalate_ticket: true,  // Faculty can escalate tickets
+      tms_resolve_ticket: true    // Faculty can resolve tickets
     },
     staff: {
       // DSW Permissions - view only
       dsw_view_club: true, // Staff can view clubs
       // Noting Permissions - view only by default
       noting_view_own: true, // Staff can view notings they're involved in
+      noting_view_own: true,      // Staff can view notings they're involved in
+      // TMS Permissions - same as faculty (staff are also employees)
+      tms_view_assigned_tickets: true,  // Staff can view tickets assigned to them
+      tms_update_ticket: true,          // Staff can add remarks to tickets
+      tms_escalate_ticket: true,        // Staff can escalate tickets
+      tms_resolve_ticket: true          // Staff can resolve tickets
       // Staff do NOT get filing/creation permissions by default
       // They need explicit permission from admin checkbox
     },
@@ -601,6 +699,11 @@ const getDefaultPermissions = (role) => {
       event_view_all: true,
       event_manage_all: true,
       event_view_reports: true,
+      // TMS Permissions
+      tms_view_assigned_tickets: true,
+      tms_manage_categories: true,
+      tms_view_analytics: true,
+      tms_close_ticket: true
       // Admin does NOT get IPR/Research filing permissions by default
       // Admin manages users/permissions/analytics, NOT IPR operations
     },
@@ -619,6 +722,11 @@ const getDefaultPermissions = (role) => {
       event_view_all: true,
       event_manage_all: true,
       event_view_reports: true,
+      // TMS Permissions
+      tms_view_assigned_tickets: true,
+      tms_manage_categories: true,
+      tms_view_analytics: true,
+      tms_close_ticket: true
     },
   };
 
@@ -740,14 +848,42 @@ const ROUTE_PERMISSION_MAP = {
   // ===========================================
   // Event Management Routes
   // ===========================================
-  "POST /api/v1/events/create": ["event_create"],
-  "GET /api/v1/events/all": ["event_view_all"],
-  "PUT /api/v1/events/:id": ["event_manage_own", "event_manage_all"],
-  "POST /api/v1/events/:id/publish": ["event_publish"],
-  "POST /api/v1/events/:id/cancel": ["event_cancel"],
-  "POST /api/v1/events/:id/attendance": ["event_manage_attendance"],
-  "POST /api/v1/events/:id/volunteers": ["event_assign_volunteers"],
-  "GET /api/v1/events/reports": ["event_view_reports"],
+  'POST /api/v1/events/create': ['event_create'],
+  'GET /api/v1/events/all': ['event_view_all'],
+  'PUT /api/v1/events/:id': ['event_manage_own', 'event_manage_all'],
+  'POST /api/v1/events/:id/publish': ['event_publish'],
+  'POST /api/v1/events/:id/cancel': ['event_cancel'],
+  'POST /api/v1/events/:id/attendance': ['event_manage_attendance'],
+  'POST /api/v1/events/:id/volunteers': ['event_assign_volunteers'],
+  'GET /api/v1/events/reports': ['event_view_reports'],
+  
+  // ===========================================
+  // TMS Ticket Management Routes
+  // ===========================================
+  'POST /api/v1/tms/tickets': ['tms_submit_ticket'],
+  'GET /api/v1/tms/tickets/my': ['tms_view_own_tickets'],
+  'GET /api/v1/tms/tickets/assigned': ['tms_view_assigned_tickets'],
+  'GET /api/v1/tms/tickets/:id': ['tms_view_own_tickets', 'tms_view_assigned_tickets', 'tms_view_analytics'],
+  'POST /api/v1/tms/tickets/:id/remark': ['tms_update_ticket'],
+  'POST /api/v1/tms/tickets/:id/escalate': ['tms_escalate_ticket'],
+  'POST /api/v1/tms/tickets/:id/resolve': ['tms_resolve_ticket'],
+  'POST /api/v1/tms/tickets/:id/close': ['tms_close_ticket', 'tms_view_analytics'],
+  'POST /api/v1/tms/tickets/:id/rate': ['tms_view_own_tickets'],
+  'GET /api/v1/tms/categories': ['tms_submit_ticket', 'tms_view_own_tickets'],
+  'GET /api/v1/tms/categories/all': ['tms_manage_categories'],
+  'POST /api/v1/tms/categories/master': ['tms_manage_categories'],
+  'PATCH /api/v1/tms/categories/master/:id': ['tms_manage_categories'],
+  'DELETE /api/v1/tms/categories/master/:id': ['tms_manage_categories'],
+  'POST /api/v1/tms/categories/category': ['tms_manage_categories'],
+  'PATCH /api/v1/tms/categories/category/:id': ['tms_manage_categories'],
+  'DELETE /api/v1/tms/categories/category/:id': ['tms_manage_categories'],
+  'POST /api/v1/tms/categories/sub-category': ['tms_manage_categories'],
+  'PATCH /api/v1/tms/categories/sub-category/:id': ['tms_manage_categories'],
+  'DELETE /api/v1/tms/categories/sub-category/:id': ['tms_manage_categories'],
+  'GET /api/v1/tms/admin/analytics/overview': ['tms_view_analytics'],
+  'GET /api/v1/tms/admin/analytics/employees': ['tms_view_analytics'],
+  'GET /api/v1/tms/admin/analytics/categories': ['tms_view_analytics'],
+  'GET /api/v1/tms/admin/tickets': ['tms_view_analytics']
 };
 
 /**
@@ -857,7 +993,8 @@ module.exports = {
   NOTING_PERMISSIONS,
   EVENT_PERMISSIONS,
   REPORTING_STRUCTURE_PERMISSIONS,
-
+  TMS_PERMISSIONS,
+  
   // Permission Key Arrays
   ALL_PERMISSION_KEYS,
   ALL_IPR_PERMISSION_KEYS,
@@ -869,7 +1006,8 @@ module.exports = {
   ALL_NOTING_PERMISSION_KEYS,
   ALL_EVENT_PERMISSION_KEYS,
   ALL_REPORTING_STRUCTURE_PERMISSION_KEYS,
-
+  ALL_TMS_PERMISSION_KEYS,
+  
   // Utility Functions
   getPermissionsForUI,
   isValidPermission,

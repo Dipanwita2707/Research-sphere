@@ -73,6 +73,15 @@ export interface GatePass {
   checkOutDate?: string;
   hostelName?: string;
   roomNumber?: string;
+  hostelBooking?: {
+    totalPrice?: number;
+    roomNumber?: string;
+    hostelName?: string;
+    bookingStatus?: string;
+    paymentStatus?: string;
+    checkInDate?: string;
+    checkOutDate?: string;
+  };
   numberOfPersons?: number;
   specialInstructions?: string;
   itemsCarrying?: string;
@@ -295,6 +304,16 @@ function transformPass(pass: any): GatePass {
     checkOutDate: checkOutDate,
     hostelName: hostelName,
     roomNumber: roomNumber,
+    // Include full hostelBooking object for refund calculation
+    hostelBooking: hostelBooking ? {
+      totalPrice: hostelBooking.total_price || hostelBooking.totalPrice,
+      roomNumber: hostelBooking.room?.room_number || hostelBooking.roomNumber || roomNumber,
+      hostelName: hostelBooking.room?.hostel?.name || hostelBooking.hostelName || hostelName,
+      bookingStatus: hostelBooking.booking_status || hostelBooking.bookingStatus,
+      paymentStatus: hostelBooking.payment_status || hostelBooking.paymentStatus,
+      checkInDate: hostelBooking.check_in_date || checkInDate,
+      checkOutDate: hostelBooking.check_out_date || checkOutDate,
+    } : undefined,
     numberOfPersons: pass.number_of_persons,
     specialInstructions: pass.special_instructions,
     itemsCarrying: pass.items_carrying,

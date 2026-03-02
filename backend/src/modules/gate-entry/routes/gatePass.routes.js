@@ -226,4 +226,39 @@ router.get('/check-in-history', canVerifyPass, gatePassController.getCheckInHist
  */
 router.get('/export-excel', canVerifyPass, gatePassController.exportToExcel);
 
+/**
+ * @route GET /api/v1/gate-entry/config
+ * @desc Get all system configurations (admin only)
+ * @access Private (Admin only)
+ */
+router.get('/config', gatePassController.getAllSystemConfigs);
+
+/**
+ * @route GET /api/v1/gate-entry/config/:key
+ * @desc Get specific system configuration by key
+ * @access Private (All authenticated users can view)
+ */
+router.get('/config/:key', gatePassController.getSystemConfig);
+
+/**
+ * @route PUT /api/v1/gate-entry/config/:key
+ * @desc Update system configuration (admin only)
+ * @access Private (Admin only)
+ */
+router.put('/config/:key', gatePassController.updateSystemConfig);
+
+/**
+ * @route GET /api/v1/gate-entry/refunds
+ * @desc Get all refund transactions (admin only)
+ * @access Private (Admin only)
+ */
+router.get('/refunds', gatePassController.getAllRefunds);
+
+/**
+ * @route GET /api/v1/gate-entry/refunds/:bookingId
+ * @desc Get refund transaction for specific booking
+ * @access Private (Creator or Admin)
+ */
+router.get('/refunds/:bookingId', gatePassController.getRefundByBooking);
+
 module.exports = router;

@@ -171,6 +171,7 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
     ]
   });
   
+  
   // Common items
   items.push(
     { name: 'Notifications', href: '/notifications', icon: Bell },
@@ -237,7 +238,7 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, and Event Management expanded by default
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, Event Management, and Ticket Management expanded by default
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
 
   useEffect(() => {

@@ -119,6 +119,15 @@ model UserLogin {
   receivedInvitations                                EventTeamInvitation[]                @relation("InvitationInvitee")
   teamJoinRequests                                   EventTeamRequest[]                   @relation("RequestRequester")
   eventTeamMemberships                               EventTeamMember[]                    @relation("TeamMemberUser")
+  // TMS Relations
+  tmsTicketsCreated                                  TmsTicket[]                          @relation("TmsTicketCreatedBy")
+  tmsTicketsAssigned                                 TmsTicket[]                          @relation("TmsTicketAssignedTo")
+  tmsTimelineEntries                                 TmsTimeline[]                        @relation("TmsTimelinePerformedBy")
+  tmsSubCategoryMappings                             TmsSubCategory[]                     @relation("TmsSubCategoryEmployee")
+  tmsCategoryMappings                                TmsCategory[]                        @relation("TmsCategoryEmployee")
+  tmsMasterCategoryMappings                          TmsMasterCategory[]                  @relation("TmsMasterCategoryEmployee")
+  tmsRatings                                         TmsRating[]                          @relation("TmsRatingByUser")
+  tmsRoleHandlers                                    TmsRoleHandler[]                     @relation("TmsRoleHandlerEmployee")
   stallApplications                                  StallApplication[]                   @relation("StallApplicant")
   stallsOwned                                        Stall[]                              @relation("StallOwner")
   payments                                           Payment[]                            @relation("PaymentUser")
@@ -2105,6 +2114,7 @@ model gate_pass {
   extension_count                                    Int                      @default(0)
   extension_reason                                   String?
   cancellation_time                                  DateTime?                @db.Timestamptz(6)
+  cancellation_reason                                String?                  @db.Text
   checkout_unique_id                                 String?                  @unique
   checkout_verification_code                         String?
   checkout_qr_code                                   String?
@@ -2119,6 +2129,7 @@ model gate_pass {
   user_login_gate_pass_person_to_meet_idTouser_login UserLogin?               @relation("gate_pass_person_to_meet_idTouser_login", fields: [person_to_meet_id], references: [id])
   gate_pass_history                                  gate_pass_history[]
   gate_pass_notification                             gate_pass_notification[]
+  refund_transactions                                RefundTransaction[]
 
   @@index([created_by_id])
   @@index([mobile_number])
@@ -3538,3 +3549,204 @@ enum PaymentFor {
 
   @@map("payment_for_enum")
 }
+// ===========================================
+// TMS (Ticket Management System) Models
+// ===========================================
+
+model TmsMasterCategory {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String        @db.VarChar(256)
+  description String?       @db.VarChar(512)
+  sortOrder   Int           @default(0) @map("sort_order")
+  isActive    Boolean       @default(true) @map("is_active")
+  isAcademic  Boolean       @default(false) @map("is_academic")
+  employeeId  String?       @map("employee_id") @db.Uuid
+  employee    UserLogin?    @relation("TmsMasterCategoryEmployee", fields: [employeeId], references: [id])
+  categories  TmsCategory[]
+  tickets     TmsTicket[]   @relation("TmsTicketMasterCategory")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("tms_master_category")
+}
+
+model TmsCategory {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name             String            @db.VarChar(256)
+  description      String?           @db.VarChar(512)
+  sortOrder        Int               @default(0) @map("sort_order")
+  isActive         Boolean           @default(true) @map("is_active")
+  masterCategoryId String            @map("master_category_id") @db.Uuid
+  masterCategory   TmsMasterCategory @relation(fields: [masterCategoryId], references: [id], onDelete: Cascade)
+  employeeId       String?           @map("employee_id") @db.Uuid
+  employee         UserLogin?        @relation("TmsCategoryEmployee", fields: [employeeId], references: [id])
+  subCategories    TmsSubCategory[]
+  tickets          TmsTicket[]       @relation("TmsTicketCategory")
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("tms_category")
+}
+
+model TmsSubCategory {
+  id           String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name         String           @db.VarChar(256)
+  description  String?          @db.VarChar(512)
+  sortOrder    Int              @default(0) @map("sort_order")
+  isActive     Boolean          @default(true) @map("is_active")
+  categoryId   String           @map("category_id") @db.Uuid
+  category     TmsCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  employeeId   String?          @map("employee_id") @db.Uuid
+  employee     UserLogin?       @relation("TmsSubCategoryEmployee", fields: [employeeId], references: [id])
+  priority     TmsPriorityEnum  @default(medium)
+  slaHours     Int              @default(48) @map("sla_hours")
+  tickets      TmsTicket[]      @relation("TmsTicketSubCategory")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("tms_sub_category")
+}
+
+model TmsTicket {
+  id                String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  requestId         String            @unique @map("request_id") @db.VarChar(32)
+  messageType       TmsMessageTypeEnum @map("message_type")
+  subject           String            @db.VarChar(256)
+  masterCategoryId  String            @map("master_category_id") @db.Uuid
+  masterCategory    TmsMasterCategory @relation("TmsTicketMasterCategory", fields: [masterCategoryId], references: [id])
+  categoryId        String            @map("category_id") @db.Uuid
+  category          TmsCategory       @relation("TmsTicketCategory", fields: [categoryId], references: [id])
+  subCategoryId     String            @map("sub_category_id") @db.Uuid
+  subCategory       TmsSubCategory    @relation("TmsTicketSubCategory", fields: [subCategoryId], references: [id])
+  contactNumber     String            @map("contact_number") @db.VarChar(20)
+  description       String
+  documentPath      String?           @map("document_path")
+  documentName      String?           @map("document_name") @db.VarChar(256)
+  priority          TmsPriorityEnum   @default(medium)
+  status            TmsTicketStatusEnum @default(open)
+  currentLevel      TmsEscalationLevelEnum @default(sub_category) @map("current_level")
+  createdById       String            @map("created_by_id") @db.Uuid
+  createdBy         UserLogin         @relation("TmsTicketCreatedBy", fields: [createdById], references: [id])
+  assignedToId      String?           @map("assigned_to_id") @db.Uuid
+  assignedTo        UserLogin?        @relation("TmsTicketAssignedTo", fields: [assignedToId], references: [id])
+  resolvedAt        DateTime?         @map("resolved_at") @db.Timestamptz(6)
+  closedAt          DateTime?         @map("closed_at") @db.Timestamptz(6)
+  lastEscalatedAt   DateTime?         @map("last_escalated_at") @db.Timestamptz(6)
+  escalationDeadline DateTime?        @map("escalation_deadline") @db.Timestamptz(6)
+  closureRemarks    String?           @map("closure_remarks")
+  timeline          TmsTimeline[]
+  rating            TmsRating?
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([requestId])
+  @@index([status])
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([currentLevel])
+  @@index([escalationDeadline])
+  @@index([createdAt])
+  @@map("tms_ticket")
+}
+
+model TmsTimeline {
+  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  ticketId      String              @map("ticket_id") @db.Uuid
+  ticket        TmsTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  action        TmsTimelineActionEnum
+  fromLevel     TmsEscalationLevelEnum? @map("from_level")
+  toLevel       TmsEscalationLevelEnum? @map("to_level")
+  remarks       String?
+  performedById String?             @map("performed_by_id") @db.Uuid
+  performedBy   UserLogin?          @relation("TmsTimelinePerformedBy", fields: [performedById], references: [id])
+  isAutomatic   Boolean             @default(false) @map("is_automatic")
+  metadata      Json                @default("{}")
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([ticketId])
+  @@index([createdAt])
+  @@map("tms_timeline")
+}
+
+model TmsRating {
+  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  ticketId  String    @unique @map("ticket_id") @db.Uuid
+  ticket    TmsTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  rating    Int       @db.SmallInt
+  feedback  String?
+  ratedById String    @map("rated_by_id") @db.Uuid
+  ratedBy   UserLogin @relation("TmsRatingByUser", fields: [ratedById], references: [id])
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("tms_rating")
+}
+
+// Stores the employee assigned to handle tickets at Registrar / Dean / VC levels
+model TmsRoleHandler {
+  id         String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  role       TmsEscalationLevelEnum
+  employeeId String               @map("employee_id") @db.Uuid
+  employee   UserLogin            @relation("TmsRoleHandlerEmployee", fields: [employeeId], references: [id])
+  isActive   Boolean              @default(true) @map("is_active")
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([role])
+  @@map("tms_role_handler")
+}
+
+enum TmsMessageTypeEnum {
+  grievance
+  assistance
+  enquiry
+  feedback
+
+  @@map("tms_message_type_enum")
+}
+
+enum TmsPriorityEnum {
+  low
+  medium
+  high
+  urgent
+
+  @@map("tms_priority_enum")
+}
+
+enum TmsTicketStatusEnum {
+  open
+  in_progress
+  escalated
+  resolved
+  closed
+
+  @@map("tms_ticket_status_enum")
+}
+
+enum TmsEscalationLevelEnum {
+  sub_category
+  category
+  master_category
+  registrar
+  dean_academics
+  vice_chancellor
+
+  @@map("tms_escalation_level_enum")
+}
+
+enum TmsTimelineActionEnum {
+  created
+  assigned
+  escalated
+  forwarded
+  remarked
+  status_changed
+  resolved
+  closed
+  reopened
+  auto_escalated
+  rated
+
+  @@map("tms_timeline_action_enum")
+}
+
