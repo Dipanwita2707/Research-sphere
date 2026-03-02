@@ -251,6 +251,15 @@ function VerifyPassPageContent() {
       const expectedExit = new Date(now);
       expectedExit.setHours(exitHour, exitMin, 0, 0);
       
+      // Gate Entry module is for ALL outsider passes - apply 5 hour buffer to everyone
+      console.log('[QR SCAN TIME VALIDATION] Applying 5-hour buffer for all passes');
+      
+      // 1. Allow entry 5 hours before entry time
+      expectedEntry.setTime(expectedEntry.getTime() - (5 * 60 * 60 * 1000));
+      
+      // 2. Allow until midnight (23:59) on exit date
+      expectedExit.setHours(23, 59, 59, 999);
+      
       const currentTime = now.getTime();
       
       // For multi-day passes, only enforce entry time on the FIRST day
@@ -262,10 +271,11 @@ function VerifyPassPageContent() {
       if (!isMultiDay || isFirstDay) {
         if (currentTime < expectedEntry.getTime() || currentTime > expectedExit.getTime()) {
           const currentTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+          const actualEntryTime = new Date(expectedEntry.getTime() + (5 * 60 * 60 * 1000)).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
           setError(
             `⏰ Outside Valid Time Window\n\n` +
-            `Expected Entry: ${passData.expectedEntryTime}\n` +
-            `Expected Exit: ${passData.expectedExitTime}\n` +
+            `Expected Entry: ${passData.expectedEntryTime} (Active 5 hours before: ${expectedEntry.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })})\n` +
+            `Expected Exit: ${passData.expectedExitTime || 'null'} (Valid until midnight)\n` +
             `Current Time: ${currentTimeStr}\n\n` +
             `Visitor can only enter during the scheduled time window.`
           );
@@ -357,6 +367,15 @@ function VerifyPassPageContent() {
       const expectedExit = new Date(now);
       expectedExit.setHours(exitHour, exitMin, 0, 0);
       
+      // Gate Entry module is for ALL outsider passes - apply 5 hour buffer to everyone
+      console.log('[MANUAL SEARCH TIME VALIDATION] Applying 5-hour buffer for all passes');
+      
+      // 1. Allow entry 5 hours before entry time
+      expectedEntry.setTime(expectedEntry.getTime() - (5 * 60 * 60 * 1000));
+      
+      // 2. Allow until midnight (23:59) on exit date
+      expectedExit.setHours(23, 59, 59, 999);
+      
       const currentTime = now.getTime();
       
       // For multi-day passes, only enforce entry time on the FIRST day
@@ -369,7 +388,7 @@ function VerifyPassPageContent() {
         if (currentTime < expectedEntry.getTime() || currentTime > expectedExit.getTime()) {
           const currentTimeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
           setError(
-            `⏰ Outside Valid Time Window - Expected Entry: ${passData.expectedEntryTime}, Expected Exit: ${passData.expectedExitTime}. Current Time: ${currentTimeStr}. Visitor can only enter during the scheduled time window.`
+            `⏰ Outside Valid Time Window - Expected Entry: ${passData.expectedEntryTime} (Active 5 hours before), Expected Exit: ${passData.expectedExitTime || 'null'} (Valid until midnight). Current Time: ${currentTimeStr}. Visitor can only enter during the scheduled time window.`
           );
           setPass(null);
           return;

@@ -25,6 +25,7 @@ class HostelBookingService {
                   booking_status: {
                     in: ['confirmed', 'pending']
                   },
+                  check_out_date: { gte: new Date() }, // Exclude past bookings - auto-release rooms
                   OR: [
                     {
                       AND: [
@@ -83,6 +84,7 @@ class HostelBookingService {
               booking_status: {
                 in: ['confirmed', 'pending']
               },
+              check_out_date: { gte: new Date() }, // Exclude past bookings - auto-release rooms
               OR: [
                 {
                   AND: [
@@ -198,6 +200,7 @@ class HostelBookingService {
               booking_status: {
                 in: ['confirmed', 'pending']
               },
+              check_out_date: { gte: new Date() }, // Exclude past bookings - auto-release rooms
               OR: [
                 {
                   AND: [

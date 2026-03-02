@@ -48,6 +48,13 @@ interface Pass {
   checkOutDate?: string;
   hostelName?: string;
   roomNumber?: string;
+  hostelBooking?: {
+    totalPrice?: number;
+    roomNumber?: string;
+    hostelName?: string;
+    bookingStatus?: string;
+    paymentStatus?: string;
+  };
   createdAt: string;
   createdBy?: {
     employeeDetails?: {
@@ -132,6 +139,8 @@ function AllPassesPageContent() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancellingPass, setCancellingPass] = useState(false);
+  const [refundPreview, setRefundPreview] = useState<any>(null);
+  const [loadingRefund, setLoadingRefund] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,      // Active Today
@@ -196,7 +205,19 @@ function AllPassesPageContent() {
       setLoading(true);
       setError(null);
       const response = await gateEntryService.getAllPasses();
-      setPasses(response.data?.passes || []);
+      const fetchedPasses = response.data?.passes || [];
+      console.log('[FETCH PASSES] Received passes from backend:', fetchedPasses);
+      if (fetchedPasses.length > 0) {
+        console.log('[FETCH PASSES] Sample pass data:', {
+          passId: fetchedPasses[0].passId,
+          passStatus: fetchedPasses[0].passStatus,
+          status: fetchedPasses[0].status,
+          stayRequired: fetchedPasses[0].stayRequired,
+          hasHostelBooking: !!fetchedPasses[0].hostelBooking,
+          hostelBooking: fetchedPasses[0].hostelBooking
+        });
+      }
+      setPasses(fetchedPasses);
     } catch (err: any) {
       console.error('Error fetching passes:', err);
       // More user-friendly error messages
@@ -282,11 +303,123 @@ function AllPassesPageContent() {
     toast.success(`${t('allPasses.resend.message')} ${pass.mobileNumber}${pass.email ? ` and ${pass.email}` : ''}`, t('allPasses.resend.title'));
   };
 
-  const handleCancelPass = (passId: string) => {
+  const handleCancelPass = async (passId: string) => {
     const pass = passes.find(p => p.passId === passId);
     if (pass) {
+      console.log('[CANCEL MODAL] Full pass object:', JSON.stringify(pass, null, 2));
+      console.log('[CANCEL MODAL] Pass data:', {
+        passId: pass.passId,
+        passStatus: pass.passStatus,
+        status: pass.status,
+        stayRequired: pass.stayRequired,
+        hasHostelBooking: !!pass.hostelBooking,
+        hostelBookingField: pass.hostelBooking,
+        hostelBookingKeys: pass.hostelBooking ? Object.keys(pass.hostelBooking) : 'null'
+      });
+      
       setSelectedPass(pass);
       setShowCancelModal(true);
+      
+      // Fetch refund preview if before check-in and has hostel booking
+      // Check both passStatus (new field) and status (legacy field) for compatibility
+      const isCreated = pass.passStatus === 'created' || pass.status === 'created';
+      
+      if (isCreated && pass.stayRequired && pass.hostelBooking) {
+        console.log('[CANCEL MODAL] Pass is created status with hostel booking - calculating refund preview...');
+        console.log('[CANCEL MODAL] Hostel booking data:', pass.hostelBooking);
+        setLoadingRefund(true);
+        
+        try {
+          // Calculate time remaining until check-in
+          const now = new Date();
+          const checkInDate = new Date(pass.checkInDate || pass.hostelBooking?.checkInDate || pass.visitDate);
+          
+          // Parse check-in time from expectedEntryTime or assume 12:00 PM
+          const entryTime = pass.expectedEntryTime || pass.entryTime || '12:00';
+          const [hours, minutes] = entryTime.split(':').map(Number);
+          checkInDate.setHours(hours, minutes, 0, 0);
+          
+          const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
+          const hoursUntilCheckIn = timeUntilCheckIn / (1000 * 60 * 60);
+          const daysUntilCheckIn = hoursUntilCheckIn / 24;
+          
+          console.log('[REFUND CALC] Check-in date:', checkInDate);
+          console.log('[REFUND CALC] Hours until check-in:', hoursUntilCheckIn);
+          console.log('[REFUND CALC] Days until check-in:', daysUntilCheckIn);
+          
+          // Dynamic refund calculation based on time before check-in
+          let refundPercent = 0;
+          let appliedSlab = '';
+          
+          if (daysUntilCheckIn >= 3) {
+            refundPercent = 90;
+            appliedSlab = '3+ days before check-in';
+          } else if (daysUntilCheckIn >= 1) {
+            refundPercent = 70;
+            appliedSlab = '1–3 days before check-in';
+          } else if (hoursUntilCheckIn >= 2) {
+            refundPercent = 40;
+            appliedSlab = '2–24 hours before check-in';
+          } else {
+            refundPercent = 0;
+            appliedSlab = 'Less than 2 hours before check-in';
+          }
+          
+          console.log('[REFUND CALC] Applied slab:', appliedSlab, '(' + refundPercent + '% refund)');
+          
+          // Calculate refund amounts
+          const originalAmount = pass.hostelBooking.totalPrice || 0;
+          const cancellationFeePercent = 100 - refundPercent;
+          const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
+          const refundAmount = originalAmount - cancellationFeeAmount;
+          
+          // Format time remaining
+          const days = Math.floor(daysUntilCheckIn);
+          const remainingHours = Math.floor(hoursUntilCheckIn % 24);
+          let timeRemainingStr = '';
+          if (days > 0) {
+            timeRemainingStr = `${days} day${days > 1 ? 's' : ''} ${remainingHours} hr${remainingHours !== 1 ? 's' : ''}`;
+          } else if (hoursUntilCheckIn > 0) {
+            timeRemainingStr = `${Math.floor(hoursUntilCheckIn)} hr${Math.floor(hoursUntilCheckIn) !== 1 ? 's' : ''}`;
+          } else {
+            timeRemainingStr = 'Less than 1 hour';
+          }
+          
+          const preview = {
+            originalAmount,
+            cancellationFeePercent,
+            cancellationFeeAmount,
+            refundAmount,
+            refundPercent,
+            appliedSlab,
+            timeRemaining: timeRemainingStr,
+            checkInDate: checkInDate.toLocaleString('en-IN', { 
+              day: '2-digit', 
+              month: 'short', 
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            roomNumber: pass.hostelBooking.roomNumber,
+            hostelName: pass.hostelBooking.hostelName
+          };
+          
+          console.log('[CANCEL MODAL] Calculated refund preview:', preview);
+          setRefundPreview(preview);
+        } catch (err) {
+          console.error('[CANCEL MODAL] Error calculating refund preview:', err);
+          setRefundPreview(null);
+        } finally {
+          setLoadingRefund(false);
+        }
+      } else {
+        console.log('[CANCEL MODAL] Not showing refund preview. Reasons:', {
+          isCreated,
+          stayRequired: pass.stayRequired,
+          hasHostelBooking: !!pass.hostelBooking
+        });
+        setRefundPreview(null);
+      }
     }
   };
 
@@ -299,22 +432,58 @@ function AllPassesPageContent() {
     setCancellingPass(true);
     try {
       const response = await gateEntryService.cancelPass(selectedPass.passId, cancelReason);
-      const cancelledPass = response.pass;
+      const cancelledPass = response.pass || response.data;
+      const cancellationType = cancelledPass.cancellation_type || cancelledPass.cancellationType;
+      const backendMessage = response.message || '';
+      
+      console.log('[CANCEL RESPONSE]', {
+        cancellationType,
+        backendMessage,
+        response
+      });
       
       // Close modal first
       setShowCancelModal(false);
       setCancelReason('');
       setSelectedPass(null);
+      setRefundPreview(null);
       
-      // Show beautiful success modal with checkout details
-      toast.showSuccessModal({
-        title: t('allPasses.cancel.successTitle'),
-        message: t('allPasses.cancel.successMessage'),
-        passId: cancelledPass.passId,
-        verificationCode: cancelledPass.checkoutVerificationCode || cancelledPass.checkoutUniqueId,
-        mobile: cancelledPass.mobileNumber,
-        email: cancelledPass.email || undefined,
-      });
+      // Handle different cancellation types
+      if (cancellationType === 'before_check_in') {
+        // Before check-in cancellation - show simple toast
+        const hostelRefund = cancelledPass.hostel_refund || cancelledPass.hostelRefund;
+        
+        if (hostelRefund) {
+          // Show success with refund details
+          toast.success(
+            `Pass cancelled successfully. Refund of ₹${hostelRefund.refund_amount || hostelRefund.refundAmount} will be processed.`,
+            t('allPasses.cancel.successTitle')
+          );
+        } else {
+          // No refund (no hostel booking) - use backend message
+          toast.success(
+            backendMessage || t('allPasses.cancel.successBeforeCheckIn'),
+            t('allPasses.cancel.successTitle')
+          );
+        }
+      } else if (cancellationType === 'after_check_in') {
+        // After check-in cancellation - show checkout QR modal
+        const checkoutQR = cancelledPass.checkout_qr || cancelledPass.checkoutQr;
+        toast.showSuccessModal({
+          title: t('allPasses.cancel.successTitle'),
+          message: backendMessage || t('allPasses.cancel.successMessage'),
+          passId: cancelledPass.passId || cancelledPass.pass_id,
+          verificationCode: checkoutQR?.checkout_verification_code || cancelledPass.checkoutVerificationCode,
+          mobile: cancelledPass.mobileNumber || cancelledPass.mobile_number,
+          email: cancelledPass.email || undefined,
+        });
+      } else {
+        // Fallback for unknown cancellation type
+        toast.success(
+          backendMessage || 'Pass cancelled successfully.',
+          t('allPasses.cancel.successTitle')
+        );
+      }
       
       await fetchPasses();
     } catch (err: any) {
@@ -973,8 +1142,9 @@ function AllPassesPageContent() {
               </div>
 
               <div className="border-t border-gray-200 px-6 py-4 flex flex-wrap gap-3">
-                {/* Extend Pass - Only show if user has permission (Creator or Admin) */}
+                {/* Extend Pass - Only show if user has permission (Creator or Admin) and pass is not expired */}
                 {(selectedPass.passStatus === 'created' || selectedPass.passStatus === 'checked_in' || selectedPass.status === 'active' || selectedPass.status === 'checked_in') && 
+                 selectedPass.passStatus !== 'expired' && selectedPass.status !== 'expired' &&
                  canExtendPass(user, selectedPass) && (
                   <button
                     onClick={() => {
@@ -1036,13 +1206,16 @@ function AllPassesPageContent() {
         {/* Cancel Pass Confirmation Modal */}
         {showCancelModal && selectedPass && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-              <div className="flex justify-between items-center mb-6">
+            <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col">
+              {/* Fixed Header */}
+              <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200 bg-white rounded-t-xl flex-shrink-0">
                 <h3 className="text-xl font-semibold text-gray-900">{t('allPasses.cancel.title')}</h3>
                 <button
                   onClick={() => {
                     setShowCancelModal(false);
                     setCancelReason('');
+                    setRefundPreview(null);
+                    setSelectedPass(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
                   disabled={cancellingPass}
@@ -1051,9 +1224,24 @@ function AllPassesPageContent() {
                 </button>
               </div>
 
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <p className="text-sm text-red-800">
-                  {t('allPasses.cancel.warning')}
+              {/* Scrollable Content */}
+              <div className="p-6 pt-4 overflow-y-auto flex-1">
+
+              {/* Warning Message - Dynamic based on pass status */}
+              <div className={`border rounded-lg p-4 mb-6 ${
+                selectedPass.passStatus === 'created' 
+                  ? 'bg-blue-50 border-blue-200' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <p className={`text-sm ${
+                  selectedPass.passStatus === 'created' 
+                    ? 'text-blue-800' 
+                    : 'text-red-800'
+                }`}>
+                  {selectedPass.passStatus === 'created' 
+                    ? t('allPasses.cancel.warningBeforeCheckIn')
+                    : t('allPasses.cancel.warningAfterCheckIn')
+                  }
                 </p>
               </div>
 
@@ -1067,7 +1255,85 @@ function AllPassesPageContent() {
                 </div>
               </div>
 
-              <div className="mb-6">
+              {/* Refund Preview (Before Check-in with Hostel Booking) */}
+              {selectedPass.passStatus === 'created' && selectedPass.stayRequired && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <h4 className="text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {t('allPasses.cancel.refundDetails')}
+                  </h4>
+                  
+                  {loadingRefund ? (
+                    <div className="text-center py-2">
+                      <svg className="animate-spin h-5 w-5 mx-auto text-green-600" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  ) : refundPreview ? (
+                    <div className="space-y-3">
+                      {/* Room and Check-in Details */}
+                      <div className="text-sm text-gray-700 bg-white rounded-md p-3 border border-green-200">
+                        <p className="mb-1"><span className="font-medium">Room:</span> {refundPreview.roomNumber}</p>
+                        <p className="mb-1"><span className="font-medium">Check-in:</span> {refundPreview.checkInDate}</p>
+                      </div>
+
+                      {/* Time Remaining */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                        <p className="text-xs font-semibold text-blue-800 mb-1">⏰ Time Before Check-in</p>
+                        <p className="text-lg font-bold text-blue-900">{refundPreview.timeRemaining}</p>
+                      </div>
+
+                      {/* Cancellation Policy */}
+                      <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                        <p className="text-xs font-semibold text-gray-700 mb-2">📋 Cancellation Policy</p>
+                        <div className="space-y-1 text-xs text-gray-600">
+                          <p className={refundPreview.appliedSlab === '3+ days before check-in' ? 'font-bold text-green-700' : ''}>
+                            • 3+ days before → 90% refund {refundPreview.appliedSlab === '3+ days before check-in' ? '✅' : ''}
+                          </p>
+                          <p className={refundPreview.appliedSlab === '1–3 days before check-in' ? 'font-bold text-green-700' : ''}>
+                            • 1–3 days before → 70% refund {refundPreview.appliedSlab === '1–3 days before check-in' ? '✅' : ''}
+                          </p>
+                          <p className={refundPreview.appliedSlab === '2–24 hours before check-in' ? 'font-bold text-orange-700' : ''}>
+                            • 2–24 hours before → 40% refund {refundPreview.appliedSlab === '2–24 hours before check-in' ? '✅' : ''}
+                          </p>
+                          <p className={refundPreview.appliedSlab === 'Less than 2 hours before check-in' ? 'font-bold text-red-700' : ''}>
+                            • Less than 2 hours → No refund {refundPreview.appliedSlab === 'Less than 2 hours before check-in' ? '✅' : ''}
+                          </p>
+                        </div>
+                        <p className="text-xs font-semibold text-green-700 mt-2">
+                          Applicable: {refundPreview.appliedSlab} ({refundPreview.refundPercent}% refund)
+                        </p>
+                      </div>
+
+                      {/* Refund Calculation */}
+                      <div className="border-t border-green-300 pt-3 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Original Amount:</span>
+                          <span className="font-semibold text-gray-800">₹{refundPreview.originalAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-red-600">
+                          <span>Cancellation Fee ({refundPreview.cancellationFeePercent}%):</span>
+                          <span className="font-semibold">− ₹{refundPreview.cancellationFeeAmount.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-green-300 pt-2 text-base">
+                          <span className="font-bold text-green-800">Refund Amount:</span>
+                          <span className="font-bold text-green-700">₹{refundPreview.refundAmount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">{t('allPasses.cancel.noRefund')}</p>
+                  )}
+                </div>
+              )}
+              </div>
+
+              {/* Fixed Footer with Reason & Actions */}
+              <div className="p-6 pt-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex-shrink-0">
+              <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {t('allPasses.cancel.reasonLabel')} <span className="text-red-500">*</span>
                 </label>
@@ -1087,6 +1353,8 @@ function AllPassesPageContent() {
                   onClick={() => {
                     setShowCancelModal(false);
                     setCancelReason('');
+                    setRefundPreview(null);
+                    setSelectedPass(null);
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   disabled={cancellingPass}
@@ -1113,6 +1381,7 @@ function AllPassesPageContent() {
                     </>
                   )}
                 </button>
+              </div>
               </div>
             </div>
           </div>

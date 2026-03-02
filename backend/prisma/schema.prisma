@@ -59,6 +59,7 @@ model UserLogin {
   gate_pass_gate_pass_person_to_meet_idTouser_login                  gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
   bookingsVerified                                                   HostelBooking[]                      @relation("BookingVerifiedBy")
   bookingsCreated                                                    HostelBooking[]                      @relation("BookingCreatedBy")
+  refundsProcessed                                                   RefundTransaction[]                  @relation("RefundProcessedBy")
   gate_pass_history                                                  gate_pass_history[]
   grantApplications                                                  GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                                    GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
@@ -2025,6 +2026,7 @@ model gate_pass {
   extension_count                                    Int                      @default(0)
   extension_reason                                   String?
   cancellation_time                                  DateTime?                @db.Timestamptz(6)
+  cancellation_reason                                String?                  @db.Text
   checkout_unique_id                                 String?                  @unique
   checkout_verification_code                         String?
   checkout_qr_code                                   String?
@@ -2039,6 +2041,7 @@ model gate_pass {
   user_login_gate_pass_person_to_meet_idTouser_login UserLogin?               @relation("gate_pass_person_to_meet_idTouser_login", fields: [person_to_meet_id], references: [id])
   gate_pass_history                                  gate_pass_history[]
   gate_pass_notification                             gate_pass_notification[]
+  refund_transactions                                RefundTransaction[]
 
   @@index([created_by_id])
   @@index([mobile_number])
@@ -3291,7 +3294,56 @@ model HostelBooking {
   gate_pass         gate_pass           @relation(fields: [linked_pass_id], references: [id])
   verified_by       UserLogin?          @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
   created_by        UserLogin           @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  refund_transactions RefundTransaction[]
   @@index([room_id])
   @@index([check_in_date, check_out_date])
   @@map("hostel_bookings")
+}
+
+model SystemConfig {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  config_key    String   @unique @db.VarChar(100)
+  config_value  String   @db.VarChar(255)
+  config_type   config_type_enum @default(STRING)
+  description   String?  @db.Text
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  @@map("system_config")
+}
+
+enum config_type_enum {
+  STRING
+  NUMBER
+  PERCENTAGE
+  BOOLEAN
+  @@map("config_type_enum")
+}
+
+enum refund_status_enum {
+  pending
+  processed
+  failed
+  @@map("refund_status_enum")
+}
+
+model RefundTransaction {
+  id                      String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  booking_id              String              @db.Uuid
+  pass_id                 String              @db.Uuid
+  original_amount         Float
+  cancellation_fee_percent Float
+  cancellation_fee_amount Float
+  refund_amount           Float
+  refund_status           refund_status_enum  @default(pending)
+  processed_by_id         String?             @db.Uuid
+  processed_at            DateTime?           @db.Timestamptz(6)
+  remarks                 String?             @db.Text
+  created_at              DateTime            @default(now()) @db.Timestamptz(6)
+  booking                 HostelBooking       @relation(fields: [booking_id], references: [id])
+  gate_pass               gate_pass           @relation(fields: [pass_id], references: [id])
+  processed_by            UserLogin?          @relation("RefundProcessedBy", fields: [processed_by_id], references: [id])
+  @@index([booking_id])
+  @@index([pass_id])
+  @@index([refund_status])
+  @@map("refund_transactions")
 }

@@ -37,6 +37,7 @@ class GatePassService {
     const transformed = {
       ...pass,
       passId: pass.pass_id,
+      passStatus: pass.pass_status,
       visitorName: pass.visitor_name,
       mobileNumber: pass.mobile_number,
       visitorRelation: pass.visitor_relation,
@@ -69,10 +70,17 @@ class GatePassService {
       createdAt: formatDateForFrontend(pass.created_at),
       updatedAt: formatDateForFrontend(pass.updated_at),
       createdBy: pass.user_login_gate_pass_created_by_idTouser_login,
+      // Cancellation related fields
+      cancellationType: pass.cancellation_type,
+      hostelRefund: pass.hostel_refund,
+      checkoutQr: pass.checkout_qr,
       hostelBooking: pass.hostel_booking ? {
         ...pass.hostel_booking,
         check_in_date: formatDateForFrontend(pass.hostel_booking.check_in_date),
         check_out_date: formatDateForFrontend(pass.hostel_booking.check_out_date),
+        totalPrice: pass.hostel_booking.total_price,
+        bookingStatus: pass.hostel_booking.booking_status,
+        paymentStatus: pass.hostel_booking.payment_status,
         hostelName: pass.hostel_booking.room?.hostel?.name,
         roomNumber: pass.hostel_booking.room?.room_number
       } : null
@@ -670,6 +678,9 @@ class GatePassService {
                 id: true,
                 check_in_date: true,
                 check_out_date: true,
+                total_price: true,
+                booking_status: true,
+                payment_status: true,
                 room: {
                   select: {
                     id: true,
@@ -1059,6 +1070,123 @@ class GatePassService {
   }
 
   /**
+   * Cancel pass before check-in (with hostel refund logic if applicable)
+   * @param {Object} pass - The gate pass object
+   * @param {string} userId - User cancelling the pass
+   * @param {string} reason - Cancellation reason
+   */
+  async cancelBeforeCheckIn(pass, userId, reason) {
+    try {
+      logger.info(`[CANCEL BEFORE CHECK-IN] Pass ${pass.pass_id}, User: ${userId}`);
+
+      let hostelRefundData = null;
+
+      // Check if pass has hostel booking
+      if (pass.stay_required) {
+        const hostelBooking = await prisma.hostelBooking.findUnique({
+          where: { linked_pass_id: pass.id },
+          include: {
+            room: {
+              include: {
+                hostel: true
+              }
+            }
+          }
+        });
+
+        if (hostelBooking) {
+          logger.info(`[CANCEL BEFORE CHECK-IN] Hostel booking found: ${hostelBooking.id}, Amount: ${hostelBooking.total_price}`);
+
+          // Fetch refund percentage from SystemConfig
+          let refundPercent = 90; // Default 90%
+          const refundConfig = await prisma.systemConfig.findUnique({
+            where: { config_key: 'hostel_cancellation_refund_percent' }
+          });
+
+          if (refundConfig) {
+            refundPercent = parseFloat(refundConfig.config_value);
+            logger.info(`[CANCEL BEFORE CHECK-IN] Using configured refund %: ${refundPercent}%`);
+          } else {
+            logger.warn(`[CANCEL BEFORE CHECK-IN] No refund config found, using default: ${refundPercent}%`);
+          }
+
+          // Calculate refund amounts
+          const originalAmount = hostelBooking.total_price;
+          const cancellationFeePercent = 100 - refundPercent;
+          const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
+          const refundAmount = originalAmount - cancellationFeeAmount;
+
+          logger.info(`[CANCEL BEFORE CHECK-IN] Refund calculation: Original: ${originalAmount}, Fee: ${cancellationFeeAmount} (${cancellationFeePercent}%), Refund: ${refundAmount}`);
+
+          // Create RefundTransaction record
+          const refundTransaction = await prisma.refundTransaction.create({
+            data: {
+              booking_id: hostelBooking.id,
+              pass_id: pass.id,
+              original_amount: originalAmount,
+              cancellation_fee_percent: cancellationFeePercent,
+              cancellation_fee_amount: cancellationFeeAmount,
+              refund_amount: refundAmount,
+              refund_status: 'pending',
+              remarks: `Before check-in cancellation. Reason: ${reason}`,
+              processed_by_id: userId,
+              processed_at: new Date()
+            }
+          });
+
+          logger.info(`[CANCEL BEFORE CHECK-IN] Refund transaction created: ${refundTransaction.id}`);
+
+          // Update HostelBooking status
+          await prisma.hostelBooking.update({
+            where: { id: hostelBooking.id },
+            data: {
+              booking_status: 'cancelled',
+              payment_status: 'refunded',
+              updated_at: new Date()
+            }
+          });
+
+          logger.info(`[CANCEL BEFORE CHECK-IN] Hostel booking cancelled with refund`);
+
+          hostelRefundData = {
+            booking_id: hostelBooking.id,
+            room_number: hostelBooking.room.room_number,
+            hostel_name: hostelBooking.room.hostel.name,
+            original_amount: originalAmount,
+            cancellation_fee_percent: cancellationFeePercent,
+            cancellation_fee_amount: cancellationFeeAmount,
+            refund_amount: refundAmount,
+            refund_transaction_id: refundTransaction.id
+          };
+        }
+      }
+
+      // Update pass status to cancelled (no checkout QR needed)
+      const updatedPass = await prisma.gate_pass.update({
+        where: { pass_id: pass.pass_id },
+        data: {
+          status: 'cancelled', // Legacy field
+          pass_status: 'cancelled',
+          qr_status: 'cancelled',
+          cancellation_time: new Date(),
+          cancellation_reason: reason
+        }
+      });
+
+      logger.info(`[CANCEL BEFORE CHECK-IN] Pass cancelled: ${updatedPass.pass_id}`);
+
+      return {
+        ...updatedPass,
+        hostel_refund: hostelRefundData,
+        cancellation_type: 'before_check_in'
+      };
+    } catch (error) {
+      logger.error('[CANCEL BEFORE CHECK-IN] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Cancel pass
    */
   async cancelPass(pass_id, userId, reason) {
@@ -1113,26 +1241,62 @@ class GatePassService {
         throw new Error('You do not have permission to cancel this pass. Only the pass creator, guards, or admin can cancel.');
       }
 
-      // Only allow cancellation after check-in
-      if (pass.pass_status !== 'checked_in') {
-        throw new Error('Pass can only be cancelled after check-in. Current status: ' + pass.pass_status);
+      // Validate reason is provided
+      if (!reason || reason.trim() === '') {
+        throw new Error('Cancellation reason is required');
       }
 
-      logger.info(`[CANCEL PASS] User ${userId} (admin:${isAdmin}, guard:${isGuard}, creator:${isCreator}) cancelling pass ${pass_id}`);
+      // Check if pass is already cancelled or checked out
+      if (pass.pass_status === 'cancelled') {
+        throw new Error('Pass is already cancelled');
+      }
+
+      if (pass.pass_status === 'checked_out') {
+        throw new Error('Pass is already checked out. Cannot cancel.');
+      }
+
+      logger.info(`[CANCEL PASS] User ${userId} (admin:${isAdmin}, guard:${isGuard}, creator:${isCreator}) cancelling pass ${pass_id}, Status: ${pass.pass_status}`);
+
+      // Route to appropriate cancellation flow based on pass status
+      if (pass.pass_status === 'created') {
+        // Before check-in cancellation (no checkout QR needed)
+        return await this.cancelBeforeCheckIn(pass, userId, reason);
+      } else if (pass.pass_status === 'checked_in') {
+        // After check-in cancellation (generates checkout QR)
+        return await this.cancelAfterCheckIn(pass, userId, reason);
+      } else {
+        throw new Error(`Cannot cancel pass with status: ${pass.pass_status}`);
+      }
+    } catch (error) {
+      logger.error('[CANCEL PASS] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel pass after check-in (generates checkout QR)
+   * @param {Object} pass - The gate pass object
+   * @param {string} userId - User cancelling the pass
+   * @param {string} reason - Cancellation reason
+   */
+  async cancelAfterCheckIn(pass, userId, reason) {
+    try {
+      logger.info(`[CANCEL AFTER CHECK-IN] Pass ${pass.pass_id}, User: ${userId}`);
 
       // Generate NEW unique checkout ID and QR code with 1-hour validity
       const checkoutQRData = await this.generateCheckoutQR(pass.id);
       
-      logger.info(`[CANCEL PASS] New checkout ID: ${checkoutQRData.checkout_unique_id}, verification code: ${checkoutQRData.checkout_verification_code}`);
+      logger.info(`[CANCEL AFTER CHECK-IN] New checkout ID: ${checkoutQRData.checkout_unique_id}, verification code: ${checkoutQRData.checkout_verification_code}`);
 
       // Update pass status to cancelled with new checkout unique ID and verification code
       const updatedPass = await prisma.gate_pass.update({
-        where: { pass_id },
+        where: { pass_id: pass.pass_id },
         data: {
           status: 'cancelled', // Legacy field
           pass_status: 'cancelled',
           qr_status: 'cancelled',
           cancellation_time: new Date(),
+          cancellation_reason: reason,
           checkout_unique_id: checkoutQRData.checkout_unique_id,
           checkout_verification_code: checkoutQRData.checkout_verification_code,
           checkout_qr_code: checkoutQRData.qr_code,
@@ -1140,11 +1304,11 @@ class GatePassService {
         }
       });
 
-      logger.info(`[CANCEL PASS] Pass cancelled: ${updatedPass.pass_id}, checkout QR generated with 1-hour validity`);
+      logger.info(`[CANCEL AFTER CHECK-IN] Pass cancelled: ${updatedPass.pass_id}, checkout QR generated with 1-hour validity`);
 
       // TODO: Send email and WhatsApp notification to visitor with checkout QR
       // This will be implemented with notification service
-      logger.info(`[CANCEL PASS] Notification queued for mobile: ${pass.mobile_number}, email: ${pass.email || 'N/A'}`);
+      logger.info(`[CANCEL AFTER CHECK-IN] Notification queued for mobile: ${pass.mobile_number}, email: ${pass.email || 'N/A'}`);
 
       return {
         ...updatedPass,
@@ -1154,10 +1318,11 @@ class GatePassService {
           qr_code: checkoutQRData.qr_code,
           expires_at: checkoutQRData.expires_at,
           expires_in_minutes: 60
-        }
+        },
+        cancellation_type: 'after_check_in'
       };
     } catch (error) {
-      logger.error('[CANCEL PASS] Error:', error);
+      logger.error('[CANCEL AFTER CHECK-IN] Error:', error);
       throw error;
     }
   }
@@ -1352,12 +1517,16 @@ class GatePassService {
         throw new Error('Pass not found');
       }
 
-      if (pass.status === 'checked_out') {
+      if (pass.status === 'checked_out' || pass.pass_status === 'checked_out') {
         throw new Error('Cannot extend a pass that has been checked out');
       }
 
-      if (pass.status === 'cancelled') {
+      if (pass.status === 'cancelled' || pass.pass_status === 'cancelled') {
         throw new Error('Cannot extend a cancelled pass');
+      }
+
+      if (pass.status === 'expired' || pass.pass_status === 'expired') {
+        throw new Error('Cannot extend an expired pass. The pass has already ended.');
       }
 
       // Parse and normalize new end date
@@ -2108,6 +2277,133 @@ class GatePassService {
       };
     } catch (error) {
       logger.error('Error fetching advanced analytics:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get system configuration by key
+   * @param {string} configKey - The configuration key to retrieve
+   */
+  async getSystemConfig(configKey) {
+    try {
+      const config = await prisma.systemConfig.findUnique({
+        where: { config_key: configKey }
+      });
+
+      if (!config) {
+        return null;
+      }
+
+      return {
+        key: config.config_key,
+        value: config.config_value,
+        type: config.config_type,
+        description: config.description,
+        updated_at: config.updated_at
+      };
+    } catch (error) {
+      logger.error('Error fetching system config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update system configuration
+   * @param {string} configKey - The configuration key to update
+   * @param {string} configValue - The new value
+   * @param {string} userId - User making the update (must be admin)
+   */
+  async updateSystemConfig(configKey, configValue, userId) {
+    try {
+      // Verify user is admin
+      const user = await prisma.userLogin.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+
+      if (!user || user.role?.toLowerCase() !== 'admin') {
+        throw new Error('Only administrators can update system configuration');
+      }
+
+      // Validate value based on config type
+      const existingConfig = await prisma.systemConfig.findUnique({
+        where: { config_key: configKey }
+      });
+
+      if (!existingConfig) {
+        throw new Error(`Configuration key '${configKey}' not found`);
+      }
+
+      // Type-specific validation
+      if (existingConfig.config_type === 'PERCENTAGE') {
+        const numValue = parseFloat(configValue);
+        if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+          throw new Error('Percentage value must be between 0 and 100');
+        }
+      } else if (existingConfig.config_type === 'NUMBER') {
+        const numValue = parseFloat(configValue);
+        if (isNaN(numValue)) {
+          throw new Error('Value must be a valid number');
+        }
+      } else if (existingConfig.config_type === 'BOOLEAN') {
+        if (!['true', 'false', '1', '0'].includes(configValue.toLowerCase())) {
+          throw new Error('Boolean value must be true/false or 1/0');
+        }
+      }
+
+      // Update configuration
+      const updatedConfig = await prisma.systemConfig.update({
+        where: { config_key: configKey },
+        data: {
+          config_value: configValue,
+          updated_at: new Date()
+        }
+      });
+
+      logger.info(`[SYSTEM CONFIG] Updated ${configKey} = ${configValue} by user ${userId}`);
+
+      return {
+        key: updatedConfig.config_key,
+        value: updatedConfig.config_value,
+        type: updatedConfig.config_type,
+        description: updatedConfig.description,
+        updated_at: updatedConfig.updated_at
+      };
+    } catch (error) {
+      logger.error('Error updating system config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all system configurations (admin only)
+   */
+  async getAllSystemConfigs(userId) {
+    try {
+      // Verify user is admin
+      const user = await prisma.userLogin.findUnique({
+        where: { id: userId },
+        select: { role: true }
+      });
+
+      if (!user || user.role?.toLowerCase() !== 'admin') {
+        throw new Error('Only administrators can view all system configurations');
+      }
+
+      const configs = await prisma.systemConfig.findMany({
+        orderBy: { config_key: 'asc' }
+      });
+
+      return configs.map(c => ({
+        key: c.config_key,
+        value: c.config_value,
+        type: c.config_type,
+        description: c.description,
+        updated_at: c.updated_at
+      }));
+    } catch (error) {
+      logger.error('Error fetching all system configs:', error);
       throw error;
     }
   }
