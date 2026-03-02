@@ -134,6 +134,11 @@ const updateEventSettings = async (eventId, userId, data) => {
  * Toggle registration open/close for the event.
  * isActive = true → registration open, isActive = false → registration closed.
  * This does NOT affect event visibility — only whether users can register.
+ *
+ * Admin override logic:
+ *   - manuallyOverridden = true after any manual toggle
+ *   - autoClosed = false (reset — admin is taking back control)
+ *
  * Returns the updated visibility record.
  */
 const toggleEventActive = async (eventId, userId) => {
@@ -148,16 +153,26 @@ const toggleEventActive = async (eventId, userId) => {
     visibility = await prisma.eventVisibility.create({
       data: {
         eventId: event.id,
-        isActive: false, // creating as closed since user is toggling
+        isActive: false,            // creating as closed since user is toggling
+        autoClosed: false,
+        manuallyOverridden: true,   // admin explicitly chose this state
         visibleToRoles: ['student', 'faculty', 'staff', 'admin', 'superadmin', 'parent'],
         studentFilterType: 'all',
       },
     });
   } else {
+    const newIsActive = !visibility.isActive;
     visibility = await prisma.eventVisibility.update({
       where: { eventId: event.id },
-      data: { isActive: !visibility.isActive },
+      data: {
+        isActive: newIsActive,
+        autoClosed: false,          // admin is overriding any auto-close
+        manuallyOverridden: true,   // mark that admin has taken manual control
+      },
     });
+    console.log(
+      `[EventSettings] Admin ${userId} manually ${newIsActive ? 'OPENED' : 'CLOSED'} registration for event ${eventId} (manualOverride=true)`
+    );
   }
 
   return visibility;
@@ -166,14 +181,43 @@ const toggleEventActive = async (eventId, userId) => {
 /**
  * Check if registration is currently open for an event.
  * Returns true if open, false if closed.
+ *
+ * Auto-close logic:
+ *   - If registrationEndDate has passed AND admin has NOT manually overridden →
+ *     automatically set isActive = false, autoClosed = true (one-time action).
+ *   - If manuallyOverridden = true → respect admin decision regardless of date.
  */
 const isRegistrationOpen = async (eventId) => {
+  // Fetch event alongside visibility to check the registration end date
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { id: true, registrationEndDate: true },
+  });
+
   const visibility = await prisma.eventVisibility.findUnique({
     where: { eventId },
-    select: { isActive: true },
+    select: { isActive: true, autoClosed: true, manuallyOverridden: true },
   });
+
   // No visibility record → registration open by default (legacy)
   if (!visibility) return true;
+
+  // ── Auto-close logic ──────────────────────────────────────────
+  // If end date has passed and admin has not manually overridden, auto-off.
+  if (
+    event?.registrationEndDate &&
+    new Date() > new Date(event.registrationEndDate) &&
+    !visibility.manuallyOverridden &&
+    visibility.isActive   // only update if currently open (prevent repeated DB writes)
+  ) {
+    await prisma.eventVisibility.update({
+      where: { eventId },
+      data: { isActive: false, autoClosed: true },
+    });
+    console.log(`[EventSettings] Auto-closed registration for event ${eventId} — registrationEndDate passed`);
+    return false;
+  }
+
   return visibility.isActive;
 };
 

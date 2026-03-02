@@ -419,6 +419,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
   }
 
   const isActive = settings?.isActive ?? true;
+  const autoClosed = settings?.autoClosed ?? false;
+  const manuallyOverridden = settings?.manuallyOverridden ?? false;
 
   return (
     <div className="space-y-6">
@@ -438,12 +440,25 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
                   ? 'Registration is OPEN — users can register for this event'
                   : 'Registration is CLOSED — event is visible but no new registrations allowed'}
               </p>
+              {/* Auto-close indicator */}
+              {autoClosed && !manuallyOverridden && (
+                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  Auto-closed (registration end date passed)
+                </span>
+              )}
+              {/* Manual override indicator */}
+              {manuallyOverridden && (
+                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                  Admin override active
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className={`text-sm font-semibold ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
               {isActive ? 'OPEN' : 'CLOSED'}
             </span>
+            {/* Toggle is ALWAYS enabled — admin can override regardless of date */}
             <ToggleSwitch
               enabled={isActive}
               onToggle={handleToggleActive}
@@ -457,7 +472,9 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
             <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
               <EyeOff className="w-4 h-4" />
               <p className="text-xs font-medium">
-                Registration is closed. Users can still see the event but cannot register or join.
+                {autoClosed && !manuallyOverridden
+                  ? 'Registration was automatically closed because the end date passed. You can still re-enable it manually using the toggle above.'
+                  : 'Registration is closed. Users can still see the event but cannot register or join.'}
               </p>
             </div>
           </div>

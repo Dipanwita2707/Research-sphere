@@ -112,14 +112,14 @@ const canRegisterForEvent = async (prisma, event, userId) => {
     throw new ValidationError('This is a team-based event. You must create or join a team to participate.');
   }
   
-  // Check registration dates
+  // Check registration start date
   const now = new Date();
   if (event.registrationStartDate && now < event.registrationStartDate) {
     throw new ValidationError('Registration has not started yet');
   }
-  if (event.registrationEndDate && now > event.registrationEndDate) {
-    throw new ValidationError(ERRORS.REGISTRATION_CLOSED);
-  }
+  // NOTE: registrationEndDate expiry does NOT hard-block registration here.
+  // The toggle (isActive) is the sole gate. Date expiry only triggers an
+  // automatic OFF via isRegistrationOpen(), which admin can override.
   
   // Check if already registered
   const existingRegistration = await prisma.eventRegistration.findFirst({
