@@ -20,7 +20,7 @@
     "management",
     "system"
   ],
-  "author": "SGT University", 
+  "author": "SGT University",
   "license": "PROPRIETARY",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.981.0",
@@ -54,6 +54,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "axios": "^1.13.6",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2"
   }
