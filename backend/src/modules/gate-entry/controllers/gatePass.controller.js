@@ -166,16 +166,32 @@ class GatePassController {
       // Transform pass for frontend
       const transformedPass = gatePassService.transformPassToFrontend(pass);
 
-      // Add checkout QR info if available
-      if (pass.pass_status === 'cancelled' && pass.checkout_qr_expires_at) {
-        const now = new Date();
-        const remainingMinutes = Math.floor((pass.checkout_qr_expires_at.getTime() - now.getTime()) / (1000 * 60));
+      // Handle cancelled passes
+      if (pass.pass_status === 'cancelled') {
+        // Determine cancellation type - use field or infer from actual_entry_time
+        const cancellationType = pass.cancellation_type || 
+          (pass.actual_entry_time ? 'after_check_in' : 'before_check_in');
         
+        // After check-in cancellation - has checkout QR with expiry
+        if (cancellationType === 'after_check_in' && pass.checkout_qr_expires_at) {
+          const now = new Date();
+          const remainingMinutes = Math.floor((pass.checkout_qr_expires_at.getTime() - now.getTime()) / (1000 * 60));
+          
+          return res.status(200).json(
+            formatResponse(true, `⚠️ CANCELLED PASS (After Check-In) - Checkout required within ${remainingMinutes} minute(s)`, { 
+              pass: { ...transformedPass, cancellationType },
+              isCancelled: true,
+              checkoutQRRemaining: remainingMinutes
+            })
+          );
+        }
+        
+        // Before check-in cancellation - no checkout required
         return res.status(200).json(
-          formatResponse(true, `⚠️ CANCELLED PASS - Checkout QR valid for ${remainingMinutes} more minute(s)`, { 
-            pass: transformedPass,
+          formatResponse(true, `❌ PASS CANCELLED - Visitor cancelled before check-in`, { 
+            pass: { ...transformedPass, cancellationType: 'before_check_in' },
             isCancelled: true,
-            checkoutQRRemaining: remainingMinutes
+            checkoutQRRemaining: 0
           })
         );
       }
@@ -558,8 +574,29 @@ class GatePassController {
       );
     } catch (error) {
       logger.error('Create booking error:', error);
-      return res.status(500).json(
-        formatResponse(false, error.message || 'Failed to create booking', null, error.message)
+      
+      // Handle specific error types with user-friendly messages
+      let errorMessage = 'Failed to create booking';
+      let statusCode = 500;
+
+      if (error.message.includes('already has a hostel booking')) {
+        errorMessage = 'This pass already has a room booking';
+        statusCode = 400;
+      } else if (error.message.includes('not available')) {
+        errorMessage = 'Selected room is not available for these dates';
+        statusCode = 400;
+      } else if (error.message.includes('not found')) {
+        errorMessage = 'Invalid pass or room selection';
+        statusCode = 404;
+      } else if (error.message.includes('PrismaClientValidation')) {
+        errorMessage = 'Invalid booking data. Please check your input and try again.';
+        statusCode = 400;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return res.status(statusCode).json(
+        formatResponse(false, errorMessage, null)
       );
     }
   }

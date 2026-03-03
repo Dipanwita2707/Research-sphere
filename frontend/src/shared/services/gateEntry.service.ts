@@ -93,6 +93,7 @@ export interface GatePass {
   extensionCount?: number;
   extensionReason?: string;
   cancellationTime?: string;
+  cancellationType?: 'before_check_in' | 'after_check_in';
   checkoutUniqueId?: string;
   checkoutVerificationCode?: string;
   checkoutQrCode?: string;
@@ -331,8 +332,9 @@ function transformPass(pass: any): GatePass {
     checkoutQrExpiresAt: pass.checkoutQrExpiresAt || pass.checkout_qr_expires_at,
     qrCode: pass.qr_code,
     verificationCode: pass.verification_code,
-    actualEntryTime: pass.actual_entry_time,
-    actualExitTime: pass.actual_exit_time,
+    cancellationType: pass.cancellationType || pass.cancellation_type,
+    actualEntryTime: pass.actual_entry_time || pass.actualEntryTime,
+    actualExitTime: pass.actual_exit_time || pass.actualExitTime,
     entryGuardId: pass.entry_guard_id,
     exitGuardId: pass.exit_guard_id,
     createdAt: pass.created_at,
