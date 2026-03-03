@@ -303,7 +303,7 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
                     <input
-                      type="number" min={0} disabled={disabled}
+                      type="number" min={1} disabled={disabled}
                       value={data.eventParticipationType === 'team' ? data.eventRegistrationFeeTeam : data.eventRegistrationFeeIndividual}
                       onChange={(e) => {
                         const v = e.target.value === '' ? '' : Number(e.target.value);
@@ -314,6 +314,21 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                       placeholder={data.eventParticipationType === 'individual' ? 'e.g. 500' : 'e.g. 2000'}
                     />
                   </div>
+                  {/* Validation */}
+                  {(() => {
+                    const fee = data.eventParticipationType === 'team' ? data.eventRegistrationFeeTeam : data.eventRegistrationFeeIndividual;
+                    return fee !== '' && Number(fee) < 1 ? (
+                      <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 shrink-0" /> Participation fee must be at least ₹1.
+                      </p>
+                    ) : null;
+                  })()}
+                  {/* Team fee explanation */}
+                  {data.eventParticipationType === 'team' && (
+                    <p className={helperTextCls}>
+                      This is the total fee charged per team. It will be split equally among all team members.
+                    </p>
+                  )}
                 </div>
               )}
 

@@ -13,7 +13,7 @@ const redisConfig = process.env.REDIS_URL
       enableReadyCheck: true,
       lazyConnect: false,
       connectTimeout: 10000,
-      commandTimeout: 5000,
+      commandTimeout: 1000, // Reduced from 5000ms — cache should be fast or skip
       retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
     }
   : {
@@ -27,7 +27,7 @@ const redisConfig = process.env.REDIS_URL
       enableReadyCheck: true,
       lazyConnect: false,
       connectTimeout: 10000,
-      commandTimeout: 5000,
+      commandTimeout: 1000, // Reduced from 5000ms — cache should be fast or skip
       retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
     };
 
@@ -112,6 +112,11 @@ const CACHE_TTL = {
   POLICIES: 1800,           // 30 min
   ANALYTICS: 600,           // 10 min
   
+  // Event Management (short-lived — registration data changes frequently)
+  EVENT_DETAIL: 120,        // 2 min - event detail page
+  EVENT_STATS: 60,          // 1 min - statistics dashboard
+  EVENT_LIST: 60,           // 1 min - event listings
+  
   // Static data (24 hours)
   ENUMS: 86400,             // 24 hours
   CONFIG: 86400,            // 24 hours
@@ -134,6 +139,7 @@ const CACHE_KEYS = {
   ANALYTICS: 'analytics:',
   PERMISSION: 'perm:',
   LIST: 'list:',
+  EVENT: 'event:',
 };
 
 /**
@@ -273,12 +279,23 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
 };
 
 /**
- * Invalidate user-related caches
+ * Invalidate user-related caches (auth session, dashboard, permissions, noting permissions)
+ *
+ * Cache key formats:
+ *   user:auth:<userId>        — session from protect middleware
+ *   dashboard:<userId>*       — dashboard data
+ *   perm:<userId>*            — generic permission cache
+ *   noting:perms:<userId>     — noting action-button permissions
  */
 const invalidateUser = async (userId) => {
-  await delPattern(`${CACHE_KEYS.USER}${userId}*`);
-  await delPattern(`${CACHE_KEYS.DASHBOARD}${userId}*`);
-  await delPattern(`${CACHE_KEYS.PERMISSION}${userId}*`);
+  // Direct key deletes for known key formats
+  await del(`${CACHE_KEYS.USER}auth:${userId}`);       // user:auth:<userId>
+  await del(`noting:perms:${userId}`);                   // noting:perms:<userId>
+  // Pattern deletes for variable-suffix keys
+  await delPattern(`${CACHE_KEYS.DASHBOARD}${userId}*`); // dashboard:<userId>*
+  await delPattern(`${CACHE_KEYS.PERMISSION}${userId}*`);// perm:<userId>*
+  // Wildcard fallback — catch any other user-prefixed keys
+  await delPattern(`${CACHE_KEYS.USER}*${userId}*`);     // user:*<userId>*
 };
 
 /**

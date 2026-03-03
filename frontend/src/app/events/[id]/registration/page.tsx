@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, CheckCircle2,
-  AlertCircle, Info, MapPin, Phone, Mail, Building2
+  AlertCircle, Info, MapPin, Phone, Mail, Building2,
+  QrCode, CreditCard, Users, Lock,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type {
@@ -314,6 +315,10 @@ export default function EventRegistrationPage() {
       if (result.nextStep === 'team_management') {
         toast({ type: 'success', message: 'Profile saved! Proceeding to Team Setup.' });
         router.push(`/events/${eventId}/registration/team`);
+      } else if (formData?.event.paymentType === 'paid') {
+        // Individual paid event → redirect to payment step
+        toast({ type: 'success', message: 'Profile saved! Proceeding to Payment.' });
+        router.push(`/events/${eventId}/registration/payment`);
       } else {
         toast({ type: 'success', message: 'Registration successful!' });
         router.push(`/events/${eventId}`);
@@ -334,6 +339,151 @@ export default function EventRegistrationPage() {
   }
 
   const isTeamEvent = formData.event.participationType === 'team';
+  const existingReg = formData.existingRegistration;
+  // Statuses that mean personal info is already locked in
+  const isAlreadySubmitted = !!existingReg && existingReg.status !== 'draft';
+  const isFullyConfirmed = existingReg?.status === 'confirmed';
+  const isPendingPayment = existingReg?.status === 'pending' && formData.event.paymentType === 'paid';
+  const isIncompleteTeam = existingReg?.status === 'incomplete_team';
+
+  // Show read-only registered view
+  if (isAlreadySubmitted) {
+    const statusConfig = isFullyConfirmed
+      ? { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', icon: <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />, title: 'Registration Complete', titleColor: 'text-emerald-800 dark:text-emerald-200', desc: 'Your registration has been confirmed. Your details are locked.' }
+      : isPendingPayment
+        ? { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', icon: <CreditCard className="w-6 h-6 text-amber-600 dark:text-amber-400" />, title: 'Payment Pending', titleColor: 'text-amber-800 dark:text-amber-200', desc: 'Your details are saved. Complete payment to confirm registration.' }
+        : isIncompleteTeam
+          ? { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', icon: <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />, title: 'Personal Info Saved', titleColor: 'text-blue-800 dark:text-blue-200', desc: 'Your details are saved. Now set up your team to complete registration.' }
+          : { bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', icon: <Lock className="w-6 h-6 text-gray-500" />, title: 'Already Registered', titleColor: 'text-gray-800 dark:text-gray-200', desc: 'Your registration details are locked.' };
+
+    const savedData = existingReg?.formData || {};
+
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <div>
+            <Link
+              href={`/events/${eventId}`}
+              className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors mb-3 group"
+            >
+              <div className="p-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 group-hover:border-blue-200 transition-colors">
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </div>
+              Back to Event
+            </Link>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.event.name}</h1>
+          </div>
+
+          {/* Status Banner */}
+          <div className={`rounded-2xl border p-5 flex items-start gap-4 ${statusConfig.bg} ${statusConfig.border}`}>
+            <div className="mt-0.5 flex-shrink-0">{statusConfig.icon}</div>
+            <div className="flex-1">
+              <h2 className={`text-lg font-bold ${statusConfig.titleColor}`}>{statusConfig.title}</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{statusConfig.desc}</p>
+              {existingReg?.registrationId && (
+                <p className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-1">ID: {existingReg.registrationId}</p>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 flex-shrink-0">
+              {isIncompleteTeam && (
+                <Link
+                  href={`/events/${eventId}/registration/team`}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2"
+                >
+                  <Users className="w-4 h-4" />
+                  Team Setup
+                </Link>
+              )}
+              {isPendingPayment && (
+                <Link
+                  href={isTeamEvent ? `/events/${eventId}/registration/team` : `/events/${eventId}/registration/payment`}
+                  className="px-4 py-2 bg-amber-500 text-white text-sm font-bold rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2"
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Pay Now
+                </Link>
+              )}
+              {isFullyConfirmed && (
+                <Link
+                  href={`/events/${eventId}`}
+                  className="px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  View Event
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* QR Code — shown only when confirmed */}
+          {isFullyConfirmed && existingReg?.qrCode && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 text-center shadow-sm">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <QrCode className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Your Entry QR Code</h3>
+              </div>
+              <div className="inline-block bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-5">
+                <p className="font-mono text-sm text-gray-800 dark:text-gray-200 break-all leading-relaxed tracking-wide">
+                  {existingReg.qrCode}
+                </p>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+                Show this at the event gate for entry
+              </p>
+            </div>
+          )}
+
+          {/* Read-only form data summary */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-gray-400" />
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Submitted Details</h2>
+              <span className="ml-auto text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">Read-only</span>
+            </div>
+            <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {([
+                { label: 'First Name', key: 'firstName' },
+                { label: 'Last Name', key: 'lastName' },
+                { label: 'Email', key: 'email' },
+                { label: 'Phone', key: 'phone' },
+                { label: 'Location', key: 'location' },
+                { label: 'Institute', key: 'institute' },
+                { label: 'Gender', key: 'gender' },
+                { label: 'Department', key: 'department' },
+                { label: 'Program', key: 'program' },
+                { label: 'Registration No', key: 'registrationNo' },
+                { label: 'Employee ID', key: 'employeeId' },
+                { label: 'Pass Out Year', key: 'passOutYear' },
+              ] as { label: string; key: string }[])
+                .filter(f => values[f.key])
+                .map(f => (
+                  <div key={f.key} className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{f.label}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-700">
+                      {values[f.key] || '—'}
+                    </p>
+                  </div>
+                ))
+              }
+              {/* Custom fields */}
+              {formData.customFields.map(field => {
+                const val = savedData[field.fieldName] ?? values[field.fieldName];
+                if (!val) return null;
+                return (
+                  <div key={field.id} className="space-y-1">
+                    <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{field.fieldLabel}</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-700">
+                      {Array.isArray(val) ? val.join(', ') : String(val)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 font-sans">

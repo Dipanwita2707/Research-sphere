@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, Users, Search, Filter, X, Calendar as CalendarIcon, Eye } from 'lucide-react';
-import { useEvents } from '@/features/event-management/hooks/useEvents';
+import { Calendar, MapPin, Users, Search, Filter, X, Calendar as CalendarIcon, Eye, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEvents, EVENT_QUERY_KEYS } from '@/features/event-management/hooks/useEvents';
+import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventFilters } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
@@ -11,13 +13,65 @@ import { useDebounce } from '@/shared/hooks/useDebounce';
 import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 import { EVENT_TYPE_LABELS, STATUS_CONFIG } from '@/features/event-management/constants';
 
+/** Browse-page grouped item */
+type BrowseGroupedItem =
+  | { type: 'standalone'; event: Event }
+  | { type: 'festival'; festivalNotingId: string; meta: { name: string; startDate: string; endDate: string; description?: string; coordinator?: string }; events: Event[] };
+
+/** Group events by festivalNotingId */
+function groupBrowseEvents(eventList: Event[]): BrowseGroupedItem[] {
+  const festivalMap: Record<string, Event[]> = {};
+  const standalone: Event[] = [];
+
+  for (const e of eventList) {
+    if (e.festivalNotingId) {
+      if (!festivalMap[e.festivalNotingId]) festivalMap[e.festivalNotingId] = [];
+      festivalMap[e.festivalNotingId].push(e);
+    } else {
+      standalone.push(e);
+    }
+  }
+
+  const items: BrowseGroupedItem[] = [];
+
+  for (const fid of Object.keys(festivalMap)) {
+    const fevents = festivalMap[fid];
+    const meta = fevents[0]?.festivalMeta;
+    items.push({
+      type: 'festival',
+      festivalNotingId: fid,
+      meta: meta || { name: 'Festival', startDate: fevents[0]?.startDate || '', endDate: fevents[0]?.endDate || '' },
+      events: fevents,
+    });
+  }
+
+  for (const e of standalone) {
+    items.push({ type: 'standalone', event: e });
+  }
+
+  return items;
+}
+
 export default function EventsPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState<EventFilters>({});
   const debouncedSearch = useDebounce(searchInput, 300);
+
+  /** Prefetch event detail on card hover so navigation is instant */
+  const handlePrefetch = useCallback(
+    (eventId: string) => {
+      queryClient.prefetchQuery({
+        queryKey: EVENT_QUERY_KEYS.detail(eventId),
+        queryFn: () => eventService.getEventById(eventId),
+        staleTime: 60 * 1000,
+      });
+    },
+    [queryClient],
+  );
 
   useEffect(() => {
     setFilters((prev) => ({ ...prev, search: debouncedSearch || undefined }));
@@ -28,6 +82,32 @@ export default function EventsPage() {
   const events = result?.events ?? [];
   const pagination = result?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 0 };
   const lastErrorRef = useRef<string | null>(null);
+
+  // Group events by festival
+  const groupedItems = React.useMemo(() => groupBrowseEvents(events), [events]);
+  const [expandedFestivals, setExpandedFestivals] = useState<Set<string>>(new Set());
+  const toggleFestival = (fid: string) => {
+    setExpandedFestivals((prev) => {
+      const next = new Set(prev);
+      if (next.has(fid)) next.delete(fid);
+      else next.add(fid);
+      return next;
+    });
+  };
+
+  // All festival IDs on the current page
+  const festivalIds = React.useMemo(
+    () => groupedItems.filter((g) => g.type === 'festival').map((g) => (g as { festivalNotingId: string }).festivalNotingId),
+    [groupedItems],
+  );
+  const allExpanded = festivalIds.length > 0 && festivalIds.every((id) => expandedFestivals.has(id));
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedFestivals(new Set());
+    } else {
+      setExpandedFestivals(new Set(festivalIds));
+    }
+  };
 
   useEffect(() => {
     if (error) {
@@ -177,6 +257,23 @@ export default function EventsPage() {
           </div>
         )}
 
+        {/* Expand / Collapse All */}
+        {!isLoading && festivalIds.length > 0 && (
+          <div className="flex justify-end mb-2">
+            <button
+              type="button"
+              onClick={toggleAll}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg transition-colors"
+            >
+              {allExpanded ? (
+                <><ChevronDown className="h-3.5 w-3.5" /> Collapse All</>
+              ) : (
+                <><ChevronRight className="h-3.5 w-3.5" /> Expand All</>
+              )}
+            </button>
+          </div>
+        )}
+
         {/* Events Grid */}
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
@@ -198,85 +295,80 @@ export default function EventsPage() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-              {events.map((event) => (
-                <Link
-                  key={event.id}
-                  href={`/events/${event.id}`}
-                  className="block bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200"
-                >
-                  <div className="p-4 sm:p-5 pt-4">
-                    {/* Status Badge */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_CONFIG[event.status]?.color}`}>
-                        {STATUS_CONFIG[event.status]?.label}
-                      </span>
-                      {isEventUpcoming(event) && event.status === 'published' && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                          Upcoming
-                        </span>
-                      )}
-                      {isEventOngoing(event) && (
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
-                          Live
-                        </span>
-                      )}
+            <div className="space-y-6 mb-6 sm:mb-8">
+              {/* Render festivals and standalone events. Consecutive standalone events are batched into a grid. */}
+              {(() => {
+                const elements: React.ReactNode[] = [];
+                let standaloneBuffer: Event[] = [];
+
+                const flushStandalone = () => {
+                  if (standaloneBuffer.length === 0) return;
+                  elements.push(
+                    <div key={`standalone-${standaloneBuffer[0].id}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {standaloneBuffer.map((event) => (
+                        <BrowseEventCard key={event.id} event={event} formatDate={formatDate} isEventUpcoming={isEventUpcoming} isEventOngoing={isEventOngoing} handlePrefetch={handlePrefetch} />
+                      ))}
                     </div>
+                  );
+                  standaloneBuffer = [];
+                };
 
-                    {/* Event Name */}
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
-                      {event.name}
-                    </h3>
+                for (const item of groupedItems) {
+                  if (item.type === 'standalone') {
+                    standaloneBuffer.push(item.event);
+                  } else {
+                    flushStandalone();
+                    const isExpanded = expandedFestivals.has(item.festivalNotingId);
+                    elements.push(
+                      <div key={`festival-${item.festivalNotingId}`} className="rounded-xl border-[1.5px] border-purple-200 dark:border-purple-800 bg-white dark:bg-gray-800 overflow-hidden shadow-sgt">
+                        {/* Festival Header */}
+                        <button
+                          type="button"
+                          onClick={() => toggleFestival(item.festivalNotingId)}
+                          className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 hover:from-purple-100 hover:to-indigo-100 dark:hover:from-purple-900/30 dark:hover:to-indigo-900/30 transition-colors text-left"
+                        >
+                          {isExpanded
+                            ? <ChevronDown className="h-5 w-5 text-purple-500 shrink-0" />
+                            : <ChevronRight className="h-5 w-5 text-purple-500 shrink-0" />}
+                          <Sparkles className="h-5 w-5 text-purple-500 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">
+                                🎪 {item.meta.name}
+                              </h3>
+                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 uppercase tracking-wider">
+                                Festival
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3.5 w-3.5" />
+                                {formatDate(item.meta.startDate)} – {formatDate(item.meta.endDate)}
+                              </span>
+                              <span className="font-medium text-purple-600 dark:text-purple-400">
+                                {item.events.length} event{item.events.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+                        </button>
 
-                    {/* Event Type */}
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      {EVENT_TYPE_LABELS[event.eventType]}
-                    </p>
-
-                    {/* Date */}
-                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatDate(event.startDate)}</span>
-                      {event.startDate !== event.endDate && (
-                        <>
-                          <span>-</span>
-                          <span>{formatDate(event.endDate)}</span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Venue */}
-                    {event.venue && (
-                      <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
-                        <MapPin className="h-4 w-4" />
-                        <span className="line-clamp-1">{event.venue}</span>
+                        {/* Sub-events grid — collapsible */}
+                        {isExpanded && (
+                          <div className="border-t border-purple-100 dark:border-purple-900 p-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {item.events.map((event) => (
+                                <BrowseEventCard key={event.id} event={event} formatDate={formatDate} isEventUpcoming={isEventUpcoming} isEventOngoing={isEventOngoing} handlePrefetch={handlePrefetch} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-
-                    {/* Registrations */}
-                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-4">
-                      <Users className="h-4 w-4" />
-                      <span>
-                        {event.currentRegistrations}
-                        {event.maxCapacity && ` / ${event.maxCapacity}`} registered
-                      </span>
-                    </div>
-
-                    {/* Payment Type */}
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        event.paymentType === 'free'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
-                      </span>
-                      
-                      <Eye className="h-4 w-4 text-gray-400" />
-                    </div>
-                  </div>
-                </Link>
-              ))}
+                    );
+                  }
+                }
+                flushStandalone();
+                return elements;
+              })()}
             </div>
 
             {/* Pagination */}
@@ -307,5 +399,99 @@ export default function EventsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/** Reusable card for browse events page */
+function BrowseEventCard({
+  event,
+  formatDate,
+  isEventUpcoming,
+  isEventOngoing,
+  handlePrefetch,
+}: {
+  event: Event;
+  formatDate: (d: string) => string;
+  isEventUpcoming: (e: Event) => boolean;
+  isEventOngoing: (e: Event) => boolean;
+  handlePrefetch: (id: string) => void;
+}) {
+  return (
+    <Link
+      href={`/events/${event.id}`}
+      onMouseEnter={() => handlePrefetch(event.id)}
+      className="block bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200"
+    >
+      <div className="p-4 sm:p-5 pt-4">
+        {/* Status Badge */}
+        <div className="flex items-center justify-between mb-3">
+          <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_CONFIG[event.status]?.color}`}>
+            {STATUS_CONFIG[event.status]?.label}
+          </span>
+          {isEventUpcoming(event) && event.status === 'published' && (
+            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+              Upcoming
+            </span>
+          )}
+          {isEventOngoing(event) && (
+            <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
+              Live
+            </span>
+          )}
+        </div>
+
+        {/* Event Name */}
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+          {event.name}
+        </h3>
+
+        {/* Event Type */}
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+          {EVENT_TYPE_LABELS[event.eventType]}
+        </p>
+
+        {/* Date */}
+        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
+          <Calendar className="h-4 w-4" />
+          <span>{formatDate(event.startDate)}</span>
+          {event.startDate !== event.endDate && (
+            <>
+              <span>-</span>
+              <span>{formatDate(event.endDate)}</span>
+            </>
+          )}
+        </div>
+
+        {/* Venue */}
+        {event.venue && (
+          <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
+            <MapPin className="h-4 w-4" />
+            <span className="line-clamp-1">{event.venue}</span>
+          </div>
+        )}
+
+        {/* Registrations */}
+        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-4">
+          <Users className="h-4 w-4" />
+          <span>
+            {event.currentRegistrations}
+            {event.maxCapacity && ` / ${event.maxCapacity}`} registered
+          </span>
+        </div>
+
+        {/* Payment Type */}
+        <div className="flex items-center justify-between">
+          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+            event.paymentType === 'free'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-blue-100 text-blue-800'
+          }`}>
+            {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
+          </span>
+          
+          <Eye className="h-4 w-4 text-gray-400" />
+        </div>
+      </div>
+    </Link>
   );
 }

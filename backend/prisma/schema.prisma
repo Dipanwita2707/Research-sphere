@@ -1,6 +1,6 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["postgresqlExtensions"]
+  previewFeatures = ["postgresqlExtensions", "relationJoins"]
 }
 
 datasource db {
@@ -50,6 +50,7 @@ model UserLogin {
   gate_pass_gate_pass_person_to_meet_idTouser_login gate_pass[]                          @relation("gate_pass_person_to_meet_idTouser_login")
   bookingsVerified                                  HostelBooking[]                      @relation("BookingVerifiedBy")
   bookingsCreated                                   HostelBooking[]                      @relation("BookingCreatedBy")
+  refundsProcessed                                  RefundTransaction[]                  @relation("RefundProcessedBy")
   gate_pass_history                                 gate_pass_history[]
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
@@ -130,6 +131,7 @@ model UserLogin {
   tmsRoleHandlers                                    TmsRoleHandler[]                     @relation("TmsRoleHandlerEmployee")
   stallApplications                                  StallApplication[]                   @relation("StallApplicant")
   stallsOwned                                        Stall[]                              @relation("StallOwner")
+  payments                                           Payment[]                            @relation("PaymentUser")
 
   @@map("user_login")
 }
@@ -1937,6 +1939,8 @@ model NotePoint {
   content   String
   note      Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
+  @@index([noteId], map: "note_point_noteId_idx")
+  @@index([noteId, sortOrder], map: "note_point_noteId_sortOrder_idx")
   @@map("note_point")
 }
 
@@ -1969,6 +1973,7 @@ model NoteAttachment {
   fileDescription String? @map("file_description")
   note            Note    @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
+  @@index([noteId], map: "note_attachment_noteId_idx")
   @@map("note_attachment")
 }
 
@@ -2029,6 +2034,7 @@ model NoteCopyReply {
 
   @@index([copyId])
   @@index([repliedById])
+  @@index([copyId, createdAt], map: "note_copy_reply_copyId_createdAt_idx")
   @@map("note_copy_reply")
 }
 
@@ -2124,7 +2130,7 @@ model gate_pass {
   user_login_gate_pass_person_to_meet_idTouser_login UserLogin?               @relation("gate_pass_person_to_meet_idTouser_login", fields: [person_to_meet_id], references: [id])
   gate_pass_history                                  gate_pass_history[]
   gate_pass_notification                             gate_pass_notification[]
-  // refund_transactions                                RefundTransaction[]
+  refund_transactions                                RefundTransaction[]
 
   @@index([created_by_id])
   @@index([mobile_number])
@@ -2274,9 +2280,11 @@ model Event {
   EventCustomField           EventCustomField[]
   EventTeam                  EventTeam[]
   EventPrize                 EventPrize[]
+  Payment                    Payment[]
   StallApplication           StallApplication[]
   Stall                      Stall[]
   EventFeedback              EventFeedback[]
+  StallFeedback              StallFeedback[]
   EventVisibility            EventVisibility?
 
   @@index([createdById])
@@ -2297,7 +2305,9 @@ model Event {
 model EventVisibility {
   id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId               String   @unique                         // one-to-one with Event
-  isActive              Boolean  @default(true)                   // Global ON/OFF toggle
+  isActive              Boolean  @default(true)                   // Global ON/OFF toggle (admin-controlled)
+  autoClosed            Boolean  @default(false) @map("auto_closed")          // true = system auto-closed due to date expiry
+  manuallyOverridden    Boolean  @default(false) @map("manually_overridden")  // true = admin manually toggled after date expiry
   visibleToRoles        Json     @default("[]")                   // ["student","faculty","staff","parent","admin"]
   // Student-level granular filters (applied only when "student" is in visibleToRoles)
   studentFilterType     String   @default("all") @map("student_filter_type") @db.VarChar(32)  // all | custom
@@ -2365,6 +2375,7 @@ model EventRegistration {
   user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
   EventFieldResponse    EventFieldResponse[]
+  Payment               Payment[]
 
   @@unique([eventId, userId])
   @@index([eventId])
@@ -2480,6 +2491,7 @@ model EventTeam {
   EventTeamInvitation   EventTeamInvitation[]
   EventTeamRequest      EventTeamRequest[]
   EventRegistration     EventRegistration[]
+  Payment               Payment[]
 
   @@unique([eventId, name])
   @@index([eventId])
@@ -2661,10 +2673,11 @@ model HostelBooking {
   created_at          DateTime           @default(now()) @db.Timestamptz(6)
   updated_at          DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
 
-  gate_pass           gate_pass          @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  gate_pass                gate_pass                   @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
   room                HostelRoom?        @relation(fields: [room_id], references: [id])
-  verified_by         UserLogin?         @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
-  created_by          UserLogin          @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  verified_by              UserLogin?                  @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
+  created_by               UserLogin                   @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  refund_transactions  RefundTransaction[]
 
   @@index([gate_pass_id])
   @@index([room_id])
@@ -2674,6 +2687,30 @@ model HostelBooking {
   @@index([verified_by_id])
   @@index([created_by_id])
   @@map("hostel_booking")
+}
+
+model RefundTransaction {
+  id                       String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  booking_id               String             @db.Uuid
+  pass_id                  String             @db.Uuid
+  original_amount          Float
+  cancellation_fee_percent Float
+  cancellation_fee_amount  Float
+  refund_amount            Float
+  refund_status            refund_status_enum @default(pending)
+  processed_by_id          String?            @db.Uuid
+  processed_at             DateTime?          @db.Timestamptz(6)
+  remarks                  String?            @db.Text
+  created_at               DateTime           @default(now()) @db.Timestamptz(6)
+
+  booking      HostelBooking @relation(fields: [booking_id], references: [id])
+  gate_pass    gate_pass     @relation(fields: [pass_id], references: [id])
+  processed_by UserLogin?    @relation("RefundProcessedBy", fields: [processed_by_id], references: [id])
+
+  @@index([booking_id])
+  @@index([pass_id])
+  @@index([refund_status])
+  @@map("refund_transactions")
 }
 
 // ============================================
@@ -3471,13 +3508,30 @@ model Stall {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  event  Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  owner  UserLogin? @relation("StallOwner", fields: [ownerId], references: [id])
+  event         Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  owner         UserLogin?      @relation("StallOwner", fields: [ownerId], references: [id])
+  StallFeedback StallFeedback[]
 
   @@index([eventId])
   @@index([source])
   @@index([isActive])
   @@map("stall")
+}
+
+model StallFeedback {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId          String   @map("event_id")
+  stallId          String   @map("stall_id") @db.VarChar(16)
+  points           Json
+  shortDescription String?  @map("short_description") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  stall Stall @relation(fields: [stallId], references: [stallId], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([stallId])
+  @@map("stall_feedback")
 }
 
 enum ClubStatusEnum {
@@ -3544,6 +3598,64 @@ enum ClubChangeRequestStatusEnum {
   @@map("club_change_request_status_enum")
 }
 
+// ============================================
+// Payment Model for Razorpay Integration
+// ============================================
+
+model Payment {
+  id                    String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  registrationId        String?
+  eventId               String
+  userId                String        @db.Uuid
+  teamId                String?       @db.Uuid
+  razorpayOrderId       String        @unique @map("razorpay_order_id")
+  razorpayPaymentId     String?       @unique @map("razorpay_payment_id")
+  razorpaySignature     String?       @map("razorpay_signature")
+  amount                Float
+  currency              String        @default("INR") @db.VarChar(3)
+  status                PaymentRecordStatus @default(created)
+  paymentFor            PaymentFor    @default(individual)
+  receipt               String        @unique @db.VarChar(128)
+  attempts              Int           @default(0)
+  paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
+  failedAt              DateTime?     @map("failed_at") @db.Timestamptz(6)
+  refundedAt            DateTime?     @map("refunded_at") @db.Timestamptz(6)
+  webhookVerified       Boolean       @default(false) @map("webhook_verified")
+  metadata              Json?         @default("{}")
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  EventRegistration     EventRegistration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  Event                 Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user_login            UserLogin          @relation("PaymentUser", fields: [userId], references: [id])
+  EventTeam             EventTeam?         @relation(fields: [teamId], references: [id])
+
+  @@index([registrationId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([teamId])
+  @@index([razorpayOrderId])
+  @@index([status])
+  @@index([receipt])
+  @@map("payment")
+}
+
+enum PaymentRecordStatus {
+  created
+  authorized
+  captured
+  failed
+  refunded
+
+  @@map("payment_record_status_enum")
+}
+
+enum PaymentFor {
+  individual
+  team
+
+  @@map("payment_for_enum")
+}
 // ===========================================
 // TMS (Ticket Management System) Models
 // ===========================================
@@ -3743,5 +3855,12 @@ enum TmsTimelineActionEnum {
   rated
 
   @@map("tms_timeline_action_enum")
+}
+
+enum refund_status_enum {
+  pending
+  processed
+  failed
+  cancelled
 }
 

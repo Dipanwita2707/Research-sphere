@@ -50,6 +50,7 @@ export function useClubs(filters?: ClubFilters) {
     queryKey: DSW_QUERY_KEYS.clubs(filters),
     queryFn: () => dswAPI.clubs.getClubs(filters),
     staleTime: 1000 * 60 * 5, // 5 minutes
+    select: (data) => data, // Referential stability — only re-render when data changes
   });
 }
 
@@ -73,6 +74,7 @@ export function useMyClubs() {
     queryKey: DSW_QUERY_KEYS.myClubs(),
     queryFn: () => dswAPI.clubs.getMyClubs(),
     staleTime: 2 * 60 * 1000,
+    select: (data) => data, // Referential stability — only re-render when data changes
   });
 }
 
@@ -109,6 +111,7 @@ export function useCategories(activeOnly = true) {
     queryKey: DSW_QUERY_KEYS.categories(),
     queryFn: () => dswAPI.categories.getCategories(activeOnly),
     staleTime: 1000 * 60 * 60, // 1 hour (categories rarely change)
+    gcTime: 60 * 60 * 1000, // Keep in memory for the full session
   });
 }
 

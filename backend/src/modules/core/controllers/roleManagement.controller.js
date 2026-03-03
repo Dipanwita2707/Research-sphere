@@ -1,4 +1,5 @@
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 const {
   getSchoolDeptPermissions,
   getAllCentralDeptPermissions,
@@ -296,6 +297,17 @@ exports.updateRole = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
+    // Invalidate cache for all users who have this role assigned
+    try {
+      const usersWithRole = await prisma.userLogin.findMany({
+        where: { assignedRoleIds: { array_contains: id } },
+        select: { id: true },
+      });
+      await Promise.all(usersWithRole.map(u => cache.invalidateUser(u.id)));
+    } catch (cacheErr) {
+      console.error('Cache invalidation error (updateRole):', cacheErr);
+    }
+
     res.json({
       success: true,
       message: 'Role updated successfully',
@@ -346,6 +358,17 @@ exports.deleteRole = async (req, res) => {
       ipAddress: getIp(req),
       userAgent: req.get('user-agent'),
     });
+
+    // Invalidate cache for all users who had this role assigned
+    try {
+      const usersWithRole = await prisma.userLogin.findMany({
+        where: { assignedRoleIds: { array_contains: id } },
+        select: { id: true },
+      });
+      await Promise.all(usersWithRole.map(u => cache.invalidateUser(u.id)));
+    } catch (cacheErr) {
+      console.error('Cache invalidation error (deleteRole):', cacheErr);
+    }
 
     res.json({
       success: true,
@@ -507,6 +530,9 @@ exports.applyRoleToUser = async (req, res) => {
       ipAddress: getIp(req),
       userAgent: req.get('user-agent'),
     });
+
+    // Invalidate user cache so applied role permissions take effect immediately
+    await cache.invalidateUser(userId);
 
     res.json({
       success: true,

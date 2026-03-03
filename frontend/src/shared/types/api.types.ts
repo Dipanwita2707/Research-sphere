@@ -141,19 +141,24 @@ export function extractErrorMessage(error: unknown, fallback?: string): string {
     return error;
   }
   
-  if (error instanceof Error) {
-    return error.message;
-  }
-  
+  // Check for axios-style error response FIRST (before generic Error check)
+  // so we get the server's actual message instead of "Request failed with status code 400"
   if (typeof error === 'object' && error !== null) {
     const err = error as UnknownError;
-    // Check for axios-style error response
     if (err.response?.data?.message) {
       return err.response.data.message;
     }
     if (err.response?.data?.error) {
       return err.response.data.error;
     }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  if (typeof error === 'object' && error !== null) {
+    const err = error as UnknownError;
     if (err.message) {
       return err.message;
     }

@@ -36,6 +36,15 @@ const {
 const { generateQRCode } = require("../utils/qrCodeGenerator");
 const crypto = require("crypto");
 
+// ── Event cache invalidation helper ──────────────────────────────────────────
+// Called by mutation functions (update, publish, register) to bust stale cache.
+async function invalidateEventCaches(eventId) {
+  await Promise.all([
+    cache.del(`event:detail:${eventId}`),
+    cache.del(`event:stats:${eventId}`),
+  ]);
+}
+
 /**
  * Create event from approved noting
  * This is called automatically when a noting is approved.
@@ -65,7 +74,7 @@ const createEventFromNoting = async (noteId, userId) => {
   if (existingEvents.length > 0)
     throw new ValidationError(ERRORS.NOTING_ALREADY_HAS_EVENT);
 
-  // ── FESTIVAL: create one event per sub-event ──────────────────────────────
+  // ── FESTIVAL: create one event per sub-event inside a single transaction ──
   if (noting.notingEventType === "festival") {
     const subEvents = Array.isArray(noting.subEvents) ? noting.subEvents : [];
     if (subEvents.length === 0) {
@@ -74,7 +83,14 @@ const createEventFromNoting = async (noteId, userId) => {
       );
     }
 
-    const createdEvents = [];
+    // Pre-generate all event IDs before the transaction
+    // Generate the first ID from DB, then increment for subsequent sub-events
+    // to avoid duplicate IDs (generateEventId queries DB which hasn't been updated yet)
+    const subEventConfigs = [];
+    let baseSequence = null;
+    const year = new Date().getFullYear();
+    const prefix = `EVT-${year}-`;
+
     for (const se of subEvents) {
       const v = se.venueFormData || {};
       if (
@@ -87,86 +103,103 @@ const createEventFromNoting = async (noteId, userId) => {
         continue; // skip incomplete sub-events
       }
 
-      const seEventId = await generateEventId(prisma);
-      const seParticipationType = v.eventParticipationType || "individual";
-      const seRegistrationFee =
-        v.eventPaymentType === "paid"
-          ? seParticipationType === "team"
-            ? (v.eventRegistrationFeeTeam ?? null)
-            : (v.eventRegistrationFeeIndividual ?? null)
-          : null;
-      const seTeamRegistrationFee =
-        v.eventPaymentType === "paid" && seParticipationType === "team"
-          ? (v.eventRegistrationFeeTeam ?? null)
-          : null;
-
-      const seEvent = await prisma.event.create({
-        data: {
-          id: seEventId,
-          eventId: seEventId,
-          notingId: noting.id, // all sub-events linked to same noting
-          name: v.eventName,
-          eventType: v.eventType,
-          startDate: new Date(v.eventStartDate),
-          endDate: new Date(v.eventEndDate),
-          paymentType: v.eventPaymentType,
-          participationType: seParticipationType,
-          registrationFee: seRegistrationFee,
-          teamRegistrationFee: seTeamRegistrationFee,
-          approxCapacity: v.eventApproxCapacity ?? null,
-          dutyLeaveAvailable: v.eventDutyLeaveAvailable ?? null,
-          dutyLeaveEligibility: Array.isArray(v.eventDutyLeaveEligibility)
-            ? v.eventDutyLeaveEligibility
-            : null,
-          dutyLeaveRoleType: v.eventDutyLeaveRoleType ?? null,
-          hasSponsorship: v.eventHasSponsorship ?? null,
-          sponsors: Array.isArray(v.eventSponsors) ? v.eventSponsors : null,
-          hasResources: v.eventHasResources ?? null,
-          resources: Array.isArray(v.eventResources) ? v.eventResources : null,
-          certificateAvailable: v.eventCertification ?? false,
-          description: null,
-          longDescription: null,
-          status: "draft",
-          createdById: noting.createdById,
-          updatedAt: new Date(),
-          notingEventType: se.eventType === "stall" ? "stall" : "venue",
-          stallConfig:
-            se.eventType === "stall" && se.stallConfig ? se.stallConfig : null,
-          hasStalls: !!(se.eventType === "stall" && se.stallConfig),
-          // Store festival context on each sub-event
-          festivalMeta: noting.festivalMeta || null,
-          festivalNotingId: noting.id, // group identifier — all sub-events share this
-        },
-      });
-
-      // Create prizes for this sub-event
-      if (
-        Array.isArray(v.eventPrizesAwards) &&
-        v.eventPrizesAwards.length > 0
-      ) {
-        const prizeRows = v.eventPrizesAwards.map((p, idx) => ({
-          eventId: seEvent.id,
-          position: p.position ?? idx + 1,
-          rank: p.rank || `Position ${idx + 1}`,
-          title: p.title || "",
-          description: null,
-          prizeType: p.prizeType || "certificate",
-          prizeAmount: p.prizeAmount ?? null,
-          additionalPerks: Array.isArray(p.additionalPerks)
-            ? p.additionalPerks
-            : null,
-          sortOrder: p.sortOrder ?? idx,
-          isActive: true,
-        }));
-        await prisma.eventPrize.createMany({ data: prizeRows });
-        await prisma.event.update({
-          where: { id: seEvent.id },
-          data: { prizesEnabled: true },
-        });
+      let seEventId;
+      if (baseSequence === null) {
+        // First sub-event: query DB for the latest sequence
+        seEventId = await generateEventId(prisma);
+        baseSequence = parseInt(seEventId.split('-')[2]);
+      } else {
+        // Subsequent sub-events: just increment from the base
+        baseSequence++;
+        seEventId = `${prefix}${baseSequence.toString().padStart(4, '0')}`;
       }
-
-      createdEvents.push(seEvent);
+      subEventConfigs.push({ se, v, seEventId });
     }
+
+    // Wrap all sub-event creates in a single transaction for atomicity and performance
+    const createdEvents = await prisma.$transaction(async (tx) => {
+      const results = [];
+      for (const { se, v, seEventId } of subEventConfigs) {
+        const seParticipationType = v.eventParticipationType || "individual";
+        const seRegistrationFee =
+          v.eventPaymentType === "paid"
+            ? seParticipationType === "team"
+              ? (v.eventRegistrationFeeTeam ?? null)
+              : (v.eventRegistrationFeeIndividual ?? null)
+            : null;
+        const seTeamRegistrationFee =
+          v.eventPaymentType === "paid" && seParticipationType === "team"
+            ? (v.eventRegistrationFeeTeam ?? null)
+            : null;
+
+        const seEvent = await tx.event.create({
+          data: {
+            id: seEventId,
+            eventId: seEventId,
+            notingId: noting.id,
+            name: v.eventName,
+            eventType: v.eventType,
+            startDate: new Date(v.eventStartDate),
+            endDate: new Date(v.eventEndDate),
+            paymentType: v.eventPaymentType,
+            participationType: seParticipationType,
+            registrationFee: seRegistrationFee,
+            teamRegistrationFee: seTeamRegistrationFee,
+            approxCapacity: v.eventApproxCapacity ?? null,
+            dutyLeaveAvailable: v.eventDutyLeaveAvailable ?? null,
+            dutyLeaveEligibility: Array.isArray(v.eventDutyLeaveEligibility)
+              ? v.eventDutyLeaveEligibility
+              : null,
+            dutyLeaveRoleType: v.eventDutyLeaveRoleType ?? null,
+            hasSponsorship: v.eventHasSponsorship ?? null,
+            sponsors: Array.isArray(v.eventSponsors) ? v.eventSponsors : null,
+            hasResources: v.eventHasResources ?? null,
+            resources: Array.isArray(v.eventResources) ? v.eventResources : null,
+            certificateAvailable: v.eventCertification ?? false,
+            description: null,
+            longDescription: null,
+            status: "draft",
+            createdById: noting.createdById,
+            updatedAt: new Date(),
+            notingEventType: se.eventType === "stall" ? "stall" : "venue",
+            stallConfig:
+              se.eventType === "stall" && se.stallConfig ? se.stallConfig : null,
+            hasStalls: !!(se.eventType === "stall" && se.stallConfig),
+            festivalMeta: noting.festivalMeta || null,
+            festivalNotingId: noting.id,
+          },
+        });
+
+        // Create prizes for this sub-event
+        if (
+          Array.isArray(v.eventPrizesAwards) &&
+          v.eventPrizesAwards.length > 0
+        ) {
+          const prizeRows = v.eventPrizesAwards.map((p, idx) => ({
+            eventId: seEvent.id,
+            position: p.position ?? idx + 1,
+            rank: p.rank || `Position ${idx + 1}`,
+            title: p.title || "",
+            description: null,
+            prizeType: p.prizeType || "certificate",
+            prizeAmount: p.prizeAmount ?? null,
+            additionalPerks: Array.isArray(p.additionalPerks)
+              ? p.additionalPerks
+              : null,
+            sortOrder: p.sortOrder ?? idx,
+            isActive: true,
+          }));
+          await tx.eventPrize.createMany({ data: prizeRows });
+          await tx.event.update({
+            where: { id: seEvent.id },
+            data: { prizesEnabled: true },
+          });
+        }
+
+        results.push(seEvent);
+      }
+      return results;
+    });
 
     return { isFestival: true, events: createdEvents };
   }
@@ -277,11 +310,16 @@ const createEventFromNoting = async (noteId, userId) => {
 
 /**
  * Get event by ID with full details
+ * Caches the event base data per eventId (user-specific data always fetched fresh).
  */
 const getEventDetails = async (eventId, userId) => {
-  // Don't include ALL EventRegistration - detail view only needs count + user's own registration
-  const [event, currentRegistrations, userRegistration] = await Promise.all([
-    getEventById(prisma, eventId, {
+  // Try cache for event base data
+  const cacheKey = `event:detail:${eventId}`;
+  let event = await cache.get(cacheKey);
+
+  if (!event) {
+    // Cache miss — fetch from DB and cache
+    event = await getEventById(prisma, eventId, {
       EventVolunteer: {
         take: 20,
         include: {
@@ -338,7 +376,13 @@ const getEventDetails = async (eventId, userId) => {
           sortOrder: true,
         },
       },
-    }),
+    });
+    // Cache event base data (2 min TTL)
+    await cache.set(cacheKey, event, 120);
+  }
+
+  // User-specific data always fetched fresh (not cached)
+  const [currentRegistrations, userRegistration] = await Promise.all([
     prisma.eventRegistration.count({
       where: { eventId, status: "confirmed" },
     }),
@@ -422,6 +466,14 @@ const validateEventRequiredFields = (eventData) => {
   ) {
     throw new ValidationError(
       "Contact Person Name must not exceed 256 characters.",
+    );
+  }
+  if (
+    eventData.contactPersonName &&
+    String(eventData.contactPersonName).trim().length < 2
+  ) {
+    throw new ValidationError(
+      "Contact Person Name must be at least 2 characters.",
     );
   }
   // Contact mobile - 10 digits when provided
@@ -508,6 +560,20 @@ const validateEventRequiredFields = (eventData) => {
       }
     }
   }
+  // Fee validation for paid events — minimum ₹1, no zero or negative fees
+  if (eventData.paymentType === "paid") {
+    if (eventData.participationType === "team") {
+      const fee = Number(eventData.teamRegistrationFee);
+      if (eventData.teamRegistrationFee == null || isNaN(fee) || fee < 1) {
+        throw new ValidationError("Participation fee must be at least \u20b91.");
+      }
+    } else {
+      const fee = Number(eventData.registrationFee);
+      if (eventData.registrationFee == null || isNaN(fee) || fee < 1) {
+        throw new ValidationError("Participation fee must be at least \u20b91.");
+      }
+    }
+  }
 };
 
 /**
@@ -532,9 +598,11 @@ const updateEvent = async (eventId, userId, updateData) => {
     "isPaid",
     "notingId",
   ];
-  // When event is from noting, also lock: sponsorship, duty leave, resources. Capacity (approxCapacity) stays editable.
+  // When event is from noting, also lock: fee fields, sponsorship, duty leave, resources. Capacity (approxCapacity) stays editable.
   if (event.notingId) {
     lockedFields.push(
+      "registrationFee",
+      "teamRegistrationFee",
       "dutyLeaveAvailable",
       "dutyLeaveEligibility",
       "dutyLeaveRoleType",
@@ -651,6 +719,7 @@ const updateEvent = async (eventId, userId, updateData) => {
     },
   });
 
+  await invalidateEventCaches(eventId);
   return updatedEvent;
 };
 
@@ -678,6 +747,14 @@ const publishEvent = async (eventId, userId) => {
 
   // Validate event has all required details before publishing
   validateEventRequiredFields(event);
+
+  // Opportunity mode must be explicitly chosen before publishing
+  const VALID_OPPORTUNITY_MODES = ['online', 'offline', 'hybrid'];
+  if (!event.opportunityMode || !VALID_OPPORTUNITY_MODES.includes(event.opportunityMode)) {
+    throw new ValidationError(
+      "Please select a Mode of Opportunity (Online, Offline, or Hybrid) before publishing.",
+    );
+  }
 
   // Update event status and published timestamp
   const updateData = {
@@ -712,6 +789,7 @@ const publishEvent = async (eventId, userId) => {
     },
   });
 
+  await invalidateEventCaches(eventId);
   return publishedEvent;
 };
 
@@ -1075,6 +1153,8 @@ const registerForEvent = async (eventId, userId) => {
     return reg;
   });
 
+  // Bust stats cache after new registration
+  await invalidateEventCaches(event.id);
   return registration;
 };
 
@@ -1321,6 +1401,11 @@ const getEventStatistics = async (eventId, userId) => {
     throw new ForbiddenError("Only the event creator can view statistics");
   }
 
+  // Check cache first (1 min TTL — stats change frequently with registrations)
+  const cacheKey = `event:stats:${eventId}`;
+  const cached = await cache.get(cacheKey);
+  if (cached) return cached;
+
   // Single raw SQL for all registration counts + revenue (replaces 6 count + 1 aggregate queries)
   const statsResult = await prisma.$queryRaw`
     SELECT
@@ -1380,7 +1465,7 @@ const getEventStatistics = async (eventId, userId) => {
   const currentlyInside = Math.max(0, (totalEntries || 0) - (totalExits || 0));
   const totalRevenue = Number(stats.revenue) || 0;
 
-  return {
+  const result = {
     totalRegistrations: stats.total || 0,
     confirmedRegistrations: stats.confirmed || 0,
     pendingRegistrations: stats.pending || 0,
@@ -1415,6 +1500,10 @@ const getEventStatistics = async (eventId, userId) => {
         : null,
     })),
   };
+
+  // Cache the result (1 min TTL)
+  await cache.set(cacheKey, result, 60);
+  return result;
 };
 
 /**
@@ -1823,7 +1912,9 @@ const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
     throw new ForbiddenError("Only the event creator can view feedback");
   }
 
-  const [items, total] = await Promise.all([
+  // Fetch paginated items, count, and average in parallel (single pass each)
+  // Replaces the previous double table scan (findMany ALL → reduce in JS + redundant count)
+  const [items, total, avgResult] = await Promise.all([
     prisma.eventFeedback.findMany({
       where: { eventId },
       orderBy: { createdAt: "desc" },
@@ -1831,31 +1922,163 @@ const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
       take: limit,
     }),
     prisma.eventFeedback.count({ where: { eventId } }),
+    // Use raw SQL to compute average of JSON array points in one pass
+    // Each feedback has points: [1-10, 1-10, ...10 items], avg per feedback = sum/10
+    prisma.$queryRaw`
+      SELECT COALESCE(
+        AVG(
+          (SELECT SUM(val::float) / 10
+           FROM jsonb_array_elements_text(points::jsonb) AS val)
+        ), 0
+      )::float AS "overallAvg"
+      FROM "EventFeedback"
+      WHERE "eventId" = ${eventId}
+    `,
   ]);
 
-  const allFeedback = await prisma.eventFeedback.findMany({
-    where: { eventId },
-    select: { points: true },
-  });
-  const overallAvg =
-    allFeedback.length > 0
-      ? allFeedback.reduce(
-          (sum, f) =>
-            sum +
-            (Array.isArray(f.points)
-              ? f.points.reduce((a, b) => a + b, 0) / 10
-              : 0),
-          0,
-        ) / allFeedback.length
-      : 0;
+  const overallAvg = avgResult[0]?.overallAvg ?? 0;
 
   return {
     feedback: items,
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     summary: {
-      totalFeedback: await prisma.eventFeedback.count({ where: { eventId } }),
+      totalFeedback: total, // Reuse count instead of redundant second count()
       overallAvg: Number(overallAvg.toFixed(2)),
     },
+  };
+};
+
+/**
+ * Get stall info for feedback form (public - no auth)
+ */
+const getStallFeedbackFormInfo = async (eventId, stallId) => {
+  const event = await getEventById(prisma, eventId);
+  if (!event || event.status !== 'published') {
+    throw new NotFoundError('Event not found');
+  }
+  const stall = await prisma.stall.findFirst({
+    where: { stallId, eventId: event.id, isActive: true },
+  });
+  if (!stall) throw new NotFoundError('Stall not found');
+  return { id: event.id, eventName: event.name, stallId: stall.stallId, stallName: stall.stallName };
+};
+
+/**
+ * Submit stall feedback (public - no auth)
+ */
+const STALL_FEEDBACK_LABELS = [
+  'Overall Experience', 'Product / Food Quality', 'Pricing & Value',
+  'Staff Friendliness', 'Cleanliness', 'Presentation & Setup',
+  'Wait Time', 'Variety', 'Packaging', 'Would Recommend',
+];
+
+const submitStallFeedback = async (eventId, stallId, { points, shortDescription }) => {
+  const event = await getEventById(prisma, eventId);
+  if (!event) throw new NotFoundError('Event not found');
+
+  const stall = await prisma.stall.findFirst({
+    where: { stallId, eventId: event.id, isActive: true },
+  });
+  if (!stall) throw new NotFoundError('Stall not found');
+
+  const pts = Array.isArray(points) ? points : [];
+  if (pts.length !== 10) {
+    throw new ValidationError('Please provide exactly 10 ratings (1-10) for each criterion.');
+  }
+  const valid = pts.every((p) => typeof p === 'number' && p >= 1 && p <= 10);
+  if (!valid) throw new ValidationError('Each rating must be a number between 1 and 10.');
+
+  const feedback = await prisma.stallFeedback.create({
+    data: {
+      eventId: event.id,
+      stallId: stall.stallId,
+      points: pts,
+      shortDescription: shortDescription ? String(shortDescription).trim().slice(0, 2000) : null,
+    },
+  });
+  return { id: feedback.id };
+};
+
+/**
+ * Get stall feedback list (event creator only)
+ */
+const getStallFeedback = async (eventId, stallId, userId, { page = 1, limit = 20 }) => {
+  const event = await getEventById(prisma, eventId);
+  if (!event) throw new NotFoundError('Event not found');
+  if (event.createdById !== userId) throw new ForbiddenError('Only the event creator can view stall feedback');
+
+  const stall = await prisma.stall.findFirst({ where: { stallId, eventId: event.id } });
+  if (!stall) throw new NotFoundError('Stall not found');
+
+  // Fetch paginated items, count, and average in parallel (single pass each)
+  // Replaces the double table scan (findMany ALL → reduce in JS)
+  const [items, total, avgResult] = await Promise.all([
+    prisma.stallFeedback.findMany({
+      where: { stallId, eventId: event.id },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.stallFeedback.count({ where: { stallId, eventId: event.id } }),
+    prisma.$queryRaw`
+      SELECT COALESCE(
+        AVG(
+          (SELECT SUM(val::float) / 10
+           FROM jsonb_array_elements_text(points::jsonb) AS val)
+        ), 0
+      )::float AS "overallAvg"
+      FROM "StallFeedback"
+      WHERE "stallId" = ${stallId} AND "eventId" = ${event.id}
+    `,
+  ]);
+
+  const overallAvg = avgResult[0]?.overallAvg ?? 0;
+
+  return {
+    feedback: items,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    summary: { totalFeedback: total, overallAvg: Number(overallAvg.toFixed(2)) },
+  };
+};
+
+const getStallOwnerFeedback = async (eventId, stallId, userId, { page = 1, limit = 20 } = {}) => {
+  const event = await getEventById(prisma, eventId);
+  if (!event) throw new NotFoundError('Event not found');
+
+  // Verify the requesting user owns this stall (approved application)
+  const application = await prisma.stallApplication.findFirst({
+    where: { eventId: event.id, stallId, applicantId: userId, applicationStatus: 'approved' },
+  });
+  if (!application) throw new ForbiddenError('You do not own this stall');
+
+  const where = { stallId, eventId: event.id };
+
+  const [items, total, allFb] = await Promise.all([
+    prisma.stallFeedback.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.stallFeedback.count({ where }),
+    prisma.stallFeedback.findMany({ where, select: { points: true } }),
+  ]);
+
+  const perCriterion = STALL_FEEDBACK_LABELS.map((label, i) => ({
+    label,
+    avg: allFb.length > 0
+      ? Number((allFb.reduce((sum, f) => sum + (Array.isArray(f.points) ? (f.points[i] ?? 0) : 0), 0) / allFb.length).toFixed(2))
+      : 0,
+  }));
+
+  const overallAvg = allFb.length > 0
+    ? allFb.reduce((sum, f) => sum + (Array.isArray(f.points) ? f.points.reduce((a, b) => a + b, 0) / 10 : 0), 0) / allFb.length
+    : 0;
+
+  return {
+    feedback: items,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    summary: { totalFeedback: total, overallAvg: Number(overallAvg.toFixed(2)), perCriterion },
   };
 };
 
@@ -1876,4 +2099,8 @@ module.exports = {
   submitEventFeedback,
   getEventFeedback,
   getEventFeedbackFormInfo,
+  getStallFeedbackFormInfo,
+  submitStallFeedback,
+  getStallFeedback,
+  getStallOwnerFeedback,
 };

@@ -5,6 +5,7 @@ const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
+const log = require("./shared/utils/logger");
 const path = require("path");
 
 const config = require("./shared/config/app.config");
@@ -70,21 +71,14 @@ app.use(
   }),
 );
 
-// Logging
+// Logging — pretty colorful request logs (replaces morgan + manual slow-request warning)
 if (config.env === "development") {
-  app.use(morgan("dev"));
-
-  // Response time logging for performance monitoring
+  // Colorful per-request log line with duration + slow tag
   app.use((req, res, next) => {
     const start = Date.now();
     res.on("finish", () => {
       const duration = Date.now() - start;
-      if (duration > 500) {
-        // Log slow requests (>500ms)
-        console.warn(
-          `⚠️ SLOW REQUEST: ${req.method} ${req.path} - ${duration}ms`,
-        );
-      }
+      log.req(req.method, req.originalUrl || req.url, res.statusCode, duration);
     });
     next();
   });
