@@ -52,6 +52,27 @@ const generateRegistrationId = async (prisma, eventId) => {
 };
 
 /**
+ * Lightweight event lookup — returns only ownership / status fields.
+ * Use this for authorization checks instead of the heavy getEventById.
+ */
+const getEventLean = async (prisma, eventId) => {
+  const event = await prisma.event.findFirst({
+    where: { OR: [{ id: eventId }, { eventId }] },
+    select: {
+      id: true,
+      eventId: true,
+      name: true,
+      status: true,
+      createdById: true,
+      paymentType: true,
+      participationType: true,
+    },
+  });
+  if (!event) throw new NotFoundError('Event not found');
+  return event;
+};
+
+/**
  * Validate event exists and return it with related data
  */
 const getEventById = async (prisma, eventId, include = {}) => {
@@ -401,6 +422,7 @@ module.exports = {
   generateRegistrationId,
   generateQRCode,
   getEventById,
+  getEventLean,
   canRegisterForEvent,
   isEventVolunteer,
   validateQRCodeAndGetRegistration,

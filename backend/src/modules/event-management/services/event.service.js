@@ -29,6 +29,7 @@ const {
   generateEventId,
   generateRegistrationId,
   getEventById,
+  getEventLean,
   canRegisterForEvent,
   isEventVolunteer,
   validateQRCodeAndGetRegistration,
@@ -935,82 +936,14 @@ const listEvents = async (filters, pagination, userId) => {
   }
 
   // ── Visibility filter: exclude events user cannot see ─────────────────
-  // We do this by finding event IDs that are explicitly hidden from this user,
-  // then excluding them. Events without visibility config remain visible (legacy).
-  const userForVisibility = await prisma.userLogin.findUnique({
-    where: { id: userId },
-    select: {
-      role: true,
-      studentLogin: {
-        select: {
-          programId: true,
-          sectionId: true,
-          program: {
-            select: {
-              id: true,
-              departmentId: true,
-              department: { select: { id: true, facultyId: true } },
-            },
-          },
-          section: { select: { id: true, batchYear: true } },
-        },
-      },
-    },
-  });
-
-  // Only apply visibility filter if not a superadmin (superadmin sees all)
-  if (userForVisibility && userForVisibility.role !== 'superadmin' && !myEvents) {
-    // Get all visibility records for events that are either inactive or exclude this role
-    const allVisibility = await prisma.eventVisibility.findMany({
-      select: {
-        eventId: true,
-        isActive: true,
-        visibleToRoles: true,
-        studentFilterType: true,
-        allowedSchoolIds: true,
-        allowedDepartmentIds: true,
-        allowedProgramIds: true,
-        allowedBatchYears: true,
-        allowedSectionIds: true,
-      },
-    });
-
-    const hiddenEventIds = [];
-    const role = userForVisibility.role;
-    const student = userForVisibility.studentLogin;
-
-    for (const v of allVisibility) {
-      // NOTE: isActive controls registration open/close, NOT visibility.
-      // So we do NOT hide events based on isActive — only role/student filters.
-
-      const roles = Array.isArray(v.visibleToRoles) ? v.visibleToRoles : [];
-      if (!roles.includes(role)) { hiddenEventIds.push(v.eventId); continue; }
-
-      // Student granular filtering
-      if (role === 'student' && v.studentFilterType === 'custom' && student) {
-        const schools = Array.isArray(v.allowedSchoolIds) ? v.allowedSchoolIds : [];
-        const depts = Array.isArray(v.allowedDepartmentIds) ? v.allowedDepartmentIds : [];
-        const progs = Array.isArray(v.allowedProgramIds) ? v.allowedProgramIds : [];
-        const batches = Array.isArray(v.allowedBatchYears) ? v.allowedBatchYears : [];
-        const sects = Array.isArray(v.allowedSectionIds) ? v.allowedSectionIds : [];
-
-        const hasAnyFilter = schools.length + depts.length + progs.length + batches.length + sects.length > 0;
-        if (hasAnyFilter) {
-          let matched = false;
-          if (sects.length > 0 && student.sectionId && sects.includes(student.sectionId)) matched = true;
-          if (!matched && batches.length > 0 && student.section?.batchYear && batches.includes(student.section.batchYear)) matched = true;
-          if (!matched && progs.length > 0 && student.programId && progs.includes(student.programId)) matched = true;
-          if (!matched && depts.length > 0 && student.program?.departmentId && depts.includes(student.program.departmentId)) matched = true;
-          if (!matched && schools.length > 0 && student.program?.department?.facultyId && schools.includes(student.program.department.facultyId)) matched = true;
-          if (!matched) hiddenEventIds.push(v.eventId);
-        }
-      } else if (role === 'student' && v.studentFilterType === 'custom' && !student) {
-        hiddenEventIds.push(v.eventId);
-      }
-    }
-
-    if (hiddenEventIds.length > 0) {
-      where.NOT = { ...(where.NOT || {}), id: { in: hiddenEventIds } };
+  // Use buildVisibilityFilter to push filtering to SQL instead of loading all records into memory
+  if (!myEvents) {
+    const { buildVisibilityFilter } = require('./eventSettings.service');
+    const visibilityFilter = await buildVisibilityFilter(userId);
+    // Merge visibility filter into the where clause
+    if (visibilityFilter && Object.keys(visibilityFilter).length > 0) {
+      where.AND = where.AND || [];
+      where.AND.push(visibilityFilter);
     }
   }
 
@@ -1394,7 +1327,7 @@ const scanQRCode = async (
  * Optimized: Single raw SQL for counts + date grouping, separate query for recent registrations
  */
 const getEventStatistics = async (eventId, userId) => {
-  const event = await getEventById(prisma, eventId);
+  const event = await getEventLean(prisma, eventId);
 
   // Verify user is the event creator
   if (event.createdById !== userId) {
@@ -1407,56 +1340,56 @@ const getEventStatistics = async (eventId, userId) => {
   if (cached) return cached;
 
   // Single raw SQL for all registration counts + revenue (replaces 6 count + 1 aggregate queries)
-  const statsResult = await prisma.$queryRaw`
-    SELECT
-      COUNT(*)::int as total,
-      COUNT(*) FILTER (WHERE status = 'confirmed')::int as confirmed,
-      COUNT(*) FILTER (WHERE status = 'pending')::int as pending,
-      COUNT(*) FILTER (WHERE status = 'cancelled')::int as cancelled,
-      COUNT(*) FILTER (WHERE status = 'waitlisted')::int as waitlisted,
-      COUNT(*) FILTER (WHERE "hasEntered" = true)::int as attended,
-      COALESCE(SUM("amountPaid") FILTER (WHERE "paymentStatus" = 'completed'), 0)::float as revenue
-    FROM "EventRegistration"
-    WHERE "eventId" = ${eventId}
-  `;
-  const stats = statsResult[0] || {};
-
-  // Date grouping via SQL (replaces full table scan findMany)
-  const dateGroups = await prisma.$queryRaw`
-    SELECT DATE("registeredAt")::text as date, COUNT(*)::int as count
-    FROM "EventRegistration"
-    WHERE "eventId" = ${eventId}
-    GROUP BY DATE("registeredAt")
-    ORDER BY date ASC
-  `;
-
-  const [volunteerCount, totalEntries, totalExits, recentRegistrations] =
-    await Promise.all([
-      prisma.eventVolunteer.count({ where: { eventId } }),
-      prisma.eventEntry.count({ where: { eventId, entryType: "entry" } }),
-      prisma.eventEntry.count({ where: { eventId, entryType: "exit" } }),
-      prisma.eventRegistration.findMany({
-        where: { eventId },
-        include: {
-          user_login: {
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              employeeDetails: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                },
+  // Also includes volunteer count, entry/exit counts in one combined query
+  const [statsResult, dateGroups, recentRegistrations] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId}) as total,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'confirmed') as confirmed,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'pending') as pending,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'cancelled') as cancelled,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'waitlisted') as waitlisted,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "hasEntered" = true) as attended,
+        (SELECT COALESCE(SUM("amountPaid"), 0)::float FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "paymentStatus" = 'completed') as revenue,
+        (SELECT COUNT(*)::int FROM "EventVolunteer" WHERE "eventId" = ${eventId}) as "volunteerCount",
+        (SELECT COUNT(*)::int FROM "EventEntry" WHERE "eventId" = ${eventId} AND "entryType" = 'entry') as "totalEntries",
+        (SELECT COUNT(*)::int FROM "EventEntry" WHERE "eventId" = ${eventId} AND "entryType" = 'exit') as "totalExits"
+    `,
+    // Date grouping via SQL (replaces full table scan findMany)
+    prisma.$queryRaw`
+      SELECT DATE("registeredAt")::text as date, COUNT(*)::int as count
+      FROM "EventRegistration"
+      WHERE "eventId" = ${eventId}
+      GROUP BY DATE("registeredAt")
+      ORDER BY date ASC
+    `,
+    prisma.eventRegistration.findMany({
+      where: { eventId },
+      include: {
+        user_login: {
+          select: {
+            id: true,
+            uid: true,
+            email: true,
+            employeeDetails: {
+              select: {
+                firstName: true,
+                lastName: true,
+                displayName: true,
               },
             },
           },
         },
-        orderBy: { registeredAt: "desc" },
-        take: 50,
-      }),
-    ]);
+      },
+      orderBy: { registeredAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  const stats = statsResult[0] || {};
+  const volunteerCount = stats.volunteerCount || 0;
+  const totalEntries = stats.totalEntries || 0;
+  const totalExits = stats.totalExits || 0;
 
   const registrationsByDate = dateGroups.map((r) => ({
     date: r.date,
@@ -1708,7 +1641,7 @@ const getVolunteerActivity = async (
   userId,
   filters = {},
 ) => {
-  const event = await getEventById(prisma, eventId);
+  const event = await getEventLean(prisma, eventId);
   if (event.createdById !== userId) {
     throw new ForbiddenError(
       "Only the event creator can view volunteer activity",
@@ -1865,8 +1798,7 @@ const getVolunteerActivity = async (
  * Public - no auth required
  */
 const submitEventFeedback = async (eventId, { points, shortDescription }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError("Event not found");
+  const event = await getEventLean(prisma, eventId);
 
   const pts = Array.isArray(points) ? points : [];
   if (pts.length !== 10) {
@@ -1895,8 +1827,8 @@ const submitEventFeedback = async (eventId, { points, shortDescription }) => {
  * Get minimal event info for feedback form (public - no auth, for QR scanner users)
  */
 const getEventFeedbackFormInfo = async (eventId) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event || event.status !== "published") {
+  const event = await getEventLean(prisma, eventId);
+  if (event.status !== "published") {
     throw new NotFoundError("Event not found");
   }
   return { id: event.id, name: event.name };
@@ -1906,8 +1838,7 @@ const getEventFeedbackFormInfo = async (eventId) => {
  * Get event feedback list (event creator only)
  */
 const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError("Event not found");
+  const event = await getEventLean(prisma, eventId);
   if (event.createdById !== userId) {
     throw new ForbiddenError("Only the event creator can view feedback");
   }
@@ -1931,7 +1862,7 @@ const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
            FROM jsonb_array_elements_text(points::jsonb) AS val)
         ), 0
       )::float AS "overallAvg"
-      FROM "EventFeedback"
+      FROM "event_feedback"
       WHERE "eventId" = ${eventId}
     `,
   ]);
@@ -1952,8 +1883,8 @@ const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
  * Get stall info for feedback form (public - no auth)
  */
 const getStallFeedbackFormInfo = async (eventId, stallId) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event || event.status !== 'published') {
+  const event = await getEventLean(prisma, eventId);
+  if (event.status !== 'published') {
     throw new NotFoundError('Event not found');
   }
   const stall = await prisma.stall.findFirst({
@@ -1973,8 +1904,7 @@ const STALL_FEEDBACK_LABELS = [
 ];
 
 const submitStallFeedback = async (eventId, stallId, { points, shortDescription }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError('Event not found');
+  const event = await getEventLean(prisma, eventId);
 
   const stall = await prisma.stall.findFirst({
     where: { stallId, eventId: event.id, isActive: true },
@@ -2003,8 +1933,7 @@ const submitStallFeedback = async (eventId, stallId, { points, shortDescription 
  * Get stall feedback list (event creator only)
  */
 const getStallFeedback = async (eventId, stallId, userId, { page = 1, limit = 20 }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError('Event not found');
+  const event = await getEventLean(prisma, eventId);
   if (event.createdById !== userId) throw new ForbiddenError('Only the event creator can view stall feedback');
 
   const stall = await prisma.stall.findFirst({ where: { stallId, eventId: event.id } });
@@ -2027,7 +1956,7 @@ const getStallFeedback = async (eventId, stallId, userId, { page = 1, limit = 20
            FROM jsonb_array_elements_text(points::jsonb) AS val)
         ), 0
       )::float AS "overallAvg"
-      FROM "StallFeedback"
+      FROM "stall_feedback"
       WHERE "stallId" = ${stallId} AND "eventId" = ${event.id}
     `,
   ]);
@@ -2042,7 +1971,7 @@ const getStallFeedback = async (eventId, stallId, userId, { page = 1, limit = 20
 };
 
 const getStallOwnerFeedback = async (eventId, stallId, userId, { page = 1, limit = 20 } = {}) => {
-  const event = await getEventById(prisma, eventId);
+  const event = await getEventLean(prisma, eventId);
   if (!event) throw new NotFoundError('Event not found');
 
   // Verify the requesting user owns this stall (approved application)
@@ -2053,7 +1982,9 @@ const getStallOwnerFeedback = async (eventId, stallId, userId, { page = 1, limit
 
   const where = { stallId, eventId: event.id };
 
-  const [items, total, allFb] = await Promise.all([
+  // Fetch paginated items, count, and per-criterion averages via raw SQL (single pass)
+  // Replaces loading ALL feedback into memory for JS aggregation
+  const [items, total, avgResult, perCriterionResult] = await Promise.all([
     prisma.stallFeedback.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -2061,19 +1992,39 @@ const getStallOwnerFeedback = async (eventId, stallId, userId, { page = 1, limit
       take: limit,
     }),
     prisma.stallFeedback.count({ where }),
-    prisma.stallFeedback.findMany({ where, select: { points: true } }),
+    // Overall average
+    prisma.$queryRaw`
+      SELECT COALESCE(
+        AVG(
+          (SELECT SUM(val::float) / 10
+           FROM jsonb_array_elements_text(points::jsonb) AS val)
+        ), 0
+      )::float AS "overallAvg"
+      FROM "stall_feedback"
+      WHERE "stall_id" = ${stallId} AND "event_id" = ${event.id}
+    `,
+    // Per-criterion averages via raw SQL
+    prisma.$queryRaw`
+      SELECT
+        idx,
+        COALESCE(AVG((points::jsonb->>idx::text)::float), 0)::float AS avg
+      FROM "stall_feedback",
+           generate_series(0, 9) AS idx
+      WHERE "stall_id" = ${stallId} AND "event_id" = ${event.id}
+      GROUP BY idx
+      ORDER BY idx
+    `,
   ]);
 
-  const perCriterion = STALL_FEEDBACK_LABELS.map((label, i) => ({
-    label,
-    avg: allFb.length > 0
-      ? Number((allFb.reduce((sum, f) => sum + (Array.isArray(f.points) ? (f.points[i] ?? 0) : 0), 0) / allFb.length).toFixed(2))
-      : 0,
-  }));
+  const overallAvg = avgResult[0]?.overallAvg ?? 0;
 
-  const overallAvg = allFb.length > 0
-    ? allFb.reduce((sum, f) => sum + (Array.isArray(f.points) ? f.points.reduce((a, b) => a + b, 0) / 10 : 0), 0) / allFb.length
-    : 0;
+  const perCriterion = STALL_FEEDBACK_LABELS.map((label, i) => {
+    const row = perCriterionResult.find(r => r.idx === i);
+    return {
+      label,
+      avg: row ? Number(row.avg.toFixed(2)) : 0,
+    };
+  });
 
   return {
     feedback: items,

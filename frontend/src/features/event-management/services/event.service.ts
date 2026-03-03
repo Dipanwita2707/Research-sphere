@@ -21,6 +21,9 @@ import type {
   StallApplicationFormData,
   StallOpportunity,
   Stall,
+  EventCoupon,
+  CouponFormData,
+  CouponValidationResult,
 } from '../types/event.types';
 
 const BASE_URL = '/events';
@@ -136,6 +139,15 @@ export const eventService = {
    */
   async getRegistrationFilterOptions(id: string): Promise<any> {
     const response = await api.get(`${BASE_URL}/${id}/registrations/filter-options`);
+    return response.data.data;
+  },
+
+  /**
+   * Get detailed registration info (admin-only) — includes full payment records,
+   * coupon usage, form data, team members, entry logs.
+   */
+  async getRegistrationDetails(eventId: string, regId: string): Promise<any> {
+    const response = await api.get(`${BASE_URL}/${eventId}/registrations/${regId}/details`);
     return response.data.data;
   },
 
@@ -877,8 +889,8 @@ export const eventService = {
    * Create a Razorpay order for team event registration.
    * Only the team leader can initiate this.
    */
-  async createTeamPaymentOrder(eventId: string, teamId: string) {
-    const response = await api.post(`${BASE_URL}/${eventId}/teams/${teamId}/payments/create-order`);
+  async createTeamPaymentOrder(eventId: string, teamId: string, couponCode?: string) {
+    const response = await api.post(`${BASE_URL}/${eventId}/teams/${teamId}/payments/create-order`, { couponCode: couponCode || undefined });
     return response.data.data;
   },
 
@@ -899,6 +911,171 @@ export const eventService = {
    */
   async getPaymentStatus(eventId: string, params?: { registrationId?: string; teamId?: string }) {
     const response = await api.get(`${BASE_URL}/${eventId}/payments/status`, { params });
+    return response.data.data;
+  },
+
+  // ── Bulk Email ─────────────────────────────────────────────────
+
+  /**
+   * Get recipient counts per registration status for the email slider.
+   */
+  async getEmailRecipientsCount(eventId: string): Promise<{ all: number; confirmed: number; pending: number; cancelled: number }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/emails/recipients-count`);
+    return response.data.data;
+  },
+
+  /**
+   * Send a bulk email to event registrants.
+   */
+  async sendBulkEmail(eventId: string, payload: {
+    subject: string;
+    body: string;
+    filter?: string;
+    replyTo?: string;
+    testEmail?: string;
+    registrationIds?: string[];
+    scheduledAt?: string; // ISO date string — if set, schedules the send
+  }): Promise<{ success: boolean; sent: number; failed: number; errors: string[]; scheduled?: boolean; scheduledAt?: string; logId?: string; recipientCount?: number }> {
+    const response = await api.post(`${BASE_URL}/${eventId}/emails/send`, payload);
+    return response.data.data;
+  },
+
+  /**
+   * Get aggregated email analytics for an event.
+   */
+  async getEmailAnalytics(eventId: string): Promise<{
+    totalCampaigns: number;
+    scheduledPending: number;
+    totalRecipients: number;
+    totalSent: number;
+    totalFailed: number;
+    totalOpened: number;
+    totalDelivered: number;
+    deliveryRate: number;
+    openRate: number;
+    recentCampaigns: Array<{
+      id: string;
+      subject: string;
+      sentAt: string;
+      recipientCount: number;
+      sentCount: number;
+      failedCount: number;
+      status: string;
+    }>;
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/emails/analytics`);
+    return response.data.data;
+  },
+
+  /**
+   * Get email credit balance for an event.
+   */
+  async getEmailCredits(eventId: string): Promise<{
+    total: number;
+    used: number;
+    available: number;
+    creditsPerRegistration: number;
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/emails/credits`);
+    return response.data.data;
+  },
+
+  /**
+   * Cancel a pending scheduled email.
+   */
+  async cancelScheduledEmail(eventId: string, logId: string): Promise<void> {
+    await api.delete(`${BASE_URL}/${eventId}/emails/scheduled/${logId}`);
+  },
+
+  /**
+   * Get email sending history for an event.
+   */
+  async getEmailHistory(eventId: string, page = 1, limit = 20): Promise<{
+    logs: Array<{
+      id: string;
+      subject: string;
+      body: string;
+      filter: string;
+      recipientCount: number;
+      sentCount: number;
+      failedCount: number;
+      status: string;
+      replyTo: string | null;
+      errors: string[];
+      sentAt: string;
+      sentByName: string;
+      sentByEmail: string | null;
+      scheduledAt?: string | null;
+      // Aggregated stats
+      deliveredCount: number;
+      bouncedCount: number;
+      openedCount: number;
+      notOpenedCount: number;
+      // Per-recipient details
+      recipientDetails: Array<{
+        id: string;
+        email: string;
+        name: string;
+        status: string;
+        failureReason: string | null;
+        openCount: number;
+        firstOpenedAt: string | null;
+        lastOpenedAt: string | null;
+        deliveredAt: string | null;
+        failedAt: string | null;
+      }>;
+    }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/emails/history?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
+  // ============================================
+  // Coupon Methods
+  // ============================================
+
+  /**
+   * List coupons for an event (organizer)
+   */
+  async listCoupons(eventId: string): Promise<EventCoupon[]> {
+    const response = await api.get(`${BASE_URL}/${eventId}/coupons`);
+    return response.data.data;
+  },
+
+  /**
+   * Create a coupon for an event (organizer)
+   */
+  async createCoupon(eventId: string, data: CouponFormData): Promise<EventCoupon> {
+    const response = await api.post(`${BASE_URL}/${eventId}/coupons`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Update a coupon (organizer)
+   */
+  async updateCoupon(eventId: string, couponId: string, data: Partial<CouponFormData>): Promise<EventCoupon> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/coupons/${couponId}`, data);
+    return response.data.data;
+  },
+
+  /**
+   * Delete a coupon (organizer)
+   */
+  async deleteCoupon(eventId: string, couponId: string): Promise<void> {
+    await api.delete(`${BASE_URL}/${eventId}/coupons/${couponId}`);
+  },
+
+  /**
+   * Validate / preview a coupon code (user)
+   * Does NOT consume a usage slot — just previews discount.
+   */
+  async validateCoupon(
+    eventId: string,
+    code: string,
+    amount?: number
+  ): Promise<CouponValidationResult> {
+    const response = await api.post(`${BASE_URL}/${eventId}/coupons/validate`, { code, amount });
     return response.data.data;
   },
 };

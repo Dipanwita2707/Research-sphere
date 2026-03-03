@@ -12,13 +12,16 @@ import {
   XCircle, ArrowUpRight, Settings, QrCode, UserPlus, MapPin, Globe, Award,
   Trash2, Store, CheckCheck, XCircle as XCircleIcon,
   FileText, ExternalLink, X, MessageSquare, Plus, Pencil,
-  Crown, CreditCard, Hash, LayoutList, LayoutGrid,
+  Crown, CreditCard, Hash, LayoutList, LayoutGrid, Mail, MailOpen, Send, Tag,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventStatistics, EventVolunteer, StallApplication, Stall, StallMetadata, StallType } from '@/features/event-management/types/event.types';
 import CreateStallForm, { type CreateStallFormData } from '@/features/event-management/components/CreateStallForm';
 import EventSettings from '@/features/event-management/components/EventSettings';
+import CouponManagement from '@/features/event-management/components/CouponManagement';
 import RegistrationFilters from '@/features/event-management/components/RegistrationFilters';
+import RegistrationDetailModal from '@/features/event-management/components/RegistrationDetailModal';
+import EmailSlider from '@/features/event-management/components/EmailSlider';
 import type { RegistrationFilterParams, RegistrationFilterOptions, RegistrationRow } from '@/features/event-management/types/registrationFilter.types';
 import { getRegistrationDisplayName, getRegistrationIdentifier, getRegistrationSchool, getRegistrationDepartment, getRegistrationProgram } from '@/features/event-management/types/registrationFilter.types';
 import { useToast } from '@/shared/ui-components/Toast';
@@ -54,9 +57,9 @@ interface UserSearchResult {
   uid?: string;
 }
 
-type TabType = 'overview' | 'registrations' | 'volunteers' | 'analytics' | 'stalls' | 'feedback' | 'settings';
+type TabType = 'overview' | 'registrations' | 'volunteers' | 'analytics' | 'stalls' | 'feedback' | 'coupons' | 'settings';
 
-const VALID_TABS: TabType[] = ['overview', 'registrations', 'volunteers', 'analytics', 'stalls', 'feedback', 'settings'];
+const VALID_TABS: TabType[] = ['overview', 'registrations', 'volunteers', 'analytics', 'stalls', 'feedback', 'coupons', 'settings'];
 
 // ── Metric Card Component ──────────────────────────────────────
 const MetricCard = ({
@@ -166,6 +169,46 @@ export default function EventManagementPage() {
   const [regViewMode, setRegViewMode] = useState<'table' | 'teams'>('table');
   const regDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Email Slider State
+  const [showEmailSlider, setShowEmailSlider] = useState(false);
+
+  // Registration Detail Modal State
+  const [detailRegId, setDetailRegId] = useState<string | null>(null);
+
+  // Email Analytics State
+  type EmailAnalyticsData = {
+    totalCampaigns: number;
+    scheduledPending: number;
+    totalRecipients: number;
+    totalSent: number;
+    totalFailed: number;
+    totalOpened: number;
+    totalDelivered: number;
+    deliveryRate: number;
+    openRate: number;
+    recentCampaigns: Array<{ id: string; subject: string; sentAt: string; recipientCount: number; sentCount: number; failedCount: number; status: string }>;
+  };
+  const [emailAnalytics, setEmailAnalytics] = useState<EmailAnalyticsData | null>(null);
+  const [emailAnalyticsLoading, setEmailAnalyticsLoading] = useState(false);
+
+  // Multi-select for bulk email
+  const [selectedRegIds, setSelectedRegIds] = useState<Set<string>>(new Set());
+  const toggleRegSelection = useCallback((id: string) => {
+    setSelectedRegIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+  const toggleSelectAll = useCallback(() => {
+    setSelectedRegIds(prev =>
+      prev.size === regData.length
+        ? new Set()
+        : new Set(regData.map(r => r.id))
+    );
+  }, [regData]);
+  const clearSelection = useCallback(() => setSelectedRegIds(new Set()), []);
+
   // ── Data Loading ───────────────────────────────────────────────
   useEffect(() => {
     loadData();
@@ -179,6 +222,18 @@ export default function EventManagementPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, event?.hasStalls]);
+
+  // Load email analytics when analytics tab is active
+  useEffect(() => {
+    if (activeTab === 'analytics' && eventId && !emailAnalytics) {
+      setEmailAnalyticsLoading(true);
+      eventService.getEmailAnalytics(eventId)
+        .then(setEmailAnalytics)
+        .catch(() => {})
+        .finally(() => setEmailAnalyticsLoading(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, eventId]);
 
   // Load feedback when feedback tab is active
   useEffect(() => {
@@ -619,32 +674,86 @@ export default function EventManagementPage() {
   };
 
   // ── CSV Export ─────────────────────────────────────────────────
-  const handleExportCSV = useCallback(() => {
-    if (!statistics?.recentRegistrations || !event) return;
+  const handleExportCSV = useCallback(async () => {
+    if (!event) return;
+    toast({ type: 'info', message: 'Preparing CSV, please wait…' });
+    try {
+      const { search, status, ...advancedFilters } = regFilters;
+      const result = await eventService.getEventRegistrations(
+        eventId,
+        1,
+        20,
+        status,
+        { search, ...advancedFilters, export: 'true' } as Record<string, string | number | undefined>,
+      );
+      const all: RegistrationRow[] = result.registrations as RegistrationRow[];
 
-    const headers = ['Registration ID', 'Name', 'UID', 'Email', 'Status', 'Payment Status', 'Amount Paid', 'Entered', 'Registered At'];
-    const rows = statistics.recentRegistrations.map((r) => [
-      r.registrationId,
-      r.user?.name || 'N/A',
-      r.user?.uid || 'N/A',
-      r.user?.email || 'N/A',
-      r.status,
-      r.paymentStatus || 'N/A',
-      r.amountPaid || '0',
-      r.hasEntered ? 'Yes' : 'No',
-      r.createdAt ? new Date(r.createdAt).toLocaleString('en-IN') : 'N/A',
-    ]);
+      const esc = (v: unknown) => {
+        const s = String(v ?? '');
+        return s.includes(',') || s.includes('"') || s.includes('\n')
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      };
 
-    const csvContent = [headers, ...rows].map((e) => e.join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${event.name.replace(/\s+/g, '_')}_registrations_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast({ type: 'success', message: 'CSV exported' });
-  }, [statistics, event, toast]);
+      const headers = [
+        'Registration ID', 'Name', 'UID', 'Email', 'Role',
+        'School / Faculty', 'Department', 'Program',
+        'Status', 'Payment Status', 'Amount Paid (₹)',
+        'Discount (₹)', 'Original Amount (₹)',
+        'Transaction ID', 'Order ID',
+        'Team ID', 'Team Name', 'Team Leader',
+        'Entered', 'Entered At', 'Registered At',
+      ];
+
+      const rows = all.map((r) => {
+        const u = r.user_login;
+        const s = u?.studentLogin;
+        const e = u?.employeeDetails;
+        const name = s?.displayName || (s ? `${s.firstName} ${s.lastName || ''}`.trim() : '')
+          || e?.displayName || (e ? `${e.firstName} ${e.lastName || ''}`.trim() : '') || 'N/A';
+        const school = s?.program?.department?.faculty?.facultyName
+          || e?.primarySchool?.facultyName || '';
+        const dept = s?.program?.department?.departmentName
+          || e?.primaryDepartment?.departmentName || '';
+        const program = s?.program?.programName || '';
+        return [
+          r.registrationId,
+          name,
+          u?.uid || '',
+          u?.email || '',
+          u?.role || '',
+          school,
+          dept,
+          program,
+          r.status,
+          r.paymentStatus || '',
+          r.amountPaid ?? '',
+          r.discountAmount ?? '',
+          r.originalAmount ?? '',
+          r.latestPayment?.razorpayPaymentId || '',
+          r.latestPayment?.razorpayOrderId || '',
+          r.team?.teamId || '',
+          r.team?.name || '',
+          r.isTeamLeader ? 'Yes' : '',
+          r.hasEntered ? 'Yes' : 'No',
+          r.enteredAt ? new Date(r.enteredAt).toLocaleString('en-IN') : '',
+          r.registeredAt ? new Date(r.registeredAt).toLocaleString('en-IN') : '',
+        ].map(esc);
+      });
+
+      const csvContent = [headers, ...rows].map((e) => e.join(',')).join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${event.name.replace(/\s+/g, '_')}_registrations_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast({ type: 'success', message: `CSV exported — ${all.length} registrations` });
+    } catch {
+      toast({ type: 'error', message: 'Failed to export CSV' });
+    }
+  }, [event, eventId, regFilters, toast]);
 
   // ── Loading & Error States ─────────────────────────────────────
   if (loading) {
@@ -709,6 +818,11 @@ export default function EventManagementPage() {
     tabs.push({ id: 'stalls', label: 'Stall Management', icon: Store });
   }
 
+  // Coupons tab: only for paid events
+  if (event?.paymentType === 'paid') {
+    tabs.push({ id: 'coupons', label: 'Coupons', icon: Tag });
+  }
+
   // Settings tab is always available (uses Settings icon already imported)
   tabs.push({ id: 'settings', label: 'Event Settings', icon: Settings });
 
@@ -737,6 +851,82 @@ export default function EventManagementPage() {
     } catch {
       toast({ type: 'error', message: 'Failed to generate stall QR code' });
     }
+  };
+
+  // ── Shared payment breakdown renderer for registration rows ──
+  const formatPayment = (reg: RegistrationRow) => {
+    const hasCoupon = !!reg.couponId;
+    const discount = reg.discountAmount ?? 0;
+    const originalAmt = reg.originalAmount ?? event?.registrationFee ?? 0;
+    const paidViaGateway = reg.amountPaid ?? 0;
+    const isPaid = reg.paymentStatus === 'completed' || !!reg.latestPayment?.razorpayPaymentId;
+
+    // 100% coupon
+    if (isPaid && hasCoupon && paidViaGateway === 0) {
+      return (
+        <div className="group relative">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 cursor-default">
+            <Tag className="w-3 h-3" /> Fully Paid via Coupon
+          </span>
+          <div className="absolute left-0 bottom-full mb-1.5 z-50 hidden group-hover:block w-52">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 text-xs space-y-1.5">
+              <div className="flex justify-between"><span className="text-gray-500">Total Fee</span><span className="font-semibold text-gray-800 dark:text-gray-200">₹{originalAmt.toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Coupon Discount</span><span className="font-semibold text-violet-600 dark:text-violet-400">−₹{discount.toLocaleString('en-IN')}</span></div>
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-1.5 flex justify-between"><span className="text-gray-500">Paid via Coupon</span><span className="font-semibold text-emerald-600">₹{discount.toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Paid via Gateway</span><span className="font-semibold text-gray-400">₹0</span></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Partial coupon + gateway payment
+    if (isPaid && hasCoupon && paidViaGateway > 0) {
+      return (
+        <div className="group relative">
+          <div className="flex flex-col gap-0.5">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="w-3 h-3" /> Paid ₹{paidViaGateway.toLocaleString('en-IN')}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[10px] text-violet-500 dark:text-violet-400">
+              <Tag className="w-2.5 h-2.5" /> Coupon −₹{discount.toLocaleString('en-IN')}
+            </span>
+          </div>
+          <div className="absolute left-0 bottom-full mb-1.5 z-50 hidden group-hover:block w-56">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 text-xs space-y-1.5">
+              <div className="flex justify-between"><span className="text-gray-500">Total Fee</span><span className="font-semibold text-gray-800 dark:text-gray-200">₹{originalAmt.toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Coupon Discount</span><span className="font-semibold text-violet-600 dark:text-violet-400">−₹{discount.toLocaleString('en-IN')}</span></div>
+              <div className="border-t border-gray-100 dark:border-gray-700 pt-1.5 flex justify-between"><span className="text-gray-500">Paid via Coupon</span><span className="font-semibold text-violet-600">₹{discount.toLocaleString('en-IN')}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Paid via Gateway</span><span className="font-semibold text-blue-600 dark:text-blue-400">₹{paidViaGateway.toLocaleString('en-IN')}</span></div>
+              {reg.latestPayment?.razorpayPaymentId && (
+                <div className="pt-1 border-t border-gray-100 dark:border-gray-700"><span className="text-[10px] font-mono text-gray-400 break-all">{reg.latestPayment.razorpayPaymentId}</span></div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // No coupon, paid normally
+    if (isPaid) {
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="w-3 h-3" /> Paid
+            {paidViaGateway ? ` ₹${paidViaGateway.toLocaleString('en-IN')}` : ''}
+          </span>
+          {reg.latestPayment?.razorpayPaymentId && (
+            <span className="text-[10px] font-mono text-gray-400 break-all">{reg.latestPayment.razorpayPaymentId}</span>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-500 dark:text-red-400">
+        <XCircle className="w-3 h-3" /> Not Paid
+      </span>
+    );
   };
 
   return (
@@ -782,13 +972,29 @@ export default function EventManagementPage() {
                 Refresh
               </button>
               {activeTab === 'registrations' && (
-                <button
-                  onClick={handleExportCSV}
-                  className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Export CSV
-                </button>
+                <>
+                  <button
+                    onClick={handleExportCSV}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={() => setShowEmailSlider(true)}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </button>
+                  <button
+                    onClick={() => toast({ type: 'info', message: 'Certificate feature coming soon' })}
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    <Award className="w-4 h-4" />
+                    Certificate
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1161,7 +1367,7 @@ export default function EventManagementPage() {
                   type="text"
                   value={regFilters.search || ''}
                   onChange={(e) => setRegFilters(prev => ({ ...prev, search: e.target.value || undefined, page: 1 }))}
-                  placeholder="Search by name, email, UID, reg ID, or team name..."
+                  placeholder="Search by name, email, UID, reg ID, team, or transaction ID..."
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
                 />
               </div>
@@ -1263,6 +1469,33 @@ export default function EventManagementPage() {
               </div>
             </div>
 
+            {/* Selected participants bar */}
+            {selectedRegIds.size > 0 && (
+              <div className="flex items-center justify-between px-4 py-2.5 bg-sgt-50 dark:bg-sgt-900/30 border border-sgt-200 dark:border-sgt-700 rounded-lg">
+                <div className="flex items-center gap-2 text-sm font-medium text-sgt-700 dark:text-sgt-300">
+                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sgt-500 text-white text-xs font-bold">{selectedRegIds.size}</span>
+                  participant{selectedRegIds.size !== 1 ? 's' : ''} selected
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowEmailSlider(true); }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-sgt-600 text-white rounded-md hover:bg-sgt-700 transition-colors"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Email selected
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" /> Clear
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Layout: Filters sidebar (if open) + Content */}
             <div className={`flex gap-4 ${showFilters ? 'flex-col lg:flex-row' : ''}`}>
               {/* Filter Panel */}
@@ -1316,35 +1549,23 @@ export default function EventManagementPage() {
                     teamColorMap.set(tid, TEAM_PALETTE[idx % TEAM_PALETTE.length]);
                   });
 
-                  const formatPayment = (reg: (typeof regData)[0]) => {
-                    if (reg.paymentStatus === 'completed' || reg.latestPayment?.razorpayPaymentId) {
-                      return (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle2 className="w-3 h-3" /> Paid
-                            {reg.amountPaid ? ` ₹${reg.amountPaid.toLocaleString('en-IN')}` : ''}
-                          </span>
-                          {reg.latestPayment?.razorpayPaymentId && (
-                            <span className="text-[10px] font-mono text-gray-400 break-all">{reg.latestPayment.razorpayPaymentId}</span>
-                          )}
-                        </div>
-                      );
-                    }
-                    return (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-500 dark:text-red-400">
-                        <XCircle className="w-3 h-3" /> Not Paid
-                      </span>
-                    );
-                  };
-
                   const renderMemberRow = (reg: (typeof regData)[0], color: typeof TEAM_PALETTE[0], isLast: boolean) => {
                     const name = getRegistrationDisplayName(reg);
                     const initials = name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
                     const identifier = getRegistrationIdentifier(reg);
                     const school = getRegistrationSchool(reg);
                     const dept = getRegistrationDepartment(reg);
+                    const isSelected = selectedRegIds.has(reg.id);
                     return (
-                      <div key={reg.id} className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 ${!isLast ? 'border-b border-gray-100 dark:border-gray-700' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`}>
+                      <div key={reg.id} onClick={() => setDetailRegId(reg.id)} className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 cursor-pointer ${!isLast ? 'border-b border-gray-100 dark:border-gray-700' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isSelected ? 'bg-sgt-50 dark:bg-sgt-900/20' : ''}`}>
+                        {/* Checkbox */}
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-gray-300 text-sgt-600 focus:ring-sgt-500 cursor-pointer flex-shrink-0"
+                          checked={isSelected}
+                          onChange={() => toggleRegSelection(reg.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                         {/* Color dot + avatar */}
                         <div className="flex items-center gap-3 flex-1 min-w-0">
                           <div className={`w-8 h-8 rounded-full ${color.bg} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
@@ -1487,6 +1708,15 @@ export default function EventManagementPage() {
                       <table className="w-full">
                         <thead className="bg-gray-50 dark:bg-gray-700/50">
                           <tr>
+                            <th className="w-10 px-4 py-3">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-gray-300 text-sgt-600 focus:ring-sgt-500 cursor-pointer"
+                                checked={regData.length > 0 && selectedRegIds.size === regData.length}
+                                ref={(el) => { if (el) el.indeterminate = selectedRegIds.size > 0 && selectedRegIds.size < regData.length; }}
+                                onChange={toggleSelectAll}
+                              />
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Participant</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ID / Reg No</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">School / Dept</th>
@@ -1495,12 +1725,21 @@ export default function EventManagementPage() {
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Status</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Registered</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Entry</th>
+                            <th className="w-10 px-2 py-3"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                           {regData.length > 0 ? (
                             regData.map((reg) => (
-                              <tr key={reg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                              <tr key={reg.id} onClick={() => setDetailRegId(reg.id)} className={`group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer ${selectedRegIds.has(reg.id) ? 'bg-sgt-50 dark:bg-sgt-900/20' : ''}`}>
+                                <td className="w-10 px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                                  <input
+                                    type="checkbox"
+                                    className="w-4 h-4 rounded border-gray-300 text-sgt-600 focus:ring-sgt-500 cursor-pointer"
+                                    checked={selectedRegIds.has(reg.id)}
+                                    onChange={() => toggleRegSelection(reg.id)}
+                                  />
+                                </td>
                                 <td className="px-4 py-3.5">
                                   <div>
                                     <p className="text-sm font-medium text-gray-900 dark:text-white">
@@ -1541,25 +1780,9 @@ export default function EventManagementPage() {
                                     <span className="text-xs text-gray-400">—</span>
                                   )}
                                 </td>
-                                {/* Payment Column */}
+                                {/* Payment Column — uses shared formatPayment */}
                                 <td className="px-4 py-3.5">
-                                  {reg.paymentStatus === 'completed' || reg.latestPayment?.razorpayPaymentId ? (
-                                    <div>
-                                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        Paid {reg.amountPaid ? `₹${reg.amountPaid.toLocaleString('en-IN')}` : ''}
-                                      </span>
-                                      {reg.latestPayment?.razorpayPaymentId && (
-                                        <p className="text-[10px] font-mono text-gray-400 mt-0.5 max-w-[140px] truncate" title={reg.latestPayment.razorpayPaymentId}>
-                                          {reg.latestPayment.razorpayPaymentId}
-                                        </p>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 dark:text-red-400">
-                                      <XCircle className="w-3.5 h-3.5" /> Not Paid
-                                    </span>
-                                  )}
+                                  {formatPayment(reg)}
                                 </td>
                                 <td className="px-4 py-3.5">
                                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${STATUS_COLORS[reg.status as keyof typeof STATUS_COLORS]?.bg || 'bg-gray-100'} ${STATUS_COLORS[reg.status as keyof typeof STATUS_COLORS]?.text || 'text-gray-600'}`}>
@@ -1578,11 +1801,14 @@ export default function EventManagementPage() {
                                     <XCircle className="w-5 h-5 text-gray-400" />
                                   )}
                                 </td>
+                                <td className="w-10 px-2 py-3.5">
+                                  <Eye className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-sgt-500 transition-colors" />
+                                </td>
                               </tr>
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={8} className="px-5 py-12 text-center">
+                              <td colSpan={10} className="px-5 py-12 text-center">
                                 <p className="text-gray-500 dark:text-gray-400">
                                   {regLoading ? 'Loading registrations...' : 'No registrations found'}
                                 </p>
@@ -2025,6 +2251,68 @@ export default function EventManagementPage() {
               </div>
             </div>
 
+            {/* Email Analytics Card */}
+            <div className={`${CARD} overflow-hidden`}>
+              <div className={CARD_HEADER}>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-violet-500" />
+                  Email Analytics
+                </h3>
+              </div>
+              {emailAnalyticsLoading ? (
+                <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-violet-400" /></div>
+              ) : !emailAnalytics || emailAnalytics.totalCampaigns === 0 ? (
+                <div className="p-8 text-center">
+                  <Mail className="w-10 h-10 mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                  <p className="text-sm text-gray-400">No emails sent yet for this event</p>
+                </div>
+              ) : (
+                <div className="p-5 space-y-5">
+                  {/* Stat tiles */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Campaigns', value: emailAnalytics.totalCampaigns, sub: emailAnalytics.scheduledPending > 0 ? `${emailAnalytics.scheduledPending} scheduled` : 'total sent', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/20', icon: Send },
+                      { label: 'Recipients', value: emailAnalytics.totalRecipients.toLocaleString(), sub: `${emailAnalytics.totalSent.toLocaleString()} emails out`, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20', icon: Users },
+                      { label: 'Delivery Rate', value: `${emailAnalytics.deliveryRate}%`, sub: `${emailAnalytics.totalDelivered} delivered`, color: emailAnalytics.deliveryRate >= 90 ? 'text-emerald-600 dark:text-emerald-400' : emailAnalytics.deliveryRate >= 70 ? 'text-amber-600 dark:text-amber-400' : 'text-red-500', bg: emailAnalytics.deliveryRate >= 90 ? 'bg-emerald-50 dark:bg-emerald-900/20' : emailAnalytics.deliveryRate >= 70 ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-red-50 dark:bg-red-900/20', icon: CheckCircle2 },
+                      { label: 'Open Rate', value: `${emailAnalytics.openRate}%`, sub: `${emailAnalytics.totalOpened} unique opens`, color: emailAnalytics.openRate >= 25 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400', bg: emailAnalytics.openRate >= 25 ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-amber-50 dark:bg-amber-900/20', icon: MailOpen },
+                    ].map((s) => (
+                      <div key={s.label} className={`${s.bg} rounded-lg p-3`}>
+                        <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mt-0.5">{s.label}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Recent campaigns */}
+                  {emailAnalytics.recentCampaigns.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Recent Campaigns</p>
+                      <div className="space-y-2">
+                        {emailAnalytics.recentCampaigns.map((c) => {
+                          const rate = c.recipientCount > 0 ? Math.round((c.sentCount / c.recipientCount) * 100) : 0;
+                          const sc = c.status === 'sent' ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30' : c.status === 'partial' ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/30' : 'text-red-600 bg-red-50 dark:bg-red-900/30';
+                          return (
+                            <div key={c.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 dark:bg-gray-700/40">
+                              <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{c.subject}</p>
+                                <p className="text-xs text-gray-400">{new Date(c.sentAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{c.sentCount}/{c.recipientCount}</p>
+                                <p className="text-xs text-gray-400">{rate}%</p>
+                              </div>
+                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${sc}`}>{c.status}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Cumulative Growth Chart */}
             <div className={`${CARD} overflow-hidden`}>
               <div className={CARD_HEADER}>
@@ -2373,6 +2661,15 @@ export default function EventManagementPage() {
         {activeTab === 'settings' && (
           <EventSettings
             eventId={event.id}
+            onToast={toast}
+          />
+        )}
+
+        {/* Coupons Tab */}
+        {activeTab === 'coupons' && (
+          <CouponManagement
+            eventId={eventId}
+            isPaidEvent={event.paymentType === 'paid'}
             onToast={toast}
           />
         )}
@@ -2791,6 +3088,22 @@ export default function EventManagementPage() {
           initialData={stallToFormData(selectedStallForEdit as Stall & { stallCategory?: string; description?: string; size?: string; stallMetadata?: { businessName?: string; electricityRequired?: boolean; waterRequired?: boolean; specialRequirements?: string; products?: string[] } })}
         />
       )}
+
+      {/* Email Slider */}
+      <EmailSlider
+        open={showEmailSlider}
+        onClose={() => { setShowEmailSlider(false); }}
+        eventId={eventId}
+        eventName={event?.name || ''}
+        selectedRegistrationIds={selectedRegIds.size > 0 ? Array.from(selectedRegIds) : undefined}
+      />
+
+      {/* Registration Detail Modal */}
+      <RegistrationDetailModal
+        eventId={eventId}
+        registrationId={detailRegId}
+        onClose={() => setDetailRegId(null)}
+      />
     </div>
   );
 }

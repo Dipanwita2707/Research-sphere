@@ -8,7 +8,8 @@ const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
 const eventService = require('../services/event.service');
 const { formatEventResponse } = require('../utils/eventHelpers');
-const { canUserSeeEvent } = require('../services/eventSettings.service');
+const { canUserSeeEvent, assertEventOwner } = require('../services/eventSettings.service');
+const { ForbiddenError } = require('../../../shared/utils/AppError');
 
 /**
  * Get list of events
@@ -222,15 +223,12 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
     uid, empId, paymentStatus, teamSearch,
   } = req.query;
   
-  const event = await eventService.getEventDetails(id, userId);
+  // Lightweight ownership check instead of full getEventDetails
+  await assertEventOwner(id, userId);
   
-  // Verify user is event creator or has manage_all
-  if (event.createdById !== userId) {
-    throw new ForbiddenError('Only the event creator can view registrations');
-  }
-  
-  const pageNum = parseInt(page) || 1;
-  const limitNum = Math.min(parseInt(limit) || 20, 100);
+  const isExport = req.query.export === 'true';
+  const pageNum = isExport ? 1 : (parseInt(page) || 1);
+  const limitNum = isExport ? undefined : Math.min(parseInt(limit) || 20, 100);
   
   const prisma = require('../../../shared/config/database');
 
@@ -306,7 +304,7 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
     }
   }
 
-  // General text search (name, email, uid, registrationId, team name)
+  // General text search (name, email, uid, registrationId, team name, transaction ID)
   if (search && search.trim()) {
     const q = search.trim();
     where.OR = [
@@ -319,6 +317,9 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
       { user_login: { employeeDetails: { lastName: { contains: q, mode: 'insensitive' } } } },
       { EventTeam: { name: { contains: q, mode: 'insensitive' } } },
       { EventTeam: { teamId: { contains: q, mode: 'insensitive' } } },
+      // Search by Razorpay payment ID or order ID (transaction search)
+      { Payment: { some: { razorpayPaymentId: { contains: q, mode: 'insensitive' } } } },
+      { Payment: { some: { razorpayOrderId: { contains: q, mode: 'insensitive' } } } },
     ];
   }
 
@@ -420,8 +421,7 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
         { teamId: 'asc' },
         { registeredAt: 'asc' },
       ],
-      skip: (pageNum - 1) * limitNum,
-      take: limitNum,
+      ...(isExport ? {} : { skip: (pageNum - 1) * limitNum, take: limitNum }),
     }),
     prisma.eventRegistration.count({ where }),
   ]);
@@ -439,11 +439,201 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
     registrations: flatRegistrations,
     pagination: {
       page: pageNum,
-      limit: limitNum,
+      limit: isExport ? flatRegistrations.length : limitNum,
       total,
-      totalPages: Math.ceil(total / limitNum),
+      totalPages: isExport ? 1 : Math.ceil(total / limitNum),
     },
   }, 'Registrations fetched successfully');
+});
+
+/**
+ * Get detailed registration info (admin-only) — includes full payment records,
+ * coupon usage, form data, team members, entry logs.
+ * 
+ * @route GET /api/events/:id/registrations/:regId/details
+ * @access Protected (Event Creator only)
+ */
+const getRegistrationDetails = asyncHandler(async (req, res) => {
+  const { id: eventId, regId } = req.params;
+  const userId = req.user.id;
+
+  // Lightweight ownership check instead of full getEventDetails
+  await assertEventOwner(eventId, userId);
+
+  const prisma = require('../../../shared/config/database');
+
+  const registration = await prisma.eventRegistration.findFirst({
+    where: { id: regId, eventId },
+    include: {
+      user_login: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          role: true,
+          phone: true,
+          employeeDetails: {
+            select: {
+              firstName: true, lastName: true, displayName: true, empId: true,
+              primarySchool: { select: { id: true, facultyName: true } },
+              primaryDepartment: { select: { id: true, departmentName: true } },
+            },
+          },
+          studentLogin: {
+            select: {
+              firstName: true, lastName: true, displayName: true,
+              registrationNo: true, studentId: true, gender: true, graduationDate: true,
+              program: {
+                select: {
+                  id: true, programName: true,
+                  department: {
+                    select: {
+                      id: true, departmentName: true,
+                      faculty: { select: { id: true, facultyName: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      // All payment records (not just latest successful)
+      Payment: {
+        select: {
+          id: true,
+          razorpayOrderId: true,
+          razorpayPaymentId: true,
+          razorpaySignature: true,
+          amount: true,
+          currency: true,
+          status: true,
+          paymentFor: true,
+          receipt: true,
+          attempts: true,
+          paidAt: true,
+          failedAt: true,
+          refundedAt: true,
+          webhookVerified: true,
+          metadata: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+      // Team info + members (via EventRegistration for registration-level details)
+      EventTeam: {
+        select: {
+          id: true,
+          teamId: true,
+          name: true,
+          status: true,
+          isComplete: true,
+          isLocked: true,
+          leaderId: true,
+          EventRegistration: {
+            select: {
+              id: true,
+              registrationId: true,
+              status: true,
+              paymentStatus: true,
+              amountPaid: true,
+              isTeamLeader: true,
+              registeredAt: true,
+              user_login: {
+                select: {
+                  id: true, uid: true, email: true, role: true,
+                  studentLogin: { select: { firstName: true, lastName: true, displayName: true, registrationNo: true, studentId: true } },
+                  employeeDetails: { select: { firstName: true, lastName: true, displayName: true, empId: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+      // Entry/exit logs
+      EventEntry: {
+        select: {
+          id: true,
+          entryType: true,
+          gateLocation: true,
+          scannedAt: true,
+          remarks: true,
+          EventVolunteer: {
+            select: {
+              user_login: { select: { uid: true, email: true } },
+            },
+          },
+        },
+        orderBy: { scannedAt: 'desc' },
+        take: 20,
+      },
+    },
+  });
+
+  if (!registration) {
+    return res.status(404).json({ success: false, message: 'Registration not found' });
+  }
+
+  // Fetch coupon usage if couponId is present
+  let couponDetails = null;
+  if (registration.couponId) {
+    const couponUsage = await prisma.couponUsage.findUnique({
+      where: { registrationId: registration.id },
+      include: {
+        coupon: {
+          select: { id: true, code: true, discountType: true, discountValue: true, isActive: true },
+        },
+      },
+    });
+    couponDetails = couponUsage
+      ? { ...couponUsage.coupon, usedAt: couponUsage.usedAt }
+      : { id: registration.couponId };
+  }
+
+  // Flatten team members from EventRegistration
+  const teamData = registration.EventTeam
+    ? {
+        ...registration.EventTeam,
+        members: registration.EventTeam.EventRegistration || [],
+        EventRegistration: undefined,
+      }
+    : null;
+
+  // Collect payments: individual (linked via registrationId) + team (linked via teamId)
+  let payments = registration.Payment || [];
+  if (payments.length === 0 && registration.teamId) {
+    // Team payments are linked to the team, not individual registrations
+    const teamPayments = await prisma.payment.findMany({
+      where: { teamId: registration.teamId, eventId },
+      select: {
+        id: true, razorpayOrderId: true, razorpayPaymentId: true, razorpaySignature: true,
+        amount: true, currency: true, status: true, paymentFor: true, receipt: true,
+        attempts: true, paidAt: true, failedAt: true, refundedAt: true,
+        webhookVerified: true, metadata: true, createdAt: true, updatedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    payments = teamPayments;
+  }
+
+  return ApiResponse.success(res, {
+    ...registration,
+    team: teamData,
+    payments,
+    entries: (registration.EventEntry || []).map(e => ({
+      id: e.id,
+      entryType: e.entryType,
+      gateLocation: e.gateLocation,
+      scannedAt: e.scannedAt,
+      remarks: e.remarks,
+      scannedBy: e.EventVolunteer?.user_login || null,
+    })),
+    couponDetails,
+    EventTeam: undefined,
+    Payment: undefined,
+    EventEntry: undefined,
+  }, 'Registration details fetched successfully');
 });
 
 /**
@@ -457,120 +647,96 @@ const getRegistrationFilterOptions = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
-  const event = await eventService.getEventDetails(id, userId);
-  if (event.createdById !== userId) {
-    throw new ForbiddenError('Only the event creator can view registration filter options');
-  }
+  // Lightweight ownership check instead of full getEventDetails
+  await assertEventOwner(id, userId);
 
   const prisma = require('../../../shared/config/database');
 
-  // Get all user IDs registered for this event (bounded to prevent unbounded queries)
-  const MAX_FILTER_USERS = 5000;
-  const registrations = await prisma.eventRegistration.findMany({
-    where: { eventId: id },
-    select: { userId: true },
-    take: MAX_FILTER_USERS,
-  });
-  const userIds = registrations.map(r => r.userId);
+  // Use raw SQL DISTINCT queries instead of loading 5000+ users into memory
+  // NOTE: Table/column names use @@map values from schema (snake_case), not Prisma model names
+  const [roles, genders, schools, departments, programs, passOutYears] = await Promise.all([
+    // Distinct roles
+    prisma.$queryRaw`
+      SELECT DISTINCT ul."role"
+      FROM "EventRegistration" er
+      JOIN "user_login" ul ON ul.id = er."userId"
+      WHERE er."eventId" = ${id}
+      ORDER BY ul."role"
+    `,
+    // Distinct genders (students only)
+    prisma.$queryRaw`
+      SELECT DISTINCT sd."gender"
+      FROM "EventRegistration" er
+      JOIN "user_login" ul ON ul.id = er."userId"
+      JOIN "student_details" sd ON sd."user_login_id" = ul.id
+      WHERE er."eventId" = ${id} AND sd."gender" IS NOT NULL
+      ORDER BY sd."gender"
+    `,
+    // Distinct schools
+    prisma.$queryRaw`
+      SELECT DISTINCT f.id, f."faculty_name" as name
+      FROM "EventRegistration" er
+      JOIN "user_login" ul ON ul.id = er."userId"
+      LEFT JOIN "student_details" sd ON sd."user_login_id" = ul.id
+      LEFT JOIN "program" p ON p.id = sd."program_id"
+      LEFT JOIN "department" d ON d.id = p."department_id"
+      LEFT JOIN "faculty_school_list" f ON f.id = d."faculty_id"
+      LEFT JOIN "employee_details" ed ON ed."user_login_id" = ul.id
+      LEFT JOIN "faculty_school_list" f2 ON f2.id = ed."primary_school_id"
+      WHERE er."eventId" = ${id} AND (f.id IS NOT NULL OR f2.id IS NOT NULL)
+    `,
+    // Distinct departments
+    prisma.$queryRaw`
+      SELECT DISTINCT d2.id, d2."department_name" as name
+      FROM "EventRegistration" er
+      JOIN "user_login" ul ON ul.id = er."userId"
+      LEFT JOIN "student_details" sd ON sd."user_login_id" = ul.id
+      LEFT JOIN "program" p ON p.id = sd."program_id"
+      LEFT JOIN "department" d2 ON d2.id = p."department_id"
+      LEFT JOIN "employee_details" ed ON ed."user_login_id" = ul.id
+      LEFT JOIN "department" d3 ON d3.id = ed."primary_department_id"
+      WHERE er."eventId" = ${id} AND (d2.id IS NOT NULL OR d3.id IS NOT NULL)
+    `,
+    // Distinct programs (students only)
+    prisma.$queryRaw`
+      SELECT DISTINCT p.id, p."program_name" as name
+      FROM "EventRegistration" er
+      JOIN "user_login" ul ON ul.id = er."userId"
+      JOIN "student_details" sd ON sd."user_login_id" = ul.id
+      JOIN "program" p ON p.id = sd."program_id"
+      WHERE er."eventId" = ${id}
+      ORDER BY p."program_name"
+    `,
+    // Distinct pass-out years (students only)
+    prisma.$queryRaw`
+      SELECT DISTINCT EXTRACT(YEAR FROM sd."graduation_date")::int as year
+      FROM "EventRegistration" er
+      JOIN "user_login" ul ON ul.id = er."userId"
+      JOIN "student_details" sd ON sd."user_login_id" = ul.id
+      WHERE er."eventId" = ${id} AND sd."graduation_date" IS NOT NULL
+      ORDER BY year DESC
+    `,
+  ]);
 
-  if (userIds.length === 0) {
-    return ApiResponse.success(res, {
-      roles: [],
-      genders: [],
-      schools: [],
-      departments: [],
-      programs: [],
-      passOutYears: [],
-    }, 'Filter options fetched');
+  // Merge school results (student schools + employee schools)
+  const schoolsMap = new Map();
+  for (const s of schools) {
+    if (s.id && s.name) schoolsMap.set(s.id, { id: s.id, name: s.name });
   }
 
-  // Fetch all relevant user data in one go
-  const users = await prisma.userLogin.findMany({
-    where: { id: { in: userIds } },
-    select: {
-      role: true,
-      studentLogin: {
-        select: {
-          gender: true,
-          graduationDate: true,
-          programId: true,
-          program: {
-            select: {
-              id: true,
-              programName: true,
-              departmentId: true,
-              department: {
-                select: {
-                  id: true,
-                  departmentName: true,
-                  facultyId: true,
-                  faculty: { select: { id: true, facultyName: true } },
-                },
-              },
-            },
-          },
-        },
-      },
-      employeeDetails: {
-        select: {
-          primarySchoolId: true,
-          primaryDepartmentId: true,
-          primarySchool: { select: { id: true, facultyName: true } },
-          primaryDepartment: { select: { id: true, departmentName: true } },
-        },
-      },
-    },
-  });
-
-  // Extract distinct values
-  const rolesSet = new Set();
-  const gendersSet = new Set();
-  const schoolsMap = new Map();
+  // Merge department results (student depts + employee depts)
   const departmentsMap = new Map();
-  const programsMap = new Map();
-  const passOutYearsSet = new Set();
-
-  for (const u of users) {
-    rolesSet.add(u.role);
-
-    // Student data
-    if (u.studentLogin) {
-      const s = u.studentLogin;
-      if (s.gender) gendersSet.add(s.gender);
-      if (s.graduationDate) {
-        passOutYearsSet.add(new Date(s.graduationDate).getFullYear());
-      }
-      if (s.program) {
-        programsMap.set(s.program.id, { id: s.program.id, name: s.program.programName });
-        if (s.program.department) {
-          const d = s.program.department;
-          departmentsMap.set(d.id, { id: d.id, name: d.departmentName });
-          if (d.faculty) {
-            schoolsMap.set(d.faculty.id, { id: d.faculty.id, name: d.faculty.facultyName });
-          }
-        }
-      }
-    }
-
-    // Employee data
-    if (u.employeeDetails) {
-      const e = u.employeeDetails;
-      if (e.primarySchool) {
-        schoolsMap.set(e.primarySchool.id, { id: e.primarySchool.id, name: e.primarySchool.facultyName });
-      }
-      if (e.primaryDepartment) {
-        departmentsMap.set(e.primaryDepartment.id, { id: e.primaryDepartment.id, name: e.primaryDepartment.departmentName });
-      }
-    }
+  for (const d of departments) {
+    if (d.id && d.name) departmentsMap.set(d.id, { id: d.id, name: d.name });
   }
 
   return ApiResponse.success(res, {
-    roles: [...rolesSet].sort(),
-    genders: [...gendersSet].sort(),
+    roles: roles.map(r => r.role).filter(Boolean).sort(),
+    genders: genders.map(g => g.gender).filter(Boolean).sort(),
     schools: [...schoolsMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
     departments: [...departmentsMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
-    programs: [...programsMap.values()].sort((a, b) => a.name.localeCompare(b.name)),
-    passOutYears: [...passOutYearsSet].sort((a, b) => b - a),
+    programs: programs.map(p => ({ id: p.id, name: p.name })).filter(p => p.id),
+    passOutYears: passOutYears.map(p => p.year).filter(Boolean),
   }, 'Filter options fetched');
 });
 
@@ -584,14 +750,30 @@ const getEventVolunteers = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
   
-  const event = await eventService.getEventDetails(id, userId);
+  // Lightweight ownership check
+  await assertEventOwner(id, userId);
   
-  // Verify user is event creator
-  if (event.createdById !== userId) {
-    throw new ForbiddenError('Only the event creator can view volunteers');
-  }
+  // Fetch volunteers directly instead of loading entire event
+  const prisma = require('../../../shared/config/database');
+  const rawVolunteers = await prisma.eventVolunteer.findMany({
+    where: { eventId: id },
+    include: {
+      user_login: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          employeeDetails: {
+            select: { firstName: true, lastName: true, displayName: true },
+          },
+          studentLogin: {
+            select: { firstName: true, lastName: true, displayName: true },
+          },
+        },
+      },
+    },
+  });
   
-  const rawVolunteers = event.EventVolunteer || [];
   const volunteers = rawVolunteers.map((v) => {
     const ul = v.user_login;
     const emp = ul?.employeeDetails;
@@ -683,6 +865,7 @@ module.exports = {
   assignVolunteer,
   scanQRCode,
   getEventRegistrations,
+  getRegistrationDetails,
   getRegistrationFilterOptions,
   getEventVolunteers,
   getMyVolunteerAssignments,

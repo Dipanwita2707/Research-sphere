@@ -15,19 +15,19 @@ const crypto = require('crypto');
 // ──────────────────────────────────────────────────────────────
 
 const generateStallId = async (eventId) => {
-  // 5-digit stall ID with collision check
-  let stallId;
-  let attempts = 0;
-  do {
-    const num = Math.floor(10000 + Math.random() * 90000);
-    stallId = `ST${num}`;
-    const existing = await prisma.stallApplication.findFirst({
-      where: { stallId, eventId },
-    });
-    if (!existing) break;
-    attempts++;
-  } while (attempts < 10);
-  return stallId;
+  // Get max existing stall number in one query instead of collision-retry loop
+  const result = await prisma.$queryRaw`
+    SELECT "stallId" FROM "StallApplication"
+    WHERE "eventId" = ${eventId} AND "stallId" LIKE 'ST%'
+    ORDER BY "stallId" DESC
+    LIMIT 1
+  `;
+  let nextNum = 10001;
+  if (result.length > 0) {
+    const lastNum = parseInt(result[0].stallId.replace('ST', ''));
+    if (!isNaN(lastNum)) nextNum = lastNum + 1;
+  }
+  return `ST${nextNum}`;
 };
 
 const generateStallQrCode = (stallId, eventId) => {
@@ -579,18 +579,20 @@ const bulkUpdateStallApplications = asyncHandler(async (req, res) => {
   });
 
   await prisma.$transaction(async (tx) => {
-    for (const app of apps) {
-      await tx.stallApplication.update({
-        where: { id: app.id },
-        data: {
-          applicationStatus: status,
-          rejectionReason: status === 'rejected' ? (rejectionReason || 'Bulk rejected') : null,
-          reviewedById: userId,
-          reviewedAt: new Date(),
-        },
-      });
+    // Batch update all applications status in one query
+    await tx.stallApplication.updateMany({
+      where: { id: { in: apps.map(a => a.id) } },
+      data: {
+        applicationStatus: status,
+        rejectionReason: status === 'rejected' ? (rejectionReason || 'Bulk rejected') : null,
+        reviewedById: userId,
+        reviewedAt: new Date(),
+      },
+    });
 
-      if (status === 'approved') {
+    if (status === 'approved') {
+      // Process QR codes and stall upserts in parallel batches
+      await Promise.all(apps.map(async (app) => {
         const freshQrCode = generateStallQrCode(app.stallId, event.id);
         await tx.stallApplication.update({
           where: { id: app.id },
@@ -613,7 +615,7 @@ const bulkUpdateStallApplications = asyncHandler(async (req, res) => {
           },
           update: { stallQrCode: freshQrCode },
         });
-      }
+      }));
     }
   });
 

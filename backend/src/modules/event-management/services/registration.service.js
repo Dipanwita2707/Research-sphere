@@ -8,6 +8,7 @@ const prisma = require('../../../shared/config/database');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
 const { generateRegistrationId, generateQRCode, canRegisterForEvent } = require('../utils/eventHelpers');
 const crypto = require('crypto');
+const { applyCouponInTransaction } = require('./coupon.service');
 
 const REGISTRATION_STATUS = {
   DRAFT: 'draft',
@@ -30,28 +31,28 @@ const PAYMENT_STATUS = {
  * Get registration form for an event (includes custom fields and user profile data)
  */
 const getRegistrationForm = async (eventId, userId) => {
-  // Get event with custom fields
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-    include: {
-      EventCustomField: {
-        where: { isActive: true },
-        orderBy: { sortOrder: 'asc' },
+  // Parallelize event + user profile fetch (both are independent)
+  const [event, userProfile] = await Promise.all([
+    prisma.event.findFirst({
+      where: {
+        OR: [
+          { id: eventId },
+          { eventId: eventId },
+        ],
       },
-    },
-  });
+      include: {
+        EventCustomField: {
+          where: { isActive: true },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    }),
+    getUserProfileData(userId),
+  ]);
 
   if (!event) {
     throw new NotFoundError('Event not found');
   }
-
-  // Get user profile data for auto-fill
-  const userProfile = await getUserProfileData(userId);
 
   // Build profileFields map — indicates which fields have data from the user's profile
   // Frontend uses this to hide fields that are already known (silent auto-fill)
@@ -135,14 +136,31 @@ const getRegistrationForm = async (eventId, userId) => {
 const getUserProfileData = async (userId) => {
   const user = await prisma.userLogin.findUnique({
     where: { id: userId },
-    include: {
+    select: {
+      id: true,
+      uid: true,
+      email: true,
+      phone: true,
       studentLogin: {
-        include: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          registrationNo: true,
+          studentId: true,
+          gender: true,
+          graduationDate: true,
+          address: true,
+          programId: true,
           program: {
-            include: {
+            select: {
+              programName: true,
               department: {
-                include: {
-                  faculty: true,
+                select: {
+                  departmentName: true,
+                  faculty: {
+                    select: { facultyName: true },
+                  },
                 },
               },
             },
@@ -150,13 +168,23 @@ const getUserProfileData = async (userId) => {
         },
       },
       employeeDetails: {
-        include: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          empId: true,
+          address: true,
           primaryDepartment: {
-            include: {
-              faculty: true,
+            select: {
+              departmentName: true,
+              faculty: {
+                select: { facultyName: true },
+              },
             },
           },
-          primarySchool: true,
+          primarySchool: {
+            select: { facultyName: true },
+          },
         },
       },
     },
@@ -205,6 +233,8 @@ const getUserProfileData = async (userId) => {
  * Submit registration form (Step 1 of registration)
  */
 const submitRegistrationForm = async (eventId, userId, formData) => {
+  // Extract coupon code from body before passing to mergedFormData
+  const { couponCode, ...restFormData } = formData;
   // Get event
   const event = await prisma.event.findFirst({
     where: {
@@ -224,7 +254,14 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
     throw new NotFoundError('Event not found');
   }
 
-  // Validate event is open for registration
+  // Validate coupon if provided (preview check — actual lock happens in transaction)
+  let couponPreview = null;
+  if (couponCode && event.paymentType === 'paid') {
+    const { validateCoupon } = require('./coupon.service');
+    const registrationAmount = event.registrationFee || 0;
+    couponPreview = await validateCoupon(event.id, couponCode, userId, registrationAmount);
+  }
+
   if (event.status !== 'published') {
     throw new ValidationError('Event is not open for registration');
   }
@@ -304,22 +341,22 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
   // Profile fields take precedence to ensure data integrity
   const userProfile = await getUserProfileData(userId);
   const mergedFormData = {
-    ...formData,
+    ...restFormData,
     // Always include profile data (overrides user input for profile-sourced fields)
-    firstName: userProfile.firstName || formData.firstName,
-    lastName: userProfile.lastName || formData.lastName,
-    email: userProfile.email || formData.email,
-    institute: userProfile.institute || formData.institute,
+    firstName: userProfile.firstName || restFormData.firstName,
+    lastName: userProfile.lastName || restFormData.lastName,
+    email: userProfile.email || restFormData.email,
+    institute: userProfile.institute || restFormData.institute,
     // Silently merge profile fields that frontend may have hidden
-    uid: userProfile.uid || formData.uid || null,
-    registrationNo: userProfile.registrationNo || formData.registrationNo || null,
-    studentId: userProfile.studentId || formData.studentId || null,
-    employeeId: userProfile.employeeId || formData.employeeId || null,
-    gender: userProfile.gender || formData.gender || null,
-    school: userProfile.school || formData.school || null,
-    department: userProfile.department || formData.department || null,
-    program: userProfile.program || formData.program || null,
-    passOutYear: userProfile.passOutYear || formData.passOutYear || null,
+    uid: userProfile.uid || restFormData.uid || null,
+    registrationNo: userProfile.registrationNo || restFormData.registrationNo || null,
+    studentId: userProfile.studentId || restFormData.studentId || null,
+    employeeId: userProfile.employeeId || restFormData.employeeId || null,
+    gender: userProfile.gender || restFormData.gender || null,
+    school: userProfile.school || restFormData.school || null,
+    department: userProfile.department || restFormData.department || null,
+    program: userProfile.program || restFormData.program || null,
+    passOutYear: userProfile.passOutYear || restFormData.passOutYear || null,
     userType: userProfile.userType,
   };
 
@@ -335,10 +372,30 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
   const registrationId = await generateRegistrationId(prisma, event.eventId);
   const qrCode = generateQRCode(event.eventId, userId);
 
+  // Pre-compute coupon amounts from preview (already validated above)
+  const baseAmount = event.registrationFee || 0;
+  let couponId = null;
+  let discountAmount = null;
+  let originalAmount = null;
+  let finalAmount = baseAmount;
+
+  if (couponPreview && event.paymentType === 'paid') {
+    couponId = couponPreview.couponId;
+    discountAmount = couponPreview.discountAmount;
+    originalAmount = couponPreview.originalAmount;
+    finalAmount = couponPreview.finalAmount;
+  }
+
+  // If coupon covers the full amount → auto-confirm without payment step
+  const isCouponFullyFree = couponPreview && event.paymentType === 'paid' && finalAmount === 0;
+  if (isCouponFullyFree && event.participationType !== 'team') {
+    initialStatus = REGISTRATION_STATUS.CONFIRMED;
+  }
+
   // Create or update registration
   const registration = await prisma.$transaction(async (tx) => {
     let reg;
-    
+
     if (existingRegistration) {
       // Update existing draft registration
       reg = await tx.eventRegistration.update({
@@ -347,7 +404,13 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
           status: initialStatus,
           formData: mergedFormData,
           formSubmittedAt: new Date(),
-          paymentStatus: event.paymentType === 'paid' ? PAYMENT_STATUS.PENDING : null,
+          paymentStatus: event.paymentType === 'paid'
+            ? (isCouponFullyFree ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.PENDING)
+            : null,
+          couponId: couponId ?? undefined,
+          discountAmount: discountAmount ?? undefined,
+          originalAmount: originalAmount ?? undefined,
+          amountPaid: event.paymentType === 'paid' ? finalAmount : null,
           updatedAt: new Date(),
         },
       });
@@ -363,15 +426,28 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
           status: initialStatus,
           formData: mergedFormData,
           formSubmittedAt: new Date(),
-          paymentStatus: event.paymentType === 'paid' ? PAYMENT_STATUS.PENDING : null,
+          paymentStatus: event.paymentType === 'paid'
+            ? (isCouponFullyFree ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.PENDING)
+            : null,
+          couponId: couponId ?? undefined,
+          discountAmount: discountAmount ?? undefined,
+          originalAmount: originalAmount ?? undefined,
+          amountPaid: event.paymentType === 'paid' ? finalAmount : null,
           updatedAt: new Date(),
         },
       });
     }
 
+    // Apply coupon AFTER registration row exists (FK requires registration to exist first)
+    // Only record usage for 100% coupons (auto-confirmed) — partial coupons are recorded on payment verification
+    const alreadyHadCoupon = existingRegistration && existingRegistration.couponId;
+    if (isCouponFullyFree && couponPreview && !alreadyHadCoupon) {
+      await applyCouponInTransaction(tx, couponId, reg.id, userId, baseAmount);
+    }
+
     // Save custom field responses
     for (const field of event.EventCustomField) {
-      if (formData[field.fieldName] !== undefined) {
+      if (restFormData[field.fieldName] !== undefined) {
         await tx.eventFieldResponse.upsert({
           where: {
             registrationId_fieldId: {
@@ -382,14 +458,14 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
           create: {
             registrationId: reg.id,
             fieldId: field.id,
-            value: typeof formData[field.fieldName] === 'string' 
-              ? formData[field.fieldName] 
-              : JSON.stringify(formData[field.fieldName]),
+            value: typeof restFormData[field.fieldName] === 'string' 
+              ? restFormData[field.fieldName] 
+              : JSON.stringify(restFormData[field.fieldName]),
           },
           update: {
-            value: typeof formData[field.fieldName] === 'string' 
-              ? formData[field.fieldName] 
-              : JSON.stringify(formData[field.fieldName]),
+            value: typeof restFormData[field.fieldName] === 'string' 
+              ? restFormData[field.fieldName] 
+              : JSON.stringify(restFormData[field.fieldName]),
             updatedAt: new Date(),
           },
         });
@@ -426,9 +502,20 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
   return {
     registration: fullRegistration,
     nextStep: event.participationType === 'team' ? 'team_management' : 'complete',
-    message: event.participationType === 'team' 
-      ? 'Form submitted. Please create or join a team to complete registration.'
-      : 'Registration successful!',
+    message: isCouponFullyFree
+      ? 'Registration complete! Coupon covered the full amount.'
+      : event.participationType === 'team' 
+        ? 'Form submitted. Please create or join a team to complete registration.'
+        : 'Registration successful!',
+    couponFullyFree: !!isCouponFullyFree,
+    couponApplied: couponPreview ? {
+      code: couponPreview.code,
+      discountAmount: couponPreview.discountAmount,
+      originalAmount: couponPreview.originalAmount,
+      finalAmount: couponPreview.finalAmount,
+      discountType: couponPreview.discountType,
+      discountValue: couponPreview.discountValue,
+    } : null,
   };
 };
 
@@ -467,6 +554,7 @@ const getRegistrationDashboard = async (userId) => {
         },
       },
       orderBy: { registeredAt: 'desc' },
+      take: 50, // Limit dashboard to most recent 50 registrations
     }),
     prisma.eventTeamInvitation.findMany({
       where: {

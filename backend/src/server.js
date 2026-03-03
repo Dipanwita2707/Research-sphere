@@ -229,6 +229,10 @@ const startServer = async () => {
     // Initialize QR activation cron job for gate entry
     const { startQRActivationJob } = require('./jobs/qrActivation.job');
     startQRActivationJob();
+
+    // Initialize scheduled email sender
+    const emailScheduler = require('./modules/event-management/services/emailScheduler.service');
+    emailScheduler.start();
     
     app.listen(config.port, () => {
       console.log(

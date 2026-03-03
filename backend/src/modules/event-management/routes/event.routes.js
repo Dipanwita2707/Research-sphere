@@ -28,6 +28,7 @@ const {
 const { getDefaultPermissions } = require('../../../shared/config/permissions.config');
 const feedbackController = require('../controllers/feedback.controller');
 const paymentController = require('../controllers/payment.controller');
+const couponController = require('../controllers/coupon.controller');
 
 // ============================================
 // Razorpay Webhook — Public (verified via signature)
@@ -190,6 +191,14 @@ router.get(
   validateEventId,
   checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
   eventController.getEventRegistrations
+);
+
+// Get detailed registration info (admin-only, includes full payment records, coupon, team members)
+router.get(
+  '/:id/registrations/:regId/details',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  eventController.getRegistrationDetails
 );
 
 // Assign volunteer to event - require event_assign_volunteers
@@ -498,6 +507,108 @@ router.patch(
   validateEventId,
   checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
   eventSettingsController.toggleEventActive
+);
+
+// ============================================
+// Bulk Email Routes
+// ============================================
+const bulkEmailController = require('../controllers/bulkEmail.controller');
+
+// Tracking pixel (PUBLIC — no auth, called by email clients)
+router.get(
+  '/emails/track/:recipientLogId/open.png',
+  bulkEmailController.trackEmailOpen
+);
+
+// Get current email credit balance for an event
+router.get(
+  '/:id/emails/credits',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  bulkEmailController.getEmailCredits
+);
+
+// Get recipient counts per status filter
+router.get(
+  '/:id/emails/recipients-count',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  bulkEmailController.getRecipientsCount
+);
+
+// Send bulk email to registrants
+router.post(
+  '/:id/emails/send',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  bulkEmailController.sendBulkEmail
+);
+
+// Get email sending history for an event
+router.get(
+  '/:id/emails/history',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  bulkEmailController.getEmailHistory
+);
+
+// Get aggregated email analytics for an event
+router.get(
+  '/:id/emails/analytics',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  bulkEmailController.getEmailAnalytics
+);
+
+// Cancel a scheduled email
+router.delete(
+  '/:id/emails/scheduled/:logId',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  bulkEmailController.cancelScheduledEmail
+);
+
+// ============================================
+// Coupon Routes
+// ============================================
+
+// Validate / preview a coupon (any authenticated user registering)
+router.post(
+  '/:id/coupons/validate',
+  validateEventId,
+  couponController.validateCoupon
+);
+
+// List coupons for an event (organizer only)
+router.get(
+  '/:id/coupons',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  couponController.listCoupons
+);
+
+// Create a coupon (organizer only)
+router.post(
+  '/:id/coupons',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  couponController.createCoupon
+);
+
+// Update a coupon (organizer only)
+router.patch(
+  '/:id/coupons/:couponId',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  couponController.updateCoupon
+);
+
+// Delete a coupon (organizer only)
+router.delete(
+  '/:id/coupons/:couponId',
+  validateEventId,
+  checkAnyPermission(['event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }),
+  couponController.deleteCoupon
 );
 
 module.exports = router;

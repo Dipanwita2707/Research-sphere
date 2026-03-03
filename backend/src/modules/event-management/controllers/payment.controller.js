@@ -56,8 +56,9 @@ const verifyIndividualPayment = asyncHandler(async (req, res) => {
 const createTeamOrder = asyncHandler(async (req, res) => {
   const { id, teamId } = req.params;
   const userId = req.user.id;
+  const { couponCode } = req.body;
 
-  const result = await paymentService.createTeamPaymentOrder(id, teamId, userId);
+  const result = await paymentService.createTeamPaymentOrder(id, teamId, userId, couponCode || null);
 
   return ApiResponse.success(res, result, 'Team payment order created successfully');
 });

@@ -70,58 +70,53 @@ const createTeam = async (eventId, userId, teamName) => {
     throw new ValidationError('This event does not support team registration');
   }
 
-  // Check if user already has a team for this event
-  const existingTeamMembership = await prisma.eventTeamMember.findFirst({
-    where: {
-      EventTeam: {
-        eventId: event.id,
+  // Parallelize independent validation queries
+  const [existingTeamMembership, registration, existingTeam, teamCount] = await Promise.all([
+    // Check if user already has a team for this event
+    prisma.eventTeamMember.findFirst({
+      where: {
+        EventTeam: { eventId: event.id },
+        userId: userId,
+        status: 'confirmed',
       },
-      userId: userId,
-      status: 'confirmed',
-    },
-  });
+    }),
+    // Check if user has registered
+    prisma.eventRegistration.findFirst({
+      where: {
+        eventId: event.id,
+        userId: userId,
+      },
+    }),
+    // Check if team name is unique for this event
+    prisma.eventTeam.findFirst({
+      where: {
+        eventId: event.id,
+        name: {
+          equals: teamName,
+          mode: 'insensitive',
+        },
+      },
+    }),
+    // Check max team limit (always fetch count, check conditionally after)
+    event.maxTeamLimit ? prisma.eventTeam.count({
+      where: {
+        eventId: event.id,
+        status: { notIn: ['withdrawn', 'disqualified'] },
+      },
+    }) : Promise.resolve(0),
+  ]);
 
   if (existingTeamMembership) {
     throw new ValidationError('You are already part of a team for this event');
   }
 
-  // Check if user has registered
-  const registration = await prisma.eventRegistration.findFirst({
-    where: {
-      eventId: event.id,
-      userId: userId,
-    },
-  });
-
   if (!registration) {
     throw new ValidationError('Please complete the registration form first');
   }
 
-  // Check max team limit for event
-  if (event.maxTeamLimit) {
-    const teamCount = await prisma.eventTeam.count({
-      where: {
-        eventId: event.id,
-        status: {
-          notIn: ['withdrawn', 'disqualified'],
-        },
-      },
-    });
-    if (teamCount >= event.maxTeamLimit) {
-      throw new ValidationError('Maximum number of teams for this event has been reached');
-    }
+  if (event.maxTeamLimit && teamCount >= event.maxTeamLimit) {
+    throw new ValidationError('Maximum number of teams for this event has been reached');
   }
-
-  // Check if team name is unique for this event
-  const existingTeam = await prisma.eventTeam.findFirst({
-    where: {
-      eventId: event.id,
-      name: {
-        equals: teamName,
-        mode: 'insensitive',
-      },
-    },
-  });
 
   if (existingTeam) {
     throw new ValidationError('A team with this name already exists for this event');
@@ -240,32 +235,46 @@ const getTeamDetails = async (teamId, userId) => {
     throw new NotFoundError('Team not found');
   }
 
-  // Fetch member details
+  // Fetch member details and user's own registration in parallel
   const memberIds = team.EventTeamMember.map(m => m.userId);
-  const memberUsers = await prisma.userLogin.findMany({
-    where: { id: { in: memberIds } },
-    select: {
-      id: true,
-      uid: true,
-      email: true,
-      phone: true,
-      studentLogin: {
-        select: {
-          firstName: true,
-          lastName: true,
-          displayName: true,
-          registrationNo: true,
+  const [memberUsers, myRegistration] = await Promise.all([
+    prisma.userLogin.findMany({
+      where: { id: { in: memberIds } },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        phone: true,
+        studentLogin: {
+          select: {
+            firstName: true,
+            lastName: true,
+            displayName: true,
+            registrationNo: true,
+          },
+        },
+        employeeDetails: {
+          select: {
+            firstName: true,
+            lastName: true,
+            displayName: true,
+          },
         },
       },
-      employeeDetails: {
-        select: {
-          firstName: true,
-          lastName: true,
-          displayName: true,
-        },
+    }),
+    userId ? prisma.eventRegistration.findFirst({
+      where: { eventId: team.eventId, userId },
+      select: {
+        id: true,
+        registrationId: true,
+        status: true,
+        paymentStatus: true,
+        qrCode: true,
+        amountPaid: true,
+        isTeamLeader: true,
       },
-    },
-  });
+    }) : Promise.resolve(null),
+  ]);
 
   const memberMap = new Map(memberUsers.map(u => [u.id, u]));
 
@@ -292,23 +301,6 @@ const getTeamDetails = async (teamId, userId) => {
   const confirmedMemberCount = members.length;
   // Check if team meets minimum requirements (for UI display)
   const meetsMinimumRequirement = team.Event.minTeamSize ? confirmedMemberCount >= team.Event.minTeamSize : true;
-
-  // Fetch the requesting user's own EventRegistration so each member sees their own QR
-  let myRegistration = null;
-  if (userId) {
-    myRegistration = await prisma.eventRegistration.findFirst({
-      where: { eventId: team.eventId, userId },
-      select: {
-        id: true,
-        registrationId: true,
-        status: true,
-        paymentStatus: true,
-        qrCode: true,
-        amountPaid: true,
-        isTeamLeader: true,
-      },
-    });
-  }
 
   return {
     id: team.id,
@@ -352,29 +344,6 @@ const searchUsersToInvite = async (eventId, userId, searchQuery) => {
     throw new NotFoundError('Event not found');
   }
 
-  // Get current user's info
-  const currentUser = await prisma.userLogin.findUnique({
-    where: { id: userId },
-    include: {
-      studentLogin: {
-        include: { program: true },
-      },
-      employeeDetails: {
-        include: { primaryDepartment: true },
-      },
-    },
-  });
-
-  // Get user's current team for this event
-  const currentTeam = await prisma.eventTeamMember.findFirst({
-    where: {
-      EventTeam: { eventId: event.id },
-      userId: userId,
-      status: 'confirmed',
-    },
-    include: { EventTeam: true },
-  });
-
   // Search for users
   const whereClause = {
     id: { not: userId }, // Exclude self
@@ -406,59 +375,69 @@ const searchUsersToInvite = async (eventId, userId, searchQuery) => {
     ];
   }
 
-  const users = await prisma.userLogin.findMany({
-    where: whereClause,
-    select: {
-      id: true,
-      uid: true,
-      email: true,
-      studentLogin: {
-        select: {
-          firstName: true,
-          lastName: true,
-          displayName: true,
-          registrationNo: true,
-          program: {
-            select: {
-              programName: true,
-              department: {
-                select: {
-                  departmentName: true,
-                  faculty: {
-                    select: { facultyName: true },
+  // Parallelize: fetch users, existing team members, current team, and pending invitations
+  const [users, existingTeamMembers, currentTeam] = await Promise.all([
+    prisma.userLogin.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        studentLogin: {
+          select: {
+            firstName: true,
+            lastName: true,
+            displayName: true,
+            registrationNo: true,
+            program: {
+              select: {
+                programName: true,
+                department: {
+                  select: {
+                    departmentName: true,
+                    faculty: {
+                      select: { facultyName: true },
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-      employeeDetails: {
-        select: {
-          firstName: true,
-          lastName: true,
-          displayName: true,
-          primaryDepartment: {
-            select: { departmentName: true },
-          },
-          primarySchool: {
-            select: { facultyName: true },
+        employeeDetails: {
+          select: {
+            firstName: true,
+            lastName: true,
+            displayName: true,
+            primaryDepartment: {
+              select: { departmentName: true },
+            },
+            primarySchool: {
+              select: { facultyName: true },
+            },
           },
         },
       },
-    },
-    take: 20,
-  });
-
-  // Filter out users who are already in a team for this event
-  const existingTeamMembers = await prisma.eventTeamMember.findMany({
-    where: {
-      EventTeam: { eventId: event.id },
-      userId: { in: users.map(u => u.id) },
-      status: 'confirmed',
-    },
-    select: { userId: true },
-  });
+      take: 20,
+    }),
+    // Existing team members for this event (to exclude)
+    prisma.eventTeamMember.findMany({
+      where: {
+        EventTeam: { eventId: event.id },
+        status: 'confirmed',
+      },
+      select: { userId: true },
+    }),
+    // Current user's team (to check pending invitations)
+    prisma.eventTeamMember.findFirst({
+      where: {
+        EventTeam: { eventId: event.id },
+        userId: userId,
+        status: 'confirmed',
+      },
+      include: { EventTeam: true },
+    }),
+  ]);
 
   const existingMemberIds = new Set(existingTeamMembers.map(m => m.userId));
 
@@ -520,6 +499,11 @@ const inviteToTeam = async (teamId, inviterId, inviteeId, message) => {
   // Verify inviter is team leader
   if (team.leaderId !== inviterId) {
     throw new ForbiddenError('Only the team leader can send invitations');
+  }
+
+  // Check if team registration is confirmed (locked)
+  if (team.status === 'confirmed') {
+    throw new ValidationError('Registration completed. Team modifications are locked.');
   }
 
   // Check if team is locked
@@ -628,6 +612,11 @@ const respondToInvitation = async (invitationId, userId, accept) => {
 
   // Accept invitation
   const team = invitation.EventTeam;
+
+  // Check if team registration is confirmed (locked)
+  if (team.status === 'confirmed') {
+    throw new ValidationError('Registration completed. Team modifications are locked.');
+  }
 
   // Check if team is locked
   if (team.isLocked) {
@@ -808,6 +797,11 @@ const requestToJoinTeam = async (teamId, userId, message) => {
     throw new ValidationError('This team is not looking for new members');
   }
 
+  // Check if team registration is confirmed (locked)
+  if (team.status === 'confirmed') {
+    throw new ValidationError('Registration completed. Team modifications are locked.');
+  }
+
   if (team.isLocked) {
     throw new ValidationError('This team is locked');
   }
@@ -900,6 +894,16 @@ const respondToJoinRequest = async (requestId, leaderId, accept) => {
       },
     });
     return { message: 'Request rejected' };
+  }
+
+  // Check if team registration is confirmed (locked)
+  if (team.status === 'confirmed') {
+    throw new ValidationError('Registration completed. Team modifications are locked.');
+  }
+
+  // Check if team is locked
+  if (team.isLocked) {
+    throw new ValidationError('Team is locked and cannot accept new members');
   }
 
   // Check team capacity
@@ -1126,6 +1130,9 @@ const getTeamsLookingForMembers = async (eventId, userId) => {
 
   return teams
     .filter(team => {
+      // Filter out user's own team (where they're leader or member)
+      if (team.leaderId === userId) return false;
+      if (team.EventTeamMember.some(m => m.userId === userId)) return false;
       // Filter out teams at capacity
       if (team.Event.maxTeamSize && team.EventTeamMember.length >= team.Event.maxTeamSize) {
         return false;
@@ -1324,6 +1331,11 @@ const removeMemberFromTeam = async (teamId, memberId, userId) => {
   const member = team.EventTeamMember.find(m => m.userId === memberId);
   if (member?.role === 'leader') {
     throw new ValidationError('Team leader cannot be removed. Please transfer leadership first.');
+  }
+
+  // Check if team registration is confirmed (locked)
+  if (team.status === 'confirmed') {
+    throw new ValidationError('Registration completed. Team modifications are locked.');
   }
 
   if (team.isLocked) {
