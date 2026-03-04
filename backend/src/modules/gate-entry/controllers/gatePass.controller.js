@@ -1,6 +1,7 @@
 const gatePassService = require('../services/gatePass.service');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const emailService = require('../../../shared/utils/emailService');
 
 // Simple logger
 const logger = {
@@ -72,6 +73,9 @@ class GatePassController {
       console.log('Mapped Data:', JSON.stringify(mappedData, null, 2));
 
       const gatePass = await gatePassService.createPass(mappedData, userId);
+
+      // Send email notification (fire-and-forget)
+      emailService.sendPassCreated(gatePass).catch(e => console.error('[EMAIL] createPass failed:', e.message));
 
       return res.status(201).json(
         formatResponse(true, 'Gate pass created successfully', {
@@ -231,6 +235,9 @@ class GatePassController {
 
       const pass = await gatePassService.allowEntry(passId, guardId, entryData);
 
+      // Send email notification (fire-and-forget)
+      emailService.sendEntryAllowed(pass).catch(e => console.error('[EMAIL] allowEntry failed:', e.message));
+
       return res.status(200).json(
         formatResponse(true, 'Entry allowed successfully', { pass })
       );
@@ -260,6 +267,9 @@ class GatePassController {
 
       const pass = await gatePassService.denyEntry(passId, guardId, denialReason);
 
+      // Send email notification (fire-and-forget)
+      emailService.sendEntryDenied(pass, denialReason).catch(e => console.error('[EMAIL] denyEntry failed:', e.message));
+
       return res.status(200).json(
         formatResponse(true, 'Entry denied successfully', { pass })
       );
@@ -285,6 +295,9 @@ class GatePassController {
       };
 
       const pass = await gatePassService.recordExit(passId, guardId, exitData);
+
+      // Send email notification (fire-and-forget)
+      emailService.sendExitRecorded(pass).catch(e => console.error('[EMAIL] recordExit failed:', e.message));
 
       return res.status(200).json(
         formatResponse(true, 'Exit recorded successfully', { pass })
@@ -313,6 +326,13 @@ class GatePassController {
       
       // Transform pass data for frontend
       const transformedPass = gatePassService.transformPassToFrontend(pass);
+
+      // Send email notification based on cancellation type (fire-and-forget)
+      if (pass.cancellation_type === 'after_check_in') {
+        emailService.sendPassCancelledAfterEntry(pass, reason).catch(e => console.error('[EMAIL] cancelPass(after) failed:', e.message));
+      } else {
+        emailService.sendPassCancelledBeforeEntry(pass, reason).catch(e => console.error('[EMAIL] cancelPass(before) failed:', e.message));
+      }
 
       // Different messages based on cancellation type
       let successMessage = 'Pass cancelled successfully.';
@@ -426,6 +446,9 @@ class GatePassController {
       
       logger.info(`[EXTEND PASS] Pass extended successfully: ${passId}`);
       
+      // Send email notification (fire-and-forget)
+      emailService.sendPassExtended(pass, newEndDate, extensionReason).catch(e => console.error('[EMAIL] extendPass failed:', e.message));
+
       // Transform pass data to camelCase for frontend
       const transformedPass = gatePassService.transformPassToFrontend(pass);
 
@@ -473,6 +496,9 @@ class GatePassController {
       };
 
       const pass = await gatePassService.recordCheckout(passId, guardId, exitData);
+
+      // Send email notification (fire-and-forget)
+      emailService.sendExitRecorded(pass).catch(e => console.error('[EMAIL] recordCheckout failed:', e.message));
 
       return res.status(200).json(
         formatResponse(true, 'Checkout recorded successfully', { pass })
@@ -623,6 +649,17 @@ class GatePassController {
         paymentReference,
         verifiedByUserId
       );
+
+      // Send hostel booking confirmation email (fire-and-forget)
+      const guestEmail = booking.gate_pass?.email;
+      console.log('[EMAIL] confirmPayment → gate_pass.email =', guestEmail || 'NULL/MISSING');
+      if (guestEmail) {
+        emailService.sendHostelBookingConfirmed(booking)
+          .then(() => console.log('[EMAIL] confirmPayment hostel email sent to', guestEmail))
+          .catch(e => console.error('[EMAIL] confirmPayment hostel email FAILED:', e.message));
+      } else {
+        console.warn('[EMAIL] Skipping hostel email — no email on gate pass');
+      }
 
       return res.status(200).json(
         formatResponse(true, 'Payment confirmed successfully', { booking })
