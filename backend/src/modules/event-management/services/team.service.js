@@ -8,6 +8,7 @@ const prisma = require('../../../shared/config/database');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
 const crypto = require('crypto');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
+const { resolveEvent } = require('../utils/eventHelpers');
 
 const TEAM_STATUS = {
   FORMING: 'forming',
@@ -42,7 +43,7 @@ const REQUEST_STATUS = {
 /**
  * Generate unique team ID
  */
-const generateTeamId = async (eventId) => {
+const generateTeamId = async () => {
   const timestamp = Date.now().toString(36);
   const random = crypto.randomBytes(4).toString('hex');
   return `TM-${timestamp}-${random}`.toUpperCase();
@@ -53,18 +54,7 @@ const generateTeamId = async (eventId) => {
  */
 const createTeam = async (eventId, userId, teamName) => {
   // Get event
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   if (event.participationType !== 'team') {
     throw new ValidationError('This event does not support team registration');
@@ -331,18 +321,7 @@ const getTeamDetails = async (teamId, userId) => {
  * Search for users to invite (past teammates, suggested users from same institute)
  */
 const searchUsersToInvite = async (eventId, userId, searchQuery) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   // Search for users
   const whereClause = {
@@ -1045,18 +1024,7 @@ const respondToJoinRequest = async (requestId, leaderId, accept) => {
  * Get teams looking for members
  */
 const getTeamsLookingForMembers = async (eventId, userId) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   const teams = await prisma.eventTeam.findMany({
     where: {
@@ -1142,7 +1110,7 @@ const getTeamsLookingForMembers = async (eventId, userId) => {
     .map(team => {
       const leader = leaderMap.get(team.leaderId);
       const leaderProfile = leader?.studentLogin || leader?.employeeDetails;
-      
+
       return {
         id: team.id,
         teamId: team.teamId,
@@ -1167,18 +1135,7 @@ const getTeamsLookingForMembers = async (eventId, userId) => {
  * Get users looking for teammates
  */
 const getUsersLookingForTeammates = async (eventId, userId) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   const registrations = await prisma.eventRegistration.findMany({
     where: {
@@ -1374,8 +1331,8 @@ const removeMemberFromTeam = async (teamId, memberId, userId) => {
       m => m.userId !== memberId && m.status === 'confirmed'
     ).length;
 
-    const isStillComplete = team.Event.minTeamSize 
-      ? remainingMembers >= team.Event.minTeamSize 
+    const isStillComplete = team.Event.minTeamSize
+      ? remainingMembers >= team.Event.minTeamSize
       : true;
 
     if (!isStillComplete && team.isComplete) {
@@ -1486,18 +1443,7 @@ const cancelTeam = async (teamId, userId) => {
  */
 const getUserTeamForEvent = async (eventId, userId) => {
   // Get event
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   // Find user's team membership
   const teamMembership = await prisma.eventTeamMember.findFirst({
@@ -1532,7 +1478,7 @@ const finalizeTeamRegistration = async (teamId, userId) => {
   // Get team with event details
   // Use teamId field for custom format (TM-xxx), or id for UUID
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
-  
+
   const team = await prisma.eventTeam.findFirst({
     where: isUUID ? { id: teamId } : { teamId: teamId },
     include: {
@@ -1623,7 +1569,7 @@ const finalizeTeamRegistration = async (teamId, userId) => {
     if (isPaidEvent) {
       // For paid events: set registrations to 'pending' (awaiting payment)
       await tx.eventRegistration.updateMany({
-        where: { 
+        where: {
           teamId: team.id,
           status: { in: ['incomplete_team'] },
         },
@@ -1636,7 +1582,7 @@ const finalizeTeamRegistration = async (teamId, userId) => {
     } else {
       // For free events: confirm registrations immediately
       await tx.eventRegistration.updateMany({
-        where: { 
+        where: {
           teamId: team.id,
           status: { in: ['incomplete_team', 'pending'] },
         },

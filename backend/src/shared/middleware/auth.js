@@ -1,9 +1,30 @@
+/**
+ * @module auth
+ * @description Authentication & authorization middleware for Express routes.
+ *
+ * Provides JWT verification (protect), role gating (restrictTo), and
+ * fine-grained permission checks for all modules: DSW, Noting, Events,
+ * IPR, Research, Gate-Entry, and DRD.
+ *
+ * Usage patterns:
+ *   router.get('/secure', protect, handler)
+ *   router.post('/admin', protect, restrictTo('admin'), handler)
+ *   router.put('/event', protect, requireEventPermission('event_publish'), handler)
+ */
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 const config = require('../config/app.config');
 const cache = require('../config/redis');
 
-// Protect routes - verify JWT token (OPTIMIZED WITH CACHING)
+/**
+ * Authenticate incoming request by verifying JWT token.
+ * Extracts token from Authorization header (Bearer) or cookies.
+ * Populates req.user with cached user data (roles, permissions, dept access).
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ * @returns {void} Calls next() on success, 401 on missing/invalid token
+ */
 const protect = async (req, res, next) => {
   try {
     let token;
@@ -165,7 +186,12 @@ const protect = async (req, res, next) => {
   }
 };
 
-// Restrict to specific user roles
+/**
+ * Restrict route to specific user roles (e.g. 'admin', 'faculty').
+ * Must be used after protect() middleware.
+ * @param {...string} roles - Allowed roles (OR logic)
+ * @returns {import('express').RequestHandler} 403 if user role not in list
+ */
 const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -178,7 +204,13 @@ const restrictTo = (...roles) => {
   };
 };
 
-// Check department permission
+/**
+ * Check if user holds an active permission for a specific department.
+ * Queries UserDepartmentPermission table directly.
+ * @param {string} department - Department identifier to check against
+ * @param {string} [permissionKey] - Specific permission key within the department (optional)
+ * @returns {import('express').RequestHandler} 403 if permission missing
+ */
 const checkDepartmentPermission = (department, permissionKey) => {
   return async (req, res, next) => {
     try {
@@ -216,7 +248,13 @@ const checkDepartmentPermission = (department, permissionKey) => {
   };
 };
 
-// Check if user has specific permission for a module
+/**
+ * Require a specific permission for a module, checking both naming conventions
+ * (e.g. 'ipr_review' and 'drd_ipr_review'). Checks central or school department.
+ * @param {'central-department'|'school-department'} departmentType - Department type to search
+ * @param {string} permissionName - Permission key to verify
+ * @returns {import('express').RequestHandler} 403 with details if denied
+ */
 const requirePermission = (departmentType, permissionName) => {
   return (req, res, next) => {
     try {
@@ -274,7 +312,12 @@ const requirePermission = (departmentType, permissionName) => {
   };
 };
 
-// Check if user has any of the specified permissions
+/**
+ * Require ANY of the specified permissions (OR logic), checking both naming conventions.
+ * @param {'central-department'|'school-department'} departmentType - Department type to search
+ * @param {string[]} permissionNames - Array of permission keys (user needs at least one)
+ * @returns {import('express').RequestHandler} 403 with details if none match
+ */
 const requireAnyPermission = (departmentType, permissionNames) => {
   return (req, res, next) => {
     try {

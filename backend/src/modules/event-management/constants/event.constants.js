@@ -51,10 +51,24 @@ const ENTRY_TYPE = {
   EXIT: 'exit',
 };
 
+/** Razorpay automatic capture configuration */
+const RAZORPAY_CAPTURE_CONFIG = {
+  automatic_expiry_period: 12,    // minutes
+  manual_expiry_period: 7200,     // seconds (2 hours)
+  refund_speed: 'optimum',
+};
+
+/** Rate limits for public (unauthenticated) endpoints */
+const PUBLIC_RATE_LIMIT = {
+  WINDOW_MS: 15 * 60 * 1000,  // 15 minutes
+  MAX_REQUESTS: 100,
+};
+
 const LIMITS = {
   MAX_EVENT_NAME_LENGTH: 256,
   MAX_DESCRIPTION_LENGTH: 5000,
   MAX_LONG_DESCRIPTION_LENGTH: 50000,
+  DASHBOARD_LIMIT: 50,
   MAX_VENUE_LENGTH: 512,
   MAX_CONTACT_NAME_LENGTH: 256,
   REGISTRATION_CAP_MIN: 1,
@@ -62,9 +76,6 @@ const LIMITS = {
   DEFAULT_PAGE_SIZE: 20,
   MAX_PAGE_SIZE: 100,
 };
-
-/** Basic email regex for validation */
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ERRORS = {
   EVENT_NOT_FOUND: 'Event not found',
@@ -92,5 +103,6 @@ module.exports = {
   ENTRY_TYPE,
   LIMITS,
   ERRORS,
-  EMAIL_REGEX,
+  RAZORPAY_CAPTURE_CONFIG,
+  PUBLIC_RATE_LIMIT,
 };

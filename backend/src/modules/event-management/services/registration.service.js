@@ -6,26 +6,10 @@
 
 const prisma = require('../../../shared/config/database');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
-const { generateRegistrationId, generateQRCode, canRegisterForEvent } = require('../utils/eventHelpers');
+const { generateRegistrationId, generateQRCode, canRegisterForEvent, resolveEvent } = require('../utils/eventHelpers');
 const crypto = require('crypto');
 const { applyCouponInTransaction } = require('./coupon.service');
-
-const REGISTRATION_STATUS = {
-  DRAFT: 'draft',
-  PENDING: 'pending',
-  CONFIRMED: 'confirmed',
-  CANCELLED: 'cancelled',
-  WAITLISTED: 'waitlisted',
-  REJECTED: 'rejected',
-  INCOMPLETE_TEAM: 'incomplete_team',
-};
-
-const PAYMENT_STATUS = {
-  PENDING: 'pending',
-  COMPLETED: 'completed',
-  FAILED: 'failed',
-  REFUNDED: 'refunded',
-};
+const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../constants/event.constants');
 
 /**
  * Get registration form for an event (includes custom fields and user profile data)
@@ -33,13 +17,7 @@ const PAYMENT_STATUS = {
 const getRegistrationForm = async (eventId, userId) => {
   // Parallelize event + user profile fetch (both are independent)
   const [event, userProfile] = await Promise.all([
-    prisma.event.findFirst({
-      where: {
-        OR: [
-          { id: eventId },
-          { eventId: eventId },
-        ],
-      },
+    resolveEvent(eventId, {
       include: {
         EventCustomField: {
           where: { isActive: true },
@@ -49,10 +27,6 @@ const getRegistrationForm = async (eventId, userId) => {
     }),
     getUserProfileData(userId),
   ]);
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
 
   // Build profileFields map — indicates which fields have data from the user's profile
   // Frontend uses this to hide fields that are already known (silent auto-fill)
@@ -216,11 +190,11 @@ const getUserProfileData = async (userId) => {
     studentId: isStudent ? profile?.studentId : null,
     employeeId: !isStudent ? profile?.empId : null,
     gender: isStudent ? profile?.gender || null : null,
-    department: isStudent 
+    department: isStudent
       ? profile?.program?.department?.departmentName || null
       : profile?.primaryDepartment?.departmentName || null,
     program: isStudent ? profile?.program?.programName || null : null,
-    school: isStudent 
+    school: isStudent
       ? profile?.program?.department?.faculty?.facultyName || null
       : profile?.primarySchool?.facultyName || null,
     passOutYear,
@@ -236,23 +210,13 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
   // Extract coupon code from body before passing to mergedFormData
   const { couponCode, ...restFormData } = formData;
   // Get event
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
+  const event = await resolveEvent(eventId, {
     include: {
       EventCustomField: {
         where: { isActive: true },
       },
     },
   });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
 
   // Validate coupon if provided (preview check — actual lock happens in transaction)
   let couponPreview = null;
@@ -458,13 +422,13 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
           create: {
             registrationId: reg.id,
             fieldId: field.id,
-            value: typeof restFormData[field.fieldName] === 'string' 
-              ? restFormData[field.fieldName] 
+            value: typeof restFormData[field.fieldName] === 'string'
+              ? restFormData[field.fieldName]
               : JSON.stringify(restFormData[field.fieldName]),
           },
           update: {
-            value: typeof restFormData[field.fieldName] === 'string' 
-              ? restFormData[field.fieldName] 
+            value: typeof restFormData[field.fieldName] === 'string'
+              ? restFormData[field.fieldName]
               : JSON.stringify(restFormData[field.fieldName]),
             updatedAt: new Date(),
           },
@@ -504,7 +468,7 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
     nextStep: event.participationType === 'team' ? 'team_management' : 'complete',
     message: isCouponFullyFree
       ? 'Registration complete! Coupon covered the full amount.'
-      : event.participationType === 'team' 
+      : event.participationType === 'team'
         ? 'Form submitted. Please create or join a team to complete registration.'
         : 'Registration successful!',
     couponFullyFree: !!isCouponFullyFree,
@@ -600,13 +564,13 @@ const getRegistrationDashboard = async (userId) => {
   return {
     registrations: registrations.map(reg => ({
       ...reg,
-      teamCompletion: reg.EventTeam 
+      teamCompletion: reg.EventTeam
         ? {
-            current: reg.EventTeam.EventTeamMember.filter(m => m.status === 'confirmed').length,
-            min: reg.EventTeam.Event.minTeamSize,
-            max: reg.EventTeam.Event.maxTeamSize,
-            isComplete: reg.EventTeam.isComplete,
-          }
+          current: reg.EventTeam.EventTeamMember.filter(m => m.status === 'confirmed').length,
+          min: reg.EventTeam.Event.minTeamSize,
+          max: reg.EventTeam.Event.maxTeamSize,
+          isComplete: reg.EventTeam.isComplete,
+        }
         : null,
     })),
     pendingInvitations,

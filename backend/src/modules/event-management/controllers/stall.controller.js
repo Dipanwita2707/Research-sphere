@@ -7,8 +7,7 @@ const prisma = require('../../../shared/config/database');
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
-const { generateQRCode } = require('../utils/qrCodeGenerator');
-const crypto = require('crypto');
+const { resolveEvent } = require('../utils/eventHelpers');
 
 // ──────────────────────────────────────────────────────────────
 // Helpers
@@ -35,13 +34,7 @@ const generateStallQrCode = (stallId, eventId) => {
   return `/events/${eventId}/stalls/${stallId}/feedback`;
 };
 
-const getEventOrFail = async (eventId) => {
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
-  });
-  if (!event) throw new NotFoundError('Event not found');
-  return event;
-};
+
 
 // ──────────────────────────────────────────────────────────────
 // GET /api/events?filter=stall-open
@@ -162,7 +155,7 @@ const submitStallApplication = asyncHandler(async (req, res) => {
   const { id: eventId } = req.params;
   const applicantId = req.user.id;
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   // Validate event allows stall applications
   if (!event.hasStalls) {
@@ -296,7 +289,7 @@ const getStallApplications = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { status, page = 1, limit = 50 } = req.query;
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   // Only event creator can view all applications
   if (event.createdById !== userId) {
@@ -430,7 +423,7 @@ const getMyStallApplication = asyncHandler(async (req, res) => {
   const { id: eventId } = req.params;
   const applicantId = req.user.id;
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   const application = await prisma.stallApplication.findFirst({
     where: { eventId: event.id, applicantId },
@@ -461,7 +454,7 @@ const updateStallApplication = asyncHandler(async (req, res) => {
     throw new ValidationError('Status must be "approved" or "rejected"');
   }
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can review stall applications');
@@ -569,7 +562,7 @@ const bulkUpdateStallApplications = asyncHandler(async (req, res) => {
     throw new ValidationError('Status must be "approved" or "rejected"');
   }
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can review stall applications');
   }
@@ -637,7 +630,7 @@ const getStalls = asyncHandler(async (req, res) => {
   const { id: eventId } = req.params;
   const userId = req.user.id;
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can view all stalls');
@@ -701,7 +694,7 @@ const createStall = asyncHandler(async (req, res) => {
   const { id: eventId } = req.params;
   const userId = req.user.id;
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can add stalls');
@@ -768,7 +761,7 @@ const updateStall = asyncHandler(async (req, res) => {
   const { id: eventId, stallId } = req.params;
   const userId = req.user.id;
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can update stalls');
@@ -838,7 +831,7 @@ const deleteStall = asyncHandler(async (req, res) => {
   const { id: eventId, stallId } = req.params;
   const userId = req.user.id;
 
-  const event = await getEventOrFail(eventId);
+  const event = await resolveEvent(eventId);
 
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can delete stalls');
@@ -874,7 +867,7 @@ const toggleStallApplications = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
-  const event = await getEventOrFail(id);
+  const event = await resolveEvent(id);
 
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can manage stall applications');

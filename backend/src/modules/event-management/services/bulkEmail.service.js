@@ -46,10 +46,33 @@ function chunk(arr, size) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
+ * Escape HTML special characters to prevent XSS.
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Build a clean HTML email body with header banner + editable content.
- * recipientName and pixelHtml are injected directly (no SendGrid substitutions).
+ * All user-supplied strings are HTML-escaped to prevent XSS.
+ * `body` may contain intentional HTML from the email composer — it is
+ * still escaped because emails should not carry arbitrary HTML from users.
+ * If you later want to allow rich HTML in `body`, sanitise it with a
+ * library like DOMPurify instead of raw escapeHtml.
  */
 function buildEmailHtml({ eventName, body, recipientName = 'there', pixelHtml = '' }) {
+  const safeEventName    = escapeHtml(eventName);
+  const safeRecipientName = escapeHtml(recipientName);
+  const safeBody          = escapeHtml(body);
+
   return `
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -58,7 +81,7 @@ function buildEmailHtml({ eventName, body, recipientName = 'there', pixelHtml = 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light" />
   <meta name="supported-color-schemes" content="light" />
-  <title>${eventName}</title>
+  <title>${safeEventName}</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -77,7 +100,7 @@ function buildEmailHtml({ eventName, body, recipientName = 'there', pixelHtml = 
 </head>
 <body class="email-body" style="margin:0;padding:0;background-color:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
-    ${eventName} — Important update for you &zwnj;&nbsp;&#847;&#8199;&#65279;&#847;
+    ${safeEventName} — Important update for you &zwnj;&nbsp;&#847;&#8199;&#65279;&#847;
   </div>
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" class="email-body" style="background-color:#f0f4f8;padding:40px 16px;">
     <tr>
@@ -87,14 +110,14 @@ function buildEmailHtml({ eventName, body, recipientName = 'there', pixelHtml = 
           <!-- Header Banner -->
           <tr>
             <td class="email-header" style="background:linear-gradient(135deg,#0F2573 0%,#266CA9 60%,#4BBAF2 100%);padding:48px 40px;text-align:center;">
-              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:.3px;line-height:1.3;">${eventName}</h1>
+              <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;letter-spacing:.3px;line-height:1.3;">${safeEventName}</h1>
             </td>
           </tr>
 
           <!-- Greeting -->
           <tr>
             <td style="padding:32px 40px 0;">
-              <p class="email-text" style="margin:0;font-size:16px;color:#333333;font-weight:500;">Hi ${recipientName},</p>
+              <p class="email-text" style="margin:0;font-size:16px;color:#333333;font-weight:500;">Hi ${safeRecipientName},</p>
             </td>
           </tr>
 
@@ -102,7 +125,7 @@ function buildEmailHtml({ eventName, body, recipientName = 'there', pixelHtml = 
           <tr>
             <td style="padding:20px 40px 36px;">
               <div class="email-text-light" style="font-size:15px;line-height:1.8;color:#555555;">
-                ${body}
+                ${safeBody}
               </div>
             </td>
           </tr>
@@ -116,7 +139,7 @@ function buildEmailHtml({ eventName, body, recipientName = 'there', pixelHtml = 
           <tr>
             <td style="padding:24px 40px 28px;text-align:center;">
               <p style="margin:0 0 6px;font-size:13px;color:#999999;">Sent via <strong style="color:#666666;">SGT Event Portal</strong></p>
-              <p style="margin:0;font-size:11px;color:#bbbbbb;line-height:1.5;">You received this because you registered for ${eventName}.</p>
+              <p style="margin:0;font-size:11px;color:#bbbbbb;line-height:1.5;">You received this because you registered for ${safeEventName}.</p>
             </td>
           </tr>
         </table>

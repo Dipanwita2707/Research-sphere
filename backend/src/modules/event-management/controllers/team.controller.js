@@ -6,6 +6,7 @@
 
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
+const prisma = require('../../../shared/config/database');
 const teamService = require('../services/team.service');
 
 /**
@@ -315,8 +316,6 @@ const getMyEventInvitations = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
   
-  const prisma = require('../../../shared/config/database');
-  
   // Get received invitations
   const received = await prisma.eventTeamInvitation.findMany({
     where: {
@@ -408,8 +407,6 @@ const getMyEventInvitations = asyncHandler(async (req, res) => {
 const getMyEventRequests = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  
-  const prisma = require('../../../shared/config/database');
   
   // Get sent requests (requests made by the user)
   const sent = await prisma.eventTeamRequest.findMany({

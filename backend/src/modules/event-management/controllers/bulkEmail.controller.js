@@ -229,17 +229,17 @@ const sendBulkEmail = asyncHandler(async (req, res) => {
   }
 
   // Build tracking base URL.
-  // Priority: BACKEND_PUBLIC_URL env var (required for local dev / ngrok)
-  //           → x-forwarded headers (production reverse proxy)
-  //           → raw request host (last resort, won't work outside localhost)
+  // BACKEND_PUBLIC_URL env var is required. Falling back to the incoming
+  // Host header is a security risk (Host header injection), so we use a
+  // hardcoded default instead.
   let trackingBaseUrl;
   if (process.env.BACKEND_PUBLIC_URL) {
     // Strip any trailing slash then append the API prefix
     trackingBaseUrl = `${process.env.BACKEND_PUBLIC_URL.replace(/\/$/, '')}/api/v1/events`;
   } else {
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-    const host = req.headers['x-forwarded-host'] || req.get('host');
-    trackingBaseUrl = `${protocol}://${host}/api/v1/events`;
+    // Safe fallback — never use req.get('host') as it can be spoofed
+    console.warn('[EmailTrack] BACKEND_PUBLIC_URL is not set. Tracking pixels will use a localhost fallback.');
+    trackingBaseUrl = `https://localhost:${process.env.PORT || 5000}/api/v1/events`;
   }
   console.log(`[EmailTrack] pixel base URL: ${trackingBaseUrl}`);
 

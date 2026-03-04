@@ -12,6 +12,7 @@ const {
   ForbiddenError,
   NotFoundError,
 } = require('../../../shared/utils/AppError');
+const { resolveEvent } = require('../utils/eventHelpers');
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -20,11 +21,9 @@ const {
  * Returns the event row.
  */
 const assertEventOwner = async (eventId, userId) => {
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
+  const event = await resolveEvent(eventId, {
     select: { id: true, createdById: true },
   });
-  if (!event) throw new NotFoundError('Event not found');
   if (event.createdById !== userId) {
     throw new ForbiddenError('Only the event creator can manage event settings');
   }
@@ -289,10 +288,10 @@ const canUserSeeEvent = async (eventId, userId) => {
   if (!student) return false; // student role but no student record
 
   const allowedSchools = toArray(visibility.allowedSchoolIds);
-  const allowedDepts   = toArray(visibility.allowedDepartmentIds);
-  const allowedProgs   = toArray(visibility.allowedProgramIds);
+  const allowedDepts = toArray(visibility.allowedDepartmentIds);
+  const allowedProgs = toArray(visibility.allowedProgramIds);
   const allowedBatches = toArray(visibility.allowedBatchYears);
-  const allowedSects   = toArray(visibility.allowedSectionIds);
+  const allowedSects = toArray(visibility.allowedSectionIds);
 
   // If no granular filters are set at all, treat as "all"
   const hasAnyFilter = (

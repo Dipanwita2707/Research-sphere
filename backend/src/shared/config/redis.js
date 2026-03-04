@@ -205,20 +205,27 @@ const del = async (key) => {
 };
 
 /**
- * Delete all keys matching a pattern
+ * Delete all keys matching a pattern.
+ * Uses SCAN (non-blocking, cursor-based) instead of KEYS to avoid
+ * blocking Redis on large key-spaces.
  */
 const delPattern = async (pattern) => {
   try {
     if (isConnected && redis) {
-      const keys = await redis.keys(pattern);
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
+      let cursor = '0';
+      do {
+        const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+      } while (cursor !== '0');
     }
     
     // Memory fallback - delete matching keys
+    const plainPattern = pattern.replace(/\*/g, '');
     for (const key of memoryCache.keys()) {
-      if (key.includes(pattern.replace('*', ''))) {
+      if (key.includes(plainPattern)) {
         memoryCache.delete(key);
         memoryCacheTTL.delete(key);
       }

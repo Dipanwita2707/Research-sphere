@@ -43,11 +43,12 @@ if (process.env.NODE_ENV === "production") {
       },
     });
 
-    // Log slow queries (>500ms) in development — pretty formatted
+    // Log slow queries in development — threshold configurable via env
     if (process.env.NODE_ENV === "development") {
       const log = require("../utils/logger");
+      const slowThreshold = parseInt(process.env.PRISMA_SLOW_QUERY_MS, 10) || 500;
       global.prisma.$on("query", (e) => {
-        if (e.duration > 500) {
+        if (e.duration > slowThreshold) {
           log.slowQuery(e.duration, e.query);
         }
       });

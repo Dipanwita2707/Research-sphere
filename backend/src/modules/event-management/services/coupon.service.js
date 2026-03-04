@@ -7,6 +7,7 @@
 
 const prisma = require('../../../shared/config/database');
 const { ValidationError, NotFoundError, ForbiddenError } = require('../../../shared/utils/AppError');
+const { resolveEvent } = require('../utils/eventHelpers');
 
 // ─────────────────────────────────────────────
 // Helper: compute discount amount
@@ -43,12 +44,9 @@ const computeDiscount = (coupon, amount) => {
 // Organizer: Create coupon
 // ─────────────────────────────────────────────
 const createCoupon = async (eventId, createdById, data) => {
-  // Resolve event
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
+  const event = await resolveEvent(eventId, {
     select: { id: true, createdById: true, paymentType: true },
   });
-  if (!event) throw new NotFoundError('Event not found');
   if (event.createdById !== createdById) throw new ForbiddenError('Only the event organizer can manage coupons');
   if (event.paymentType !== 'paid') throw new ValidationError('Coupons are only applicable to paid events');
 
@@ -86,7 +84,7 @@ const createCoupon = async (eventId, createdById, data) => {
       maxDiscountCap: maxDiscountCap ?? null,
       minAmount: minAmount ?? null,
       maxUses: maxUses ?? null,
-      maxUsesPerUser: maxUsesPerUser !== undefined ? maxUsesPerUser : undefined,
+      maxUsesPerUser: maxUsesPerUser ?? null,
       expiresAt: expiresAt ? new Date(expiresAt) : null,
       isActive: isActive !== undefined ? isActive : true,
       description: description ?? null,
@@ -101,11 +99,9 @@ const createCoupon = async (eventId, createdById, data) => {
 // Organizer: Update coupon
 // ─────────────────────────────────────────────
 const updateCoupon = async (eventId, couponId, organizerId, data) => {
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
+  const event = await resolveEvent(eventId, {
     select: { id: true, createdById: true },
   });
-  if (!event) throw new NotFoundError('Event not found');
   if (event.createdById !== organizerId) throw new ForbiddenError('Only the event organizer can manage coupons');
 
   const coupon = await prisma.eventCoupon.findFirst({
@@ -148,11 +144,9 @@ const updateCoupon = async (eventId, couponId, organizerId, data) => {
 // Organizer: Delete coupon
 // ─────────────────────────────────────────────
 const deleteCoupon = async (eventId, couponId, organizerId) => {
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
+  const event = await resolveEvent(eventId, {
     select: { id: true, createdById: true },
   });
-  if (!event) throw new NotFoundError('Event not found');
   if (event.createdById !== organizerId) throw new ForbiddenError('Only the event organizer can manage coupons');
 
   const coupon = await prisma.eventCoupon.findFirst({
@@ -168,11 +162,9 @@ const deleteCoupon = async (eventId, couponId, organizerId) => {
 // Organizer: List coupons for an event
 // ─────────────────────────────────────────────
 const listCoupons = async (eventId, organizerId) => {
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
+  const event = await resolveEvent(eventId, {
     select: { id: true, createdById: true },
   });
-  if (!event) throw new NotFoundError('Event not found');
   if (event.createdById !== organizerId) throw new ForbiddenError('Only the event organizer can view coupons');
 
   const coupons = await prisma.eventCoupon.findMany({
@@ -195,11 +187,9 @@ const listCoupons = async (eventId, organizerId) => {
 // Returns discount breakdown without consuming any usage slot
 // ─────────────────────────────────────────────
 const validateCoupon = async (eventId, code, userId, amount) => {
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
+  const event = await resolveEvent(eventId, {
     select: { id: true, paymentType: true, registrationFee: true },
   });
-  if (!event) throw new NotFoundError('Event not found');
   if (event.paymentType !== 'paid') throw new ValidationError('This event is free — no coupon needed');
 
   const registrationAmount = amount ?? event.registrationFee ?? 0;

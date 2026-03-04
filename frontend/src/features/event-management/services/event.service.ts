@@ -528,7 +528,7 @@ export const eventService = {
    */
   async getPrizes(eventId: string): Promise<EventPrize[]> {
     const response = await api.get(`${BASE_URL}/${eventId}/prizes`);
-    return response.data;
+    return response.data?.data ?? response.data;
   },
 
   /**
@@ -536,7 +536,7 @@ export const eventService = {
    */
   async getPrizeById(eventId: string, prizeId: string): Promise<EventPrize> {
     const response = await api.get(`${BASE_URL}/${eventId}/prizes/${prizeId}`);
-    return response.data;
+    return response.data?.data ?? response.data;
   },
 
   /**
@@ -544,7 +544,7 @@ export const eventService = {
    */
   async createPrize(eventId: string, prizeData: PrizeFormData): Promise<EventPrize> {
     const response = await api.post(`${BASE_URL}/${eventId}/prizes`, prizeData);
-    return response.data;
+    return response.data?.data ?? response.data;
   },
 
   /**
@@ -552,7 +552,7 @@ export const eventService = {
    */
   async updatePrize(eventId: string, prizeId: string, prizeData: Partial<PrizeFormData>): Promise<EventPrize> {
     const response = await api.patch(`${BASE_URL}/${eventId}/prizes/${prizeId}`, prizeData);
-    return response.data;
+    return response.data?.data ?? response.data;
   },
 
   /**
@@ -567,7 +567,7 @@ export const eventService = {
    */
   async bulkUpsertPrizes(eventId: string, prizes: EventPrize[]): Promise<EventPrize[]> {
     const response = await api.post(`${BASE_URL}/${eventId}/prizes/bulk`, { prizes });
-    return response.data;
+    return response.data?.data ?? response.data;
   },
 
   /**
@@ -575,7 +575,7 @@ export const eventService = {
    */
   async reorderPrizes(eventId: string, prizeOrders: Array<{ prizeId: string; sortOrder: number }>): Promise<EventPrize[]> {
     const response = await api.patch(`${BASE_URL}/${eventId}/prizes/reorder`, { prizeOrders });
-    return response.data;
+    return response.data?.data ?? response.data;
   },
 
   /**
@@ -583,7 +583,7 @@ export const eventService = {
    */
   async togglePrizesEnabled(eventId: string, enabled: boolean): Promise<Event> {
     const response = await api.patch(`${BASE_URL}/${eventId}/prizes-enabled`, { enabled });
-    return response.data;
+    return response.data?.data ?? response.data;
   },
 
   // ============================================

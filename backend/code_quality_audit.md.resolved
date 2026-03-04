@@ -1,0 +1,415 @@
+# 🔍 Code Quality & SOLID Principles Audit
+## Event Management Backend — PERN Stack
+
+**Auditor:** Senior Code Reviewer (15+ years Node.js/Express/PostgreSQL)  
+**Scope:** ~15,000+ lines across 25+ backend files  
+**Date:** February 2026
+
+---
+
+## 📋 Executive Summary
+
+| Metric | Score | Grade |
+|--------|-------|-------|
+| **Overall Code Quality** | **72/100** | **B−** |
+| Error Handling | 82/100 | B+ |
+| Naming & Readability | 70/100 | B− |
+| Security | 78/100 | B |
+| Performance | 75/100 | B |
+| Testing Readiness | 40/100 | D |
+| Documentation | 68/100 | C+ |
+| SOLID Compliance | 58/100 | C |
+| DRY / KISS | 55/100 | C− |
+
+**Verdict:** This is a **functional, working production codebase** with competent architecture for its scale. It has clear separation of concerns (controllers → services → helpers), good error hierarchy, and smart performance optimizations (raw SQL, caching, `Promise.all`). However, it suffers from **massive file sizes, heavy code duplication, poor testability, and several SOLID violations** that will compound technical debt as features grow. The code is better than most university/startup backends — but it's **not yet production-grade for a system serving 25k users**.
+
+---
+
+## ⚖️ SOLID Principles Evaluation
+
+### S — Single Responsibility Principle: **5/10** ⚠️
+
+| File | Lines | Responsibilities | Violation? |
+|------|-------|------------------|------------|
+| [event.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js) | 1279 | Event CRUD, listing, registration, statistics, volunteer re-exports, cache invalidation, visibility filtering, raw SQL | **Yes — God Service** |
+| [team.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js) | 1676 | Team CRUD, invitations, join requests, member removal, cancellation, lookingForTeammates, finalization | **Yes — too many concerns** |
+| [stall.controller.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/controllers/stall.controller.js) | 919 | Application CRUD, review, bulk updates, stall CRUD, toggle portal | **Borderline** |
+| [event.controller.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/controllers/event.controller.js) | 869 | 15+ endpoints: list, get, update, publish, register, stats, QR scan, volunteers, registrations | **Yes** |
+| [auth.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js) | 857 | JWT auth, role gating, department perms, IPR perms, research perms, DSW perms, gate entry, event perms, ownership checks | **Yes — Swiss Army Knife** |
+| [event.routes.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/routes/event.routes.js) | 624 | Every single route for events, teams, payments, stalls, settings, emails, coupons, prizes, custom fields — all in one file | **Yes** |
+
+**Key Issue:** [event.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js) at 1,279 lines is a **"God Service"** — it handles event creation, listing, registration, statistics, volunteer management, caching, and raw SQL queries. This makes it extremely hard to test, reason about, or modify safely.
+
+**Recommendation:**
+```
+event.service.js (1279 lines) → Split into:
+├── event-crud.service.js      (~200 lines)
+├── event-listing.service.js   (~200 lines)
+├── event-stats.service.js     (~150 lines)
+├── event-registration.service.js (already partially done)
+├── volunteer.service.js       (already exists)
+└── cache.service.js           (~100 lines)
+```
+
+---
+
+### O — Open/Closed Principle: **6/10**
+
+**What's good:**
+- [asyncHandler](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/asyncHandler.js#1-17) is a clean higher-order function — open for extension
+- [AppError](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/AppError.js#10-19) class hierarchy ([ValidationError](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/AppError.js#23-28), [ForbiddenError](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/AppError.js#41-46), [NotFoundError](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/AppError.js#50-55)) is well-designed and extensible
+- [errorHandler.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/errorHandler.js) has a clean switch-like pattern for Prisma, Postgres, JWT errors — easy to add new handlers
+- [checkPermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#503-601) and [checkAnyPermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#602-694) accept options objects — extensible without modifying internals
+
+**What's problematic:**
+- The [allowEventScan](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/routes/event.routes.js#65-109) middleware in [event.routes.js:68-108](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/routes/event.routes.js#L68-L108) is a **route-embedded authorization function** that queries the database. Adding new scan-permission sources requires modifying this function directly instead of registering new strategies.
+- [auth.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js) has **hardcoded permission lists** like `CHAIRPERSON_ALLOWED_PERMISSIONS` (lines 562-567). Adding new chairperson capabilities requires modifying the auth middleware source code.
+- [formatEventResponse](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#369-481) in [eventHelpers.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js) (lines 377-480) is a ~100-line function that manually maps every field. Adding a new event field requires finding this function and adding a line — no auto-mapping or schema-driven approach.
+
+---
+
+### L — Liskov Substitution Principle: **7/10** ✅
+
+**Good:** The [AppError](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/AppError.js#10-19) hierarchy is clean and substitutable:
+```
+AppError (base)
+├── ValidationError (400)
+├── UnauthorizedError (401)
+├── ForbiddenError (403)
+├── NotFoundError (404)
+├── ConflictError (409)
+└── InternalError (500)
+```
+All can be thrown interchangeably and caught by [errorHandler.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/errorHandler.js). No behavioral surprises.
+
+**Minor Issue:** [NotFoundError](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/AppError.js#50-55) constructor takes a `resource` string and generates `"${resource} not found"`, but some usages pass full messages like `'Event not found'` — resulting in `"Event not found not found"`. This subtle inconsistency violates LSP expectations.
+
+---
+
+### I — Interface Segregation Principle: **5/10** ⚠️
+
+**Problem:** [event.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js) exports a fat interface:
+```js
+module.exports = {
+  createEventFromNoting, getEventDetails, validateEventRequiredFields,
+  updateEvent, publishEvent, listEvents, registerForEvent,
+  getMyRegistrations, getEventStatistics, assignVolunteer,
+  scanQRCode, getEventRegistrations, getRegistrationDetails,
+  getRegistrationFilterOptions, getEventVolunteers, getVolunteerActivity,
+  getMyVolunteerAssignments, getMyVolunteerActivity, getEventFeedback,
+};
+```
+A controller that only needs [listEvents](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js#798-1006) must [require()](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#251-314) a module that also pulls in statistics computation, raw SQL, volunteer management, and QR scanning. **Every consumer is forced to depend on the entire 1,279-line module.**
+
+**Same issue with** [auth.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js) — a module needing only [protect](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#19-188) must import a file containing IPR, research, DSW, gate entry, and event-specific permission logic.
+
+---
+
+### D — Dependency Inversion Principle: **5/10** ⚠️
+
+**Problem — Hard-coupled to Prisma:**
+Every service file does:
+```js
+const prisma = require('../../../shared/config/database');
+```
+This is a **direct import of a concrete implementation** — making it impossible to:
+- Swap the database for testing (no dependency injection)
+- Mock Prisma in unit tests without `jest.mock` hacks
+- Use a different ORM or database
+- Test business logic in isolation
+
+**Problem — Hard-coupled to Redis:**
+```js
+const cache = require('../../../shared/config/redis');
+```
+Same issue. Cache is a concrete singleton, not an injected dependency.
+
+**Problem — Hard-coupled to `process.env`:**
+[payment.service.js:27-31](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#L27-L31) reads `process.env.RAZORPAY_KEY_ID` directly. Environment configuration should be injected, not read inline.
+
+---
+
+## 🪲 Dead Code & Unused Exports
+
+| Location | Item | Issue |
+|----------|------|-------|
+| [event.validators.js:131-135](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/validators/event.validators.js#L131-L135) | `validateRegistration` | **Exported but never used** — comment says "Retained for potential future route use" |
+| [event.constants.js:67](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/constants/event.constants.js#L67) | `EMAIL_REGEX` | Exported but [validators.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/validators.js) has its own [isValidEmail](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/validators.js#11-15) with a different regex — **duplicate/dead** |
+| [registration.service.js:12](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js#L12) | `REGISTRATION_STATUS`, `PAYMENT_STATUS` imports | Re-imported from `event.constants` and **re-exported from [registration.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js)** — [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js) imports from [registration.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js) instead of constants |
+| [team.service.js:45-49](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js#L45-L49) | [generateTeamId(eventId)](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js#42-50) | Takes `eventId` parameter but **never uses it** — dead parameter |
+| [qrCodeGenerator.js:32-36](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/qrCodeGenerator.js#L32-L36) | [isValidQRCodeFormat()](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/qrCodeGenerator.js#25-37) | Exported but **never imported/called anywhere** |
+| [payment.service.js:42-46](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#L42-L46) | [generateReceipt(prefix, eventId, userId)](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#39-47) | Takes `userId` parameter but **never uses it** — dead parameter |
+
+---
+
+## 🧀 Code Smells
+
+### 1. God Functions (> 60 lines)
+
+| Function | File | Lines | Approx Size |
+|----------|------|-------|-------------|
+| [createEventFromNoting](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js#50-312) | event.service.js | ~1–200 | **~200 lines** |
+| [getEventStatistics](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js#1143-1259) | event.service.js | ~740–950 | **~210 lines** |
+| [respondToInvitation](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js#562-772) | team.service.js | ~565–771 | **~206 lines** |
+| [createTeamPaymentOrder](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#270-505) | payment.service.js | ~282–504 | **~222 lines** |
+| [handleWebhook](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#614-768) (payment.captured case) | payment.service.js | ~663–767 | **~104 lines** |
+| [submitRegistrationForm](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js#216-505) | registration.service.js | ~219–503 | **~284 lines** |
+| [formatEventResponse](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#369-481) | eventHelpers.js | ~377–480 | **~103 lines** |
+| [protect](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#19-188) | auth.js | ~28–187 | **~159 lines** |
+
+> [!WARNING]
+> [submitRegistrationForm](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js#216-505) at ~284 lines is the **single longest function** in the codebase. It handles validation, coupon preview, capacity check, profile merging, status determination, ID generation, transaction with upsert logic, coupon application, custom field response saving, and post-creation query. This needs **at minimum 4 extracted functions**.
+
+### 2. Massive Code Duplication
+
+**Event lookup pattern** — repeated 20+ times across files:
+```js
+const event = await prisma.event.findFirst({
+  where: { OR: [{ id: eventId }, { eventId }] },
+});
+if (!event) throw new NotFoundError('Event not found');
+```
+Found in: [event.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js) (×5), [team.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js) (×6), [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js) (×4), [stall.controller.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/controllers/stall.controller.js) (×5), [coupon.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/coupon.service.js) (×4), [registration.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js) (×2).
+
+**Recommendation:** The [getEventLean](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#70-90) helper in [eventHelpers.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js) already exists for this — but most code **doesn't use it**.
+
+**Coupon finalization** — copy-pasted 3 times in [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js):
+```js
+if (reg?.couponId) {
+  await finalizeCouponUsage(tx, reg.couponId, payment.registrationId, reg.userId, reg.originalAmount);
+}
+```
+Appears in [verifyIndividualPayment](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#184-265), [verifyTeamPayment](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#506-609), and [handleWebhook](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#614-768).
+
+**Team ID resolution** — UUID vs string ID check duplicated:
+```js
+const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-...$/i.test(teamId);
+```
+Found in [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js) lines 313 and 547.
+
+**Permission variant expansion** — same pattern in 6+ places in [auth.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js):
+```js
+const permissionVariants = [permissionKey, `${permissionKey.split('_')[0]}_${permissionKey}`];
+```
+
+### 3. Magic Numbers & Strings
+
+| Location | Value | What it is |
+|----------|-------|------------|
+| [event.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js) | `'published'`, `'draft'`, `'paid'`, `'free'` | Status/type strings used instead of constants |
+| [team.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js) | `'confirmed'`, `'pending'`, `'forming'`, `'complete'` | Status strings inline — constants defined at top but **not always used** |
+| `payment.service.js:146-148` | `12`, `7200` | Razorpay capture config — magic numbers without explanation |
+| `event.routes.js:35` | `15 * 60 * 1000`, `100` | Rate limit config — should use [app.config.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/config/app.config.js) |
+| `registration.service.js:541` | `50` | Dashboard limit — magic number in query |
+| `server.js:69,74` | `100`, `15 * 60 * 1000` | Rate limit values — duplicates what's in [app.config.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/config/app.config.js) |
+
+### 4. Deep Nesting
+
+[auth.js:checkPermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#L511-L600) — 5 levels deep:
+```
+checkPermission → return async → try → if (student) → try → if (chairpersonClub)
+```
+
+[team.service.js:respondToInvitation](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js#L565-L771) — Transaction callback with 4-level nesting:
+```
+function → transaction → if (isComplete) → if (paid) → updateMany
+```
+
+---
+
+## 📝 Naming Issues
+
+| Current Name | Problem | Suggested Fix |
+|-------------|---------|---------------|
+| `user_login` (Prisma relation) | Snake_case in JS — inconsistent with JS conventions | Model alias or rename |
+| [getEventOrFail()](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/controllers/stall.controller.js#36-43) in stall.controller.js | Good internal name, but defined locally in the controller instead of shared | Move to [eventHelpers.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js) |
+| [toPaise()](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#48-52) | Domain-specific but not documented that it rounds | `convertRupeesToPaise()` |
+| [generateReceipt(prefix, eventId, userId)](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#39-47) | `userId` param never used — misleading signature | Remove unused parameter |
+| [generateTeamId(eventId)](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js#42-50) | `eventId` param never used — misleading signature | Remove unused parameter |
+| `evt`, `tkt` | Not found ✅ | N/A — Good, no abbreviations detected |
+| `pmt` variable in payment.service.js | Abbreviation of "payment" inside transaction | Use `updatedPayment` |
+| [reg](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js#1007-1092) variable (used 10+ times) | Common abbreviation across multiple files | Acceptable in small scopes |
+
+---
+
+## 🔒 Security Analysis
+
+### ✅ Good Practices
+- **Helmet.js** configured for security headers
+- **HMAC-SHA256 signature verification** for Razorpay payments — properly prevents tampering
+- **Webhook signature verification** separate from client-side verification
+- **HTML sanitization** ([sanitizeHtml](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/validators.js#26-41)) strips script/iframe/object/embed tags and event handlers
+- **Rate limiting** on login and public endpoints
+- **JWT token verification** with proper error handling
+- **CORS configuration** with whitelisted origins
+
+### ⚠️ Concerns
+
+| Issue | Severity | Location |
+|-------|----------|----------|
+| **Regex-based HTML sanitization** | 🔴 High | [validators.js:29-39](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/validators.js#L29-L39) — Regex cannot reliably sanitize HTML. Use [DOMPurify](https://github.com/cure53/DOMPurify) or [sanitize-html](https://github.com/apostrophecms/sanitize-html) instead. Attackers can bypass regex with encoding tricks. |
+| **`$queryRawUnsafe` usage** | 🟡 Medium | [eventHelpers.js:19-25](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#L19-L25) — Uses parameterized `$1` placeholders ✅, but `$queryRawUnsafe` is still riskier than `$queryRaw` with tagged templates |
+| **Sensitive info in error responses** | 🟡 Medium | [auth.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js) returns `checkedVariants` and `requiredPermissions` in 403 responses — leaks internal permission naming to attackers |
+| **Dev secret fallback** | 🟡 Medium | [app.config.js:14](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/config/app.config.js#L14) — `'dev-only-insecure-secret'` fallback in JWT config. Fail-fast check exists for production, but development mode still uses a guessable static secret |
+| **No request body size limits** | 🟡 Medium | [server.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/server.js) uses `express.json()` and `express.urlencoded()` without explicit body size limits |
+| **Password policy too weak** | 🟢 Low | [validators.js:16-18](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/validators.js#L16-L18) — Only requires 8 chars with one letter and one number. No uppercase/special char requirement. |
+
+---
+
+## ⚡ Performance Analysis
+
+### ✅ Smart Optimizations Already Present
+- **Raw SQL** for [getEventStatistics](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js#1143-1259) — avoids N+1 and over-fetching
+- **`Promise.all`** for parallelizing independent queries (used consistently in [team.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js), [registration.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js), [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js))
+- **Redis caching** with event-specific TTLs and proper invalidation
+- **Lean queries** with `select` to minimize data transfer
+- **`buildVisibilityFilter`** pushes filtering to the database layer
+
+### ⚠️ Anti-Patterns
+
+| Issue | Location | Impact |
+|-------|----------|--------|
+| **Sequential N+1 in transaction** | [registration.service.js:433-457](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js#L433-L457) — Loops through `EventCustomField` array and does individual `upsert` per field inside a transaction | Medium — could use `createMany` or batch upsert |
+| **Repeated event lookups** | Every function resolves `eventId` separately, even when called from the same request flow | Medium — a request touching payment → team → registration does 3 separate event lookups |
+| **No pagination on team queries** | [team.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js) — [getTeamsLookingForMembers](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/team.service.js#1044-1165) fetches all teams without cursor or pagination | Medium for popular events |
+| **[generateRegistrationId](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#38-69) race condition** | [eventHelpers.js:46-68](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#L46-L68) — Comment says "atomic" but uses `SELECT MAX + 1` pattern without database-level locking | High under concurrent registrations — two requests can get the same ID |
+
+---
+
+## 🧪 Testing Readiness: **40/100** 🔴
+
+| Criterion | Status | Details |
+|-----------|--------|---------|
+| Pure functions | ✅ Partial | [computeDiscount](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/coupon.service.js#11-41), [toPaise](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js#48-52), [generateQRCode](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/qrCodeGenerator.js#10-24), [sanitizeHtml](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/validators.js#26-41), [sanitizeSponsors](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/validators.js#42-63) — testable |
+| Service isolation | ❌ | All services import [prisma](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/chema%20loaded%20from%20prismaschema.prisma) directly — impossible to unit test without mocking the module system |
+| Controller-service boundary | ✅ Partial | Controllers delegate to services — good separation for integration tests |
+| Mock-friendly DI | ❌ | No dependency injection — [require()](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#251-314) coupling everywhere |
+| Existing tests | ❌ | **Zero test files found** — no `__tests__`, no `.test.js`, no `.spec.js` |
+| Side-effect-free functions | ✅ Partial | [formatEventResponse](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#369-481), [resolveSponsorData](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#270-303), [resolveResourceData](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#304-351) — pure, testable |
+
+> [!CAUTION]
+> **Zero automated tests exist.** For a system handling payments (Razorpay), user data, and university events for 25k users, this is a **critical risk**. A single untested refactor could break payment flows or duplicate charges.
+
+---
+
+## 📖 Documentation Quality
+
+### ✅ Good
+- **JSDoc comments** on most functions in [eventHelpers.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js), [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js), [auth.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js)
+- **Module-level docblocks** at the top of most files explaining purpose
+- **Inline comments** explaining business logic (e.g., paid vs free event registration flow)
+- **Constants file** with clear naming and grouping
+- [asyncHandler.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/utils/asyncHandler.js) has an `@example` JSDoc block ✅
+
+### ⚠️ Missing
+- **No README** for the event management module — no setup instructions, API docs, or architecture overview
+- **No API documentation** (Swagger/OpenAPI) — 60+ endpoints without schema documentation
+- **No inline comments for raw SQL** — the 50+ line raw SQL in [getEventStatistics](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js#1143-1259) has no column explanations
+- Several inline [require()](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#251-314) calls with no explanation (e.g., [registration.service.js:244](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js#L244))
+
+---
+
+## 🧹 DRY / KISS Assessment: **55/100**
+
+### DRY Violations
+
+1. **Event resolution** (`findFirst` with `OR: [{ id }, { eventId }]`) — duplicated 20+ times instead of using [getEventLean](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#70-90)
+2. **Permission checking** — [checkPermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#503-601) and [checkAnyPermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#602-694) share ~80% identical code, with the chairperson check copy-pasted between them
+3. **[checkIprFilePermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#378-440) and [checkResearchFilePermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#441-495)** in [auth.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js) — nearly identical functions (~50 lines each) that differ only in permission names and error messages. Should be a single parameterized function.
+4. **UUID detection regex** — duplicated in [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js) lines 313 and 547
+5. **Formatting patterns** — `profile?.displayName || \`${profile?.firstName} ${profile?.lastName}\`.trim()` appears in 4+ locations
+
+### KISS Violations
+
+1. **Registration status re-export chain:** [event.constants.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/constants/event.constants.js) → imported by [registration.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/registration.service.js) → re-exported → imported by [payment.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/payment.service.js). Just import from constants directly.
+2. **[formatEventResponse](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#369-481)** at 103 lines manually maps 50+ fields. A simpler approach: allow-list with spread operator or schema-driven serialization.
+
+---
+
+## 🏗️ Refactored File Structure Suggestion
+
+```diff
+ backend/src/modules/event-management/
+ ├── controllers/
+-│   ├── event.controller.js        (869 lines — doing too much)
++│   ├── event.controller.js        (list, get, update, publish)
++│   ├── eventRegistration.controller.js  (register, getRegistrations, filters)
++│   ├── eventStats.controller.js   (statistics, reports)
+ │   ├── feedback.controller.js
+ │   ├── payment.controller.js
+ │   ├── stall.controller.js
+ │   ├── team.controller.js
++│   └── volunteer.controller.js    (assign, get, activity)
+ ├── services/
+-│   ├── event.service.js           (1279 lines — God Service)
++│   ├── event-crud.service.js      (create, update, publish, get)
++│   ├── event-listing.service.js   (list with filters/visibility)
++│   ├── event-stats.service.js     (statistics with raw SQL)
++│   ├── event-cache.service.js     (cache read/write/invalidation)
+ │   ├── registration.service.js
+ │   ├── team.service.js
+ │   ├── payment.service.js
+ │   ├── coupon.service.js
+ │   └── volunteer.service.js
+ ├── routes/
+-│   ├── event.routes.js            (624 lines — everything in one file)
++│   ├── event.routes.js            (core event endpoints)
++│   ├── registration.routes.js     (registration, custom fields)
++│   ├── team.routes.js             (team management)
++│   ├── payment.routes.js          (payment endpoints)
++│   ├── stall.routes.js            (stall management)
++│   └── index.js                   (mounts all sub-routers)
+ ├── validators/
+ ├── utils/
++│   ├── eventResolver.js           (centralized event lookup — DRY)
++│   └── uuidHelper.js              (isUUID, resolveId patterns)
+ └── constants/
+```
+
+---
+
+## 🎯 Top 10 Concrete Improvement Recommendations
+
+| # | Priority | Recommendation | Effort | Impact |
+|---|----------|----------------|--------|--------|
+| 1 | 🔴 Critical | **Add automated tests** — Start with payment.service.js (financial risk) and auth.js (security risk) | High | Very High |
+| 2 | 🔴 Critical | **Replace regex HTML sanitizer** with `sanitize-html` or `DOMPurify` — current regex is bypassable | Low | High |
+| 3 | 🟡 High | **Extract event resolution** into shared helper — eliminate 20+ copy-pasted `findFirst` calls | Medium | High |
+| 4 | 🟡 High | **Split [event.service.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/services/event.service.js)** (1279 lines) into 4-5 focused services | Medium | High |
+| 5 | 🟡 High | **Split [event.routes.js](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/routes/event.routes.js)** (624 lines) into sub-routers by domain (teams, payments, stalls) | Low | Medium |
+| 6 | 🟡 High | **Add request body size limits** to `express.json()` — prevent DoS via large payloads | Low | Medium |
+| 7 | 🟡 High | **Fix [generateRegistrationId](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/modules/event-management/utils/eventHelpers.js#38-69) race condition** — use database sequence or `RETURNING` clause | Medium | High |
+| 8 | 🟢 Medium | **Merge [checkIprFilePermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#378-440) + [checkResearchFilePermission](file:///c:/Users/anwee/Desktop_1/Learning-Season/SGT_1v/Sgt-Ums/backend/src/shared/middleware/auth.js#441-495)** into one parameterized function | Low | Low |
+| 9 | 🟢 Medium | **Remove dead code** — `validateRegistration`, `EMAIL_REGEX`, unused function parameters | Low | Low |
+| 10 | 🟢 Medium | **Add Swagger/OpenAPI docs** for the 60+ endpoints | Medium | Medium |
+
+---
+
+## 🏁 Final Verdict
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                    OVERALL GRADE: B−                        ║
+║                    SCORE: 72/100                            ║
+╠══════════════════════════════════════════════════════════════╣
+║  STRENGTHS:                                                 ║
+║  ✅ Clean error hierarchy (AppError subclasses)             ║
+║  ✅ asyncHandler eliminates try-catch boilerplate           ║
+║  ✅ Smart performance wins (raw SQL, Promise.all, caching)  ║
+║  ✅ Proper payment security (HMAC-SHA256 verification)      ║
+║  ✅ Good separation: controllers → services → helpers       ║
+║  ✅ Transaction usage for atomic operations                 ║
+║  ✅ Idempotency checks in payment flows                     ║
+║                                                             ║
+║  WEAKNESSES:                                                ║
+║  ❌ Zero automated tests — critical for payment system      ║
+║  ❌ God Services (1000+ line files with 10+ responsibilities)║
+║  ❌ Massive DRY violations (event lookup × 20, permission ×6)║
+║  ❌ No dependency injection — untestable service layer      ║
+║  ❌ Regex-based HTML sanitization — security vulnerability   ║
+║  ❌ Registration ID race condition under concurrency         ║
+║  ❌ 624-line monolithic route file                           ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**Bottom line:** The code works and handles complex business logic (team events, payments, coupons) competently. The architecture shows growth from a thoughtful developer. But the technical debt — especially the lack of tests and file size bloat — will become **increasingly painful** as the system scales. **Prioritize: tests → split God services → fix the HTML sanitizer.**

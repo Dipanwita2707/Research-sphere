@@ -6,6 +6,7 @@
 
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
+const prisma = require('../../../shared/config/database');
 const eventService = require('../services/event.service');
 const { formatEventResponse } = require('../utils/eventHelpers');
 const { canUserSeeEvent, assertEventOwner } = require('../services/eventSettings.service');
@@ -229,8 +230,6 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
   const isExport = req.query.export === 'true';
   const pageNum = isExport ? 1 : (parseInt(page) || 1);
   const limitNum = isExport ? undefined : Math.min(parseInt(limit) || 20, 100);
-  
-  const prisma = require('../../../shared/config/database');
 
   // ── Build WHERE clause ──────────────────────────────────────
   const where = { eventId: id };
@@ -460,8 +459,6 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
   // Lightweight ownership check instead of full getEventDetails
   await assertEventOwner(eventId, userId);
 
-  const prisma = require('../../../shared/config/database');
-
   const registration = await prisma.eventRegistration.findFirst({
     where: { id: regId, eventId },
     include: {
@@ -650,8 +647,6 @@ const getRegistrationFilterOptions = asyncHandler(async (req, res) => {
   // Lightweight ownership check instead of full getEventDetails
   await assertEventOwner(id, userId);
 
-  const prisma = require('../../../shared/config/database');
-
   // Use raw SQL DISTINCT queries instead of loading 5000+ users into memory
   // NOTE: Table/column names use @@map values from schema (snake_case), not Prisma model names
   const [roles, genders, schools, departments, programs, passOutYears] = await Promise.all([
@@ -754,7 +749,6 @@ const getEventVolunteers = asyncHandler(async (req, res) => {
   await assertEventOwner(id, userId);
   
   // Fetch volunteers directly instead of loading entire event
-  const prisma = require('../../../shared/config/database');
   const rawVolunteers = await prisma.eventVolunteer.findMany({
     where: { eventId: id },
     include: {
