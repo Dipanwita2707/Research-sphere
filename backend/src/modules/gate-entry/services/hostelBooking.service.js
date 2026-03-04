@@ -279,6 +279,16 @@ class HostelBookingService {
             include: {
               hostel: true
             }
+          },
+          gate_pass: {
+            select: {
+              pass_id       : true,
+              visitor_name  : true,
+              mobile_number : true,
+              email         : true,
+              qr_code       : true,
+              verification_code: true
+            }
           }
         }
       });
@@ -305,7 +315,7 @@ class HostelBookingService {
         include: {
           gate_pass: {
             select: {
-              created_by_user_id: true
+              created_by_id: true
             }
           }
         }
@@ -326,7 +336,7 @@ class HostelBookingService {
       });
       
       const isAdmin = user?.role?.toLowerCase() === 'admin';
-      const isCreator = booking.gate_pass?.created_by_user_id === verifiedByUserId;
+      const isCreator = booking.gate_pass?.created_by_id === verifiedByUserId;
       
       if (!isAdmin && !isCreator) {
         throw new Error('Only the pass creator or admin can confirm payment');
@@ -344,6 +354,16 @@ class HostelBookingService {
           room: {
             include: {
               hostel: true
+            }
+          },
+          gate_pass: {
+            select: {
+              pass_id      : true,
+              visitor_name : true,
+              mobile_number: true,
+              email        : true,
+              qr_code      : true,
+              verification_code: true
             }
           }
         }
