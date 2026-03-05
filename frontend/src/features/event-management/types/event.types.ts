@@ -201,9 +201,11 @@ export interface Event {
   autoApproveTeams?: boolean;
 
   // Registration Control Settings
+  autoApproveRegistration?: boolean;
   registrationCap?: number;
   showParticipantsPublicly?: boolean;
   allowWithdrawRegistration?: boolean;
+  allowEditAfterSubmission?: boolean;
   lockTeamAfterDeadline?: boolean;
 
   // Team Discovery Settings

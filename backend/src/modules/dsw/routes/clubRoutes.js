@@ -108,4 +108,13 @@ router.get(
   auditController.getClubAuditLogs,
 );
 
+// Get events linked to this club
+router.get(
+  "/:clubId/events",
+  protect,
+  canViewClub,
+  validateClubId,
+  clubController.getClubEvents,
+);
+
 module.exports = router;

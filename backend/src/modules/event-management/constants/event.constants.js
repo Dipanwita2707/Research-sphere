@@ -29,6 +29,8 @@ const PAYMENT_TYPE = {
   PAID: 'paid',
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const REGISTRATION_STATUS = {
   DRAFT: 'draft',
   PENDING: 'pending',
@@ -105,4 +107,5 @@ module.exports = {
   ERRORS,
   RAZORPAY_CAPTURE_CONFIG,
   PUBLIC_RATE_LIMIT,
+  EMAIL_REGEX,
 };

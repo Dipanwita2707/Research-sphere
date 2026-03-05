@@ -18,7 +18,8 @@ router.post('/club-creation', canCreateClubNoting, validateClubCreation, notingC
 // Create Club Change Request Noting
 router.post('/club-change/:clubId', canRequestClubChange, validateClubChangeRequest, notingController.createClubChangeRequestNoting);
 
-// Process approved noting (internal/webhook)
-router.post('/process-approval', notingController.processApprovedNoting);
+// Process approved noting (internal/webhook) — requires authentication
+const { protect } = require('../../../shared/middleware/auth');
+router.post('/process-approval', protect, notingController.processApprovedNoting);
 
 module.exports = router;

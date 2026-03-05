@@ -4,6 +4,7 @@
  */
 
 const Redis = require('ioredis');
+const log = require('../utils/logger');
 
 // Redis configuration - REDIS_URL takes precedence, else use individual vars
 const redisConfig = process.env.REDIS_URL
@@ -37,8 +38,23 @@ let isConnected = false;
 let connectionAttempted = false;
 
 // In-memory fallback cache when Redis is unavailable
+const MAX_MEMORY_CACHE_SIZE = 1000; // Prevent unbounded growth
 const memoryCache = new Map();
 const memoryCacheTTL = new Map();
+
+/** Evict oldest entries when memory cache exceeds limit */
+function _evictIfNeeded() {
+  if (memoryCache.size <= MAX_MEMORY_CACHE_SIZE) return;
+  // Delete the oldest 10% of entries (FIFO via Map insertion order)
+  const toDelete = Math.ceil(MAX_MEMORY_CACHE_SIZE * 0.1);
+  let count = 0;
+  for (const key of memoryCache.keys()) {
+    if (count >= toDelete) break;
+    memoryCache.delete(key);
+    memoryCacheTTL.delete(key);
+    count++;
+  }
+}
 
 /**
  * Initialize Redis connection
@@ -53,7 +69,7 @@ const initRedis = async () => {
       : new Redis(redisConfig);
 
     redis.on('connect', () => {
-      console.log('[SUCCESS] Redis connected successfully');
+      log.ok('Redis connected successfully');
       isConnected = true;
     });
 
@@ -61,7 +77,7 @@ const initRedis = async () => {
     redis.on('error', (err) => {
       // Only log first few errors to reduce spam
       if (errorCount < 3) {
-        console.warn('⚠️ Redis connection error (using memory cache fallback):', err.message);
+        log.warn('Redis connection error (using memory cache fallback):', err.message);
         errorCount++;
       }
       isConnected = false;
@@ -69,7 +85,7 @@ const initRedis = async () => {
 
     redis.on('close', () => {
       if (errorCount < 3) {
-        console.warn('⚠️ Redis connection closed, using memory fallback');
+        log.warn('Redis connection closed, using memory fallback');
       }
       isConnected = false;
     });
@@ -83,7 +99,7 @@ const initRedis = async () => {
     ]);
     return redis;
   } catch (error) {
-    console.warn('⚠️ Redis not available, using in-memory cache fallback');
+    log.warn('Redis not available, using in-memory cache fallback');
     isConnected = false;
     return null;
   }
@@ -161,7 +177,7 @@ const get = async (key) => {
     }
     return memoryCache.get(key) || null;
   } catch (error) {
-    console.error('Cache get error:', error.message);
+    log.error('Cache get error:', error.message);
     return null;
   }
 };
@@ -176,13 +192,14 @@ const set = async (key, value, ttlSeconds = 300) => {
     if (isConnected && redis) {
       await redis.setex(key, ttlSeconds, serialized);
     } else {
-      // Memory fallback
+      // Memory fallback with eviction
       memoryCache.set(key, value);
       memoryCacheTTL.set(key, Date.now() + (ttlSeconds * 1000));
+      _evictIfNeeded();
     }
     return true;
   } catch (error) {
-    console.error('Cache set error:', error.message);
+    log.error('Cache set error:', error.message);
     return false;
   }
 };
@@ -199,7 +216,7 @@ const del = async (key) => {
     memoryCacheTTL.delete(key);
     return true;
   } catch (error) {
-    console.error('Cache delete error:', error.message);
+    log.error('Cache delete error:', error.message);
     return false;
   }
 };
@@ -232,7 +249,7 @@ const delPattern = async (pattern) => {
     }
     return true;
   } catch (error) {
-    console.error('Cache pattern delete error:', error.message);
+    log.error('Cache pattern delete error:', error.message);
     return false;
   }
 };
@@ -249,7 +266,7 @@ const flush = async () => {
     memoryCacheTTL.clear();
     return true;
   } catch (error) {
-    console.error('Cache flush error:', error.message);
+    log.error('Cache flush error:', error.message);
     return false;
   }
 };
@@ -278,7 +295,7 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
     
     return { data, fromCache: false };
   } catch (error) {
-    console.error('Cache getOrSet error:', error.message);
+    log.error('Cache getOrSet error:', error.message);
     // On error, try to fetch directly
     const data = await fetchFn();
     return { data, fromCache: false };

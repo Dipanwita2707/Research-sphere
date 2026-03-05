@@ -990,7 +990,7 @@ export default function TeamManagementPage() {
                         </h3>
                         <div className="grid grid-cols-1 gap-3">
                           {myTeam.members?.map((member) => {
-                            const maxSize = eventSettings?.maxTeamSize || myTeam?.maxSize;
+                            const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
                             const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
                             const isLocked = isRegistrationConfirmed; // Don't lock removal at max capacity, only when confirmed
                             
@@ -1010,7 +1010,7 @@ export default function TeamManagementPage() {
 
                     {/* Invite Section - hidden when team is locked (max capacity or registration confirmed) */}
                     {(() => {
-                      const maxSize = eventSettings?.maxTeamSize || myTeam?.maxSize;
+                      const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
                       const currentSize = myTeam?.members?.length || 0;
                       const isAtMaxCapacity = maxSize && currentSize >= maxSize;
                       const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
@@ -1388,7 +1388,7 @@ export default function TeamManagementPage() {
               <div className="p-4 min-h-[300px] max-h-[500px] overflow-y-auto custom-scrollbar">
                 {/* Locked state - Two conditions: 1) Team at max capacity OR 2) Registration confirmed */}
                 {(() => {
-                  const maxSize = eventSettings?.maxTeamSize || myTeam?.maxSize;
+                  const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
                   const currentSize = myTeam?.members?.length || 0;
                   const isAtMaxCapacity = maxSize && currentSize >= maxSize;
                   const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);

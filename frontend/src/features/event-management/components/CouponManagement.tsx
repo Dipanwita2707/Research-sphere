@@ -341,7 +341,7 @@ const CouponCard: React.FC<{
   };
 
   const isExpired = coupon.expiresAt && new Date(coupon.expiresAt) < new Date();
-  const isExhausted = coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses;
+  const isExhausted = coupon.maxUses != null && coupon.usedCount >= coupon.maxUses!;
   const statusLabel = !coupon.isActive ? 'Inactive' : isExpired ? 'Expired' : isExhausted ? 'Exhausted' : 'Active';
   const statusColor = !coupon.isActive || isExpired || isExhausted
     ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-900/40'

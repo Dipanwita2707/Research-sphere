@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -132,6 +132,11 @@ export default function EventManagementPage() {
   const [volunteerRole, setVolunteerRole] = useState('');
   const [assignedGate, setAssignedGate] = useState('');
   const [canScanQr, setCanScanQr] = useState(false);
+
+  // Club Members State (for quick volunteer assignment from club)
+  const [clubInfo, setClubInfo] = useState<{ id: string; clubId: string; name: string } | null>(null);
+  const [clubMembers, setClubMembers] = useState<{ id: string; uid: string; email: string; name: string; alreadyAssigned: boolean }[]>([]);
+  const [clubMembersLoading, setClubMembersLoading] = useState(false);
 
   // Stall Management State
   const [stallApplications, setStallApplications] = useState<StallApplication[]>([]);
@@ -461,6 +466,14 @@ export default function EventManagementPage() {
     try {
       setLoading(true);
       const eventData = await eventService.getEventById(eventId);
+
+      // ── Security: block users who cannot manage this event ──
+      if (!(eventData as any).canManage) {
+        toast({ type: 'error', message: 'You do not have permission to manage this event' });
+        router.replace('/events');
+        return;
+      }
+
       setEvent(eventData);
 
       // Load stats and volunteers in parallel - stats may fail for draft events
@@ -562,6 +575,30 @@ export default function EventManagementPage() {
     });
   }, [statistics]);
 
+  // ── Club Members Loader (for quick volunteer pick) ─────────────
+  const loadClubMembers = useCallback(async () => {
+    if (!eventId) return;
+    try {
+      setClubMembersLoading(true);
+      const data = await eventService.getClubMembers(eventId);
+      setClubInfo(data.club);
+      setClubMembers(data.members);
+    } catch {
+      // silently ignore — event may not be a club event
+      setClubInfo(null);
+      setClubMembers([]);
+    } finally {
+      setClubMembersLoading(false);
+    }
+  }, [eventId]);
+
+  // Load club members when volunteer tab opens (and event has a club)
+  useEffect(() => {
+    if (activeTab === 'volunteers' && event && (event as any).club) {
+      loadClubMembers();
+    }
+  }, [activeTab, event, loadClubMembers]);
+
   // ── Volunteer Management Functions ────────────────────────────
   const handleSearchUsers = async (query: string) => {
     if (!query.trim() || query.length < 2) {
@@ -623,9 +660,10 @@ export default function EventManagementPage() {
       setAssignedGate('');
       setCanScanQr(false);
 
-      // Reload volunteers
+      // Reload volunteers and club members (alreadyAssigned flag)
       const volunteersData = await eventService.getVolunteers(eventId);
       setVolunteers(volunteersData);
+      if (clubInfo) loadClubMembers();
     } catch (error: any) {
       toast({
         type: 'error',
@@ -646,6 +684,7 @@ export default function EventManagementPage() {
       toast({ type: 'success', message: 'Volunteer removed successfully' });
       const volunteersData = await eventService.getVolunteers(eventId);
       setVolunteers(volunteersData);
+      if (clubInfo) loadClubMembers();
     } catch (error: any) {
       toast({
         type: 'error',
@@ -954,19 +993,19 @@ export default function EventManagementPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleShowFeedbackQR}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                 title="Feedback QR Code"
               >
                 <QrCode className="w-4 h-4" />
-                Feedback QR
+                <span className="hidden sm:inline">Feedback QR</span>
               </button>
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh
@@ -975,24 +1014,24 @@ export default function EventManagementPage() {
                 <>
                   <button
                     onClick={handleExportCSV}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors"
                   >
                     <Download className="w-4 h-4" />
-                    Export CSV
+                    <span className="hidden sm:inline">Export CSV</span>
                   </button>
                   <button
                     onClick={() => setShowEmailSlider(true)}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                   >
                     <Mail className="w-4 h-4" />
-                    Email
+                    <span className="hidden sm:inline">Email</span>
                   </button>
                   <button
                     onClick={() => toast({ type: 'info', message: 'Certificate feature coming soon' })}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                    className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                   >
                     <Award className="w-4 h-4" />
-                    Certificate
+                    <span className="hidden sm:inline">Certificate</span>
                   </button>
                 </>
               )}
@@ -1593,8 +1632,8 @@ export default function EventManagementPage() {
                           </span>
                           {formatPayment(reg)}
                           {reg.hasEntered
-                            ? <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" title="Attended" />
-                            : <XCircle className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" title="Not attended" />
+                            ? <span title="Attended"><CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" /></span>
+                            : <span title="Not attended"><XCircle className="w-4 h-4 text-gray-300 dark:text-gray-600 flex-shrink-0" /></span>
                           }
                         </div>
                       </div>
@@ -1704,8 +1743,8 @@ export default function EventManagementPage() {
                       </h3>
                       {regLoading && <Loader2 className="w-4 h-4 animate-spin text-sgt-600" />}
                     </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
+                    <div className="overflow-x-auto -mx-1">
+                      <table className="w-full min-w-[900px]">
                         <thead className="bg-gray-50 dark:bg-gray-700/50">
                           <tr>
                             <th className="w-10 px-4 py-3">
@@ -1821,12 +1860,12 @@ export default function EventManagementPage() {
 
                     {/* Pagination */}
                     {regPagination && regPagination.totalPages > 1 && (
-                      <div className="px-5 py-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                      <div className="px-3 sm:px-5 py-3 border-t border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row items-center justify-between gap-2">
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           Showing {((regPagination.page - 1) * regPagination.limit) + 1}–{Math.min(regPagination.page * regPagination.limit, regPagination.total)} of {regPagination.total}
                         </p>
                         <div className="flex items-center gap-1">
-                          <button type="button" disabled={regPagination.page <= 1} onClick={() => handleRegPageChange(regPagination.page - 1)} className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Previous</button>
+                          <button type="button" disabled={regPagination.page <= 1} onClick={() => handleRegPageChange(regPagination.page - 1)} className="px-3 py-1.5 min-h-[36px] text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Prev</button>
                           {Array.from({ length: Math.min(regPagination.totalPages, 5) }, (_, i) => {
                             let pageNum: number;
                             if (regPagination.totalPages <= 5) { pageNum = i + 1; }
@@ -1852,7 +1891,73 @@ export default function EventManagementPage() {
         {activeTab === 'volunteers' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Assign New Volunteer Form */}
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-5">
+
+              {/* ── Club Members Quick Pick ────────────────────────── */}
+              {clubInfo && (
+                <div className={`${CARD} overflow-hidden`}>
+                  <div className="bg-gradient-to-r from-emerald-500 to-teal-600 px-5 py-3">
+                    <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      {clubInfo.name} Members
+                    </h3>
+                    <p className="text-xs text-white/80 mt-0.5">Quick-select from club volunteers</p>
+                  </div>
+                  <div className="p-4">
+                    {clubMembersLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
+                        <span className="ml-2 text-sm text-gray-500">Loading members...</span>
+                      </div>
+                    ) : clubMembers.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No active club members found</p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {clubMembers.map((member) => (
+                          <button
+                            key={member.id}
+                            disabled={member.alreadyAssigned}
+                            onClick={() => {
+                              if (!member.alreadyAssigned) {
+                                setSelectedUserId(member.id);
+                                setSelectedUserName(member.name);
+                                setVolunteerSearchQuery('');
+                                setSearchResults([]);
+                              }
+                            }}
+                            className={`w-full flex items-center gap-3 p-2.5 rounded-lg border text-left transition-all ${
+                              member.alreadyAssigned
+                                ? 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 opacity-60 cursor-not-allowed'
+                                : selectedUserId === member.id
+                                  ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-600 ring-1 ring-emerald-400'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10'
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                {member.name}
+                                {member.uid && <span className="text-gray-400 font-normal ml-1">({member.uid})</span>}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{member.email}</p>
+                            </div>
+                            {member.alreadyAssigned ? (
+                              <span className="flex-shrink-0 px-2 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full">
+                                Assigned
+                              </span>
+                            ) : selectedUserId === member.id ? (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                            ) : (
+                              <Plus className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Assign Volunteer Form Card ─────────────────────── */}
               <div className={`${CARD} overflow-hidden sticky top-24`}>
                 <div className="bg-gradient-to-r from-sgt-500 to-indigo-600 px-5 py-3">
                   <h3 className="text-base font-semibold text-white flex items-center gap-2">
@@ -1864,9 +1969,11 @@ export default function EventManagementPage() {
                   {/* User Search */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Search Student <span className="text-red-500">*</span>
+                      {clubInfo ? 'Or Search Any Student' : 'Search Student'} <span className="text-red-500">*</span>
                     </label>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Students only</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      {clubInfo ? 'Select from club above or search here' : 'Students only'}
+                    </p>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       <input
@@ -2041,8 +2148,12 @@ export default function EventManagementPage() {
                                 <h4 className="text-base font-semibold text-gray-900 dark:text-white group-hover:text-sgt-600 dark:group-hover:text-sgt-400 transition-colors">
                                   {volunteer.user?.name || 'Unknown User'}
                                 </h4>
-                                <span className="px-2 py-1 bg-sgt-100 text-sgt-800 dark:bg-sgt-900/30 dark:text-sgt-300 rounded-full text-xs font-medium">
-                                  {volunteer.role}
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  volunteer.role === 'event_manager'
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                                    : 'bg-sgt-100 text-sgt-800 dark:bg-sgt-900/30 dark:text-sgt-300'
+                                }`}>
+                                  {volunteer.role === 'event_manager' ? '👑 Event Manager' : volunteer.role}
                                 </span>
                                 <span className="text-xs text-gray-500 dark:text-gray-400 group-hover:text-sgt-600 dark:group-hover:text-sgt-400">
                                   View activity →
@@ -2079,13 +2190,15 @@ export default function EventManagementPage() {
                                 </div>
                               </div>
                             </div>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleRemoveVolunteer(volunteer.id); }}
-                              className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                              title="Remove volunteer"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
+                            {volunteer.role !== 'event_manager' && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleRemoveVolunteer(volunteer.id); }}
+                                className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                title="Remove volunteer"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}

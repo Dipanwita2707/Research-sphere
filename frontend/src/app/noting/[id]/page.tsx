@@ -35,6 +35,8 @@ import { notingService } from "@/features/noting-management/services/noting.serv
 import {
   useNote,
   useNotingPermissions,
+  useMyManager,
+  useSearchEmployees,
   useApproveNote,
   useRejectNote,
   useRevertNote,
@@ -59,14 +61,14 @@ const CopySharingSection = dynamic(() => import("./components/CopySharingSection
 function getDisplayName(
   obj:
     | {
-        uid?: string;
-        employeeDetails?: {
-          displayName?: string;
-          firstName?: string;
-          lastName?: string;
-        };
-        studentLogin?: { displayName?: string };
-      }
+      uid?: string;
+      employeeDetails?: {
+        displayName?: string;
+        firstName?: string;
+        lastName?: string;
+      };
+      studentLogin?: { displayName?: string };
+    }
     | null
     | undefined,
 ): string {
@@ -108,11 +110,23 @@ export default function NoteDetailPage() {
   const {
     data: note,
     isLoading: loading,
+    error: noteError,
   } = useNote(id);
   const {
     data: notingPerms,
     isLoading: permsLoading,
   } = useNotingPermissions();
+
+  // ── Security: redirect if user has no access to this noting ──
+  useEffect(() => {
+    if (noteError) {
+      const status = (noteError as any)?.response?.status;
+      if (status === 403) {
+        toast({ type: 'error', message: 'You do not have access to this noting' });
+        router.push('/noting');
+      }
+    }
+  }, [noteError, router, toast]);
 
   const [actionLoading, setActionLoading] = useState(false);
   const [actionType, setActionType] = useState<
@@ -130,39 +144,29 @@ export default function NoteDetailPage() {
     null,
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<
-    {
-      id: string;
-      uid: string;
-      role: string;
-      displayName: string;
-      empId: string;
-      department: string;
-      school: string;
-    }[]
-  >([]);
-  const [searchLoading, setSearchLoading] = useState(false);
+  // TanStack Query hook with built-in 500ms debounce + caching
+  const { data: searchResults = [], isLoading: searchLoading } = useSearchEmployees(
+    searchQuery,
+    { enabled: forwardMode === "manual" },
+  );
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
     uid: string;
     displayName: string;
     department: string;
   } | null>(null);
-  const [managerInfo, setManagerInfo] = useState<{
-    id: string;
-    uid: string;
-    displayName: string;
-    empId: string;
-    department: string;
-    school: string;
-  } | null>(null);
-  const [managerLoading, setManagerLoading] = useState(false);
+  // PERF FIX: Use TanStack Query hook instead of raw notingService.getMyManager().
+  // useMyManager has 5-min staleTime — switching between auto/manual forward modes
+  // no longer fires a fresh request each time.
+  const { data: managerInfo = null, isLoading: managerLoading } = useMyManager({ enabled: forwardMode === 'auto' });
 
-  // Block students from accessing noting system
+  // Block students without noting_create permission (chairpersons ARE allowed)
   useEffect(() => {
     if (
       user &&
-      (user.userType === "student" || user.role?.name === "student")
+      (user.userType === "student" || user.role?.name === "student") &&
+      notingPerms &&
+      !notingPerms.noting_create
     ) {
       toast({
         type: "error",
@@ -170,7 +174,7 @@ export default function NoteDetailPage() {
       });
       router.push("/dashboard");
     }
-  }, [user, router, toast]);
+  }, [user, notingPerms, router, toast]);
 
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
   const [viewingPath, setViewingPath] = useState<string | null>(null);
@@ -208,45 +212,13 @@ export default function NoteDetailPage() {
       setForwardUserId("");
       setForwardMode(null);
       setSearchQuery("");
-      setSearchResults([]);
       setSelectedUser(null);
     }
   }, [actionType]);
 
-  // Search employees with debounce
-  useEffect(() => {
-    if (forwardMode !== "manual" || searchQuery.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setSearchLoading(true);
-      try {
-        const results = await notingService.searchEmployees(searchQuery.trim());
-        setSearchResults(results);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, forwardMode]);
+  // Search is now handled by useSearchEmployees hook above (debounce + caching built-in)
 
-  // Fetch manager info when auto mode is selected
-  useEffect(() => {
-    if (forwardMode === "auto" && !managerInfo) {
-      setManagerLoading(true);
-      notingService
-        .getMyManager()
-        .then(setManagerInfo)
-        .catch((err) => {
-          toast({ type: "error", message: getErrorMessage(err) });
-          setManagerInfo(null);
-        })
-        .finally(() => setManagerLoading(false));
-    }
-  }, [forwardMode, managerInfo, toast]);
+  // Manager info now fetched by useMyManager hook above (enabled when forwardMode === 'auto')
 
   // ── Mutation hooks (replace manual notingService calls + manual re-fetch) ──
   const approveMutation = useApproveNote();
@@ -501,7 +473,7 @@ export default function NoteDetailPage() {
             <div className="flex items-center gap-2">
               <Link
                 href={`/noting/new?draft=${id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-sgt-600 text-white text-xs font-medium hover:bg-sgt-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md bg-sgt-600 text-white text-xs font-medium hover:bg-sgt-700 transition-colors"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 Edit
@@ -523,7 +495,7 @@ export default function NoteDetailPage() {
                       });
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
@@ -759,7 +731,7 @@ export default function NoteDetailPage() {
                 Details
               </h3>
               <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="grid grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
                   <div className="bg-white dark:bg-gray-800 p-3">
                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
                       Approval Period
@@ -795,13 +767,12 @@ export default function NoteDetailPage() {
                       Policy Compliance
                     </span>
                     <span
-                      className={`inline-flex items-center gap-1 text-sm font-medium mt-0.5 ${
-                        note.policyCompliant === true
+                      className={`inline-flex items-center gap-1 text-sm font-medium mt-0.5 ${note.policyCompliant === true
                           ? "text-emerald-700"
                           : note.policyCompliant === false
                             ? "text-red-700"
                             : "text-gray-400"
-                      }`}
+                        }`}
                     >
                       {note.policyCompliant === true ? (
                         <>
@@ -939,7 +910,7 @@ export default function NoteDetailPage() {
                       badgeBg = "bg-sgt-50 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300 ring-1 ring-sgt-200 dark:ring-sgt-700/50";
                     }
 
-                    const isLast = idx === note.history.length - 1;
+                    const isLast = idx === note.history!.length - 1;
                     const actionLabel = h.action
                       .replace(/_/g, " ")
                       .replace(/\b\w/g, (c: string) => c.toUpperCase());
@@ -980,11 +951,10 @@ export default function NoteDetailPage() {
                         {/* Right column: content card */}
                         <div className="flex-1 min-w-0 pb-5 pl-3">
                           <div
-                            className={`rounded-xl border transition-all duration-300 group-hover:shadow-md group-hover:-translate-y-[1px] ${
-                              isLast
+                            className={`rounded-xl border transition-all duration-300 group-hover:shadow-md group-hover:-translate-y-[1px] ${isLast
                                 ? "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm"
                                 : "bg-gray-50/80 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700/40"
-                            }`}
+                              }`}
                           >
                             <div className="p-3.5">
                               {/* Action badge + timestamp row */}
@@ -1080,7 +1050,7 @@ export default function NoteDetailPage() {
                   {actionType === "forward" && (
                     <div className="rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 p-3 space-y-2.5">
                       {/* Radio Options */}
-                      <div className="flex items-center gap-5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5">
                         <label className="flex items-center gap-1.5 cursor-pointer">
                           <input
                             type="radio"
@@ -1091,7 +1061,6 @@ export default function NoteDetailPage() {
                               setForwardUserId("");
                               setSelectedUser(null);
                               setSearchQuery("");
-                              setSearchResults([]);
                             }}
                             className="w-3.5 h-3.5 text-sgt-600 accent-sgt-600"
                           />
@@ -1108,7 +1077,6 @@ export default function NoteDetailPage() {
                               setForwardMode("manual");
                               setForwardUserId("");
                               setSelectedUser(null);
-                              setManagerInfo(null);
                             }}
                             className="w-3.5 h-3.5 text-sgt-600 accent-sgt-600"
                           />
@@ -1246,7 +1214,6 @@ export default function NoteDetailPage() {
                                     });
                                     setForwardUserId(u.id);
                                     setSearchQuery("");
-                                    setSearchResults([]);
                                   }}
                                   className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-left text-sm"
                                 >
@@ -1286,7 +1253,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                       >
                         {actionLoading && actionType === null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
@@ -1304,7 +1271,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                       >
                         {actionLoading && actionType === null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
@@ -1322,7 +1289,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                         title="Send back to creator for modifications"
                       >
                         {actionLoading && actionType === null ? (
@@ -1341,7 +1308,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                         title="Recommend and forward to next authority"
                       >
                         {actionLoading && actionType === null ? (
@@ -1360,7 +1327,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2 text-sm bg-rose-600 text-white rounded-md hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-rose-600 text-white rounded-md hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
                         title="Not recommend — reject with recommendation label"
                       >
                         {actionLoading && actionType === null ? (
@@ -1380,11 +1347,10 @@ export default function NoteDetailPage() {
                           )
                         }
                         disabled={actionLoading}
-                        className={`px-4 py-2 text-sm border rounded-md flex items-center gap-1.5 font-medium transition-colors disabled:opacity-50 ${
-                          actionType === "forward"
+                        className={`px-4 py-2.5 text-sm border rounded-md flex items-center gap-1.5 font-medium transition-colors disabled:opacity-50 ${actionType === "forward"
                             ? "bg-sgt-50 dark:bg-sgt-900/20 border-sgt-300 text-sgt-700 dark:text-sgt-300"
                             : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
-                        }`}
+                          }`}
                         title="Forward note"
                       >
                         <Send className="w-3.5 h-3.5" />
@@ -1401,7 +1367,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           !forwardUserId.trim()
                         }
-                        className="px-4 py-2 text-sm bg-sgt-600 text-white rounded-md hover:bg-sgt-700 disabled:opacity-50 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-sgt-600 text-white rounded-md hover:bg-sgt-700 disabled:opacity-50 font-medium transition-colors"
                       >
                         {actionLoading ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />

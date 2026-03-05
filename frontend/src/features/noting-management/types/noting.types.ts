@@ -68,6 +68,8 @@ export interface Note {
   eventCertification?: boolean | null;
   eventPrizesAwards?: { position: number; rank: string; title?: string; prizeType: string; prizeAmount?: number; additionalPerks?: string[]; sortOrder?: number }[] | null;
   notingEventType?: 'venue' | 'stall' | 'festival' | null;
+  /** Optional club association for event notings */
+  eventClubId?: string | null;
   stallConfig?: {
     enableStudentApplied: boolean;
     maxStudentStalls?: number;
@@ -246,4 +248,6 @@ export interface CreateNotePayload {
   points?: string[];
   attachments?: CreateNoteAttachmentPayload[];
   submit?: boolean;
+  /** Optional club association — when set, the club's chairperson auto-receives event management permissions */
+  eventClubId?: string | null;
 }

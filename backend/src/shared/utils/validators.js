@@ -37,7 +37,7 @@ const sanitizeHtml = (html) => {
       ...createSanitizeHtml.defaults.allowedAttributes,
       'img': ['src', 'alt', 'title', 'width', 'height'],
       'a': ['href', 'name', 'target', 'rel'],
-      '*': ['class', 'style'],
+      '*': ['class'],  // 'style' removed — CSS injection vector
     },
     allowedSchemes: ['http', 'https', 'mailto'],
     disallowedTagsMode: 'discard',

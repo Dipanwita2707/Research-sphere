@@ -15,16 +15,14 @@ const {
 } = require("../../../shared/utils/AppError");
 const { getEventLean } = require("../utils/eventHelpers");
 
-// ── Stall Feedback Criterion Labels ──────────────────────────────────────────
-const STALL_FEEDBACK_LABELS = [
-  'Overall Experience', 'Product / Food Quality', 'Pricing & Value',
-  'Staff Friendliness', 'Cleanliness', 'Presentation & Setup',
-  'Wait Time', 'Variety', 'Packaging', 'Would Recommend',
-];
+// ── Feedback now uses a single 1-10 rating (backwards compatible) ──────────
 
 /**
- * Submit event feedback (10 points 1-10 + short description)
+ * Submit event feedback (single rating 1-10 + optional short description)
  * Public - no auth required
+ *
+ * Accepts 1 rating (new simplified form) or 10 ratings (legacy) for backwards
+ * compatibility. The points array is stored as-is.
  *
  * @param {string} eventId - Event ID (UUID or eventId string)
  * @param {Object} data - { points: number[], shortDescription?: string }
@@ -34,14 +32,14 @@ const submitEventFeedback = async (eventId, { points, shortDescription }) => {
   const event = await getEventLean(prisma, eventId);
 
   const pts = Array.isArray(points) ? points : [];
-  if (pts.length !== 10) {
+  if (pts.length < 1 || pts.length > 10) {
     throw new ValidationError(
-      "Please provide exactly 10 ratings (1-10) for each point.",
+      "Please provide between 1 and 10 ratings (1-10).",
     );
   }
   const valid = pts.every((p) => typeof p === "number" && p >= 1 && p <= 10);
   if (!valid) {
-    throw new ValidationError("Each point must be a number between 1 and 10.");
+    throw new ValidationError("Each rating must be a number between 1 and 10.");
   }
 
   const feedback = await prisma.eventFeedback.create({
@@ -93,11 +91,11 @@ const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
       take: limit,
     }),
     prisma.eventFeedback.count({ where: { eventId } }),
-    // Use raw SQL to compute average of JSON array points in one pass
+    // Compute average rating across all feedback (handles variable-length points arrays)
     prisma.$queryRaw`
       SELECT COALESCE(
         AVG(
-          (SELECT SUM(val::float) / 10
+          (SELECT AVG(val::float)
            FROM jsonb_array_elements_text(points::jsonb) AS val)
         ), 0
       )::float AS "overallAvg"
@@ -154,8 +152,8 @@ const submitStallFeedback = async (eventId, stallId, { points, shortDescription 
   if (!stall) throw new NotFoundError('Stall not found');
 
   const pts = Array.isArray(points) ? points : [];
-  if (pts.length !== 10) {
-    throw new ValidationError('Please provide exactly 10 ratings (1-10) for each criterion.');
+  if (pts.length < 1 || pts.length > 10) {
+    throw new ValidationError('Please provide between 1 and 10 ratings (1-10).');
   }
   const valid = pts.every((p) => typeof p === 'number' && p >= 1 && p <= 10);
   if (!valid) throw new ValidationError('Each rating must be a number between 1 and 10.');
@@ -196,10 +194,11 @@ const getStallFeedback = async (eventId, stallId, userId, { page = 1, limit = 20
       take: limit,
     }),
     prisma.stallFeedback.count({ where: { stallId, eventId: event.id } }),
+    // Compute average rating (handles variable-length points arrays)
     prisma.$queryRaw`
       SELECT COALESCE(
         AVG(
-          (SELECT SUM(val::float) / 10
+          (SELECT AVG(val::float)
            FROM jsonb_array_elements_text(points::jsonb) AS val)
         ), 0
       )::float AS "overallAvg"
@@ -238,8 +237,8 @@ const getStallOwnerFeedback = async (eventId, stallId, userId, { page = 1, limit
 
   const where = { stallId, eventId: event.id };
 
-  // Fetch paginated items, count, and per-criterion averages via raw SQL
-  const [items, total, avgResult, perCriterionResult] = await Promise.all([
+  // Fetch paginated items, count, and overall average in parallel
+  const [items, total, avgResult] = await Promise.all([
     prisma.stallFeedback.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -247,44 +246,25 @@ const getStallOwnerFeedback = async (eventId, stallId, userId, { page = 1, limit
       take: limit,
     }),
     prisma.stallFeedback.count({ where }),
-    // Overall average
+    // Overall average (handles variable-length points arrays)
     prisma.$queryRaw`
       SELECT COALESCE(
         AVG(
-          (SELECT SUM(val::float) / 10
+          (SELECT AVG(val::float)
            FROM jsonb_array_elements_text(points::jsonb) AS val)
         ), 0
       )::float AS "overallAvg"
       FROM "stall_feedback"
       WHERE "stall_id" = ${stallId} AND "event_id" = ${event.id}
     `,
-    // Per-criterion averages via raw SQL
-    prisma.$queryRaw`
-      SELECT
-        idx,
-        COALESCE(AVG((points::jsonb->>idx::text)::float), 0)::float AS avg
-      FROM "stall_feedback",
-           generate_series(0, 9) AS idx
-      WHERE "stall_id" = ${stallId} AND "event_id" = ${event.id}
-      GROUP BY idx
-      ORDER BY idx
-    `,
   ]);
 
   const overallAvg = avgResult[0]?.overallAvg ?? 0;
 
-  const perCriterion = STALL_FEEDBACK_LABELS.map((label, i) => {
-    const row = perCriterionResult.find(r => r.idx === i);
-    return {
-      label,
-      avg: row ? Number(row.avg.toFixed(2)) : 0,
-    };
-  });
-
   return {
     feedback: items,
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    summary: { totalFeedback: total, overallAvg: Number(overallAvg.toFixed(2)), perCriterion },
+    summary: { totalFeedback: total, overallAvg: Number(overallAvg.toFixed(2)) },
   };
 };
 

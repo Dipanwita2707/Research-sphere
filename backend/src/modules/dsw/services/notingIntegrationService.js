@@ -1,4 +1,4 @@
-/**
+﻿/**
  * DSW Noting Integration Service
  * Handles integration between DSW and Noting system
  *
@@ -11,7 +11,7 @@
 const prisma = require("../../../shared/config/database");
 const clubService = require("./clubService");
 const { DSWNotingConfig } = require("../constants");
-const approvalFlowService = require("../../noting/services/approvalFlow.service");
+const log = require("../../../shared/utils/logger");
 
 /**
  * Process approved Club Creation noting
@@ -39,66 +39,9 @@ async function processApprovedClubCreationNoting(noting, approvedById) {
 
     return club;
   } catch (error) {
-    console.error("Error processing approved club creation noting:", error);
+    log.error("Error processing approved club creation noting:", error);
     throw error;
   }
-}
-
-/**
- * Extract club data from noting
- * @param {Object} noting - Noting object
- * @returns {Object} Club data
- */
-function extractClubDataFromNoting(noting) {
-  // The noting metadata should contain the club creation form data
-  const metadata = noting.metadata || {};
-
-  // Check if clubData is nested (new format from form)
-  const clubData = metadata.clubData || metadata;
-
-  // Validate required fields
-  const requiredFields = [
-    "clubName",
-    "clubCategoryId",
-    "purpose",
-    "academicSession",
-    "chairpersonId",
-    "targetStudentGroup",
-    "expectedActivityTypes",
-    "meetingFrequency",
-    "estimatedAnnualActivityCount",
-  ];
-
-  for (const field of requiredFields) {
-    if (!clubData[field]) {
-      throw new Error(`Missing required field in noting metadata: ${field}`);
-    }
-  }
-
-  // Extract and return club data (handle both naming conventions)
-  return {
-    name: clubData.clubName || clubData.name,
-    categoryId: clubData.clubCategoryId || clubData.categoryId,
-    purpose: clubData.purpose,
-    academicSession: clubData.academicSession,
-    facultyFacilitatorId: clubData.facultyFacilitatorId || noting.createdById,
-    chairpersonId: clubData.chairpersonId,
-    targetStudentGroup: clubData.targetStudentGroup,
-    expectedActivityTypes: clubData.expectedActivityTypes,
-    codeOfConductAccepted: clubData.codeOfConductAccepted === true,
-    antiDiscriminationAccepted: clubData.antiDiscriminationAccepted === true,
-    meetingFrequency: clubData.meetingFrequency,
-    estimatedAnnualActivityCount: parseInt(
-      clubData.estimatedAnnualActivityCount,
-    ),
-    proposedEmail: clubData.proposedEmail || null,
-    socialMediaHandles: clubData.socialMediaHandles || {},
-    expectedStudentStrength: clubData.expectedStudentStrength
-      ? parseInt(clubData.expectedStudentStrength)
-      : null,
-    initialMembers: clubData.initialMembers || [],
-    metadata: clubData.additionalMetadata || {},
-  };
 }
 
 /**
@@ -154,7 +97,7 @@ async function createClubCreationNoting(clubData, createdById) {
         str,
       );
 
-    // ── Parallel resolution of chairperson + facultyFacilitator ──────────────
+    // â”€â”€ Parallel resolution of chairperson + facultyFacilitator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Instead of sequential awaits we fire both lookups at the same time.
     const rawVcId = clubData.chairpersonId || null;
     const rawFfId = clubData.facultyFacilitatorId || null;
@@ -185,8 +128,8 @@ async function createClubCreationNoting(clubData, createdById) {
       chairpersonUuid = vcLookup.id;
     }
 
-    // ── Auto-assign submitting student as Chairperson if not provided ────────
-    // The create-club form does not have an explicit chairperson picker —
+    // â”€â”€ Auto-assign submitting student as Chairperson if not provided â”€â”€â”€â”€â”€â”€â”€â”€
+    // The create-club form does not have an explicit chairperson picker â€”
     // the student who submits the request IS the club chairperson.
     // Without this, noting.clubChairpersonId is NULL and createClubFromNoting
     // throws "Noting must have all required club fields", silently swallowed by
@@ -198,11 +141,11 @@ async function createClubCreationNoting(clubData, createdById) {
       });
       if (submitterDetails) {
         chairpersonUuid = submitterDetails.id;
-        console.log(
+        log.ok(
           `[createClubCreationNoting] Auto-assigned submitting student (${createdById}) as chairperson (studentDetails.id=${submitterDetails.id})`,
         );
       } else {
-        console.warn(
+        log.warn(
           `[createClubCreationNoting] Could not auto-assign chairperson: no studentDetails found for userLoginId=${createdById}`,
         );
       }
@@ -217,7 +160,7 @@ async function createClubCreationNoting(clubData, createdById) {
       facultyFacilitatorUuid = ffLookup.id;
     }
 
-    // ── Batch-resolve initial members (N+1 fix) ───────────────────────────────
+    // â”€â”€ Batch-resolve initial members (N+1 fix) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Separate the incoming list into already-UUIDs and UIDs that need lookup.
     let resolvedInitialMembers = [];
     if (
@@ -247,7 +190,7 @@ async function createClubCreationNoting(clubData, createdById) {
         // Warn for any that could not be resolved
         for (const uid of uidStrings) {
           if (!uidToIdMap.has(uid)) {
-            console.warn(
+            log.warn(
               `WARNING: Could not find Initial Member with UID ${uid}`,
             );
           }
@@ -360,11 +303,11 @@ async function createClubCreationNoting(clubData, createdById) {
       },
     });
 
-    console.log(
-      `✅ Club creation noting created: ${notingId} - ${clubData.name}`,
+    log.ok(
+      `âœ… Club creation noting created: ${notingId} - ${clubData.name}`,
     );
 
-    // Fetch creator info and create initial history entry in parallel —
+    // Fetch creator info and create initial history entry in parallel â€”
     // both depend only on the created noting, not on each other.
     let creatorInfo = createdById;
     const [creatorUser] = await Promise.all([
@@ -405,7 +348,7 @@ async function createClubCreationNoting(clubData, createdById) {
     }
 
     // Update the history remark with resolved creator display name
-    // (non-critical — best-effort update for readability)
+    // (non-critical â€” best-effort update for readability)
     if (creatorInfo !== createdById) {
       prisma.noteHistory.updateMany({
         where: { noteId: noting.id, action: "SUBMITTED" },
@@ -415,13 +358,13 @@ async function createClubCreationNoting(clubData, createdById) {
       }).catch(() => {}); // fire-and-forget
     }
 
-    console.log(
-      `✅ Noting assigned to Faculty Facilitator ${clubData.facultyFacilitatorId} - awaiting faculty action`,
+    log.ok(
+      `âœ… Noting assigned to Faculty Facilitator ${clubData.facultyFacilitatorId} - awaiting faculty action`,
     );
 
     return noting;
   } catch (error) {
-    console.error("Error creating club creation noting:", error);
+    log.error("Error creating club creation noting:", error);
     throw error;
   }
 }
@@ -540,7 +483,7 @@ async function createClubChangeRequestNoting(clubId, changeData, createdById) {
 
     return { noting, changeRequest };
   } catch (error) {
-    console.error("Error creating club change request noting:", error);
+    log.error("Error creating club change request noting:", error);
     throw error;
   }
 }
@@ -549,5 +492,4 @@ module.exports = {
   processApprovedClubCreationNoting,
   createClubCreationNoting,
   createClubChangeRequestNoting,
-  extractClubDataFromNoting,
 };

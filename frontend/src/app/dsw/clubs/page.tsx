@@ -90,7 +90,7 @@ export default function AllClubsPage() {
           {/* Dismiss button */}
           <button
             onClick={() => setPendingBanner(null)}
-            className="absolute top-3 right-3 p-1.5 rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+            className="absolute top-3 right-3 p-2.5 rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
             aria-label="Dismiss"
           >
             <X className="w-4 h-4" />
@@ -290,7 +290,7 @@ export default function AllClubsPage() {
 
       {/* Pagination */}
       {total > (filters.limit ?? 20) && (
-        <div className="flex justify-center gap-2">
+        <div className="flex flex-wrap justify-center items-center gap-2">
           <button
             onClick={() =>
               setFilters((prev) => ({

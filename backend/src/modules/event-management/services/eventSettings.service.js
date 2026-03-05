@@ -12,22 +12,42 @@ const {
   ForbiddenError,
   NotFoundError,
 } = require('../../../shared/utils/AppError');
-const { resolveEvent } = require('../utils/eventHelpers');
+const { resolveEvent, canManageEvent } = require('../utils/eventHelpers');
 
 // ── Helpers ────────────────────────────────────────────────────────
 
 /**
  * Ensure the caller owns the event (or has manage_all permission).
+ * Accepts either (eventId, userId) for legacy callers, or
+ * (eventId, userId, user) where user is the full req.user object
+ * to check superadmin, event_manage_all, and event-manager roles.
  * Returns the event row.
  */
-const assertEventOwner = async (eventId, userId) => {
+const assertEventOwner = async (eventId, userId, user) => {
   const event = await resolveEvent(eventId, {
     select: { id: true, createdById: true },
   });
-  if (event.createdById !== userId) {
-    throw new ForbiddenError('Only the event creator can manage event settings');
+
+  // Creator always passes
+  if (event.createdById === userId) return event;
+
+  // If full user object is provided, check elevated roles
+  if (user) {
+    // Superadmin bypasses all
+    if (user.role === 'superadmin') return event;
+
+    // Check explicit event_manage_all permission
+    const hasManageAll = (user.centralDeptPermissions || []).some(
+      dp => dp.permissions && (dp.permissions.event_manage_all === true || dp.permissions.event_event_manage_all === true)
+    );
+    if (hasManageAll) return event;
   }
-  return event;
+
+  // Check if user is an assigned event manager (volunteer with manager role)
+  const isManager = await canManageEvent(prisma, event.id, userId);
+  if (isManager) return event;
+
+  throw new ForbiddenError('You do not have permission to manage this event');
 };
 
 /**
@@ -48,8 +68,8 @@ const VALID_ROLES = ['student', 'faculty', 'staff', 'admin', 'parent', 'superadm
 /**
  * Get event visibility settings (or create defaults if none exist yet)
  */
-const getEventSettings = async (eventId, userId) => {
-  const event = await assertEventOwner(eventId, userId);
+const getEventSettings = async (eventId, userId, user) => {
+  const event = await assertEventOwner(eventId, userId, user);
 
   let visibility = await prisma.eventVisibility.findUnique({
     where: { eventId: event.id },
@@ -78,8 +98,8 @@ const getEventSettings = async (eventId, userId) => {
 /**
  * Update event visibility settings
  */
-const updateEventSettings = async (eventId, userId, data) => {
-  const event = await assertEventOwner(eventId, userId);
+const updateEventSettings = async (eventId, userId, data, user) => {
+  const event = await assertEventOwner(eventId, userId, user);
 
   // Build the update payload — only touch what was sent
   const updateData = {};
@@ -140,8 +160,8 @@ const updateEventSettings = async (eventId, userId, data) => {
  *
  * Returns the updated visibility record.
  */
-const toggleEventActive = async (eventId, userId) => {
-  const event = await assertEventOwner(eventId, userId);
+const toggleEventActive = async (eventId, userId, user) => {
+  const event = await assertEventOwner(eventId, userId, user);
 
   // Get or create
   let visibility = await prisma.eventVisibility.findUnique({

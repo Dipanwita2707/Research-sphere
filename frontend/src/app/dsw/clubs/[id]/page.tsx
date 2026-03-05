@@ -28,12 +28,15 @@ import {
   CalendarDays,
   Pencil,
   Trash2,
+  ExternalLink,
+  MapPin,
 } from "lucide-react";
 import {
   useClub,
   useAddMember,
   useRemoveMember,
   useUpdateMemberRole,
+  useClubEvents,
 } from "@/features/dsw/hooks";
 import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
@@ -44,6 +47,7 @@ import {
   DEFAULT_MEMBER_ROLE,
   type ClubMemberRole,
 } from "@/features/dsw/constants";
+import { useAuthStore } from "@/shared/auth/authStore";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -144,7 +148,7 @@ function MemberCard({
 
       {/* Action buttons (managers only, shown on hover) */}
       {canManage && (
-        <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-all">
+        <div className="sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-all">
           {onEdit && (
             <button
               onClick={() => onEdit(member)}
@@ -644,7 +648,9 @@ export default function ClubDetailsPage() {
     null,
   );
 
+  const { user: currentUser } = useAuthStore();
   const { data: response, isLoading, error } = useClub(clubId);
+  const { data: clubEvents = [], isLoading: eventsLoading, error: eventsError } = useClubEvents(clubId);
   const removeMember = useRemoveMember(clubId);
   const updateMemberRole = useUpdateMemberRole(clubId);
 
@@ -680,8 +686,15 @@ export default function ClubDetailsPage() {
     [activeMembers],
   );
 
-  // TODO: replace with real auth context check
-  const canManage = true;
+  // Only the club's own chairperson, faculty facilitator, or a system admin can manage members/roles.
+  const canManage = !!(
+    currentUser &&
+    (
+      currentUser.id === club?.chairpersonId ||
+      currentUser.id === club?.facultyFacilitatorId ||
+      currentUser.userType === "admin"
+    )
+  );
 
   // Filtered member groups — respects roleFilter when set
   const filteredLeadership = roleFilter
@@ -885,7 +898,7 @@ export default function ClubDetailsPage() {
           {/* Decorative blobs */}
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
           <div className="absolute -bottom-12 -left-8 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-white/[0.02] pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 sm:w-96 sm:h-96 rounded-full bg-white/[0.02] pointer-events-none" />
 
           <div className="relative px-6 sm:px-8 pt-6 sm:pt-8">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -983,7 +996,7 @@ export default function ClubDetailsPage() {
         </div>
 
         {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl">
+        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -1463,19 +1476,85 @@ export default function ClubDetailsPage() {
               </div>
             </div>
 
-            {/* Placeholder — event data wired up later */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-14 text-center shadow-sm">
-              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 mx-auto mb-4">
-                <CalendarDays className="w-8 h-8 text-blue-400" />
+            {eventsLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-20 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse" />
+                ))}
               </div>
-              <h3 className="text-base font-bold text-gray-700 dark:text-white mb-1">
-                Events coming soon
-              </h3>
-              <p className="text-sm text-gray-400 dark:text-gray-500 max-w-xs mx-auto">
-                Events for this club will be listed here. Check back once the
-                event integration is connected.
-              </p>
-            </div>
+            ) : eventsError ? (
+              <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-6 text-center">
+                <p className="text-sm text-red-600 dark:text-red-400">Failed to load events: {(eventsError as Error)?.message}</p>
+              </div>
+            ) : clubEvents.length === 0 ? (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-14 text-center shadow-sm">
+                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 mx-auto mb-4">
+                  <CalendarDays className="w-8 h-8 text-blue-400" />
+                </div>
+                <h3 className="text-base font-bold text-gray-700 dark:text-white mb-1">No events yet</h3>
+                <p className="text-sm text-gray-400 dark:text-gray-500 max-w-xs mx-auto">
+                  Events created from notings linked to this club will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {clubEvents.map((event) => {
+                  const isPast = new Date(event.endDate) < new Date();
+                  const statusColor =
+                    event.status === "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : event.status === "draft" ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+                  return (
+                    <div
+                      key={event.id}
+                      onClick={() => router.push(`/events/${event.eventId}/manage`)}
+                      className="group flex items-center gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all"
+                    >
+                      {/* Date badge */}
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex flex-col items-center justify-center">
+                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">
+                          {new Date(event.startDate).toLocaleString("default", { month: "short" })}
+                        </span>
+                        <span className="text-sm font-black text-blue-700 dark:text-blue-300 leading-none">
+                          {new Date(event.startDate).getDate()}
+                        </span>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{event.name}</p>
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full capitalize ${statusColor}`}>
+                            {event.status}
+                          </span>
+                          {isPast && (
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                              Ended
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                          <span className="capitalize">{event.eventType.replace(/_/g, " ")}</span>
+                          {event.venue && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {event.venue}
+                            </span>
+                          )}
+                          <span>
+                            {new Date(event.startDate).toLocaleDateString()} –{" "}
+                            {new Date(event.endDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Arrow */}
+                      <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

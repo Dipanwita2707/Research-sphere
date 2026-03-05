@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @module auth
  * @description Authentication & authorization middleware for Express routes.
  *
@@ -15,6 +15,7 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 const config = require('../config/app.config');
 const cache = require('../config/redis');
+const log = require('../utils/logger');
 
 /**
  * Authenticate incoming request by verifying JWT token.
@@ -44,8 +45,8 @@ const protect = async (req, res, next) => {
     }
 
     try {
-      // Verify token
-      const decoded = jwt.verify(token, config.jwt.secret);
+      // Verify token â€” pin algorithm to prevent algorithm-switching attacks
+      const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
       const cacheKey = `${cache.CACHE_KEYS.USER}auth:${decoded.id}`;
 
       // Try cache first for faster auth
@@ -144,10 +145,34 @@ const protect = async (req, res, next) => {
             }
           });
 
+          // PERF FIX: Pre-cache chairperson club lookup for student users.
+          // This avoids a DB query on EVERY request in checkAnyPermission and
+          // getMyNotingPermissions — both of which do prisma.club.findFirst()
+          // for students who have no default noting permissions.
+          let chairpersonClubData = null;
+          if (userData.role === 'student') {
+            try {
+              const chairClub = await prisma.club.findFirst({
+                where: {
+                  chairpersonId: userData.id,
+                  status: { in: ['approved', 'active'] },
+                },
+                select: { id: true, name: true, facultyFacilitatorId: true },
+              });
+              if (chairClub) {
+                chairpersonClubData = chairClub;
+              }
+            } catch (err) {
+              // Non-critical — fall through gracefully
+            }
+          }
+
           return {
             ...userData,
             centralDeptPermissions: mergedCentralPerms,
             schoolDeptPermissions: mergedSchoolPerms,
+            // Cached chairperson info — avoids DB hit per request
+            _chairpersonClub: chairpersonClubData,
           };
         },
         cache.CACHE_TTL.USER_SESSION
@@ -178,7 +203,7 @@ const protect = async (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    log.error('Auth middleware error:', error);
     return res.status(500).json({
       success: false,
       message: 'Server error during authentication'
@@ -239,7 +264,7 @@ const checkDepartmentPermission = (department, permissionKey) => {
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Server error during permission check'
@@ -295,15 +320,13 @@ const requirePermission = (departmentType, permissionName) => {
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
-          message: `Access denied - ${permissionName} permission required for ${departmentType}`,
-          requiredPermission: permissionName,
-          checkedVariants: permissionVariants
+          message: 'Access denied - insufficient permissions',
         });
       }
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -358,15 +381,13 @@ const requireAnyPermission = (departmentType, permissionNames) => {
       if (!hasAnyPermission) {
         return res.status(403).json({
           success: false,
-          message: `Access denied - one of [${permissionNames.join(', ')}] permissions required for ${departmentType}`,
-          requiredPermissions: permissionNames,
-          checkedVariants: [...new Set(expandedPermissionNames)]
+          message: 'Access denied - insufficient permissions',
         });
       }
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -430,7 +451,7 @@ const checkIprFilePermission = (req, res, next) => {
       message: 'Access denied - You do not have permission to file IPR applications'
     });
   } catch (error) {
-    console.error('IPR file permission check error:', error);
+    log.error('IPR file permission check error:', error);
     return res.status(500).json({
       success: false,
       message: 'Permission check failed'
@@ -485,7 +506,7 @@ const checkResearchFilePermission = (req, res, next) => {
       message: 'Access denied - You do not have permission to file Research Contributions'
     });
   } catch (error) {
-    console.error('Research file permission check error:', error);
+    log.error('Research file permission check error:', error);
     return res.status(500).json({
       success: false,
       message: 'Permission check failed'
@@ -579,18 +600,17 @@ const checkPermission = (permissionKey, options = {}) => {
             return next();
           }
         } catch (clubErr) {
-          console.error('Chairperson club check error:', clubErr);
+          log.error('Chairperson club check error:', clubErr);
         }
       }
 
       // Access denied
       return res.status(403).json({
         success: false,
-        message: errorMessage || `Access denied - '${permissionKey}' permission required`,
-        requiredPermission: permissionKey
+        message: errorMessage || 'Access denied - insufficient permissions',
       });
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -662,28 +682,21 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
         ];
         const hasChairpersonKey = permissionKeys.some(k => CHAIRPERSON_EVENT_PERMISSIONS.includes(k));
         if (hasChairpersonKey) {
-          try {
-            const chairpersonClub = await prisma.club.findFirst({
-              where: { chairpersonId: user.id, status: { in: ['approved', 'active'] } },
-              select: { id: true },
-            });
-            if (chairpersonClub) {
-              req.chairpersonClubId = chairpersonClub.id;
-              return next();
-            }
-          } catch (clubErr) {
-            console.error('Chairperson club check error (checkAnyPermission):', clubErr);
+          // PERF FIX: Use pre-cached chairperson club from protect middleware
+          // instead of doing prisma.club.findFirst on every request.
+          if (user._chairpersonClub) {
+            req.chairpersonClubId = user._chairpersonClub.id;
+            return next();
           }
         }
       }
 
       return res.status(403).json({
         success: false,
-        message: errorMessage || `Access denied - one of [${permissionKeys.join(', ')}] permissions required`,
-        requiredPermissions: permissionKeys
+        message: errorMessage || 'Access denied - insufficient permissions',
       });
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -700,7 +713,7 @@ const requireDSWPermission = (permissionKey) => {
   return checkPermission(permissionKey, {
     checkDefaultPermissions: true,
     departmentType: 'central-department',
-    errorMessage: `DSW access denied - '${permissionKey}' permission required`
+    errorMessage: 'DSW access denied - insufficient permissions'
   });
 };
 
@@ -712,7 +725,7 @@ const requireNotingPermission = (permissionKey) => {
   return checkPermission(permissionKey, {
     checkDefaultPermissions: true,
     departmentType: 'central-department',
-    errorMessage: `Noting access denied - '${permissionKey}' permission required`
+    errorMessage: 'Noting access denied - insufficient permissions'
   });
 };
 
@@ -724,7 +737,7 @@ const requireEventPermission = (permissionKey) => {
   return checkPermission(permissionKey, {
     checkDefaultPermissions: true,
     departmentType: 'central-department',
-    errorMessage: `Event access denied - '${permissionKey}' permission required`
+    errorMessage: 'Event access denied - insufficient permissions'
   });
 };
 
@@ -757,7 +770,7 @@ const requireOwnershipOrPermission = (ownershipCheck, permissionKey, options = {
       const permissionMiddleware = checkPermission(permissionKey, options);
       return permissionMiddleware(req, res, next);
     } catch (error) {
-      console.error('Ownership/permission check error:', error);
+      log.error('Ownership/permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Authorization check failed'
@@ -828,7 +841,7 @@ const checkGateEntryAccess = (requireVerifyAccess = false) => {
       // All users (including students) can access basic features (create pass, view own passes)
       next();
     } catch (error) {
-      console.error('Gate Entry access check error:', error);
+      log.error('Gate Entry access check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Access verification failed'

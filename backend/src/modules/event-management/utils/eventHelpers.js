@@ -199,7 +199,12 @@ const getEventById = async (prisma, eventId, include = {}) => {
           eventHasResources: true,
           eventDutyLeaveAvailable: true,
           eventDutyLeaveEligibility: true,
+          eventDutyLeaveRoleType: true,
           subEvents: true, // For festival: sponsors/resources live in subEvents[].venueFormData
+          eventClubId: true,
+          eventClub: {
+            select: { id: true, clubId: true, name: true },
+          },
         },
       },
       ...include,
@@ -269,6 +274,47 @@ const isEventVolunteer = async (prisma, eventId, userId) => {
   });
 
   return !!volunteer;
+};
+
+/**
+ * Check if a user is an event manager (assigned via EventVolunteer with role 'event_manager').
+ * This is used to grant club chairpersons full management permissions for events
+ * created from notings associated with their club.
+ *
+ * @param {PrismaClient} prisma
+ * @param {string} eventId
+ * @param {string} userId
+ * @returns {Promise<boolean>}
+ */
+const isEventManager = async (prisma, eventId, userId) => {
+  const manager = await prisma.eventVolunteer.findFirst({
+    where: {
+      eventId,
+      userId,
+      role: "event_manager",
+    },
+  });
+  return !!manager;
+};
+
+/**
+ * Check if a user can manage an event (either creator or event_manager volunteer).
+ *
+ * @param {PrismaClient} prisma
+ * @param {string} eventId
+ * @param {string} userId
+ * @returns {Promise<boolean>}
+ */
+const canManageEvent = async (prisma, eventId, userId) => {
+  // Check if creator first (cheap — just read event)
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { createdById: true },
+  });
+  if (!event) return false;
+  if (event.createdById === userId) return true;
+  // Fallback: check event_manager volunteer role
+  return isEventManager(prisma, eventId, userId);
 };
 
 /**
@@ -458,6 +504,25 @@ const formatEventResponse = (event) => {
   const { resources, hasResources } = resolveResourceData(event, note);
   const { dutyLeaveAvailable, dutyLeaveEligibility, dutyLeaveRoleType } = resolveDutyLeaveData(event, note);
 
+  // DEBUG: Temporary logging to trace sponsor/resource data
+  if (event.notingId) {
+    console.log('[DEBUG formatEventResponse]', event.name, {
+      'event.sponsors': JSON.stringify(event.sponsors),
+      'event.hasSponsorship': event.hasSponsorship,
+      'event.resources': JSON.stringify(event.resources),
+      'event.hasResources': event.hasResources,
+      'note?.eventSponsors': JSON.stringify(note?.eventSponsors),
+      'note?.eventHasSponsorship': note?.eventHasSponsorship,
+      'note?.eventResources': JSON.stringify(note?.eventResources),
+      'note?.eventHasResources': note?.eventHasResources,
+      'resolved.sponsors': JSON.stringify(sponsors),
+      'resolved.hasSponsorship': hasSponsorship,
+      'resolved.resources': JSON.stringify(resources),
+      'resolved.hasResources': hasResources,
+      'resolved.dutyLeaveRoleType': dutyLeaveRoleType,
+    });
+  }
+
   return {
     id: event.id,
     eventId: event.eventId,
@@ -553,6 +618,12 @@ const formatEventResponse = (event) => {
       category: event.note.category,
       subcategory: event.note.subcategory,
     } : null,
+    // Club association (from noting)
+    club: event.note?.eventClub ? {
+      id: event.note.eventClub.id,
+      clubId: event.note.eventClub.clubId,
+      name: event.note.eventClub.name,
+    } : null,
     userRegistration: event.userRegistration || null,
   };
 };
@@ -567,6 +638,8 @@ module.exports = {
   getEventLean,
   canRegisterForEvent,
   isEventVolunteer,
+  isEventManager,
+  canManageEvent,
   validateQRCodeAndGetRegistration,
   formatEventResponse,
 };

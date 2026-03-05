@@ -73,8 +73,8 @@ router.post('/:id/feedback', publicEndpointLimiter, validateEventId, validateFee
 router.get('/:id/feedback-info', publicEndpointLimiter, validateEventId, feedbackController.getFeedbackFormInfo);
 
 // Public stall feedback (scanned by customers at the stall)
-router.get('/:id/stalls/:stallId/feedback-info', publicEndpointLimiter, feedbackController.getStallFeedbackFormInfo);
-router.post('/:id/stalls/:stallId/feedback', publicEndpointLimiter, feedbackController.submitStallFeedback);
+router.get('/:id/stalls/:stallId/feedback-info', publicEndpointLimiter, validateEventId, feedbackController.getStallFeedbackFormInfo);
+router.post('/:id/stalls/:stallId/feedback', publicEndpointLimiter, validateEventId, feedbackController.submitStallFeedback);
 
 // ════════════════════════════════════════════════════════════════════
 //  AUTHENTICATED ROUTES
@@ -145,6 +145,10 @@ router.get('/stall-opportunities', stallController.getStallOpportunities);
 const eventSettingsController = require('../controllers/eventSettings.controller');
 router.get('/hierarchy/data', eventSettingsController.getHierarchyData);
 
+// Registration helpers (must be before /:id to avoid being captured as :id param)
+router.get('/profile-data', registrationController.getProfileData);
+router.get('/registration-dashboard', registrationController.getRegistrationDashboard);
+
 // Get event by ID
 router.get('/:id', validateEventId, eventController.getEvent);
 
@@ -172,8 +176,13 @@ router.get('/:id/registrations/:regId/details', validateEventId, eventManagePerm
 // ── Volunteer Routes ────────────────────────────────────────────────
 
 router.post('/:id/volunteers', validateEventId, checkPermission('event_assign_volunteers', { checkDefaultPermissions: true }), validateVolunteerAssignment, eventController.assignVolunteer);
+router.delete('/:id/volunteers/:volunteerId', validateEventId, eventManagePerm, eventController.removeVolunteerHandler);
+router.patch('/:id/volunteers/:volunteerId', validateEventId, eventManagePerm, eventController.updateVolunteerHandler);
 router.get('/:id/volunteers/:volunteerId/activity', validateEventId, eventManagePerm, eventController.getVolunteerActivity);
 router.get('/:id/volunteers', validateEventId, eventManagePerm, eventController.getEventVolunteers);
+
+// Club members for quick volunteer assignment (when event is linked to a club)
+router.get('/:id/club-members', validateEventId, eventManagePerm, eventController.getClubMembers);
 
 // Scan QR code for entry/exit
 router.post('/:id/scan', validateEventId, allowEventScan, validateQRScan, eventController.scanQRCode);
@@ -186,14 +195,11 @@ router.get('/:id/stalls/:stallId/owner-feedback', validateEventId, feedbackContr
 
 // ── Registration & Custom Fields ────────────────────────────────────
 
-router.get('/profile-data', registrationController.getProfileData);
-router.get('/registration-dashboard', registrationController.getRegistrationDashboard);
-
-router.get('/:id/registration-form', registrationController.getRegistrationForm);
-router.post('/:id/register-with-form', registrationController.submitRegistrationForm);
-router.get('/:id/registration-settings', customFieldController.getRegistrationSettings);
+router.get('/:id/registration-form', validateEventId, registrationController.getRegistrationForm);
+router.post('/:id/register-with-form', validateEventId, registrationController.submitRegistrationForm);
+router.get('/:id/registration-settings', validateEventId, customFieldController.getRegistrationSettings);
 router.patch('/:id/registration-settings', validateEventId, eventManagePerm, customFieldController.updateRegistrationSettings);
-router.get('/:id/custom-fields', customFieldController.getCustomFields);
+router.get('/:id/custom-fields', validateEventId, customFieldController.getCustomFields);
 router.post('/:id/custom-fields', validateEventId, eventManagePerm, customFieldController.createCustomField);
 router.patch('/:id/custom-fields/:fieldId', validateEventId, eventManagePerm, customFieldController.updateCustomField);
 router.delete('/:id/custom-fields/:fieldId', validateEventId, eventManagePerm, customFieldController.deleteCustomField);

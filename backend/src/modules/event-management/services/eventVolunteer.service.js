@@ -86,6 +86,83 @@ const assignVolunteer = async (eventId, userId, volunteerData, assignedBy) => {
 };
 
 /**
+ * Remove a volunteer from an event
+ *
+ * @param {string} eventId - Event ID
+ * @param {string} volunteerId - EventVolunteer record ID
+ * @param {string} removedBy - User ID performing the removal (must be event creator/manager)
+ */
+const removeVolunteer = async (eventId, volunteerId, removedBy) => {
+  const event = await getEventLean(prisma, eventId);
+  if (!event) throw new NotFoundError('Event');
+
+  const volunteer = await prisma.eventVolunteer.findFirst({
+    where: { id: volunteerId, eventId },
+  });
+
+  if (!volunteer) {
+    throw new NotFoundError('Volunteer assignment not found for this event');
+  }
+
+  // Protect auto-assigned event managers (club chairpersons) from removal
+  if (volunteer.role === 'event_manager') {
+    throw new ForbiddenError('Cannot remove an Event Manager (club chairperson). They are auto-assigned and cannot be deleted.');
+  }
+
+  await prisma.eventVolunteer.delete({ where: { id: volunteerId } });
+};
+
+/**
+ * Update a volunteer assignment (role, gate, QR permission)
+ *
+ * @param {string} eventId - Event ID
+ * @param {string} volunteerId - EventVolunteer record ID
+ * @param {Object} updateData - Fields to update
+ * @param {string} updatedBy - User ID performing the update
+ * @returns {Object} Updated volunteer record
+ */
+const updateVolunteer = async (eventId, volunteerId, updateData, updatedBy) => {
+  const event = await getEventLean(prisma, eventId);
+  if (!event) throw new NotFoundError('Event');
+
+  const volunteer = await prisma.eventVolunteer.findFirst({
+    where: { id: volunteerId, eventId },
+  });
+
+  if (!volunteer) {
+    throw new NotFoundError('Volunteer assignment not found for this event');
+  }
+
+  // Only allow updating safe fields
+  const allowed = {};
+  if (updateData.role !== undefined) allowed.role = updateData.role;
+  if (updateData.canScanQr !== undefined) allowed.canScanQr = Boolean(updateData.canScanQr);
+  if (updateData.assignedGate !== undefined) allowed.assignedGate = updateData.assignedGate;
+
+  const updated = await prisma.eventVolunteer.update({
+    where: { id: volunteerId },
+    data: allowed,
+    include: {
+      user_login: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          employeeDetails: {
+            select: { firstName: true, lastName: true, displayName: true },
+          },
+          studentLogin: {
+            select: { firstName: true, lastName: true, displayName: true },
+          },
+        },
+      },
+    },
+  });
+
+  return updated;
+};
+
+/**
  * Scan QR code for event entry/exit
  *
  * @param {string} eventId - Event ID
@@ -585,6 +662,8 @@ const getVolunteerActivity = async (
 
 module.exports = {
   assignVolunteer,
+  removeVolunteer,
+  updateVolunteer,
   scanQRCode,
   getMyVolunteerAssignments,
   getMyVolunteerActivity,

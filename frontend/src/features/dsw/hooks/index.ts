@@ -12,6 +12,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import dswAPI from "../services/api";
+import type { ClubEvent } from "../services/api";
 import type { ClubMemberRole } from "../constants";
 import {
   Club,
@@ -31,6 +32,7 @@ export const DSW_QUERY_KEYS = {
   myClubs: () => ["dsw", "my-clubs"],
   myClubRequests: () => ["dsw", "my-club-requests"],
   clubMembers: (clubId: string) => ["dsw", "clubs", clubId, "members"],
+  clubEvents: (clubId: string) => ["dsw", "clubs", clubId, "events"],
   categories: () => ["dsw", "categories"],
   statistics: () => ["dsw", "statistics"],
   auditLogs: (clubId: string, filters?: AuditLogFilters) => [
@@ -98,6 +100,21 @@ export function useClubMembers(clubId: string) {
   return useQuery({
     queryKey: DSW_QUERY_KEYS.clubMembers(clubId),
     queryFn: () => dswAPI.clubs.getClubMembers(clubId),
+    enabled: !!clubId,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Hook to fetch events linked to a club
+ */
+export function useClubEvents(clubId: string) {
+  return useQuery<ClubEvent[]>({
+    queryKey: DSW_QUERY_KEYS.clubEvents(clubId),
+    queryFn: async () => {
+      const res = await dswAPI.clubs.getClubEvents(clubId);
+      return res.data ?? [];
+    },
     enabled: !!clubId,
     staleTime: 60 * 1000,
   });
@@ -352,6 +369,7 @@ export function useClubSearch() {
  * Wire up `showSuccess` / `showError` / `showInfo` to your app-level toast
  * system (e.g. react-hot-toast, sonner, or the shared Toast context).
  *
+/**
  * The stubs below are intentional no-ops so callers compile without changes;
  * replace them with real toast calls once you have a shared toast utility.
  */

@@ -6,7 +6,7 @@
 const prisma = require('../../../shared/config/database');
 const { NotFoundError, ValidationError, ForbiddenError } = require('../../../shared/utils/AppError');
 const { NOTE_STATUS } = require('../constants/noting.constants');
-const { noteForValidation, getFullNoteInclude, getFullNoteSelect } = require('./selectFragments');
+const { getFullNoteSelect } = require('./selectFragments');
 
 /**
  * Get note by ID with validation
@@ -167,7 +167,8 @@ async function resolveDswClubDetails(note) {
       });
     }
   } catch (err) {
-    console.error('Failed to resolve DSW club details for note', note.id, err.message);
+    const log = require('../../../shared/utils/logger');
+    log.error('Failed to resolve DSW club details for note', note.id, err.message);
   }
 
   return details;
@@ -319,24 +320,6 @@ async function verifyCanActOnNote(note, userId) {
   }
 }
 
-/**
- * Get description for saving (handles draft placeholder logic)
- * @param {string} description - Description from request
- * @param {boolean} isSubmit - Whether this is a submission
- * @returns {string} Description to save
- */
-function getDescriptionForSave(description, isSubmit) {
-  const trimmed = String(description || '').trim();
-
-  // Draft notes can have empty description, but DB requires non-null string
-  // Store empty string for drafts (schema allows it)
-  if (!trimmed) {
-    return '';
-  }
-
-  return trimmed;
-}
-
 module.exports = {
   getNoteById,
   getNoteWithDetails,
@@ -346,5 +329,4 @@ module.exports = {
   verifyNotePending,
   canUserActOnNote,
   verifyCanActOnNote,
-  getDescriptionForSave,
 };

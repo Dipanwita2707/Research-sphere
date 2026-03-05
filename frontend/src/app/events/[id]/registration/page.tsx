@@ -554,7 +554,7 @@ export default function EventRegistrationPage() {
 
           {/* Progress Steps for Team Events */}
           {isTeamEvent && (
-            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pr-6 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pr-4 sm:pr-6 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm overflow-x-auto scrollbar-hide">
               <div className={`flex items-center gap-3 pl-2 pr-4 py-2 rounded-xl transition-all ${step === 'form'
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200 shadow-sm ring-1 ring-blue-100 dark:ring-blue-800'
                   : 'text-gray-500 dark:text-gray-400'

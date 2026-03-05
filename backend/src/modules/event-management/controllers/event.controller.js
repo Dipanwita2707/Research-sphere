@@ -8,7 +8,7 @@ const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
 const prisma = require('../../../shared/config/database');
 const eventService = require('../services/event.service');
-const { formatEventResponse } = require('../utils/eventHelpers');
+const { formatEventResponse, canManageEvent } = require('../utils/eventHelpers');
 const { canUserSeeEvent, assertEventOwner } = require('../services/eventSettings.service');
 const { ForbiddenError } = require('../../../shared/utils/AppError');
 
@@ -69,8 +69,19 @@ const getEvent = asyncHandler(async (req, res) => {
       });
     }
   }
-  
-  return ApiResponse.success(res, formatEventResponse(event), 'Event fetched successfully');
+
+  // ── Add canManage flag so frontend can guard manage pages ──
+  const isSuperadmin = req.user.role === 'superadmin';
+  const isCreator = event.createdById === userId;
+  const hasManageAll = (req.user.centralDeptPermissions || []).some(
+    dp => dp.permissions && dp.permissions.event_manage_all === true
+  );
+  const canManage = isSuperadmin || isCreator || hasManageAll || await canManageEvent(prisma, event.id, userId);
+
+  const formatted = formatEventResponse(event);
+  formatted.canManage = canManage;
+
+  return ApiResponse.success(res, formatted, 'Event fetched successfully');
 });
 
 /**
@@ -225,7 +236,7 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
   } = req.query;
   
   // Lightweight ownership check instead of full getEventDetails
-  await assertEventOwner(id, userId);
+  await assertEventOwner(id, userId, req.user);
   
   const isExport = req.query.export === 'true';
   const pageNum = isExport ? 1 : (parseInt(page) || 1);
@@ -457,7 +468,7 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   // Lightweight ownership check instead of full getEventDetails
-  await assertEventOwner(eventId, userId);
+  await assertEventOwner(eventId, userId, req.user);
 
   const registration = await prisma.eventRegistration.findFirst({
     where: { id: regId, eventId },
@@ -645,7 +656,7 @@ const getRegistrationFilterOptions = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   // Lightweight ownership check instead of full getEventDetails
-  await assertEventOwner(id, userId);
+  await assertEventOwner(id, userId, req.user);
 
   // Use raw SQL DISTINCT queries instead of loading 5000+ users into memory
   // NOTE: Table/column names use @@map values from schema (snake_case), not Prisma model names
@@ -746,7 +757,7 @@ const getEventVolunteers = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   
   // Lightweight ownership check
-  await assertEventOwner(id, userId);
+  await assertEventOwner(id, userId, req.user);
   
   // Fetch volunteers directly instead of loading entire event
   const rawVolunteers = await prisma.eventVolunteer.findMany({
@@ -785,6 +796,128 @@ const getEventVolunteers = asyncHandler(async (req, res) => {
   });
 
   return ApiResponse.success(res, volunteers, 'Volunteers fetched successfully');
+});
+
+/**
+ * Remove volunteer from event
+ *
+ * @route DELETE /api/events/:id/volunteers/:volunteerId
+ * @access Protected (Event Manager)
+ */
+const removeVolunteerHandler = asyncHandler(async (req, res) => {
+  const { id, volunteerId } = req.params;
+  const userId = req.user.id;
+
+  await assertEventOwner(id, userId, req.user);
+  await eventService.removeVolunteer(id, volunteerId, userId);
+
+  return ApiResponse.success(res, null, 'Volunteer removed successfully');
+});
+
+/**
+ * Update volunteer details (role, gate, QR permission)
+ *
+ * @route PATCH /api/events/:id/volunteers/:volunteerId
+ * @access Protected (Event Manager)
+ */
+const updateVolunteerHandler = asyncHandler(async (req, res) => {
+  const { id, volunteerId } = req.params;
+  const userId = req.user.id;
+
+  await assertEventOwner(id, userId, req.user);
+  const updated = await eventService.updateVolunteer(id, volunteerId, req.body, userId);
+
+  return ApiResponse.success(res, updated, 'Volunteer updated successfully');
+});
+
+/**
+ * Get club members for an event's associated club.
+ * Returns active members (excluding those already assigned as volunteers).
+ *
+ * @route GET /api/events/:id/club-members
+ * @access Protected (Event Manager)
+ */
+const getClubMembers = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  // Ownership / manage permission check
+  await assertEventOwner(id, userId, req.user);
+
+  // Get event → note → club chain (include chairpersonId to exclude from member list)
+  const event = await prisma.event.findUnique({
+    where: { id },
+    select: {
+      notingId: true,
+      note: {
+        select: {
+          eventClubId: true,
+          eventClub: {
+            select: { id: true, name: true, clubId: true, chairpersonId: true },
+          },
+        },
+      },
+    },
+  });
+
+  if (!event?.note?.eventClubId) {
+    return ApiResponse.success(res, { club: null, members: [] }, 'Event has no associated club');
+  }
+
+  const clubUuid = event.note.eventClubId;
+  const chairpersonId = event.note.eventClub?.chairpersonId;
+
+  // Get existing volunteer userIds for this event (to mark already-assigned)
+  const existingVolunteers = await prisma.eventVolunteer.findMany({
+    where: { eventId: id },
+    select: { userId: true },
+  });
+  const assignedSet = new Set(existingVolunteers.map((v) => v.userId));
+
+  // Fetch active club members (exclude chairperson — they're auto-assigned as event_manager)
+  const clubMembers = await prisma.clubMember.findMany({
+    where: {
+      clubId: clubUuid,
+      isActive: true,
+      ...(chairpersonId ? { studentId: { not: chairpersonId } } : {}),
+    },
+    orderBy: { joinedAt: 'asc' },
+    include: {
+      student: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+          studentLogin: {
+            select: { firstName: true, lastName: true, displayName: true },
+          },
+        },
+      },
+    },
+  });
+
+  const members = clubMembers.map((m) => {
+    const stu = m.student?.studentLogin;
+    const name = stu?.displayName ||
+      (stu ? `${stu.firstName || ''} ${stu.lastName || ''}`.trim() : null) ||
+      m.student?.uid || 'Unknown';
+    return {
+      id: m.student.id,
+      uid: m.student.uid,
+      email: m.student.email,
+      name,
+      alreadyAssigned: assignedSet.has(m.student.id),
+    };
+  });
+
+  return ApiResponse.success(res, {
+    club: {
+      id: event.note.eventClub.id,
+      clubId: event.note.eventClub.clubId,
+      name: event.note.eventClub.name,
+    },
+    members,
+  }, 'Club members fetched successfully');
 });
 
 /**
@@ -862,6 +995,9 @@ module.exports = {
   getRegistrationDetails,
   getRegistrationFilterOptions,
   getEventVolunteers,
+  getClubMembers,
+  removeVolunteerHandler,
+  updateVolunteerHandler,
   getMyVolunteerAssignments,
   getMyVolunteerActivity,
   getVolunteerActivity,

@@ -1891,6 +1891,10 @@ model Note {
   stallConfig         Json?                       @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[]}
   festivalMeta        Json?                       @map("festival_meta") // {name, startDate, endDate, description, coordinator}
   subEvents           Json?                       @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
+  // Optional club association for event notings — when set, the club's chairperson
+  // automatically receives full event management permissions upon event creation.
+  eventClubId         String?                     @map("event_club_id") @db.Uuid
+  eventClub           Club?                       @relation("EventNotingClub", fields: [eventClubId], references: [id])
   clubName            String?                     @map("club_name") @db.VarChar(256)
   clubCategoryId      String?                     @map("club_category_id") @db.Uuid
   clubPurpose         String?                     @map("club_purpose") @db.Text
@@ -1932,6 +1936,7 @@ model Note {
   @@index([eventName])
   @@index([subcategory, status], map: "note_subcategory_status_idx")
   @@index([clubCategoryId], map: "note_clubCategoryId_idx")
+  @@index([eventClubId], map: "note_eventClubId_idx")
   @@map("note")
 }
 
@@ -3342,6 +3347,7 @@ model Club {
   chairperson                  UserLogin                 @relation("ClubChairperson", fields: [chairpersonId], references: [id])
   creator                      UserLogin?                @relation("ClubCreator", fields: [creatorId], references: [id])
   noting                       Note?                     @relation("ClubCreationNoting", fields: [notingId], references: [id])
+  eventNotings                 Note[]                    @relation("EventNotingClub")
   members                      ClubMember[]
   auditLogs                    ClubAuditLog[]
   changeRequests               ClubChangeRequest[]

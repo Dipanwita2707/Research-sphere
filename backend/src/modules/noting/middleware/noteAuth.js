@@ -4,22 +4,11 @@
  */
 
 const prisma = require('../../../shared/config/database');
-const { ForbiddenError, UnauthorizedError } = require('../../../shared/utils/AppError');
+const { ForbiddenError } = require('../../../shared/utils/AppError');
 const { getNoteById, verifyCanActOnNote, verifyNotePending } = require('../utils/noteHelpers');
 const { noteForValidation } = require('../utils/selectFragments');
 const { getModulePermissionKey } = require('../services/approvalFlow.service');
 const { hasPermissionAsync } = require('../../../shared/config/permissions.config');
-
-/**
- * Middleware: Require authenticated user
- * Attaches user to request or throws error
- */
-const requireAuth = (req, res, next) => {
-  if (!req.user || !req.user.id) {
-    throw new UnauthorizedError('Authentication required');
-  }
-  next();
-};
 
 /**
  * Middleware: Load note and verify user can act on it (approve/reject/forward)
@@ -73,27 +62,6 @@ const requireNoteApprover = async (req, res, next) => {
 };
 
 /**
- * Middleware: Verify user is the creator of the note
- * Attaches note to req.note
- */
-const requireNoteCreator = async (req, res, next) => {
-  const userId = req.user.id;
-  const { id } = req.params;
-
-  // Load note
-  const note = await getNoteById(id, { select: noteForValidation });
-
-  // Verify user is creator
-  if (note.createdById !== userId) {
-    throw new ForbiddenError('You can only perform this action on your own notes');
-  }
-
-  // Attach note to request
-  req.note = note;
-  next();
-};
-
-/**
  * Middleware: Verify note is a draft and user is creator
  * Attaches note to req.note
  */
@@ -120,8 +88,6 @@ const requireDraftNote = async (req, res, next) => {
 };
 
 module.exports = {
-  requireAuth,
   requireNoteApprover,
-  requireNoteCreator,
   requireDraftNote,
 };

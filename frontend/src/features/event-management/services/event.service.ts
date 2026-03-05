@@ -209,6 +209,18 @@ export const eventService = {
   },
 
   /**
+   * Get club members for an event's associated club (for quick volunteer assignment).
+   * Returns members with `alreadyAssigned` flag.
+   */
+  async getClubMembers(eventId: string): Promise<{
+    club: { id: string; clubId: string; name: string } | null;
+    members: { id: string; uid: string; email: string; name: string; alreadyAssigned: boolean }[];
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/club-members`);
+    return response.data.data;
+  },
+
+  /**
    * Scan QR code for entry/exit
    */
   async scanQRCode(id: string, data: QRScanData): Promise<EventEntry> {

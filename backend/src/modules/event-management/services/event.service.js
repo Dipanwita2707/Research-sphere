@@ -32,12 +32,14 @@ const {
   getEventLean,
   canRegisterForEvent,
   isEventVolunteer,
+  isEventManager,
   validateQRCodeAndGetRegistration,
   invalidateResolveEventCache,
 } = require("../utils/eventHelpers");
 const { generateQRCode } = require("../utils/qrCodeGenerator");
 const { buildVisibilityFilter, isRegistrationOpen } = require('./eventSettings.service');
 const crypto = require("crypto");
+const log = require("../../../shared/utils/logger");
 
 // ── Event cache invalidation helper ──────────────────────────────────────────
 // Called by mutation functions (update, publish, register) to bust stale cache.
@@ -61,10 +63,20 @@ async function invalidateEventCaches(eventId) {
  *   - venue/stall: { isFestival: false, event: Event }
  */
 const createEventFromNoting = async (noteId, userId) => {
-  // Get the noting with event details
+  // Get the noting with event details + optional club association
   const noting = await prisma.note.findUnique({
     where: { id: noteId },
-    include: { createdBy: true },
+    include: {
+      createdBy: true,
+      eventClub: {
+        select: {
+          id: true,
+          chairpersonId: true,
+          name: true,
+          status: true,
+        },
+      },
+    },
   });
 
   if (!noting) throw new NotFoundError("Noting not found");
@@ -205,6 +217,25 @@ const createEventFromNoting = async (noteId, userId) => {
       return results;
     });
 
+    // ── Auto-grant club chairperson for all festival sub-events ─────────────
+    if (noting.eventClub && noting.eventClub.chairpersonId && createdEvents.length > 0) {
+      try {
+        const volunteerRows = createdEvents.map((ev) => ({
+          id: crypto.randomUUID(),
+          eventId: ev.id,
+          userId: noting.eventClub.chairpersonId,
+          role: "event_manager",
+          canScanQr: true,
+        }));
+        await prisma.eventVolunteer.createMany({ data: volunteerRows });
+        log.ok(
+          `Auto-granted event management to chairperson ${noting.eventClub.chairpersonId} for ${createdEvents.length} festival sub-events (club: ${noting.eventClub.name})`,
+        );
+      } catch (err) {
+        log.error(`Failed to auto-grant chairperson permissions for festival: ${err.message}`);
+      }
+    }
+
     return { isFestival: true, events: createdEvents };
   }
 
@@ -307,6 +338,29 @@ const createEventFromNoting = async (noteId, userId) => {
       where: { id: event.id },
       data: { prizesEnabled: true },
     });
+  }
+
+  // ── Auto-grant club chairperson full event management permissions ────────
+  // When the noting is associated with a club, add the chairperson as an
+  // EventVolunteer with role 'event_manager' so they can manage the event.
+  if (noting.eventClub && noting.eventClub.chairpersonId) {
+    try {
+      await prisma.eventVolunteer.create({
+        data: {
+          id: crypto.randomUUID(),
+          eventId: event.id,
+          userId: noting.eventClub.chairpersonId,
+          role: "event_manager",
+          canScanQr: true,
+        },
+      });
+      log.ok(
+        `Auto-granted event management to chairperson ${noting.eventClub.chairpersonId} for event ${event.eventId} (club: ${noting.eventClub.name})`,
+      );
+    } catch (err) {
+      // Don't fail event creation if volunteer assignment fails (e.g. duplicate)
+      log.error(`Failed to auto-grant chairperson permissions: ${err.message}`);
+    }
   }
 
   return { isFestival: false, event };
@@ -586,9 +640,12 @@ const validateEventRequiredFields = (eventData) => {
 const updateEvent = async (eventId, userId, updateData) => {
   const event = await getEventById(prisma, eventId);
 
-  // Verify user is the event creator
+  // Verify user is the event creator or an assigned event manager (club chairperson)
   if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can update the event");
+    const hasManagerAccess = await isEventManager(prisma, eventId, userId);
+    if (!hasManagerAccess) {
+      throw new ForbiddenError("Only the event creator or assigned manager can update the event");
+    }
   }
 
   // Locked fields cannot be updated (they come from the noting)
@@ -733,9 +790,12 @@ const updateEvent = async (eventId, userId, updateData) => {
 const publishEvent = async (eventId, userId) => {
   const event = await getEventById(prisma, eventId);
 
-  // Verify user is the event creator
+  // Verify user is the event creator or an assigned event manager (club chairperson)
   if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can publish the event");
+    const hasManagerAccess = await isEventManager(prisma, eventId, userId);
+    if (!hasManagerAccess) {
+      throw new ForbiddenError("Only the event creator or assigned manager can publish the event");
+    }
   }
 
   // Allow publishing/republishing for draft and already published events
@@ -842,6 +902,33 @@ const listEvents = async (filters, pagination, userId) => {
     participationType: true,
     capacityFixed: true,
     prizesEnabled: true,
+    // Noting-derived fields (duty leave, sponsorship, resources)
+    dutyLeaveAvailable: true,
+    dutyLeaveEligibility: true,
+    dutyLeaveRoleType: true,
+    hasSponsorship: true,
+    sponsors: true,
+    showSponsorshipPublicly: true,
+    hasResources: true,
+    resources: true,
+    certificateAvailable: true,
+    logoImageUrl: true,
+    note: {
+      select: {
+        notingId: true,
+        status: true,
+        category: true,
+        subcategory: true,
+        eventSponsors: true,
+        eventResources: true,
+        eventHasSponsorship: true,
+        eventHasResources: true,
+        eventDutyLeaveAvailable: true,
+        eventDutyLeaveEligibility: true,
+        eventDutyLeaveRoleType: true,
+        subEvents: true,
+      },
+    },
   };
 
   // Special stall-open filter: return events open for student stall applications
@@ -897,7 +984,11 @@ const listEvents = async (filters, pagination, userId) => {
   // Draft events are only visible to their creator
   // Published/Ongoing/Completed events are visible to everyone
   if (myEvents) {
-    where.createdById = userId;
+    // Show events created by user OR where user is an assigned event_manager (club chairperson)
+    where.OR = [
+      { createdById: userId },
+      { EventVolunteer: { some: { userId, role: "event_manager" } } },
+    ];
     if (status) {
       where.status = status;
     }
@@ -905,12 +996,15 @@ const listEvents = async (filters, pagination, userId) => {
     where.OR = [
       { status: { in: ["published", "ongoing", "completed"] } },
       { AND: [{ status: "draft" }, { createdById: userId }] },
+      { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
     ];
 
     if (status) {
       if (status === "draft") {
-        where.AND = [{ status: "draft" }, { createdById: userId }];
-        delete where.OR;
+        where.OR = [
+          { AND: [{ status: "draft" }, { createdById: userId }] },
+          { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
+        ];
       } else {
         where.status = status;
         delete where.OR;

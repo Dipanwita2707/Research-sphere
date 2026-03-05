@@ -9,7 +9,8 @@
  * - All hooks share a consistent NOTING_QUERY_KEYS registry for targeted invalidation
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { notingService } from "../services/noting.service";
 import type { NoteCopy } from "../types/noting.types";
 
@@ -222,8 +223,12 @@ export function useCreatorInfo(options: { enabled?: boolean } = {}) {
 
 /**
  * Fetch the current user's noting action permissions.
- * Always fetches fresh — permissions can change when admin updates roles.
- * No caching to ensure buttons always reflect current permissions.
+ *
+ * PERF FIX: Changed staleTime from 0 → 5 min, gcTime from 30s → 10 min.
+ * Permissions change only when an admin updates roles — not during normal
+ * usage.  With staleTime: 0 this hook fired a fresh GET /my-permissions on
+ * EVERY navigation (list → detail → new), adding 100-200ms per transition.
+ * 5 min staleTime makes subsequent navigations instant from cache.
  */
 export function useNotingPermissions(options: { enabled?: boolean } = {}) {
   const { enabled = true } = options;
@@ -231,8 +236,8 @@ export function useNotingPermissions(options: { enabled?: boolean } = {}) {
     queryKey: NOTING_QUERY_KEYS.permissions(),
     queryFn: () => notingService.getMyNotingPermissions(),
     enabled,
-    staleTime: 0, // Always refetch — admin can change permissions any time
-    gcTime: 30 * 1000, // Keep in garbage collection for 30s only
+    staleTime: 5 * 60 * 1000, // 5 min — permissions rarely change mid-session
+    gcTime: 10 * 60 * 1000,   // 10 min GC — outlives staleTime for background refetch
   });
 }
 
@@ -252,6 +257,59 @@ export function useNoteCopies(
     queryFn: () => notingService.getCopies(noteId),
     enabled: enabled && !!noteId,
     staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+// ─── Preview Noting ID (PERF: replaces raw service call in create page) ────────
+
+/**
+ * Preview the Noting ID that will be generated for a given category/subcategory.
+ * Replaces raw `notingService.previewNotingId()` calls that bypassed the cache.
+ * Cached for 5 minutes — the ID format rarely changes for a given cat/subcat.
+ */
+export function usePreviewNotingId(
+  category: string,
+  subcategory: string,
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: ["noting", "preview-id", category, subcategory],
+    queryFn: () => notingService.previewNotingId(category, subcategory),
+    enabled: enabled && !!category && !!subcategory,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ─── Search ────────────────────────────────────────────────────────────────────
+
+/**
+ * Search employees with built-in 500ms debounce + TanStack Query caching.
+ * Results stay visible while a new search is in-flight (keepPreviousData).
+ * Cached results for same query re-appear instantly for 30 seconds.
+ */
+export function useSearchEmployees(
+  query: string,
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setDebouncedQuery("");
+      return;
+    }
+    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 500);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  return useQuery({
+    queryKey: ["noting", "search-employees", debouncedQuery],
+    queryFn: () => notingService.searchEmployees(debouncedQuery),
+    enabled: enabled && debouncedQuery.length >= 2,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
   });
 }
 

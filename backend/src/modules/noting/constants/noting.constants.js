@@ -38,6 +38,7 @@ const NOTE_ACTIONS = {
   COPY_SENT: 'copy_sent',
   COPY_REPLIED: 'copy_replied',
   COPY_FORWARDED: 'copy_forwarded',
+  COPY_COMPLETED: 'copy_completed',
 };
 
 // Approval Period Options
