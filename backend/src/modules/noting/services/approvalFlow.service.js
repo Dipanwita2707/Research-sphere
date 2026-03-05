@@ -282,7 +282,8 @@ async function determineNextApproverByReporting(note, modulePermissionKey) {
       },
     };
   } catch (error) {
-    console.error("Error in determineNextApproverByReporting:", error);
+    const log = require('../../../shared/utils/logger');
+    log.error("Error in determineNextApproverByReporting:", error);
     return {
       canAutoForward: false,
       nextApproverId: null,
@@ -299,7 +300,10 @@ async function determineNextApproverByReporting(note, modulePermissionKey) {
  * @returns {boolean}
  */
 function canOverrideWorkflowRouting(user) {
-  return user.role?.roleCode === "DEAN";
+  return (
+    user.roleCode === "DEAN" ||
+    (typeof user.role === "string" && user.role.toLowerCase() === "dean")
+  );
 }
 
 /**

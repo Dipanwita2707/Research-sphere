@@ -9,6 +9,7 @@ import { useTheme } from '@/shared/providers/ThemeProvider';
 import api from '@/shared/api/api';
 import Link from 'next/link';
 import logger from '@/shared/utils/logger';
+import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
 
 interface DepartmentPermission {
   category: string;
@@ -84,7 +85,6 @@ export default function NavigationHeader() {
   const [activeSubmenu3, setActiveSubmenu3] = useState<string | null>(null); // Fourth level submenu
   const [unreadCount, setUnreadCount] = useState(0);
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
-  const [hasNotingAccess, setHasNotingAccess] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ name: string, href?: string, description?: string }>>([]);
@@ -97,6 +97,12 @@ export default function NavigationHeader() {
   const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
   const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
   const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+
+  // PERF FIX: Use TanStack Query hook instead of raw api.get('/noting/my-permissions').
+  // This shares the same query cache as page-level useNotingPermissions() calls,
+  // so navigating between pages no longer fires a duplicate permissions request.
+  const { data: notingPermsData } = useNotingPermissions({ enabled: !!isStudent });
+  const hasNotingAccess = !!(notingPermsData?.noting_create);
 
   // Gate Entry Access Control based on designation
   const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
@@ -133,11 +139,7 @@ export default function NavigationHeader() {
     };
     defer(() => fetchUnreadCount());
     defer(() => fetchUserPermissions());
-    // For students: check if they have noting access (e.g. club chairperson)
-    console.log('[NavigationHeader] isStudent:', isStudent, 'role:', user?.role, 'userType:', user?.userType);
-    if (isStudent) {
-      defer(() => fetchNotingAccess());
-    }
+    // Noting access for students now handled by useNotingPermissions hook above
   }, [user]);
 
   const fetchUnreadCount = useCallback(async () => {
@@ -160,20 +162,7 @@ export default function NavigationHeader() {
     }
   };
 
-  const fetchNotingAccess = async () => {
-    try {
-      console.log('[NavigationHeader] fetchNotingAccess called, isStudent:', isStudent);
-      const response = await api.get('/noting/my-permissions');
-      console.log('[NavigationHeader] noting permissions response:', response.data);
-      if (response.data.success && response.data.data?.noting_create) {
-        console.log('[NavigationHeader] Setting hasNotingAccess = true');
-        setHasNotingAccess(true);
-      }
-    } catch (err) {
-      console.error('[NavigationHeader] fetchNotingAccess error:', err);
-      // Student doesn't have noting access — leave as false
-    }
-  };
+  // fetchNotingAccess removed — now handled by useNotingPermissions hook above
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

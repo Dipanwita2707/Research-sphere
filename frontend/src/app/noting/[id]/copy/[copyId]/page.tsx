@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Note, NoteCopy } from '@/features/noting-management/types/noting.types';
+import { useNote, useMyCopies, useReplyCopy } from '@/features/noting-management/hooks/useNoting';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
@@ -30,40 +31,34 @@ export default function CopyDetailPage() {
   const copyId = params?.copyId as string;
   const { toast } = useToast();
   const { user } = useAuthStore();
-  const [note, setNote] = useState<Note | null>(null);
-  const [copy, setCopy] = useState<NoteCopy | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // PERF FIX: Use TanStack Query hooks instead of raw service calls.
+  // useNote has 2-min staleTime, useMyCopies has 2-min staleTime.
+  // Navigating back to this page within 2 min serves from cache instantly.
+  const { data: noteData, isLoading: noteLoading } = useNote(noteId);
+  const { data: copiesData, isLoading: copiesLoading } = useMyCopies();
+  const replyCopyMutation = useReplyCopy();
+  const loading = noteLoading || copiesLoading;
+
+  // Derive note and copy from TanStack Query data
+  const note = noteData ?? null;
+  const copy = useMemo(() => {
+    if (!copiesData?.copies || !copyId || !noteId) return null;
+    return (copiesData.copies as NoteCopy[]).find((c) => c.id === copyId && c.noteId === noteId) ?? null;
+  }, [copiesData, copyId, noteId]);
+
+  // Redirect if copy not found after data loads
+  useEffect(() => {
+    if (!loading && copiesData && !copy) {
+      toast({ type: 'error', message: 'Copy not found or you do not have access' });
+      router.push('/noting');
+    }
+  }, [loading, copiesData, copy, toast, router]);
+
   const [replyRemarks, setReplyRemarks] = useState('');
   const [replyAttachments, setReplyAttachments] = useState<{ filePath: string; fileName: string }[]>([]);
   const [replyLoading, setReplyLoading] = useState(false);
   const [replyUploadLoading, setReplyUploadLoading] = useState(false);
-
-  useEffect(() => {
-    if (!noteId || !copyId || !user) return;
-    let cancelled = false;
-    setLoading(true);
-    Promise.all([notingService.getById(noteId), notingService.getMyCopies()])
-      .then(([noteData, { copies }]) => {
-        if (cancelled) return;
-        setNote(noteData);
-        const found = (copies as NoteCopy[]).find((c) => c.id === copyId && c.noteId === noteId);
-        if (found) setCopy(found);
-        else {
-          toast({ type: 'error', message: 'Copy not found or you do not have access' });
-          router.push('/noting');
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          toast({ type: 'error', message: getErrorMessage(err) });
-          router.push('/noting');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [noteId, copyId, user, router, toast]);
 
   // One reply per level — reply form only when status is pending (not yet replied)
   const canReply =
@@ -79,16 +74,18 @@ export default function CopyDetailPage() {
     }
     setReplyLoading(true);
     try {
-      await notingService.replyCopy(copy.id, {
-        remarks: replyRemarks.trim(),
-        attachments: replyAttachments.length > 0 ? replyAttachments : undefined,
+      // PERF FIX: Use mutation hook — it invalidates ["noting", "my-copies"] automatically
+      // so TanStack Query refetches in the background. No manual raw re-fetch needed.
+      await replyCopyMutation.mutateAsync({
+        copyId: copy.id,
+        payload: {
+          remarks: replyRemarks.trim(),
+          attachments: replyAttachments.length > 0 ? replyAttachments : undefined,
+        },
       });
       toast({ type: 'success', message: 'Reply submitted successfully' });
       setReplyRemarks('');
       setReplyAttachments([]);
-      const { copies } = await notingService.getMyCopies();
-      const found = (copies as NoteCopy[]).find((c) => c.id === copyId && c.noteId === noteId);
-      if (found) setCopy(found);
     } catch (err) {
       toast({ type: 'error', message: getErrorMessage(err) });
     } finally {
@@ -117,7 +114,7 @@ export default function CopyDetailPage() {
     return <PageSkeleton />;
   }
 
-  const noteData = copy.note || note;
+  const displayNote = copy.note || note;
   const statusColor =
     copy.status === 'completed'
       ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
@@ -141,10 +138,10 @@ export default function CopyDetailPage() {
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2 mb-1">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center flex-wrap gap-2 mb-1">
             <span className="font-mono text-sm font-semibold text-sgt-600 dark:text-sgt-400">
-              {noteData?.notingId || 'N/A'}
+              {displayNote?.notingId || 'N/A'}
             </span>
             <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase border ${statusColor}`}>
               {copy.status}
@@ -157,7 +154,7 @@ export default function CopyDetailPage() {
             )}
           </div>
           <h1 className="text-lg font-bold text-gray-900 dark:text-white capitalize">
-            {noteData?.category} / {noteData?.subcategory}
+            {displayNote?.category} / {displayNote?.subcategory}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             Sent by: {(copy as any).sentBy?.employeeDetails?.displayName || (copy as any).sentBy?.uid} •{' '}
@@ -170,15 +167,15 @@ export default function CopyDetailPage() {
         </div>
 
         {/* Note Description */}
-        {noteData?.description && (
-          <div className="px-6 py-4 space-y-4">
+        {displayNote?.description && (
+          <div className="px-4 sm:px-6 py-4 space-y-4">
             <div>
               <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                 Note Description
               </h4>
               <div
                 className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: noteData.description }}
+                dangerouslySetInnerHTML={{ __html: displayNote.description }}
               />
             </div>
           </div>
@@ -186,7 +183,7 @@ export default function CopyDetailPage() {
 
         {/* Timeline / Replies */}
         {allReplies.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
             <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Replies &amp; Updates</h4>
             <div className="space-y-3">
               {allReplies.map((r: any) => {
@@ -244,8 +241,8 @@ export default function CopyDetailPage() {
         )}
 
         {/* Instructions / Escalation Context — shown after replies so context is near the reply box */}
-        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 sm:p-4">
             <h4 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-2">
               Instructions from Sender
             </h4>
@@ -356,14 +353,14 @@ export default function CopyDetailPage() {
 
         {/* Reply Section — one reply per level; after replying, wait for creator's action */}
         {copy.status === 'replied' && (copy as any).assignedToId === user?.id && (
-          <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10">
+          <div className="px-4 sm:px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10">
             <p className="text-sm text-amber-700 dark:text-amber-300">
               You have replied. The noting creator will review and take action (complete or forward). The reply form will open again when a new copy is assigned to you.
             </p>
           </div>
         )}
         {canReply && (
-          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20">
+          <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20">
             <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3">
               Your Reply
             </h4>
@@ -395,7 +392,7 @@ export default function CopyDetailPage() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <label className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-1.5">
                   {replyUploadLoading ? (
                     <Skeleton className="w-4 h-4 rounded-sm" />

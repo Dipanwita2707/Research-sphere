@@ -236,7 +236,7 @@ function VerifyPassPageContent() {
       // Check if today is within valid date range
       if (todayDate.getTime() < passDate.getTime() || todayDate.getTime() > endPassDate.getTime()) {
         const dateRangeStr = visitEndDate 
-          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate.split('T')[0]}`
+          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate!.split('T')[0]}`
           : passData.visitDate.split('T')[0];
         
         setError(
@@ -356,7 +356,7 @@ function VerifyPassPageContent() {
       // Check if today is within valid date range
       if (todayDate.getTime() < passDate.getTime() || todayDate.getTime() > endPassDate.getTime()) {
         const dateRangeStr = visitEndDate 
-          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate.split('T')[0]}`
+          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate!.split('T')[0]}`
           : passData.visitDate.split('T')[0];
         
         setError(

@@ -16,7 +16,7 @@ const getEventSettings = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
-  const settings = await eventSettingsService.getEventSettings(id, userId);
+  const settings = await eventSettingsService.getEventSettings(id, userId, req.user);
 
   return ApiResponse.success(res, settings, 'Event settings fetched successfully');
 });
@@ -29,7 +29,7 @@ const updateEventSettings = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
-  const settings = await eventSettingsService.updateEventSettings(id, userId, req.body);
+  const settings = await eventSettingsService.updateEventSettings(id, userId, req.body, req.user);
 
   return ApiResponse.success(res, settings, 'Event settings updated successfully');
 });
@@ -42,7 +42,7 @@ const toggleEventActive = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
-  const settings = await eventSettingsService.toggleEventActive(id, userId);
+  const settings = await eventSettingsService.toggleEventActive(id, userId, req.user);
 
   return ApiResponse.success(
     res,

@@ -4,7 +4,7 @@
  */
 
 const prisma = require('../../../shared/config/database');
-const { ValidationError } = require('../../../shared/utils/AppError');
+const { ValidationError, NotFoundError, ForbiddenError } = require('../../../shared/utils/AppError');
 
 /**
  * Get all prizes for an event
@@ -37,12 +37,12 @@ const createPrize = async (eventId, prizeData, userId) => {
   // Verify event exists
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) {
-    throw new Error('Event not found');
+    throw new NotFoundError('Event');
   }
 
   // Check if user is the event creator
   if (event.createdById !== userId) {
-    throw new Error('Only the event creator can manage prizes');
+    throw new ForbiddenError('Only the event creator can manage prizes');
   }
 
   // Prizes are fixed when event comes from noting
@@ -83,11 +83,11 @@ const updatePrize = async (prizeId, prizeData, userId) => {
   });
 
   if (!prize) {
-    throw new Error('Prize not found');
+    throw new NotFoundError('Prize');
   }
 
   if (prize.Event.createdById !== userId) {
-    throw new Error('Only the event creator can manage prizes');
+    throw new ForbiddenError('Only the event creator can manage prizes');
   }
 
   if (prize.Event.notingId) {
@@ -120,11 +120,11 @@ const deletePrize = async (prizeId, userId) => {
   });
 
   if (!prize) {
-    throw new Error('Prize not found');
+    throw new NotFoundError('Prize');
   }
 
   if (prize.Event.createdById !== userId) {
-    throw new Error('Only the event creator can manage prizes');
+    throw new ForbiddenError('Only the event creator can manage prizes');
   }
 
   if (prize.Event.notingId) {
@@ -143,11 +143,11 @@ const reorderPrizes = async (eventId, prizeOrders, userId) => {
   // Verify event exists and user is creator
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) {
-    throw new Error('Event not found');
+    throw new NotFoundError('Event');
   }
 
   if (event.createdById !== userId) {
-    throw new Error('Only the event creator can manage prizes');
+    throw new ForbiddenError('Only the event creator can manage prizes');
   }
 
   if (event.notingId) {
@@ -174,11 +174,11 @@ const bulkUpsertPrizes = async (eventId, prizes, userId) => {
   // Verify event exists and user is creator
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) {
-    throw new Error('Event not found');
+    throw new NotFoundError('Event');
   }
 
   if (event.createdById !== userId) {
-    throw new Error('Only the event creator can manage prizes');
+    throw new ForbiddenError('Only the event creator can manage prizes');
   }
 
   if (event.notingId) {
@@ -254,11 +254,11 @@ const bulkUpsertPrizes = async (eventId, prizes, userId) => {
 const togglePrizesEnabled = async (eventId, enabled, userId) => {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) {
-    throw new Error('Event not found');
+    throw new NotFoundError('Event');
   }
 
   if (event.createdById !== userId) {
-    throw new Error('Only the event creator can manage prizes');
+    throw new ForbiddenError('Only the event creator can manage prizes');
   }
 
   if (event.notingId) {

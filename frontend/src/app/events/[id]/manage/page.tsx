@@ -177,6 +177,7 @@ export default function ManageEventPage() {
   const [teamRegistrationFee, setTeamRegistrationFee] = useState<number | ''>('');
   const [dutyLeaveAvailable, setDutyLeaveAvailable] = useState<boolean | null>(null);
   const [dutyLeaveEligibility, setDutyLeaveEligibility] = useState<string[]>([]);
+  const [dutyLeaveRoleType, setDutyLeaveRoleType] = useState<'participants' | 'organizers' | 'both' | null>(null);
   const [hasSponsorship, setHasSponsorship] = useState<boolean | null>(null);
   const [sponsors, setSponsors] = useState<Array<{ name: string; amount: number; type: string; notes?: string }>>([]);
   const [showSponsorshipPublicly, setShowSponsorshipPublicly] = useState(false);
@@ -196,6 +197,14 @@ export default function ManageEventPage() {
         eventService.getPrizes(eventId).catch(() => []),
         eventService.getCustomFields(eventId).catch(() => []),
       ]);
+
+      // ── Security: block users who cannot manage this event ──
+      if (!(data as any).canManage) {
+        toast({ type: 'error', message: 'You do not have permission to manage this event' });
+        router.replace('/events');
+        return;
+      }
+
       setEvent(data);
 
       setDescription(data.description || '');
@@ -261,8 +270,19 @@ export default function ManageEventPage() {
       setTeamRegistrationFee(data.teamRegistrationFee ?? '');
       // When event is from noting, locked fields that are null should display as false (No) not as unselected
       const notingLocked = !!data.notingId;
+      console.log('[manage] Noting fields from API:', {
+        dutyLeaveAvailable: data.dutyLeaveAvailable,
+        dutyLeaveEligibility: data.dutyLeaveEligibility,
+        dutyLeaveRoleType: data.dutyLeaveRoleType,
+        hasSponsorship: data.hasSponsorship,
+        sponsors: data.sponsors,
+        hasResources: data.hasResources,
+        resources: data.resources,
+        notingId: data.notingId,
+      });
       setDutyLeaveAvailable(data.dutyLeaveAvailable ?? (notingLocked ? false : null));
       setDutyLeaveEligibility(Array.isArray(data.dutyLeaveEligibility) ? data.dutyLeaveEligibility : []);
+      setDutyLeaveRoleType(data.dutyLeaveRoleType ?? null);
       setHasSponsorship(data.hasSponsorship ?? (notingLocked ? false : null));
       setSponsors(Array.isArray(data.sponsors) ? data.sponsors : []);
       setShowSponsorshipPublicly(data.showSponsorshipPublicly ?? false);
@@ -525,6 +545,7 @@ export default function ManageEventPage() {
       approxCapacity: approxCapacity ? Number(approxCapacity) : null,
       dutyLeaveAvailable: dutyLeaveAvailable ?? null,
       dutyLeaveEligibility: dutyLeaveEligibility.length > 0 ? dutyLeaveEligibility : null,
+      dutyLeaveRoleType: dutyLeaveRoleType ?? null,
       hasSponsorship: hasSponsorship ?? null,
       sponsors: hasSponsorship && sponsors.length > 0 ? sponsors : null,
       showSponsorshipPublicly: hasSponsorship && sponsors.length > 0 ? showSponsorshipPublicly : false,
@@ -697,7 +718,7 @@ export default function ManageEventPage() {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
 
           {/* ── Document Header ── */}
-          <div className="border-b border-gray-200 dark:border-gray-700 px-8 py-5">
+          <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">Event Update</h1>
@@ -716,8 +737,8 @@ export default function ManageEventPage() {
           </div>
 
           {/* ── Step Navigation ── */}
-          <div className="border-b border-gray-200 dark:border-gray-700 px-8 py-4 bg-gray-50 dark:bg-gray-900/30">
-            <div className="flex items-center gap-3">
+          <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 bg-gray-50 dark:bg-gray-900/30">
+            <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide">
               {STEPS.map((step, idx) => {
                 const Icon = step.icon;
                 const isActive = currentStep === step.id;
@@ -726,7 +747,7 @@ export default function ManageEventPage() {
                   <React.Fragment key={step.id}>
                     <button
                       onClick={() => setCurrentStep(step.id)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap min-h-[44px] ${
                         isActive ? 'bg-sgt-600 text-white' : isCompleted ? 'bg-sgt-100 text-sgt-700 dark:bg-sgt-900/20 dark:text-sgt-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
@@ -741,7 +762,7 @@ export default function ManageEventPage() {
           </div>
 
           {/* ── Document Body ── */}
-          <div className="px-8 py-6 space-y-7">
+          <div className="px-4 sm:px-8 py-6 space-y-7">
 
             {/* ====== STEP 1: Basic Information ====== */}
             {currentStep === 1 && (
@@ -756,7 +777,7 @@ export default function ManageEventPage() {
                     These fields were set during noting approval and cannot be modified.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   <div className="flex gap-2">
                     <span className="text-gray-400 font-medium min-w-[80px]">Name:</span>
                     <span className="text-gray-900 dark:text-white font-medium">{event.name}</span>
@@ -1046,28 +1067,46 @@ export default function ManageEventPage() {
                       <span>Yes</span>
                     </label>
                     <label className={`${checkboxClass(dutyLeaveAvailable === false)} ${event.notingId ? 'cursor-not-allowed' : ''}`}>
-                      <input type="radio" checked={dutyLeaveAvailable === false} onChange={() => { if (!event.notingId) { setDutyLeaveAvailable(false); setDutyLeaveEligibility([]); } }} disabled={!!event.notingId} className="sr-only" />
+                      <input type="radio" checked={dutyLeaveAvailable === false} onChange={() => { if (!event.notingId) { setDutyLeaveAvailable(false); setDutyLeaveEligibility([]); setDutyLeaveRoleType(null); } }} disabled={!!event.notingId} className="sr-only" />
                       <span>No</span>
                     </label>
                   </div>
                   {dutyLeaveAvailable && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {['students', 'faculty_teaching', 'faculty_non_teaching', 'staff'].map((opt) => {
-                        const label = opt.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                        const checked = dutyLeaveEligibility.includes(opt);
-                        return (
-                          <label key={opt} className={`flex items-center gap-1.5 text-sm ${event.notingId ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => !event.notingId && setDutyLeaveEligibility(prev => checked ? prev.filter(x => x !== opt) : [...prev, opt])}
-                              disabled={!!event.notingId}
-                              className="w-4 h-4 text-sgt-600 rounded disabled:cursor-not-allowed"
-                            />
-                            <span>{label}</span>
-                          </label>
-                        );
-                      })}
+                    <div className="mt-2 space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {([{ value: 'ug', label: 'UG' }, { value: 'pg', label: 'PG' }, { value: 'phd', label: 'PhD' }] as const).map((opt) => {
+                          const checked = dutyLeaveEligibility.includes(opt.value);
+                          return (
+                            <label key={opt.value} className={`flex items-center gap-1.5 text-sm ${event.notingId ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => !event.notingId && setDutyLeaveEligibility(prev => checked ? prev.filter(x => x !== opt.value) : [...prev, opt.value])}
+                                disabled={!!event.notingId}
+                                className="w-4 h-4 text-sgt-600 rounded disabled:cursor-not-allowed"
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Role Type</p>
+                        <div className="flex flex-wrap gap-2">
+                          {([{ value: 'participants', label: 'Participants' }, { value: 'organizers', label: 'Organizers' }, { value: 'both', label: 'Both' }] as const).map((opt) => (
+                            <label key={opt.value} className={`flex items-center gap-1.5 text-sm ${event.notingId ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                              <input
+                                type="radio"
+                                checked={dutyLeaveRoleType === opt.value}
+                                onChange={() => !event.notingId && setDutyLeaveRoleType(opt.value)}
+                                disabled={!!event.notingId}
+                                className="w-4 h-4 text-sgt-600 disabled:cursor-not-allowed"
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1097,16 +1136,16 @@ export default function ManageEventPage() {
                         Show sponsorship to users on event page (creator decides at publish)
                       </label>
                       {sponsors.map((s, i) => (
-                        <div key={i} className="flex gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md">
-                          <input value={s.name} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Sponsor name" disabled={!!event.notingId} className={`${inputClass} flex-1 disabled:cursor-not-allowed`} />
-                          <select value={s.type} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} w-28 disabled:cursor-not-allowed`}>
+                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md min-w-0">
+                          <input value={s.name} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Sponsor name" disabled={!!event.notingId} className={`${inputClass} !w-auto flex-1 min-w-0 disabled:cursor-not-allowed`} />
+                          <select value={s.type} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`}>
                             <option value="cash">Cash</option>
                             <option value="in_kind">In-kind</option>
                           </select>
                           {s.type === 'cash' ? (
-                            <input type="number" value={s.amount || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, amount: Number(e.target.value) || 0 } : x))} placeholder="Amount (₹)" disabled={!!event.notingId} className={`${inputClass} w-28 disabled:cursor-not-allowed`} />
+                            <input type="number" value={s.amount || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, amount: Number(e.target.value) || 0 } : x))} placeholder="Amount (₹)" disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`} />
                           ) : (
-                            <input type="text" value={s.notes || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} placeholder="Describe in-kind (e.g. Laptops, Food)" disabled={!!event.notingId} className={`${inputClass} flex-1 min-w-[180px] disabled:cursor-not-allowed`} />
+                            <input type="text" value={s.notes || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} placeholder="Describe in-kind (e.g. Laptops, Food)" disabled={!!event.notingId} className={`${inputClass} !w-auto flex-1 min-w-[180px] disabled:cursor-not-allowed`} />
                           )}
                           {!event.notingId && <button type="button" onClick={() => setSponsors(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
                         </div>
@@ -1132,14 +1171,14 @@ export default function ManageEventPage() {
                   {hasResources && (
                     <div className="mt-2 space-y-2">
                       {resources.map((r, i) => (
-                        <div key={i} className="flex gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md">
-                          <select value={r.category} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, category: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} w-28 disabled:cursor-not-allowed`}>
+                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md min-w-0">
+                          <select value={r.category} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, category: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`}>
                             <option value="internal">Internal</option>
                             <option value="external">External</option>
                           </select>
-                          <input value={r.type} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} placeholder="Type" disabled={!!event.notingId} className={`${inputClass} w-32 disabled:cursor-not-allowed`} />
-                          <input value={r.description} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Description" disabled={!!event.notingId} className={`${inputClass} flex-1 disabled:cursor-not-allowed`} />
-                          <input type="number" value={r.estimatedCost ?? ''} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, estimatedCost: e.target.value ? Number(e.target.value) : undefined } : x))} placeholder="Cost (₹)" disabled={!!event.notingId} className={`${inputClass} w-24 disabled:cursor-not-allowed`} />
+                          <input value={r.type} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} placeholder="Type" disabled={!!event.notingId} className={`${inputClass} !w-32 shrink-0 disabled:cursor-not-allowed`} />
+                          <input value={r.description} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Description" disabled={!!event.notingId} className={`${inputClass} !w-auto flex-1 min-w-0 disabled:cursor-not-allowed`} />
+                          <input type="number" value={r.estimatedCost ?? ''} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, estimatedCost: e.target.value ? Number(e.target.value) : undefined } : x))} placeholder="Cost (₹)" disabled={!!event.notingId} className={`${inputClass} !w-24 shrink-0 disabled:cursor-not-allowed`} />
                           {!event.notingId && <button type="button" onClick={() => setResources(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
                         </div>
                       ))}
@@ -1153,7 +1192,7 @@ export default function ManageEventPage() {
             {/* ====== Registration Period ====== */}
             <section>
               <SectionLabel>Registration Period</SectionLabel>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div id="field-registrationStartDate">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Start Date & Time <span className="text-red-500">*</span></label>
                   <input
@@ -1195,7 +1234,7 @@ export default function ManageEventPage() {
                     className={`${inputClass} ${inputErrClass('contactPersonName')}`} placeholder="Full name of event coordinator" />
                   <FieldError field="contactPersonName" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div id="field-contactEmail">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contact Email <span className="text-red-500">*</span></label>
                     <input type="email" value={contactEmail}
@@ -1310,7 +1349,7 @@ export default function ManageEventPage() {
               )}
               <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                 {/* Side by Side: Participation Type + Opportunity Mode */}
-                <div className="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
                   {/* Participation Type */}
                   <div className={`bg-white dark:bg-gray-800 p-4 ${event.notingId ? 'opacity-90' : ''}`}>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Participation Type</label>
@@ -1358,7 +1397,7 @@ export default function ManageEventPage() {
                       <Users className="w-3.5 h-3.5" />
                       Team Configuration
                     </p>
-                    <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Min Team Size <span className="text-red-500">*</span></label>
                         <input type="number" value={minTeamSize} onChange={(e) => setMinTeamSize(e.target.value ? Number(e.target.value) : '')} min="1" className={inputClass} placeholder="e.g., 2" />
@@ -1419,7 +1458,7 @@ export default function ManageEventPage() {
                     <input type="number" value={registrationCap} onChange={(e) => setRegistrationCap(e.target.value ? Number(e.target.value) : '')} min="1" className={inputClass} placeholder="Leave empty for unlimited" />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <label className={checkboxClass(autoApproveRegistration)}>
                     <input type="checkbox" checked={autoApproveRegistration} onChange={(e) => setAutoApproveRegistration(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Auto-approve Registrations</span>
@@ -1451,7 +1490,7 @@ export default function ManageEventPage() {
               <section>
                 <SectionLabel>Team Discovery Settings</SectionLabel>
                 <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label className={checkboxClass(lookingForTeammatesEnabled)}>
                       <input type="checkbox" checked={lookingForTeammatesEnabled} onChange={(e) => setLookingForTeammatesEnabled(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">Enable &quot;Looking for Teammates&quot;</span>
@@ -1565,27 +1604,27 @@ export default function ManageEventPage() {
           </div>
 
           {/* ── Document Footer — Action Buttons ── */}
-          <div className="border-t border-gray-200 dark:border-gray-700 px-8 py-4 bg-gray-50 dark:bg-gray-900/20">
+          <div className="border-t border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 bg-gray-50 dark:bg-gray-900/20">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {currentStep > 1 && (
-                  <button onClick={() => setCurrentStep(currentStep - 1)} className="px-4 py-2.5 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
-                    <ArrowLeft className="w-4 h-4" />Previous
+                  <button onClick={() => setCurrentStep(currentStep - 1)} className="px-3 sm:px-4 py-2.5 min-h-[44px] border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                    <ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Previous</span>
                   </button>
                 )}
                 {currentStep < STEPS.length && (
-                  <button onClick={() => setCurrentStep(currentStep + 1)} className="px-4 py-2.5 bg-gray-700 dark:bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-800 flex items-center gap-2 transition-colors">
-                    Next<ArrowRight className="w-4 h-4" />
+                  <button onClick={() => setCurrentStep(currentStep + 1)} className="px-3 sm:px-4 py-2.5 min-h-[44px] bg-gray-700 dark:bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-800 flex items-center gap-2 transition-colors">
+                    <span className="hidden sm:inline">Next</span><ArrowRight className="w-4 h-4" />
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
-                  {saving ? <Skeleton className="w-4 h-4 rounded-sm" /> : <Save className="w-4 h-4" />}Save Draft
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
+                  {saving ? <Skeleton className="w-4 h-4 rounded-sm" /> : <Save className="w-4 h-4" />}<span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Save</span>
                 </button>
-                <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-5 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
+                <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
                   {publishing ? <Skeleton className="w-4 h-4 rounded-sm" /> : <CheckCircle className="w-4 h-4" />}
-                  {event.status === 'published' ? 'Update & Republish' : 'Save & Publish'}
+                  <span className="hidden sm:inline">{event.status === 'published' ? 'Update & Republish' : 'Save & Publish'}</span><span className="sm:hidden">Publish</span>
                 </button>
               </div>
             </div>
@@ -1609,7 +1648,7 @@ export default function ManageEventPage() {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prize Type</label>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PRIZE_TYPE_OPTIONS.map(opt => (
                     <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize, prizeType: opt.value })} className={`flex flex-col items-center gap-1 p-3 rounded-md border transition-colors ${editingPrize.prizeType === opt.value ? 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
                       {opt.icon}<span className="text-xs font-medium">{opt.label}</span>

@@ -131,6 +131,7 @@ export const DSW_API_ENDPOINTS = {
   MY_CLUBS: `${DSW_API_BASE}/clubs/my`,
   MY_CLUB_REQUESTS: `${DSW_API_BASE}/clubs/my-requests`,
   CLUB_MEMBERS: (id: string) => `${DSW_API_BASE}/clubs/${id}/members`,
+  CLUB_EVENTS: (id: string) => `${DSW_API_BASE}/clubs/${id}/events`,
   ADD_MEMBER: (id: string) => `${DSW_API_BASE}/clubs/${id}/members`,
   REMOVE_MEMBER: (clubId: string, memberId: string) =>
     `${DSW_API_BASE}/clubs/${clubId}/members/${memberId}`,

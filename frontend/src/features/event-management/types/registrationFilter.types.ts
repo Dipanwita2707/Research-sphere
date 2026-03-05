@@ -43,6 +43,9 @@ export interface RegistrationRow {
   qrCode: string;
   paymentStatus?: string;
   amountPaid?: number;
+  couponId?: string | null;
+  discountAmount?: number | null;
+  originalAmount?: number | null;
   isTeamLeader?: boolean;
   hasEntered: boolean;
   enteredAt?: string;

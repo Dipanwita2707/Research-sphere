@@ -78,6 +78,11 @@ export default function NotingListPage() {
   const { user } = useAuthStore();
   const [, startTransition] = useTransition();
 
+  // ── Student access check (computed early to disable queries) ──────────────
+  const isStudent = !!user && (user.role?.name === "student" || user.userType === "student");
+  const { data: notingPerms, isLoading: permsLoading } = useNotingPermissions();
+  const studentHasAccess = !isStudent || (notingPerms?.noting_create === true);
+
   // ── URL is the single source of truth ────────────────────────────────────
   // Read directly from searchParams — no useState mirrors, no sync useEffect.
   const VALID_FILTERS = ["mine", "pending", "handled_approved", "handled_rejected", "copies"] as const;
@@ -191,9 +196,10 @@ export default function NotingListPage() {
     category: category || undefined,
     startDate: startDate || undefined,
     endDate: endDate || undefined,
-    handledAction: apiHandledAction,
+    handledAction: apiHandledAction as 'approved' | 'rejected' | undefined,
     // disable list query when on Copies tab
-    enabled: filter !== "copies",
+    // disable list query when on Copies tab OR for unauthorized students
+    enabled: filter !== "copies" && studentHasAccess,
   };
 
   const { data: listResult, isLoading: listLoading } =
@@ -214,7 +220,7 @@ export default function NotingListPage() {
   } = useMyCopies({
     page,
     limit: PAGE_SIZE,
-    enabled: filter === "copies" && !!user,
+    enabled: filter === "copies" && !!user && studentHasAccess,
   });
 
   const myCopies = copiesData?.copies ?? [];
@@ -224,7 +230,7 @@ export default function NotingListPage() {
   // ── Background prefetch: warm the copies cache while the user is on another tab ──
   // This ensures the copies tab loads instantly when the user clicks it.
   useEffect(() => {
-    if (filter !== "copies" && user) {
+    if (filter !== "copies" && user && studentHasAccess) {
       queryClient.prefetchQuery({
         queryKey: NOTING_QUERY_KEYS.myCopies(1, PAGE_SIZE),
         queryFn: () => notingService.getMyCopies({ page: 1, limit: PAGE_SIZE }),
@@ -265,16 +271,18 @@ export default function NotingListPage() {
   }, [copiesError, toast]);
 
   // Block students who are NOT club chairpersons from accessing noting system
-  const { data: notingPerms } = useNotingPermissions();
+  // isStudent, notingPerms, permsLoading are defined at the top of the component
+
   useEffect(() => {
-    if (user && (user.role as any) === "student" && notingPerms && !notingPerms.noting_create) {
+    if (isStudent && notingPerms && !notingPerms.noting_create) {
       toast({
         type: "error",
         message: "Students are not allowed to access the noting system",
       });
       router.push("/dashboard");
     }
-  }, [user, notingPerms, router, toast]);
+  }, [isStudent, notingPerms, router, toast]);
+
 
   const handleDeleteDraft = useCallback(
     (e: React.MouseEvent, note: Note) => {
@@ -399,6 +407,25 @@ export default function NotingListPage() {
     [myCopies, isMyWork],
   );
 
+  // ── Student access gate (after all hooks) ─────────────────────────────────
+  // While permissions are loading for students, show skeleton — page never renders.
+  if (isStudent && (permsLoading || !notingPerms)) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto space-y-4">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      </div>
+    );
+  }
+
+  // If student was checked and has no access, don't render (redirect is in progress)
+  if (isStudent && !notingPerms?.noting_create) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
@@ -413,13 +440,13 @@ export default function NotingListPage() {
             </p>
           </div>
           {notingPerms?.noting_create && (
-          <Link
-            href="/noting/new"
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4 flex-shrink-0" />
-            Create New Note
-          </Link>
+            <Link
+              href="/noting/new"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors shadow-sm w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4 flex-shrink-0" />
+              Create New Note
+            </Link>
           )}
         </div>
 
@@ -433,8 +460,8 @@ export default function NotingListPage() {
                 key={tab.key}
                 onClick={() => setFilter(tab.key)}
                 className={`flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px flex-shrink-0 whitespace-nowrap ${isActive
-                    ? "border-sgt-600 text-sgt-700 dark:text-sgt-300"
-                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300"
+                  ? "border-sgt-600 text-sgt-700 dark:text-sgt-300"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300"
                   }`}
               >
                 <Icon className="w-4 h-4" />
@@ -442,8 +469,8 @@ export default function NotingListPage() {
                 {tab.count > 0 && (
                   <span
                     className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive
-                        ? "bg-sgt-600 text-white"
-                        : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      ? "bg-sgt-600 text-white"
+                      : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
                       }`}
                   >
                     {tab.count}
@@ -507,8 +534,8 @@ export default function NotingListPage() {
                   )
                 }
                 className={`flex-1 sm:flex-none px-4 py-2 rounded-lg border text-sm font-medium flex items-center justify-center gap-1.5 transition-colors ${showFilters
-                    ? "bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 border-sgt-300"
-                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  ? "bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700 border-sgt-300"
+                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                   }`}
               >
                 <Filter className="w-3.5 h-3.5" />
@@ -593,8 +620,8 @@ export default function NotingListPage() {
               type="button"
               onClick={() => setCopiesFilter("all")}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${copiesFilter === "all"
-                  ? "bg-sgt-600 text-white border-sgt-600"
-                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                ? "bg-sgt-600 text-white border-sgt-600"
+                : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
             >
               All
@@ -608,8 +635,8 @@ export default function NotingListPage() {
               type="button"
               onClick={() => setCopiesFilter("my_work")}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${copiesFilter === "my_work"
-                  ? "bg-sgt-600 text-white border-sgt-600"
-                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                ? "bg-sgt-600 text-white border-sgt-600"
+                : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
             >
               <Briefcase className="w-4 h-4" />
@@ -624,8 +651,8 @@ export default function NotingListPage() {
               type="button"
               onClick={() => setCopiesFilter("complaints")}
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${copiesFilter === "complaints"
-                  ? "bg-sgt-600 text-white border-sgt-600"
-                  : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                ? "bg-sgt-600 text-white border-sgt-600"
+                : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
                 }`}
             >
               <AlertCircle className="w-4 h-4" />
@@ -706,7 +733,7 @@ export default function NotingListPage() {
                         <Copy className="w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
+                        <div className="flex items-center flex-wrap gap-1.5 sm:gap-2 mb-0.5">
                           <span className="font-mono text-xs font-semibold text-sgt-600 dark:text-sgt-400">
                             {noteData?.notingId || "N/A"}
                           </span>
@@ -849,8 +876,19 @@ export default function NotingListPage() {
                   (h: { performedById: string }) =>
                     h.performedById !== note.createdById,
                 ) || [];
+              // A note can only be deleted if:
+              // 1. We're on "My Notes" tab
+              // 2. The note is not finalized (approved/rejected)
+              // 3. No approver has taken action (checked from history if loaded,
+              //    falling back to _count.history — list API doesn't return history items)
+              const hasApproverActed =
+                approverActions.length > 0 ||
+                (note.history === undefined && (note._count?.history ?? 0) > 1);
               const canEditOrDelete =
-                filter === "mine" && approverActions.length === 0;
+                filter === "mine" &&
+                note.status !== "approved" &&
+                note.status !== "rejected" &&
+                !hasApproverActed;
 
               return (
                 <Link
@@ -901,7 +939,7 @@ export default function NotingListPage() {
                               {stripHtml(note.description)}
                             </p>
                           )}
-                          <div className="flex items-center gap-4 mt-2.5 text-xs text-gray-500 dark:text-gray-400">
+                          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-500 dark:text-gray-400">
                             <span className="flex items-center gap-1.5">
                               <span className="w-5 h-5 rounded-full bg-sgt-100 dark:bg-sgt-900/30 flex items-center justify-center text-sgt-700 dark:text-sgt-400 text-[10px] font-bold">
                                 {getDisplayName(note).charAt(0).toUpperCase()}
@@ -1026,7 +1064,7 @@ export default function NotingListPage() {
                   type="button"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={pagination.page <= 1 || isLoading}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   Prev
@@ -1052,8 +1090,8 @@ export default function NotingListPage() {
                           onClick={() => setPage(pageNum)}
                           disabled={isLoading}
                           className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${pagination.page === pageNum
-                              ? "bg-sgt-600 text-white"
-                              : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            ? "bg-sgt-600 text-white"
+                            : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                             }`}
                         >
                           {pageNum}
@@ -1070,7 +1108,7 @@ export default function NotingListPage() {
                   disabled={
                     pagination.page >= pagination.totalPages || isLoading
                   }
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md border border-gray-200 dark:border-gray-600 text-xs font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                   <ChevronRight className="w-3.5 h-3.5" />

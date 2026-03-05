@@ -9,6 +9,16 @@ import type {
 
 const BASE = "/noting";
 
+// ─── Facilitator Club type ──────────────────────────────────────────────────
+export interface FacilitatorClub {
+  id: string;
+  clubId: string;
+  name: string;
+  categoryName: string | null;
+  chairpersonId: string;
+  chairpersonName: string | null;
+}
+
 // ─── Noting Permission Keys ─────────────────────────────────────────────────
 export interface NotingPermissions {
   noting_create: boolean;
@@ -106,6 +116,12 @@ export const notingService = {
   getMyCreatorInfo: (): Promise<CreatorInfo> =>
     api
       .get(`${BASE}/my-creator-info`, { timeout: 30000 })
+      .then((res) => res.data.data),
+
+  /** Get clubs where the current user is the faculty facilitator (for event noting club dropdown) */
+  getMyFacilitatorClubs: (): Promise<FacilitatorClub[]> =>
+    api
+      .get(`${BASE}/my-facilitator-clubs`, { timeout: 15000 })
       .then((res) => res.data.data),
 
   getCounts: (): Promise<{ mine: number; pending: number; handled: number }> =>

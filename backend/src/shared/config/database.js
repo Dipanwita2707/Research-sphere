@@ -6,7 +6,7 @@ let prisma;
 if (process.env.NODE_ENV === "production") {
   // Production: Single instance with connection pooling
   prisma = new PrismaClient({
-    log: ["error"], // Minimal logging in production
+    log: [{ level: "error", emit: "event" }], // Emit events so $on('error') fires
     datasources: {
       db: {
         url: process.env.DATABASE_URL + "?connection_limit=25&pool_timeout=30",
@@ -43,11 +43,12 @@ if (process.env.NODE_ENV === "production") {
       },
     });
 
-    // Log slow queries (>500ms) in development — pretty formatted
+    // Log slow queries in development — threshold configurable via env
     if (process.env.NODE_ENV === "development") {
       const log = require("../utils/logger");
+      const slowThreshold = parseInt(process.env.PRISMA_SLOW_QUERY_MS, 10) || 500;
       global.prisma.$on("query", (e) => {
-        if (e.duration > 500) {
+        if (e.duration > slowThreshold) {
           log.slowQuery(e.duration, e.query);
         }
       });
@@ -88,24 +89,43 @@ connectWithRetry();
 
 // Handle connection errors during runtime
 prisma.$on("error", (e) => {
-  console.error("Prisma runtime error:", e);
+  const log = require("../utils/logger");
+  log.error("Prisma runtime error:", e);
   // Attempt to reconnect
   if (connectionAttempts === 0) {
     connectWithRetry();
   }
 });
 
+// ── Neon keep-alive: prevent cold starts ──────────────────────────────────────
+// Neon suspends idle connections after ~5 minutes, causing 1-2s cold-start
+// latency on the next query. A lightweight SELECT 1 every 4 minutes keeps the
+// connection warm. The interval is cleared on process exit.
+const KEEP_ALIVE_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
+const keepAliveTimer = setInterval(async () => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+  } catch {
+    // Silently ignore — connectWithRetry will handle reconnection if needed
+  }
+}, KEEP_ALIVE_INTERVAL_MS);
+// Ensure the timer doesn't prevent Node from exiting
+if (keepAliveTimer.unref) keepAliveTimer.unref();
+
 // Handle cleanup on application termination
 process.on("beforeExit", async () => {
+  clearInterval(keepAliveTimer);
   await prisma.$disconnect();
 });
 
 process.on("SIGINT", async () => {
+  clearInterval(keepAliveTimer);
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
+  clearInterval(keepAliveTimer);
   await prisma.$disconnect();
   process.exit(0);
 });

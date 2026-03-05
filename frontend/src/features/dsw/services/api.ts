@@ -21,6 +21,18 @@ import {
 } from "../types";
 import { DSW_API_ENDPOINTS } from "../constants";
 
+export interface ClubEvent {
+  id: string;
+  eventId: string;
+  name: string;
+  eventType: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  venue: string | null;
+  bannerImageUrl: string | null;
+}
+
 // Club API
 export const clubAPI = {
   /**
@@ -174,6 +186,15 @@ export const clubAPI = {
     const response = await api.get<ApiResponse<ClubAuditLog[]>>(
       DSW_API_ENDPOINTS.CLUB_AUDIT_LOGS(clubId),
       { params: filters },
+    );
+    return response.data;
+  },
+  /**
+   * Get events linked to this club (via noting.eventClubId)
+   */
+  getClubEvents: async (clubId: string): Promise<ApiResponse<ClubEvent[]>> => {
+    const response = await api.get<ApiResponse<ClubEvent[]>>(
+      DSW_API_ENDPOINTS.CLUB_EVENTS(clubId),
     );
     return response.data;
   },

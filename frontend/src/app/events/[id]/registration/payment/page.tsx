@@ -32,6 +32,7 @@ export default function PaymentPage() {
   const [eventData, setEventData] = useState<{
     name: string;
     registrationFee: number;
+    amountPaid?: number | null;
     paymentType: string;
     participationType: string;
   } | null>(null);
@@ -48,6 +49,7 @@ export default function PaymentPage() {
       setEventData({
         name: formData.event.name,
         registrationFee: formData.event.registrationFee || 0,
+        amountPaid: formData.existingRegistration?.amountPaid,
         paymentType: formData.event.paymentType,
         participationType: formData.event.participationType || 'individual',
       });
@@ -93,6 +95,9 @@ export default function PaymentPage() {
 
   // Already paid?
   const isPaid = paymentStatus?.isPaid;
+
+  // Coupon covered 100%: amountPaid is 0 and no Razorpay payment exists
+  const isCouponFree = eventData?.amountPaid === 0;
 
   if (loading) {
     return (
@@ -148,18 +153,22 @@ export default function PaymentPage() {
         {/* Payment Card */}
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
           {/* Success State */}
-          {isPaid ? (
+          {isPaid || isCouponFree ? (
             <div className="p-8 text-center">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-green-700 dark:text-green-400 mb-2">Payment Complete!</h2>
+              <h2 className="text-2xl font-bold text-green-700 dark:text-green-400 mb-2">
+                {isCouponFree ? 'Registration Confirmed!' : 'Payment Complete!'}
+              </h2>
               <p className="text-gray-500 dark:text-gray-400 mb-1">
-                Your registration has been confirmed.
+                {isCouponFree ? 'Coupon covered the full amount.' : 'Your registration has been confirmed.'}
               </p>
-              <p className="text-sm text-gray-400 mb-6">
-                Payment ID: {paymentStatus?.latestPayment?.razorpayPaymentId}
-              </p>
+              {paymentStatus?.latestPayment?.razorpayPaymentId && (
+                <p className="text-sm text-gray-400 mb-6">
+                  Payment ID: {paymentStatus.latestPayment.razorpayPaymentId}
+                </p>
+              )}
               <Link
                 href={`/events/${eventId}`}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-medium"
@@ -185,11 +194,27 @@ export default function PaymentPage() {
                     <span className="font-medium text-gray-900 dark:text-white capitalize">Individual Registration</span>
                   </div>
                   <div className="h-px bg-gray-200 dark:bg-gray-700" />
+                  {/* Show discount row if coupon was applied */}
+                  {eventData.amountPaid != null && eventData.amountPaid < eventData.registrationFee && (
+                    <>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500 dark:text-gray-400">Original Fee</span>
+                        <span className="text-gray-400 line-through">₹{eventData.registrationFee.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">Coupon Discount</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                          −₹{(eventData.registrationFee - eventData.amountPaid).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="h-px bg-gray-200 dark:bg-gray-700" />
+                    </>
+                  )}
                   <div className="flex items-center justify-between text-lg">
                     <span className="font-semibold text-gray-900 dark:text-white">Total Amount</span>
                     <span className="flex items-center gap-1 font-bold text-blue-600 dark:text-blue-400 text-2xl">
                       <IndianRupee className="w-5 h-5" />
-                      {eventData.registrationFee.toLocaleString('en-IN')}
+                      {(eventData.amountPaid ?? eventData.registrationFee).toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
@@ -234,7 +259,7 @@ export default function PaymentPage() {
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
-                      Pay ₹{eventData.registrationFee.toLocaleString('en-IN')}
+                      Pay ₹{(eventData.amountPaid ?? eventData.registrationFee).toLocaleString('en-IN')}
                     </>
                   )}
                 </button>

@@ -15,6 +15,58 @@ export type EventType =
 
 export type EventPaymentType = 'free' | 'paid';
 
+// ─────────────────────────────────────────────
+// Coupon Types
+// ─────────────────────────────────────────────
+export type CouponDiscountType = 'percentage' | 'fixed';
+
+export interface EventCoupon {
+  id: string;
+  eventId: string;
+  code: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  maxDiscountCap?: number | null;
+  minAmount?: number | null;
+  maxUses?: number | null;
+  maxUsesPerUser?: number | null;
+  usedCount: number;
+  expiresAt?: string | null;
+  isActive: boolean;
+  description?: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+  /** Derived from _count.CouponUsage */
+  usageCount?: number;
+}
+
+export interface CouponFormData {
+  code: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  maxDiscountCap?: number | null;
+  minAmount?: number | null;
+  maxUses?: number | null;
+  maxUsesPerUser?: number | null;
+  expiresAt?: string | null;
+  isActive?: boolean;
+  description?: string | null;
+}
+
+export interface CouponValidationResult {
+  valid: boolean;
+  couponId: string;
+  code: string;
+  discountType: CouponDiscountType;
+  discountValue: number;
+  maxDiscountCap?: number | null;
+  description?: string | null;
+  originalAmount: number;
+  discountAmount: number;
+  finalAmount: number;
+}
+
 export type EventStatus =
   | 'draft'
   | 'published'
@@ -149,9 +201,11 @@ export interface Event {
   autoApproveTeams?: boolean;
 
   // Registration Control Settings
+  autoApproveRegistration?: boolean;
   registrationCap?: number;
   showParticipantsPublicly?: boolean;
   allowWithdrawRegistration?: boolean;
+  allowEditAfterSubmission?: boolean;
   lockTeamAfterDeadline?: boolean;
 
   // Team Discovery Settings

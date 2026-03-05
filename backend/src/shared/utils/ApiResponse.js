@@ -42,15 +42,16 @@ class ApiResponse {
    * @param {string} message - Success message
    */
   static paginated(res, data, pagination, message = 'Success') {
+    const limit = pagination.limit || 1; // guard against divide-by-zero
     return res.status(200).json({
       success: true,
       message,
       data,
       pagination: {
         page: pagination.page,
-        limit: pagination.limit,
+        limit,
         total: pagination.total,
-        totalPages: pagination.totalPages || Math.ceil(pagination.total / pagination.limit),
+        totalPages: pagination.totalPages || Math.ceil(pagination.total / limit),
       },
     });
   }
@@ -61,6 +62,24 @@ class ApiResponse {
    */
   static noContent(res) {
     return res.status(204).send();
+  }
+
+  /**
+   * Send error response
+   * @param {Object} res - Express response object
+   * @param {string} message - Error message
+   * @param {number} statusCode - HTTP status code (default 500)
+   * @param {Object} [errors] - Optional validation errors or details
+   */
+  static error(res, message = 'Internal server error', statusCode = 500, errors = null) {
+    const response = {
+      success: false,
+      message,
+    };
+    if (errors) {
+      response.errors = errors;
+    }
+    return res.status(statusCode).json(response);
   }
 }
 
