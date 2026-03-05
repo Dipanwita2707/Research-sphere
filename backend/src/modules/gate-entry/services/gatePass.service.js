@@ -52,6 +52,7 @@ class GatePassService {
       actualExitTime: formatDateForFrontend(pass.actual_exit_time),
       qrStatus: pass.qr_status,
       qrActivationTime: formatDateForFrontend(pass.qr_activation_time),
+      verificationCode: pass.verification_code,
       checkoutUniqueId: pass.checkout_unique_id,
       checkoutVerificationCode: pass.checkout_verification_code,
       checkoutQrCode: pass.checkout_qr_code,
@@ -1084,7 +1085,7 @@ class GatePassService {
       // Check if pass has hostel booking
       if (pass.stay_required) {
         const hostelBooking = await prisma.hostelBooking.findUnique({
-          where: { linked_pass_id: pass.id },
+          where: { gate_pass_id: pass.id },
           include: {
             room: {
               include: {
@@ -1097,44 +1098,45 @@ class GatePassService {
         if (hostelBooking) {
           logger.info(`[CANCEL BEFORE CHECK-IN] Hostel booking found: ${hostelBooking.id}, Amount: ${hostelBooking.total_price}`);
 
-          // Fetch refund percentage from SystemConfig
-          let refundPercent = 90; // Default 90%
-          const refundConfig = await prisma.systemConfig.findUnique({
-            where: { config_key: 'hostel_cancellation_refund_percent' }
-          });
-
-          if (refundConfig) {
-            refundPercent = parseFloat(refundConfig.config_value);
-            logger.info(`[CANCEL BEFORE CHECK-IN] Using configured refund %: ${refundPercent}%`);
+          // Dynamic refund calculation based on time before check-in
+          const now = new Date();
+          const checkInDate = new Date(hostelBooking.check_in_date);
+          
+          // Calculate hours until check-in
+          const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
+          const hoursUntilCheckIn = timeUntilCheckIn / (1000 * 60 * 60);
+          const daysUntilCheckIn = hoursUntilCheckIn / 24;
+          
+          let refundPercent = 0;
+          let appliedSlab = '';
+          
+          if (daysUntilCheckIn >= 3) {
+            refundPercent = 90;
+            appliedSlab = '3+ days before check-in';
+          } else if (daysUntilCheckIn >= 1) {
+            refundPercent = 70;
+            appliedSlab = '1-3 days before check-in';
+          } else if (hoursUntilCheckIn >= 2) {
+            refundPercent = 40;
+            appliedSlab = '2-24 hours before check-in';
           } else {
-            logger.warn(`[CANCEL BEFORE CHECK-IN] No refund config found, using default: ${refundPercent}%`);
+            refundPercent = 0;
+            appliedSlab = 'Less than 2 hours before check-in';
           }
 
+          logger.info(`[CANCEL BEFORE CHECK-IN] Time until check-in: ${daysUntilCheckIn.toFixed(2)} days (${hoursUntilCheckIn.toFixed(2)} hours)`);
+          logger.info(`[CANCEL BEFORE CHECK-IN] Applied refund slab: ${appliedSlab} (${refundPercent}% refund)`);
+
           // Calculate refund amounts
-          const originalAmount = hostelBooking.total_price;
+          const originalAmount = parseFloat(hostelBooking.total_price) || 0;
           const cancellationFeePercent = 100 - refundPercent;
           const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
           const refundAmount = originalAmount - cancellationFeeAmount;
 
           logger.info(`[CANCEL BEFORE CHECK-IN] Refund calculation: Original: ${originalAmount}, Fee: ${cancellationFeeAmount} (${cancellationFeePercent}%), Refund: ${refundAmount}`);
 
-          // Create RefundTransaction record
-          const refundTransaction = await prisma.refundTransaction.create({
-            data: {
-              booking_id: hostelBooking.id,
-              pass_id: pass.id,
-              original_amount: originalAmount,
-              cancellation_fee_percent: cancellationFeePercent,
-              cancellation_fee_amount: cancellationFeeAmount,
-              refund_amount: refundAmount,
-              refund_status: 'pending',
-              remarks: `Before check-in cancellation. Reason: ${reason}`,
-              processed_by_id: userId,
-              processed_at: new Date()
-            }
-          });
-
-          logger.info(`[CANCEL BEFORE CHECK-IN] Refund transaction created: ${refundTransaction.id}`);
+          // Store refund info (RefundTransaction table not available yet)
+          logger.info(`[CANCEL BEFORE CHECK-IN] Refund will be processed: ₹${refundAmount}`);
 
           // Update HostelBooking status
           await prisma.hostelBooking.update({
@@ -1150,13 +1152,14 @@ class GatePassService {
 
           hostelRefundData = {
             booking_id: hostelBooking.id,
-            room_number: hostelBooking.room.room_number,
-            hostel_name: hostelBooking.room.hostel.name,
+            room_number: hostelBooking.room?.room_number || hostelBooking.room_number,
+            hostel_name: hostelBooking.room?.hostel?.name || hostelBooking.hostel_name,
             original_amount: originalAmount,
             cancellation_fee_percent: cancellationFeePercent,
             cancellation_fee_amount: cancellationFeeAmount,
             refund_amount: refundAmount,
-            refund_transaction_id: refundTransaction.id
+            applied_slab: appliedSlab,
+            refund_percent: refundPercent
           };
         }
       }
@@ -1167,7 +1170,7 @@ class GatePassService {
         data: {
           status: 'cancelled', // Legacy field
           pass_status: 'cancelled',
-          qr_status: 'cancelled',
+          qr_status: 'inactive', // QR is no longer valid
           cancellation_time: new Date(),
           cancellation_reason: reason
         }
@@ -1294,7 +1297,7 @@ class GatePassService {
         data: {
           status: 'cancelled', // Legacy field
           pass_status: 'cancelled',
-          qr_status: 'cancelled',
+          qr_status: 'inactive', // QR is no longer valid
           cancellation_time: new Date(),
           cancellation_reason: reason,
           checkout_unique_id: checkoutQRData.checkout_unique_id,

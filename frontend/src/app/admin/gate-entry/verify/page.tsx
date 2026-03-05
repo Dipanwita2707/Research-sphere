@@ -212,7 +212,18 @@ function VerifyPassPageContent() {
         return;
       }
       
-      // Validate time window (support multi-day passes)
+      // Check if this is a cancelled pass (for checkout) - Skip time validation
+      if (response.isCancelled) {
+        setIsCancelledPass(true);
+        setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
+        setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
+        setPass(passData);
+        toast.warning(response.message || t('verifyPass.toast.cancelledPassWarning'));
+        setLoading(false);
+        return;
+      }
+      
+      // For non-cancelled passes, validate time window (support multi-day passes)
       const now = new Date();
       const visitDate = new Date(passData.visitDate || now);
       const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -994,8 +1005,35 @@ function VerifyPassPageContent() {
             </div>
 
             <div className="p-3 md:p-6">
-              {/* Checkout Warning for Cancelled Pass */}
-              {isCancelledPass && pass.passStatus === 'cancelled' && (
+              {/* Pass Cancelled Before Check-In - No Checkout Required */}
+              {isCancelledPass && pass.passStatus === 'cancelled' && pass.cancellationType === 'before_check_in' && (
+                <div className="mb-4 md:mb-6 bg-red-50 rounded-lg border-2 border-red-400 p-4 md:p-6">
+                  <div className="flex items-start gap-3">
+                    <XCircle className="w-7 h-7 md:w-8 md:h-8 text-red-600 flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <h3 className="text-xl md:text-2xl font-bold text-red-900 mb-2">❌ Pass Cancelled Before Check-In</h3>
+                      <p className="text-sm md:text-base text-red-700 font-medium mb-2">
+                        This pass was cancelled before the visitor checked in. The pass is no longer valid for entry.
+                      </p>
+                      <p className="text-xs md:text-sm text-red-600">
+                        No checkout action is required as the visitor never entered the premises.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Cancellation Details */}
+                  {pass.cancellationTime && (
+                    <div className="mt-3 pt-3 border-t border-red-200">
+                      <p className="text-xs md:text-sm text-gray-700">
+                        <strong>Cancelled At:</strong> {new Date(pass.cancellationTime).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Checkout Warning for Cancelled Pass - After Check-In */}
+              {isCancelledPass && pass.passStatus === 'cancelled' && pass.cancellationType === 'after_check_in' && (
                 <div className="mb-4 md:mb-6 bg-red-50 rounded-lg border-2 border-red-400 p-4 md:p-6 animate-pulse">
                   <div className="flex items-start gap-3 mb-4">
                     <AlertCircle className="w-7 h-7 md:w-8 md:h-8 text-red-600 flex-shrink-0 mt-1" />
@@ -1048,8 +1086,8 @@ function VerifyPassPageContent() {
                 </div>
               )}
 
-              {/* QR Status Warning - if inactive */}
-              {pass.qrStatus === 'inactive' && (
+              {/* QR Status Warning - if inactive (only for non-cancelled passes) */}
+              {pass.qrStatus === 'inactive' && pass.passStatus !== 'cancelled' && (
                 <div className="mb-4 md:mb-6 bg-yellow-50 rounded-lg border border-yellow-300 p-3 md:p-4">
                   <div className="flex items-start gap-2 md:gap-3">
                     <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -1268,7 +1306,8 @@ function VerifyPassPageContent() {
                     </div>
                   </div>
                   <p className="text-xs md:text-sm text-gray-600">
-                    {isCancelledPass && t('verifyPass.guard.checkoutMsg')}
+                    {isCancelledPass && pass.cancellationType === 'after_check_in' && t('verifyPass.guard.checkoutMsg')}
+                    {isCancelledPass && pass.cancellationType === 'before_check_in' && 'Pass was cancelled before check-in. No action required.'}
                     {canAllowEntry && !isCancelledPass && t('verifyPass.guard.allowEntryMsg')}
                     {canRecordExit && !isCancelledPass && t('verifyPass.guard.recordExitMsg')}
                     {canDenyEntry && !isCancelledPass && t('verifyPass.guard.denyEntryMsg')}
@@ -1277,8 +1316,8 @@ function VerifyPassPageContent() {
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-                  {/* Checkout for Cancelled Pass */}
-                  {isCancelledPass && pass.passStatus === 'cancelled' && getCheckoutTimeRemaining().total > 0 && (
+                  {/* Checkout for Cancelled Pass - After Check-In Only */}
+                  {isCancelledPass && pass.passStatus === 'cancelled' && pass.cancellationType === 'after_check_in' && getCheckoutTimeRemaining().total > 0 && (
                     <button
                       onClick={handleRecordExit}
                       disabled={actionLoading}
@@ -1289,8 +1328,8 @@ function VerifyPassPageContent() {
                     </button>
                   )}
 
-                  {/* Expired QR Warning */}
-                  {isCancelledPass && getCheckoutTimeRemaining().total <= 0 && (
+                  {/* Expired QR Warning - After Check-In Only */}
+                  {isCancelledPass && pass.cancellationType === 'after_check_in' && getCheckoutTimeRemaining().total <= 0 && (
                     <div className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-red-100 border-2 border-red-500 text-red-800 rounded-lg text-center font-semibold text-sm md:text-base">
                       {t('verifyPass.actions.qrExpired')}
                     </div>

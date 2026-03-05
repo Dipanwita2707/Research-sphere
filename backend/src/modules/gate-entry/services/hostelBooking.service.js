@@ -184,7 +184,7 @@ class HostelBookingService {
 
       // Check if pass already has a booking
       const existingBooking = await prisma.hostelBooking.findUnique({
-        where: { linked_pass_id: gatePassUUID }
+        where: { gate_pass_id: gatePassUUID }
       });
 
       if (existingBooking) {
@@ -279,11 +279,21 @@ class HostelBookingService {
             include: {
               hostel: true
             }
+          },
+          gate_pass: {
+            select: {
+              pass_id       : true,
+              visitor_name  : true,
+              mobile_number : true,
+              email         : true,
+              qr_code       : true,
+              verification_code: true
+            }
           }
         }
       });
 
-      // Note: gate_pass relation is auto-established via linked_pass_id
+      // Note: gate_pass relation is auto-established via gate_pass_id
       return updatedBooking;
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -305,7 +315,7 @@ class HostelBookingService {
         include: {
           gate_pass: {
             select: {
-              created_by_user_id: true
+              created_by_id: true
             }
           }
         }
@@ -326,7 +336,7 @@ class HostelBookingService {
       });
       
       const isAdmin = user?.role?.toLowerCase() === 'admin';
-      const isCreator = booking.gate_pass?.created_by_user_id === verifiedByUserId;
+      const isCreator = booking.gate_pass?.created_by_id === verifiedByUserId;
       
       if (!isAdmin && !isCreator) {
         throw new Error('Only the pass creator or admin can confirm payment');
@@ -344,6 +354,16 @@ class HostelBookingService {
           room: {
             include: {
               hostel: true
+            }
+          },
+          gate_pass: {
+            select: {
+              pass_id      : true,
+              visitor_name : true,
+              mobile_number: true,
+              email        : true,
+              qr_code      : true,
+              verification_code: true
             }
           }
         }
@@ -389,7 +409,7 @@ class HostelBookingService {
         }
       });
 
-      // Note: gate_pass relation is maintained via linked_pass_id
+      // Note: gate_pass relation is maintained via gate_pass_id
       return updatedBooking;
     } catch (error) {
       console.error('Error cancelling booking:', error);
@@ -415,7 +435,7 @@ class HostelBookingService {
       }
 
       const booking = await prisma.hostelBooking.findUnique({
-        where: { linked_pass_id: gatePass.id },
+        where: { gate_pass_id: gatePass.id },
         include: {
           room: {
             include: {

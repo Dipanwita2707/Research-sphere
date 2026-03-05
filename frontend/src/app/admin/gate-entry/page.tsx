@@ -367,11 +367,15 @@ function AllPassesPageContent() {
           
           console.log('[REFUND CALC] Applied slab:', appliedSlab, '(' + refundPercent + '% refund)');
           
-          // Calculate refund amounts
-          const originalAmount = pass.hostelBooking.totalPrice || 0;
+          // Calculate refund amounts - convert to number to ensure .toFixed() works
+          const originalAmount = parseFloat(pass.hostelBooking.totalPrice) || 0;
           const cancellationFeePercent = 100 - refundPercent;
           const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
           const refundAmount = originalAmount - cancellationFeeAmount;
+          
+          console.log('[REFUND CALC] Original amount:', originalAmount);
+          console.log('[REFUND CALC] Cancellation fee:', cancellationFeeAmount);
+          console.log('[REFUND CALC] Refund amount:', refundAmount);
           
           // Format time remaining
           const days = Math.floor(daysUntilCheckIn);
@@ -798,6 +802,9 @@ function AllPassesPageContent() {
                     {t('allPasses.col.dateTime')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                    Verification Codes
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                     {t('allPasses.col.status')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
@@ -808,7 +815,7 @@ function AllPassesPageContent() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredPasses.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                    <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                       <div className="flex flex-col items-center gap-2">
                         <Search className="w-12 h-12 text-gray-300" />
                         <p>{t('allPasses.noPassesFound')}</p>
@@ -887,6 +894,29 @@ function AllPassesPageContent() {
                                 </div>
                               )}
                             </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <div className="text-sm space-y-1">
+                            {pass.verificationCode && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500">Entry:</span>
+                                <span className="font-mono font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                                  {pass.verificationCode}
+                                </span>
+                              </div>
+                            )}
+                            {pass.checkoutVerificationCode && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500">Checkout:</span>
+                                <span className="font-mono font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                                  {pass.checkoutVerificationCode}
+                                </span>
+                              </div>
+                            )}
+                            {!pass.verificationCode && !pass.checkoutVerificationCode && (
+                              <span className="text-xs text-gray-400">-</span>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
@@ -981,6 +1011,28 @@ function AllPassesPageContent() {
                     </span>
                     {getQRStatusBadge(selectedPass.qrStatus)}
                   </div>
+                  
+                  {/* Verification Codes Display */}
+                  {(selectedPass.verificationCode || selectedPass.checkoutVerificationCode) && (
+                    <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+                      {selectedPass.verificationCode && (
+                        <div className="flex flex-col items-center gap-1 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
+                          <span className="text-xs text-green-700 font-medium">Entry Code</span>
+                          <span className="font-mono text-2xl font-bold text-green-600 tracking-wider">
+                            {selectedPass.verificationCode}
+                          </span>
+                        </div>
+                      )}
+                      {selectedPass.checkoutVerificationCode && (
+                        <div className="flex flex-col items-center gap-1 bg-orange-50 px-4 py-2 rounded-lg border border-orange-200">
+                          <span className="text-xs text-orange-700 font-medium">Checkout Code</span>
+                          <span className="font-mono text-2xl font-bold text-orange-600 tracking-wider">
+                            {selectedPass.checkoutVerificationCode}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Details Grid */}
@@ -1356,15 +1408,15 @@ function AllPassesPageContent() {
                       <div className="border-t border-green-300 pt-3 space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Original Amount:</span>
-                          <span className="font-semibold text-gray-800">₹{refundPreview.originalAmount.toFixed(2)}</span>
+                          <span className="font-semibold text-gray-800">₹{Number(refundPreview.originalAmount || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-red-600">
                           <span>Cancellation Fee ({refundPreview.cancellationFeePercent}%):</span>
-                          <span className="font-semibold">− ₹{refundPreview.cancellationFeeAmount.toFixed(2)}</span>
+                          <span className="font-semibold">− ₹{Number(refundPreview.cancellationFeeAmount || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between border-t border-green-300 pt-2 text-base">
                           <span className="font-bold text-green-800">Refund Amount:</span>
-                          <span className="font-bold text-green-700">₹{refundPreview.refundAmount.toFixed(2)}</span>
+                          <span className="font-bold text-green-700">₹{Number(refundPreview.refundAmount || 0).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>
