@@ -595,6 +595,9 @@ class GatePassController {
 
       const booking = await hostelBookingService.createBooking(bookingData);
 
+      // Note: Email will be sent only after payment confirmation (confirmPayment endpoint)
+      // No email sent here as booking is still pending payment
+
       return res.status(201).json(
         formatResponse(true, 'Hostel booking created successfully. Please complete payment.', { booking })
       );

@@ -1,6 +1,26 @@
 const prisma = require('../../../shared/config/database');
 const QRCode = require('qrcode');
 
+const EXPIRY_HOUR_IST = 18; // 6 PM IST - room checkout time (aligned with QR expiry)
+
+/**
+ * Get cutoff date for active booking detection.
+ * Before 6 PM IST: bookings ending today still active (guest has room)
+ * After 6 PM IST: bookings ending today expired (room freed at 6 PM)
+ */
+const getBookingCutoffDate = () => {
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const nowIST = new Date(Date.now() + istOffset);
+  const today = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()));
+
+  if (nowIST.getUTCHours() >= EXPIRY_HOUR_IST) {
+    // After 6 PM IST: today's checkouts expired → cutoff = tomorrow
+    return new Date(today.getTime() + 86400000);
+  }
+  // Before 6 PM IST: today's checkouts still active
+  return today;
+};
+
 class HostelBookingService {
   /**
    * Get all available hostels with their rooms for a given date range
@@ -22,17 +42,11 @@ class HostelBookingService {
             include: {
               bookings: {
                 where: {
-                  booking_status: {
-                    in: ['confirmed', 'pending']
-                  },
-                  check_out_date: { gte: new Date() }, // Exclude past bookings - auto-release rooms
-                  OR: [
-                    {
-                      AND: [
-                        { check_in_date: { lte: new Date(checkOutDate) } },
-                        { check_out_date: { gte: new Date(checkInDate) } }
-                      ]
-                    }
+                  booking_status: { in: ['confirmed', 'pending'] },
+                  AND: [
+                    { check_out_date: { gte: getBookingCutoffDate() } }, // 6 PM IST room release
+                    { check_in_date: { lt: new Date(checkOutDate) } },   // Overlap: existing start < requested end
+                    { check_out_date: { gte: new Date(checkInDate) } }   // Overlap: existing end >= requested start
                   ]
                 }
               }
@@ -81,17 +95,11 @@ class HostelBookingService {
         include: {
           bookings: {
             where: {
-              booking_status: {
-                in: ['confirmed', 'pending']
-              },
-              check_out_date: { gte: new Date() }, // Exclude past bookings - auto-release rooms
-              OR: [
-                {
-                  AND: [
-                    { check_in_date: { lte: new Date(checkOutDate) } },
-                    { check_out_date: { gte: new Date(checkInDate) } }
-                  ]
-                }
+              booking_status: { in: ['confirmed', 'pending'] },
+              AND: [
+                { check_out_date: { gte: getBookingCutoffDate() } }, // 6 PM IST room release
+                { check_in_date: { lt: new Date(checkOutDate) } },   // Overlap: existing start < requested end
+                { check_out_date: { gte: new Date(checkInDate) } }   // Overlap: existing end >= requested start
               ]
             }
           }
@@ -197,17 +205,11 @@ class HostelBookingService {
         include: {
           bookings: {
             where: {
-              booking_status: {
-                in: ['confirmed', 'pending']
-              },
-              check_out_date: { gte: new Date() }, // Exclude past bookings - auto-release rooms
-              OR: [
-                {
-                  AND: [
-                    { check_in_date: { lte: new Date(checkOutDate) } },
-                    { check_out_date: { gte: new Date(checkInDate) } }
-                  ]
-                }
+              booking_status: { in: ['confirmed', 'pending'] },
+              AND: [
+                { check_out_date: { gte: getBookingCutoffDate() } }, // 6 PM IST room release
+                { check_in_date: { lt: new Date(checkOutDate) } },   // Overlap: existing start < requested end
+                { check_out_date: { gte: new Date(checkInDate) } }   // Overlap: existing end >= requested start
               ]
             }
           }
@@ -266,6 +268,12 @@ class HostelBookingService {
 
       // Generate payment QR
       const paymentQR = await this.generatePaymentQR(booking.id, totalPrice);
+
+      // Mark gate pass as requiring hostel stay so cancelBeforeCheckIn can find the booking
+      await prisma.gate_pass.update({
+        where: { id: gatePassUUID },
+        data: { stay_required: true }
+      });
 
       // Update booking with payment QR
       const updatedBooking = await prisma.hostelBooking.update({
