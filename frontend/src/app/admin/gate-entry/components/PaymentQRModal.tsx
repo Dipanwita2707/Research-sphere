@@ -13,13 +13,7 @@ export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handlePaymentComplete = () => {
-    // In future, this will verify payment via Razorpay webhook
-    // For now, just close the modal
-    onClose();
-  };
-
-  // Test Mode: Mark payment as completed without actual payment
+  // Confirm payment (Test Mode - will be replaced with Razorpay verification later)
   const handleTestModePayment = async () => {
     setIsProcessing(true);
     setError(null);
@@ -138,32 +132,11 @@ export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps
         )}
       </div>
 
-      {/* Test Mode Payment Button */}
-      <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
-        <h4 className="font-semibold text-orange-800 mb-2 flex items-center gap-2">
-          🧪 Test Environment Mode
-        </h4>
-        <p className="text-sm text-orange-700 mb-3">
-          Since Razorpay is not integrated yet, use this button to simulate payment completion.
-        </p>
-        <button
-          onClick={handleTestModePayment}
-          disabled={isProcessing}
-          className="w-full px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        >
-          {isProcessing ? (
-            <>
-              <span className="animate-spin">⏳</span>
-              Processing...
-            </>
-          ) : (
-            <>
-              💳 Mark as Paid (Test Mode)
-            </>
-          )}
-        </button>
-        <p className="text-xs text-orange-600 mt-2 text-center">
-          This will instantly confirm the booking without actual payment
+      {/* Test Mode Info */}
+      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+        <p className="text-sm text-orange-700 flex items-center gap-2">
+          <span>🧪</span>
+          <span><strong>Test Mode:</strong> Razorpay not integrated yet. Click "Confirm Payment" to simulate payment completion.</span>
         </p>
       </div>
 
@@ -181,14 +154,23 @@ export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps
       {/* Actions */}
       <div className="flex gap-3">
         <button
-          onClick={handlePaymentComplete}
-          className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+          onClick={handleTestModePayment}
+          disabled={isProcessing}
+          className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          I've Completed Payment
+          {isProcessing ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              Confirming Payment...
+            </>
+          ) : (
+            "✓ Confirm Payment"
+          )}
         </button>
         <button
           onClick={onClose}
-          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+          disabled={isProcessing}
+          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50"
         >
           Cancel
         </button>

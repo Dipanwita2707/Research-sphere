@@ -1286,6 +1286,22 @@ class GatePassService {
     try {
       logger.info(`[CANCEL AFTER CHECK-IN] Pass ${pass.pass_id}, User: ${userId}`);
 
+      // Cancel associated hostel booking so room becomes available again
+      const hostelBooking = await prisma.hostelBooking.findUnique({
+        where: { gate_pass_id: pass.id }
+      });
+      if (hostelBooking && hostelBooking.booking_status !== 'cancelled') {
+        await prisma.hostelBooking.update({
+          where: { id: hostelBooking.id },
+          data: {
+            booking_status: 'cancelled',
+            payment_status: hostelBooking.payment_status === 'completed' ? 'refunded' : hostelBooking.payment_status,
+            updated_at: new Date()
+          }
+        });
+        logger.info(`[CANCEL AFTER CHECK-IN] Hostel booking ${hostelBooking.id} cancelled, room freed`);
+      }
+
       // Generate NEW unique checkout ID and QR code with 1-hour validity
       const checkoutQRData = await this.generateCheckoutQR(pass.id);
       

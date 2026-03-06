@@ -5,8 +5,10 @@ const prisma = require('../shared/config/database');
  * QR Activation Cron Job
  * Runs every 15 minutes to:
  * 1. Activate QR codes 5 hours before entry time
- * 2. Expire QR codes after end date (23:59)
+ * 2. Expire QR codes at 6 PM IST on end date (room also freed at same time)
  */
+
+const EXPIRY_HOUR_IST = 18; // 6 PM IST - QR expires & room frees
 
 // IST timezone helper
 const getISTDate = () => {
@@ -111,11 +113,17 @@ const activateQRCodes = async () => {
     }
 
     // ============ EXPIRE PASSES ============
-    // Expire QR codes after end date (23:59)
-    // For single-day passes: expire after visit_date 23:59
-    // For multi-day passes: expire after visit_end_date 23:59
+    // Expire QR codes at 6 PM IST on end date (room also freed at same time)
+    // Before 6 PM: only expire past-date passes
+    // After 6 PM: also expire today's passes (6 PM cutoff reached)
     
-    const yesterdayIST = new Date(todayIST.getTime() - 24 * 60 * 60 * 1000);
+    const currentISTHour = now.getUTCHours(); // getUTCHours on IST-shifted date = IST hour
+    
+    // After 6 PM IST: expire today and past dates (lte)
+    // Before 6 PM IST: only expire past dates (lt)
+    const dateComparison = currentISTHour >= EXPIRY_HOUR_IST
+      ? { lte: todayIST }
+      : { lt: todayIST };
     
     // Find passes to expire
     const passesToExpire = await prisma.gate_pass.findMany({
@@ -125,14 +133,14 @@ const activateQRCodes = async () => {
           in: ['created', 'approved', 'active']
         },
         OR: [
-          // Single-day passes: visit_date < today and no visit_end_date
+          // Single-day passes: visit_date expired based on 6 PM rule
           {
-            visit_date: { lt: todayIST },
+            visit_date: dateComparison,
             visit_end_date: null
           },
-          // Multi-day passes: visit_end_date < today
+          // Multi-day passes: visit_end_date expired based on 6 PM rule
           {
-            visit_end_date: { lt: todayIST }
+            visit_end_date: dateComparison
           }
         ]
       },
