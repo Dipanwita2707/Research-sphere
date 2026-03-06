@@ -666,6 +666,48 @@ async function patchOldClubRequests(req, res) {
   }
 }
 
+/**
+ * GET /dsw/clubs/:clubId/events
+ * Returns only events explicitly linked to this club via noting.eventClubId
+ * (i.e. faculty chose this club when creating the noting)
+ */
+async function getClubEvents(req, res) {
+  const { clubId } = req.params;
+  try {
+    // Verify club exists
+    const club = await prisma.club.findUnique({
+      where: { id: clubId },
+      select: { id: true },
+    });
+    if (!club) return res.status(404).json({ success: false, message: "Club not found" });
+
+    // Only show events whose noting was explicitly linked to this club
+    const events = await prisma.event.findMany({
+      where: {
+        note: { eventClubId: clubId },
+      },
+      select: {
+        id: true,
+        eventId: true,
+        name: true,
+        eventType: true,
+        startDate: true,
+        endDate: true,
+        status: true,
+        venue: true,
+        bannerImageUrl: true,
+        createdById: true,
+      },
+      orderBy: { startDate: "desc" },
+    });
+
+    res.json({ success: true, data: events });
+  } catch (error) {
+    console.error("Error in getClubEvents:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch club events", error: error.message });
+  }
+}
+
 module.exports = {
   createClub,
   getClubs,
@@ -678,5 +720,6 @@ module.exports = {
   updateMemberRole,
   getClubMembers,
   updateClub,
+  getClubEvents,
   getStatistics,
 };

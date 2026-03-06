@@ -8,6 +8,7 @@ import { ArrowLeft, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCi
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { NotingPermissions } from '@/features/noting-management/services/noting.service';
 import type { NoteConfig, CreatorInfo, CreateNotePayload } from '@/features/noting-management/types/noting.types';
+import { useNotingPermissions, useNotingConfig, useCreatorInfo } from '@/features/noting-management/hooks/useNoting';
 import {
   EventTypeSelector,
   defaultStallConfig,
@@ -160,27 +161,42 @@ export default function NewNotePage() {
   // ── Permission-aware student access check ─────────────────────────────────
   // Chairpersons of active/approved clubs are allowed to create event notings.
   // All other students are redirected.
-  const [notingPerms, setNotingPerms] = useState<NotingPermissions | null>(null);
+  // PERF FIX: Use TanStack Query hook instead of raw service call.
+  // This leverages the 5-min staleTime cache — navigating back and forth
+  // no longer fires a fresh /my-permissions request each time.
+  const isStudentUser = user && (user.role?.name === 'student' || user.userType === 'student');
+  const { data: notingPerms = null } = useNotingPermissions({ enabled: !!isStudentUser });
   useEffect(() => {
-    if (user && (user.role?.name === 'student' || user.userType === 'student')) {
-      notingService.getMyNotingPermissions().then((perms) => {
-        setNotingPerms(perms);
-        if (!perms.noting_create) {
-          toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
-          router.push('/dashboard');
-        }
-      }).catch(() => {
-        toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
-        router.push('/dashboard');
-      });
+    if (isStudentUser && notingPerms && !notingPerms.noting_create) {
+      toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
+      router.push('/dashboard');
     }
-  }, [user, router, toast]);
+  }, [isStudentUser, notingPerms, router, toast]);
 
   const [config, setConfig] = useState<NoteConfig | null>(null);
   const [creatorInfo, setCreatorInfo] = useState<CreatorInfo | null>(null);
   const [notingIdPreview, setNotingIdPreview] = useState<string>('');
   const [notingYearAndSequence, setNotingYearAndSequence] = useState<{ year: string; sequence: string } | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  // PERF FIX: Use TanStack Query hooks for config and creator info instead of
+  // raw notingService calls. Config has 24h staleTime, creatorInfo has 10min.
+  // Navigating to /noting/new no longer fires 2 network requests that could be free.
+  const { data: cachedConfig, isLoading: configLoading } = useNotingConfig();
+  const { data: cachedCreatorInfo, isLoading: creatorInfoLoading } = useCreatorInfo();
+  const loading = configLoading || creatorInfoLoading;
+
+  // Sync TanStack Query data into local state (used by form logic downstream)
+  useEffect(() => {
+    if (cachedConfig && !config) {
+      setConfig(cachedConfig);
+      if (!getInitialFromStore().subcategory && cachedConfig.categories[0]?.subcategories?.[0]?.value) {
+        setSubcategory(cachedConfig.categories[0].subcategories[0].value);
+      }
+    }
+  }, [cachedConfig, config]);
+  useEffect(() => {
+    if (cachedCreatorInfo && !creatorInfo) setCreatorInfo(cachedCreatorInfo);
+  }, [cachedCreatorInfo, creatorInfo]);
   const [submitting, setSubmitting] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [isRevertedNote, setIsRevertedNote] = useState(false);
@@ -220,6 +236,23 @@ export default function NewNotePage() {
   const [stallConfig, setStallConfig] = useState<StallConfig>({ ...defaultStallConfig });
   const [festivalData, setFestivalData] = useState<FestivalFormData>({ ...defaultFestivalForm });
 
+  // Optional club association for event notings
+  const [eventClubId, setEventClubId] = useState<string | null>(null);
+  const [facilitatorClubs, setFacilitatorClubs] = useState<import('@/features/noting-management/services/noting.service').FacilitatorClub[]>([]);
+  const [facilitatorClubsLoading, setFacilitatorClubsLoading] = useState(false);
+
+  // Fetch facilitator clubs when event noting is active
+  useEffect(() => {
+    if (!isEventNoting || isStudentUser) return; // students are chairpersons, not facilitators
+    let cancelled = false;
+    setFacilitatorClubsLoading(true);
+    notingService.getMyFacilitatorClubs()
+      .then((clubs) => { if (!cancelled) setFacilitatorClubs(clubs); })
+      .catch(() => { if (!cancelled) setFacilitatorClubs([]); })
+      .finally(() => { if (!cancelled) setFacilitatorClubsLoading(false); });
+    return () => { cancelled = true; };
+  }, [isEventNoting, isStudentUser]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autosaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -250,34 +283,8 @@ export default function NewNotePage() {
   useEffect(() => { clearFieldError('recurringFrequency'); }, [recurringFrequency, clearFieldError]);
   useEffect(() => { clearFieldError('amount'); }, [amount, amountRequired, clearFieldError]);
 
-  useEffect(() => {
-    Promise.all([notingService.getConfig(), notingService.getMyCreatorInfo()])
-      .then(([c, creator]) => {
-        setConfig(c);
-        setCreatorInfo(creator);
-        if (!getInitialFromStore().subcategory && c.categories[0]?.subcategories?.[0]?.value) {
-          setSubcategory(c.categories[0].subcategories[0].value);
-        }
-      })
-      .catch((err) => {
-        const status = err?.response?.status;
-        const serverMsg = err?.response?.data?.message;
-        let userMessage = 'Something went wrong while loading the form. Please try again.';
-
-        if (status === 403) {
-          userMessage = serverMsg || 'You do not have permission to create a noting. Please contact your administrator.';
-        } else if (status === 401) {
-          userMessage = 'Your session has expired. Please log in again.';
-        } else if (status >= 500) {
-          userMessage = 'Server is temporarily unavailable. Please try again in a moment.';
-        } else if (!navigator.onLine) {
-          userMessage = 'No internet connection. Please check your network and try again.';
-        }
-
-        toast({ type: 'error', message: userMessage });
-      })
-      .finally(() => setLoading(false));
-  }, [toast]);
+  // Config + Creator info now fetched via TanStack Query hooks above (useNotingConfig, useCreatorInfo)
+  // No raw useEffect needed — the hooks handle caching, loading state, and error handling.
 
   // Lock category to 'academic' and subcategory to 'events' for chairpersons
   useEffect(() => {
@@ -337,6 +344,8 @@ export default function NewNotePage() {
       // Restore stall & festival type fields
       if ((note as any).notingEventType) setNotingEventType((note as any).notingEventType as NotingEventType);
       if ((note as any).stallConfig) setStallConfig((note as any).stallConfig);
+      // Restore club association
+      if ((note as any).eventClubId) setEventClubId((note as any).eventClubId);
       if ((note as any).festivalMeta || Array.isArray((note as any).subEvents)) {
         setFestivalData((prev) => ({
           ...prev,
@@ -733,6 +742,10 @@ export default function NewNotePage() {
       if (notingEventType === 'stall') {
         (basePayload as any).stallConfig = stallConfig;
       }
+      // Optional club association
+      if (eventClubId) {
+        basePayload.eventClubId = eventClubId;
+      }
       if (notingEventType === 'festival') {
         (basePayload as any).festivalMeta = {
           name: festivalData.festivalName,
@@ -759,7 +772,7 @@ export default function NewNotePage() {
     }
 
     return basePayload;
-  }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData]);
+  }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventClubId]);
 
   const handleSubmit = (asDraft: boolean) => {
     if (!config) return;
@@ -933,6 +946,8 @@ export default function NewNotePage() {
       if (notingEventType === 'stall') {
         updatePayload.stallConfig = stallConfig;
       }
+      // Optional club association
+      updatePayload.eventClubId = eventClubId || null;
       if (notingEventType === 'festival') {
         updatePayload.festivalMeta = {
           name: festivalData.festivalName,
@@ -1156,6 +1171,35 @@ export default function NewNotePage() {
                     )}
                   </div>
                 </div>
+
+                {/* ── Select Club (Optional) — only for faculty facilitators on event notings ── */}
+                {!isStudentUser && isEventNoting && (facilitatorClubs.length > 0 || facilitatorClubsLoading) && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Select Your Club{" "}
+                      <span className="text-xs text-gray-400 dark:text-gray-500">(Optional)</span>
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                      If you select a club, its Chairperson will automatically get full management permissions for the event created from this noting.
+                    </p>
+                    {facilitatorClubsLoading ? (
+                      <p className="text-xs text-gray-400">Loading your clubs…</p>
+                    ) : (
+                      <select
+                        value={eventClubId || ''}
+                        onChange={(e) => setEventClubId(e.target.value || null)}
+                        className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500"
+                      >
+                        <option value="">— No club selected —</option>
+                        {facilitatorClubs.map((club) => (
+                          <option key={club.id} value={club.id}>
+                            {club.name}{club.categoryName ? ` (${club.categoryName})` : ''}{club.chairpersonName ? ` — Chairperson: ${club.chairpersonName}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
               </section>
 
               {/* ===== Description ===== */}
@@ -1381,6 +1425,8 @@ export default function NewNotePage() {
                     disabled={isEditingExistingDraft}
                   />
 
+
+
                   {/* Festival form — replaces normal event fields */}
                   {notingEventType === 'festival' && (
                     <FestivalForm
@@ -1425,7 +1471,7 @@ export default function NewNotePage() {
                 <SectionLabel>Additional Details</SectionLabel>
                 <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                   {/* Approval Period & Policy Compliance - Side by Side */}
-                  <div className="grid grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
                     {/* Approval Period */}
                     <div id="field-recurringFrequency" className="bg-white dark:bg-gray-800 p-4">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Approval Period <span className="text-red-500">*</span></label>
@@ -1435,7 +1481,7 @@ export default function NewNotePage() {
                           <input type="radio" name="period" checked={approvalPeriod === 'one_time'} onChange={() => setApprovalPeriod('one_time')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
                           <span className="text-sm font-medium">One-time</span>
                         </label>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                           <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${approvalPeriod === 'recurring' ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                             }`}>
                             <input type="radio" name="period" checked={approvalPeriod === 'recurring'} onChange={() => setApprovalPeriod('recurring')} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
@@ -1483,9 +1529,9 @@ export default function NewNotePage() {
 
                   {/* Budget / Amount */}
                   <div id="field-amount" className="p-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">Budget / Amount <span className="text-red-500">*</span></label>
-                      <div className="flex gap-3 flex-1 items-center">
+                      <div className="flex flex-col sm:flex-row gap-3 flex-1 sm:items-center">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors flex-1 ${!amountRequired ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
                           <input type="radio" name="amountReq" checked={!amountRequired} onChange={() => setAmountRequired(false)} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
@@ -1497,7 +1543,7 @@ export default function NewNotePage() {
                           <span className="text-sm font-medium">Amount required</span>
                         </label>
                         {amountRequired && (
-                          <div className="relative flex-1 shrink-0 w-40">
+                          <div className="relative flex-1 shrink-0 w-full sm:w-40">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm">₹</span>
                             <input
                               type="number"
@@ -1525,7 +1571,7 @@ export default function NewNotePage() {
                 <section>
                   <SectionLabel>Created By</SectionLabel>
                   <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md border border-gray-100 dark:border-gray-700 p-3">
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
                       <div className="flex gap-2">
                         <span className="text-gray-400 font-medium min-w-[70px]">Name:</span>
                         <span className="text-gray-900 dark:text-white font-medium">{creatorInfo.name}</span>
@@ -1557,7 +1603,7 @@ export default function NewNotePage() {
             </div>
 
             {/* Document Footer — Action Buttons */}
-            <div className="border-t border-gray-200 dark:border-gray-700 px-8 py-4 bg-gray-50 dark:bg-gray-900/20">
+            <div className="border-t border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 bg-gray-50 dark:bg-gray-900/20">
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"

@@ -6,6 +6,7 @@
 
 const prisma = require('../../../shared/config/database');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../../shared/utils/AppError');
+const { resolveEvent } = require('../utils/eventHelpers');
 
 const FIELD_TYPES = {
   TEXT: 'text',
@@ -28,18 +29,7 @@ const FIELD_TYPES = {
  * Get custom fields for an event
  */
 const getCustomFields = async (eventId) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   const fields = await prisma.eventCustomField.findMany({
     where: {
@@ -55,18 +45,7 @@ const getCustomFields = async (eventId) => {
  * Create a custom field
  */
 const createCustomField = async (eventId, userId, fieldData) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   // Verify user is event creator
   if (event.createdById !== userId) {
@@ -87,7 +66,7 @@ const createCustomField = async (eventId, userId, fieldData) => {
   }
 
   // Generate field name from label
-  const fieldName = fieldData.fieldName || 
+  const fieldName = fieldData.fieldName ||
     fieldData.fieldLabel
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
@@ -158,7 +137,7 @@ const updateCustomField = async (fieldId, userId, fieldData) => {
     // Only allow changing label, helpText, isRequired, isActive
     const allowedUpdates = ['fieldLabel', 'helpText', 'isRequired', 'isActive', 'sortOrder'];
     const updateData = {};
-    
+
     for (const key of allowedUpdates) {
       if (fieldData[key] !== undefined) {
         updateData[key] = fieldData[key];
@@ -174,6 +153,21 @@ const updateCustomField = async (fieldId, userId, fieldData) => {
   }
 
   // Field has no responses, can update everything
+  // Validate fieldType if being changed
+  if (fieldData.fieldType) {
+    const validFieldTypes = Object.values(FIELD_TYPES);
+    if (!validFieldTypes.includes(fieldData.fieldType)) {
+      throw new ValidationError(`Invalid field type. Must be one of: ${validFieldTypes.join(', ')}`);
+    }
+
+    // Validate options for dropdown/radio/checkbox
+    if (['dropdown', 'radio', 'checkbox'].includes(fieldData.fieldType)) {
+      if (!fieldData.options || !Array.isArray(fieldData.options) || fieldData.options.length === 0) {
+        throw new ValidationError('Options are required for dropdown/radio/checkbox fields');
+      }
+    }
+  }
+
   const updatedField = await prisma.eventCustomField.update({
     where: { id: fieldId },
     data: {
@@ -237,18 +231,7 @@ const deleteCustomField = async (fieldId, userId) => {
  * Reorder custom fields
  */
 const reorderCustomFields = async (eventId, userId, fieldOrderMap) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   // Verify user is event creator
   if (event.createdById !== userId) {
@@ -256,7 +239,7 @@ const reorderCustomFields = async (eventId, userId, fieldOrderMap) => {
   }
 
   // Update sort order for each field
-  const updates = Object.entries(fieldOrderMap).map(([fieldId, sortOrder]) => 
+  const updates = Object.entries(fieldOrderMap).map(([fieldId, sortOrder]) =>
     prisma.eventCustomField.update({
       where: { id: fieldId },
       data: { sortOrder },
@@ -272,18 +255,7 @@ const reorderCustomFields = async (eventId, userId, fieldOrderMap) => {
  * Update event registration settings
  */
 const updateRegistrationSettings = async (eventId, userId, settings) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
-  });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
+  const event = await resolveEvent(eventId);
 
   // Verify user is event creator
   if (event.createdById !== userId) {
@@ -308,8 +280,8 @@ const updateRegistrationSettings = async (eventId, userId, settings) => {
       maxTeamSize: settings.maxTeamSize,
       interCollegeAllowed: settings.interCollegeAllowed,
       maxTeamLimit: settings.maxTeamLimit,
-      teamRegistrationDeadline: settings.teamRegistrationDeadline 
-        ? new Date(settings.teamRegistrationDeadline) 
+      teamRegistrationDeadline: settings.teamRegistrationDeadline
+        ? new Date(settings.teamRegistrationDeadline)
         : null,
       requireFormSubmission: settings.requireFormSubmission,
       lookingForTeammatesEnabled: settings.lookingForTeammatesEnabled,
@@ -324,13 +296,7 @@ const updateRegistrationSettings = async (eventId, userId, settings) => {
  * Get event registration settings
  */
 const getRegistrationSettings = async (eventId) => {
-  const event = await prisma.event.findFirst({
-    where: {
-      OR: [
-        { id: eventId },
-        { eventId: eventId },
-      ],
-    },
+  const event = await resolveEvent(eventId, {
     select: {
       id: true,
       eventId: true,
@@ -348,10 +314,6 @@ const getRegistrationSettings = async (eventId) => {
       maxCapacity: true,
     },
   });
-
-  if (!event) {
-    throw new NotFoundError('Event not found');
-  }
 
   return event;
 };

@@ -6,12 +6,13 @@ import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, CheckCircle2,
   AlertCircle, Info, MapPin, Phone, Mail, Building2,
-  QrCode, CreditCard, Users, Lock,
+  QrCode, CreditCard, Users, Lock, Tag, X as XIcon, Loader2 as Loader2Icon,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type {
   EventCustomField,
-  RegistrationFormData
+  RegistrationFormData,
+  CouponValidationResult,
 } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
@@ -193,6 +194,13 @@ export default function EventRegistrationPage() {
   const [step] = useState<'form' | 'team'>('form');
   const [profileFields, setProfileFields] = useState<Record<string, boolean>>({});
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponInput, setCouponInput] = useState('');
+  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
   useEffect(() => {
     const loadForm = async () => {
       try {
@@ -311,10 +319,16 @@ export default function EventRegistrationPage() {
 
     setSubmitting(true);
     try {
-      const result = await eventService.submitRegistrationForm(eventId, values);
+      // Include applied coupon code in submission payload
+      const payload = couponCode ? { ...values, couponCode } : values;
+      const result = await eventService.submitRegistrationForm(eventId, payload);
       if (result.nextStep === 'team_management') {
         toast({ type: 'success', message: 'Profile saved! Proceeding to Team Setup.' });
         router.push(`/events/${eventId}/registration/team`);
+      } else if (result.couponFullyFree) {
+        // Coupon covered 100% — registration auto-confirmed, no payment needed
+        toast({ type: 'success', message: 'Registration complete! Coupon covered the full amount.' });
+        router.push(`/events/${eventId}`);
       } else if (formData?.event.paymentType === 'paid') {
         // Individual paid event → redirect to payment step
         toast({ type: 'success', message: 'Profile saved! Proceeding to Payment.' });
@@ -328,6 +342,35 @@ export default function EventRegistrationPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleValidateCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponValidating(true);
+    setCouponError(null);
+    try {
+      const result = await eventService.validateCoupon(
+        eventId,
+        couponInput.trim(),
+        formData?.event.registrationFee
+      );
+      setCouponResult(result);
+      setCouponCode(couponInput.trim().toUpperCase());
+      setCouponError(null);
+    } catch (err: any) {
+      setCouponError(err?.response?.data?.message || 'Invalid or expired coupon code');
+      setCouponResult(null);
+      setCouponCode('');
+    } finally {
+      setCouponValidating(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponInput('');
+    setCouponResult(null);
+    setCouponError(null);
   };
 
   if (loading || !formData) {
@@ -511,7 +554,7 @@ export default function EventRegistrationPage() {
 
           {/* Progress Steps for Team Events */}
           {isTeamEvent && (
-            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pr-6 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm">
+            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pr-4 sm:pr-6 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm overflow-x-auto scrollbar-hide">
               <div className={`flex items-center gap-3 pl-2 pr-4 py-2 rounded-xl transition-all ${step === 'form'
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200 shadow-sm ring-1 ring-blue-100 dark:ring-blue-800'
                   : 'text-gray-500 dark:text-gray-400'
@@ -867,6 +910,86 @@ export default function EventRegistrationPage() {
                         />
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Coupon Code Section — paid events only */}
+              {formData.event.paymentType === 'paid' && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      <span className="w-1 h-5 bg-emerald-500 rounded-full" />
+                      <Tag className="w-4 h-4 text-emerald-600" />
+                      Have a Coupon?
+                    </h2>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Apply a discount coupon to reduce your registration fee.</p>
+                  </div>
+                  <div className="p-6 space-y-4">
+                    {!couponResult ? (
+                      <div className="flex gap-3">
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleValidateCoupon(); } }}
+                          placeholder="Enter coupon code"
+                          className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono uppercase focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleValidateCoupon}
+                          disabled={couponValidating || !couponInput.trim()}
+                          className="px-5 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {couponValidating ? <Loader2Icon className="w-4 h-4 animate-spin" /> : 'Apply'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                          <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300">{couponResult.code}</span>
+                          {couponResult.description && (
+                            <span className="text-xs text-emerald-600 dark:text-emerald-400">— {couponResult.description}</span>
+                          )}
+                        </div>
+                        <button type="button" onClick={handleRemoveCoupon} className="p-1 text-emerald-500 hover:text-red-500 transition-colors">
+                          <XIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
+                    {couponError && (
+                      <div className="flex items-center gap-2 text-sm text-red-500">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        {couponError}
+                      </div>
+                    )}
+
+                    {/* Discount breakdown */}
+                    {couponResult && (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                          <span>Original Amount</span>
+                          <span>₹{couponResult.originalAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span>
+                            Discount ({couponResult.discountType === 'percentage'
+                              ? `${couponResult.discountValue}%`
+                              : 'Fixed'})
+                          </span>
+                          <span>−₹{couponResult.discountAmount.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="flex justify-between text-base font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-100 dark:border-gray-700">
+                          <span>Final Payable</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">
+                            ₹{couponResult.finalAmount.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

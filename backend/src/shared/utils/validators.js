@@ -24,19 +24,24 @@ const sanitizeInput = (input) => {
 };
 
 /**
- * Sanitize HTML to prevent XSS - strips script, iframe, object, embed, and event handlers
+ * Sanitize HTML to prevent XSS — uses sanitize-html library for robust protection
+ * (Regex-based sanitization is easily bypassable via encoding tricks)
  */
+const createSanitizeHtml = require('sanitize-html');
+
 const sanitizeHtml = (html) => {
   if (typeof html !== 'string') return html;
-  let out = html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
-    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
-    .replace(/<embed\b[^>]*>/gi, '')
-    .replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
-    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
-    .replace(/javascript:/gi, '');
-  return out;
+  return createSanitizeHtml(html, {
+    allowedTags: createSanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'span']),
+    allowedAttributes: {
+      ...createSanitizeHtml.defaults.allowedAttributes,
+      'img': ['src', 'alt', 'title', 'width', 'height'],
+      'a': ['href', 'name', 'target', 'rel'],
+      '*': ['class'],  // 'style' removed — CSS injection vector
+    },
+    allowedSchemes: ['http', 'https', 'mailto'],
+    disallowedTagsMode: 'discard',
+  });
 };
 
 /**

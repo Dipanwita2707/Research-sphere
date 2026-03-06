@@ -12,23 +12,42 @@ const {
   ForbiddenError,
   NotFoundError,
 } = require('../../../shared/utils/AppError');
+const { resolveEvent, canManageEvent } = require('../utils/eventHelpers');
 
 // ── Helpers ────────────────────────────────────────────────────────
 
 /**
  * Ensure the caller owns the event (or has manage_all permission).
+ * Accepts either (eventId, userId) for legacy callers, or
+ * (eventId, userId, user) where user is the full req.user object
+ * to check superadmin, event_manage_all, and event-manager roles.
  * Returns the event row.
  */
-const assertEventOwner = async (eventId, userId) => {
-  const event = await prisma.event.findFirst({
-    where: { OR: [{ id: eventId }, { eventId }] },
+const assertEventOwner = async (eventId, userId, user) => {
+  const event = await resolveEvent(eventId, {
     select: { id: true, createdById: true },
   });
-  if (!event) throw new NotFoundError('Event not found');
-  if (event.createdById !== userId) {
-    throw new ForbiddenError('Only the event creator can manage event settings');
+
+  // Creator always passes
+  if (event.createdById === userId) return event;
+
+  // If full user object is provided, check elevated roles
+  if (user) {
+    // Superadmin bypasses all
+    if (user.role === 'superadmin') return event;
+
+    // Check explicit event_manage_all permission
+    const hasManageAll = (user.centralDeptPermissions || []).some(
+      dp => dp.permissions && (dp.permissions.event_manage_all === true || dp.permissions.event_event_manage_all === true)
+    );
+    if (hasManageAll) return event;
   }
-  return event;
+
+  // Check if user is an assigned event manager (volunteer with manager role)
+  const isManager = await canManageEvent(prisma, event.id, userId);
+  if (isManager) return event;
+
+  throw new ForbiddenError('You do not have permission to manage this event');
 };
 
 /**
@@ -49,8 +68,8 @@ const VALID_ROLES = ['student', 'faculty', 'staff', 'admin', 'parent', 'superadm
 /**
  * Get event visibility settings (or create defaults if none exist yet)
  */
-const getEventSettings = async (eventId, userId) => {
-  const event = await assertEventOwner(eventId, userId);
+const getEventSettings = async (eventId, userId, user) => {
+  const event = await assertEventOwner(eventId, userId, user);
 
   let visibility = await prisma.eventVisibility.findUnique({
     where: { eventId: event.id },
@@ -79,8 +98,8 @@ const getEventSettings = async (eventId, userId) => {
 /**
  * Update event visibility settings
  */
-const updateEventSettings = async (eventId, userId, data) => {
-  const event = await assertEventOwner(eventId, userId);
+const updateEventSettings = async (eventId, userId, data, user) => {
+  const event = await assertEventOwner(eventId, userId, user);
 
   // Build the update payload — only touch what was sent
   const updateData = {};
@@ -141,8 +160,8 @@ const updateEventSettings = async (eventId, userId, data) => {
  *
  * Returns the updated visibility record.
  */
-const toggleEventActive = async (eventId, userId) => {
-  const event = await assertEventOwner(eventId, userId);
+const toggleEventActive = async (eventId, userId, user) => {
+  const event = await assertEventOwner(eventId, userId, user);
 
   // Get or create
   let visibility = await prisma.eventVisibility.findUnique({
@@ -188,16 +207,17 @@ const toggleEventActive = async (eventId, userId) => {
  *   - If manuallyOverridden = true → respect admin decision regardless of date.
  */
 const isRegistrationOpen = async (eventId) => {
-  // Fetch event alongside visibility to check the registration end date
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    select: { id: true, registrationEndDate: true },
-  });
-
-  const visibility = await prisma.eventVisibility.findUnique({
-    where: { eventId },
-    select: { isActive: true, autoClosed: true, manuallyOverridden: true },
-  });
+  // Fetch event and visibility in parallel instead of sequentially
+  const [event, visibility] = await Promise.all([
+    prisma.event.findUnique({
+      where: { id: eventId },
+      select: { id: true, registrationEndDate: true },
+    }),
+    prisma.eventVisibility.findUnique({
+      where: { eventId },
+      select: { isActive: true, autoClosed: true, manuallyOverridden: true },
+    }),
+  ]);
 
   // No visibility record → registration open by default (legacy)
   if (!visibility) return true;
@@ -230,44 +250,44 @@ const isRegistrationOpen = async (eventId) => {
  * This is the CORE enforcement function.
  */
 const canUserSeeEvent = async (eventId, userId) => {
-  // Fetch visibility settings
-  const visibility = await prisma.eventVisibility.findUnique({
-    where: { eventId },
-  });
+  // Fetch visibility settings and user in parallel
+  const [visibility, user] = await Promise.all([
+    prisma.eventVisibility.findUnique({
+      where: { eventId },
+    }),
+    prisma.userLogin.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        studentLogin: {
+          select: {
+            id: true,
+            programId: true,
+            sectionId: true,
+            program: {
+              select: {
+                id: true,
+                departmentId: true,
+                department: {
+                  select: { id: true, facultyId: true },
+                },
+              },
+            },
+            section: {
+              select: { id: true, batchYear: true },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
   // No visibility record → event is visible to everyone (legacy / no config)
   if (!visibility) return true;
 
   // NOTE: isActive controls registration open/close, NOT event visibility.
   // So we do NOT check isActive here — event is always visible per role/filter config.
-
-  // Get user role
-  const user = await prisma.userLogin.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      role: true,
-      studentLogin: {
-        select: {
-          id: true,
-          programId: true,
-          sectionId: true,
-          program: {
-            select: {
-              id: true,
-              departmentId: true,
-              department: {
-                select: { id: true, facultyId: true },
-              },
-            },
-          },
-          section: {
-            select: { id: true, batchYear: true },
-          },
-        },
-      },
-    },
-  });
 
   if (!user) return false;
 
@@ -288,10 +308,10 @@ const canUserSeeEvent = async (eventId, userId) => {
   if (!student) return false; // student role but no student record
 
   const allowedSchools = toArray(visibility.allowedSchoolIds);
-  const allowedDepts   = toArray(visibility.allowedDepartmentIds);
-  const allowedProgs   = toArray(visibility.allowedProgramIds);
+  const allowedDepts = toArray(visibility.allowedDepartmentIds);
+  const allowedProgs = toArray(visibility.allowedProgramIds);
   const allowedBatches = toArray(visibility.allowedBatchYears);
-  const allowedSects   = toArray(visibility.allowedSectionIds);
+  const allowedSects = toArray(visibility.allowedSectionIds);
 
   // If no granular filters are set at all, treat as "all"
   const hasAnyFilter = (
@@ -502,6 +522,7 @@ const getHierarchyData = async () => {
 };
 
 module.exports = {
+  assertEventOwner,
   getEventSettings,
   updateEventSettings,
   toggleEventActive,

@@ -671,7 +671,6 @@ const getDefaultPermissions = (role) => {
       dsw_view_club: true, // Staff can view clubs
       // Noting Permissions - view only by default
       noting_view_own: true, // Staff can view notings they're involved in
-      noting_view_own: true,      // Staff can view notings they're involved in
       // TMS Permissions - same as faculty (staff are also employees)
       tms_view_assigned_tickets: true,  // Staff can view tickets assigned to them
       tms_update_ticket: true,          // Staff can add remarks to tickets
@@ -924,8 +923,9 @@ function hasPermission(user, permissionKey) {
   // Check role-based default permissions
   const defaultPermissions = getDefaultPermissions(user.role);
   if (
-    Array.isArray(defaultPermissions) &&
-    defaultPermissions.includes(permissionKey)
+    defaultPermissions &&
+    typeof defaultPermissions === 'object' &&
+    defaultPermissions[permissionKey] === true
   ) {
     return true;
   }

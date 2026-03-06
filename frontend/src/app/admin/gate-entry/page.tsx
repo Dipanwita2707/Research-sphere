@@ -163,17 +163,17 @@ function AllPassesPageContent() {
         const calculated = {
           total: passes.length,
           active: passes.filter(p => {
-            if (!p.check_in_time) return false;
+            if (!p.actualEntryTime) return false;
             try {
-              const passDate = new Date(p.check_in_time).toISOString().split('T')[0];
-              return passDate === today && p.pass_status === 'checked_in';
+              const passDate = new Date(p.actualEntryTime).toISOString().split('T')[0];
+              return passDate === today && p.passStatus === 'checked_in';
             } catch {
               return false;
             }
           }).length,
-          pending: passes.filter(p => p.pass_status === 'pending').length,
-          completed: passes.filter(p => p.pass_status === 'checked_out' || p.status === 'completed').length,
-          expired: passes.filter(p => p.pass_status === 'expired').length,
+          pending: passes.filter(p => p.passStatus === 'pending').length,
+          completed: passes.filter(p => p.passStatus === 'checked_out' || p.status === 'completed').length,
+          expired: passes.filter(p => p.passStatus === 'expired').length,
         };
         
         setStats(calculated);
@@ -332,7 +332,7 @@ function AllPassesPageContent() {
         try {
           // Calculate time remaining until check-in
           const now = new Date();
-          const checkInDate = new Date(pass.checkInDate || pass.hostelBooking?.checkInDate || pass.visitDate);
+          const checkInDate = new Date(pass.checkInDate || pass.visitDate);
           
           // Parse check-in time from expectedEntryTime or assume 12:00 PM
           const entryTime = pass.expectedEntryTime || pass.entryTime || '12:00';
@@ -443,7 +443,7 @@ function AllPassesPageContent() {
     try {
       // For after check-in, use a generic reason if not provided
       const reason = cancelReason.trim() || 'Cancelled after check-in by admin';
-      const response = await gateEntryService.cancelPass(selectedPass.passId, reason);
+      const response = await gateEntryService.cancelPass(selectedPass.passId, reason) as any;
       const cancelledPass = response.pass || response.data;
       const cancellationType = cancelledPass.cancellation_type || cancelledPass.cancellationType;
       const backendMessage = response.message || '';
@@ -938,7 +938,7 @@ function AllPassesPageContent() {
                             {/* Cancel button - Context-dependent (after check-in) */}
                             {(pass.status === 'checked_in' || pass.passStatus === 'checked_in') && 
                              (pass.passStatus !== 'expired' && pass.status !== 'expired') &&
-                             canCancelPass(user, pass) && (
+                             canCancelPass(user as any, pass as any) && (
                               <button
                                 onClick={() => {
                                   setSelectedPass(pass);
@@ -962,7 +962,7 @@ function AllPassesPageContent() {
                                 >
                                   <Send className="w-4 h-4" />
                                 </button>
-                                {canCancelPass(user, pass) && (
+                                {canCancelPass(user as any, pass as any) && (
                                   <button
                                     onClick={() => handleCancelPass(pass.passId)}
                                     className="text-red-600 hover:text-red-800"
@@ -1207,7 +1207,7 @@ function AllPassesPageContent() {
                 {/* Extend Pass - Only show if user has permission (Creator or Admin) and pass is not expired */}
                 {(selectedPass.passStatus === 'created' || selectedPass.passStatus === 'checked_in' || selectedPass.status === 'active' || selectedPass.status === 'checked_in') && 
                  selectedPass.passStatus !== 'expired' && selectedPass.status !== 'expired' &&
-                 canExtendPass(user, selectedPass) && (
+                 canExtendPass(user as any, selectedPass as any) && (
                   <button
                     onClick={() => {
                       setSelectedPassForExtend(selectedPass);

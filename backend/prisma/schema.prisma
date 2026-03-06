@@ -52,6 +52,9 @@ model UserLogin {
   bookingsCreated                                   HostelBooking[]                      @relation("BookingCreatedBy")
   refundsProcessed                                  RefundTransaction[]                  @relation("RefundProcessedBy")
   gate_pass_history                                 gate_pass_history[]
+  emailLogsSent                                     EventEmailLog[]              @relation("EmailLogSentBy")
+  couponsCreated                                    EventCoupon[]                @relation("CouponCreatedBy")
+  couponUsages                                      CouponUsage[]                @relation("CouponUsageUser")
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
   grantApplicationReviews                           GrantApplicationReview[]             @relation("GrantApplicationReviews")
@@ -1888,6 +1891,10 @@ model Note {
   stallConfig         Json?                       @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[]}
   festivalMeta        Json?                       @map("festival_meta") // {name, startDate, endDate, description, coordinator}
   subEvents           Json?                       @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
+  // Optional club association for event notings — when set, the club's chairperson
+  // automatically receives full event management permissions upon event creation.
+  eventClubId         String?                     @map("event_club_id") @db.Uuid
+  eventClub           Club?                       @relation("EventNotingClub", fields: [eventClubId], references: [id])
   clubName            String?                     @map("club_name") @db.VarChar(256)
   clubCategoryId      String?                     @map("club_category_id") @db.Uuid
   clubPurpose         String?                     @map("club_purpose") @db.Text
@@ -1929,6 +1936,7 @@ model Note {
   @@index([eventName])
   @@index([subcategory, status], map: "note_subcategory_status_idx")
   @@index([clubCategoryId], map: "note_clubCategoryId_idx")
+  @@index([eventClubId], map: "note_eventClubId_idx")
   @@map("note")
 }
 
@@ -2286,6 +2294,10 @@ model Event {
   EventFeedback              EventFeedback[]
   StallFeedback              StallFeedback[]
   EventVisibility            EventVisibility?
+  EventEmailLog              EventEmailLog[]
+  EventEmailCredit           EventEmailCredit?
+  EmailCreditLog             EmailCreditLog[]
+  EventCoupon                EventCoupon[]
 
   @@index([createdById])
   @@index([eventId])
@@ -2344,6 +2356,7 @@ model EventEntry {
   @@index([registrationId])
   @@index([scannedAt])
   @@index([volunteerId])
+  @@index([eventId, entryType], map: "event_entry_eventId_entryType_idx")
 }
 
 model EventRegistration {
@@ -2370,12 +2383,19 @@ model EventRegistration {
   isTeamLeader          Boolean                      @default(false)              // Is this user the team leader
   lookingForTeammates   Boolean                      @default(false)              // User is seeking teammates
 
+  // Coupon / discount fields
+  couponId              String?                      @db.Uuid @map("coupon_id")   // Applied coupon
+  discountAmount        Float?                       @map("discount_amount")       // Discount applied in ₹
+  originalAmount        Float?                       @map("original_amount")       // Amount before discount
+
   EventEntry            EventEntry[]
   Event                 Event                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
   EventFieldResponse    EventFieldResponse[]
   Payment               Payment[]
+  EventCoupon           EventCoupon?                 @relation(fields: [couponId], references: [id])
+  CouponUsage           CouponUsage?
 
   @@unique([eventId, userId])
   @@index([eventId])
@@ -2387,6 +2407,9 @@ model EventRegistration {
   @@index([lookingForTeammates])
   @@index([eventId, status], map: "event_registration_eventId_status_idx")
   @@index([eventId, userId, status], map: "event_registration_eventId_userId_status_idx")
+  @@index([couponId])
+  @@index([eventId, paymentStatus], map: "event_registration_eventId_paymentStatus_idx")
+  @@index([userId, status], map: "event_registration_userId_status_idx")
 }
 
 model EventVolunteer {
@@ -2518,6 +2541,7 @@ model EventTeamMember {
   @@index([teamId])
   @@index([userId])
   @@index([status])
+  @@index([teamId, status], map: "event_team_member_teamId_status_idx")
   @@map("event_team_member")
 }
 
@@ -3235,6 +3259,11 @@ enum EventPaymentType {
   paid
 }
 
+enum CouponDiscountType {
+  percentage
+  fixed
+}
+
 enum EventStatus {
   draft
   published
@@ -3283,6 +3312,61 @@ enum RegistrationStatus {
   waitlisted          // On waitlist
   rejected            // Registration rejected by organizer
   incomplete_team     // Team-based: team not complete yet
+}
+
+// ============================================
+// Event Coupon System
+// ============================================
+
+model EventCoupon {
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId           String              @map("event_id")                 // links to Event.id
+  code              String              @map("code") @db.VarChar(64)     // coupon code (unique per event)
+  discountType      CouponDiscountType  @map("discount_type")            // percentage | fixed
+  discountValue     Float               @map("discount_value")           // % or ₹ amount
+  maxDiscountCap    Float?              @map("max_discount_cap")         // max ₹ cap for percentage discounts
+  minAmount         Float?              @map("min_amount")               // minimum amount to apply coupon
+  maxUses           Int?                @map("max_uses")                 // null = unlimited
+  maxUsesPerUser    Int?                @default(1) @map("max_uses_per_user") // null = unlimited per user
+  usedCount         Int                 @default(0) @map("used_count")   // atomic counter
+  expiresAt         DateTime?           @map("expires_at") @db.Timestamptz(6)
+  isActive          Boolean             @default(true) @map("is_active")
+  description       String?             @db.VarChar(512)
+  createdById       String              @db.Uuid @map("created_by_id")
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy         UserLogin           @relation("CouponCreatedBy", fields: [createdById], references: [id])
+  EventRegistration EventRegistration[]
+  CouponUsage       CouponUsage[]
+
+  @@unique([eventId, code])
+  @@index([eventId])
+  @@index([code])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@map("event_coupon")
+}
+
+model CouponUsage {
+  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  couponId       String          @db.Uuid @map("coupon_id")
+  registrationId String          @unique @map("registration_id")  // one coupon usage per registration
+  userId         String          @db.Uuid @map("user_id")
+  discountAmount Float           @map("discount_amount")          // actual ₹ discount applied
+  originalAmount Float           @map("original_amount")          // amount before discount
+  finalAmount    Float           @map("final_amount")             // amount after discount
+  usedAt         DateTime        @default(now()) @map("used_at") @db.Timestamptz(6)
+
+  coupon         EventCoupon     @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  registration   EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  user           UserLogin       @relation("CouponUsageUser", fields: [userId], references: [id])
+
+  @@index([couponId])
+  @@index([userId])
+  @@index([couponId, userId])
+  @@map("coupon_usage")
 }
 
 // ============================================
@@ -3342,6 +3426,7 @@ model Club {
   chairperson                  UserLogin                 @relation("ClubChairperson", fields: [chairpersonId], references: [id])
   creator                      UserLogin?                @relation("ClubCreator", fields: [creatorId], references: [id])
   noting                       Note?                     @relation("ClubCreationNoting", fields: [notingId], references: [id])
+  eventNotings                 Note[]                    @relation("EventNotingClub")
   members                      ClubMember[]
   auditLogs                    ClubAuditLog[]
   changeRequests               ClubChangeRequest[]
@@ -3486,6 +3571,7 @@ model StallApplication {
   @@index([applicantId])
   @@index([applicationStatus])
   @@index([stallId])
+  @@index([eventId, applicationStatus], map: "stall_application_eventId_status_idx")
   @@map("stall_application")
 }
 
@@ -3531,6 +3617,7 @@ model StallFeedback {
 
   @@index([eventId])
   @@index([stallId])
+  @@index([stallId, eventId], map: "stall_feedback_stallId_eventId_idx")
   @@map("stall_feedback")
 }
 
@@ -3637,6 +3724,9 @@ model Payment {
   @@index([razorpayOrderId])
   @@index([status])
   @@index([receipt])
+  @@index([eventId, status], map: "payment_eventId_status_idx")
+  @@index([registrationId, status], map: "payment_registrationId_status_idx")
+  @@index([teamId, eventId], map: "payment_teamId_eventId_idx")
   @@map("payment")
 }
 
@@ -3862,5 +3952,88 @@ enum refund_status_enum {
   processed
   failed
   cancelled
+}
+
+// ============================================
+// Event Email Log
+// ============================================
+model EventEmailLog {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId         String
+  sentById        String    @db.Uuid
+  subject         String
+  body            String
+  filter          String    @default("all") @db.VarChar(32)   // all | confirmed | pending | cancelled
+  registrationIds Json      @default("[]")                    // string[] – if non-empty, targetted send
+  recipientCount  Int       @default(0)
+  sentCount       Int       @default(0)
+  failedCount     Int       @default(0)
+  status          String    @default("sent") @db.VarChar(16)  // sent | partial | failed | scheduled | cancelled
+  replyTo         String?
+  recipientEmails Json      @default("[]")                    // [{email, name}]
+  errors          Json      @default("[]")                    // string[]
+  sentAt          DateTime  @default(now())
+  scheduledAt     DateTime?                                   // non-null → scheduled send
+
+  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sentBy          UserLogin @relation("EmailLogSentBy", fields: [sentById], references: [id])
+  recipients      EmailRecipientLog[]
+
+  @@index([eventId])
+  @@index([sentById])
+  @@index([sentAt])
+}
+
+// Per-recipient delivery & open tracking
+model EmailRecipientLog {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  emailLogId      String    @db.Uuid
+  email           String
+  name            String    @default("")
+  status          String    @default("sent") @db.VarChar(16)  // sent | delivered | bounced | failed
+  failureReason   String?
+  openCount       Int       @default(0)
+  firstOpenedAt   DateTime?
+  lastOpenedAt    DateTime?
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  createdAt       DateTime  @default(now())
+
+  emailLog        EventEmailLog @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+
+  @@index([emailLogId])
+  @@index([email])
+}
+
+// ============================================
+// Event Email Credit System
+// ============================================
+
+// One credit record per event — updated automatically when registrations change
+model EventEmailCredit {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId      String   @unique
+  event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  totalCredits Int      @default(0)     // totalRegistrations * 3, never decremented on cancel
+  usedCredits  Int      @default(0)     // incremented atomically when emails are sent
+  updatedAt    DateTime @updatedAt
+
+  @@map("event_email_credit")
+}
+
+// Audit log for every credit allocation or deduction
+model EmailCreditLog {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  action      String   @db.VarChar(16)  // 'allocate' | 'deduct'
+  amount      Int
+  description String?
+  emailLogId  String?                   // set when action = 'deduct'
+  createdAt   DateTime @default(now())
+
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("email_credit_log")
 }
 

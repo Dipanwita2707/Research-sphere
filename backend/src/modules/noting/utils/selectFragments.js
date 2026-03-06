@@ -170,6 +170,7 @@ const noteFieldsForDetail = {
   stallConfig: true,
   festivalMeta: true,
   subEvents: true,
+  eventClubId: true,
   // Club fields
   clubName: true,
   clubCategoryId: true,
@@ -198,6 +199,20 @@ function getFullNoteSelect() {
     relationLoadStrategy: "join",
     select: {
       ...noteFieldsForDetail,
+      eventClub: {
+        select: {
+          id: true,
+          name: true,
+          chairpersonId: true,
+          chairperson: {
+            select: {
+              id: true,
+              employeeDetails: { select: { displayName: true } },
+              studentLogin: { select: { displayName: true } },
+            },
+          },
+        },
+      },
       createdBy: {
         select: userWithDetails,
       },

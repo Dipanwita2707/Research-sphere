@@ -3,7 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const cookieParser = require("cookie-parser");
-const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const log = require("./shared/utils/logger");
 const path = require("path");
@@ -54,8 +53,8 @@ app.use("/api/*/auth/login", loginLimiter);
 app.use("/api/", apiLimiter);
 
 // Body parsing middleware with size limits for security
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
 // Compression for responses (reduces bandwidth for 25k users)
@@ -118,8 +117,10 @@ app.get("/api/v1/health", (req, res) => {
   });
 });
 
-// Cache stats endpoint
-app.get("/cache/stats", async (req, res) => {
+// Cache stats endpoint (requires authentication)
+const { protect, restrictTo } = require("./shared/middleware/auth");
+
+app.get("/cache/stats", protect, restrictTo('admin', 'super_admin'), async (req, res) => {
   try {
     const cache = require("./shared/config/redis");
     const stats = await cache.getStats();
@@ -128,15 +129,16 @@ app.get("/cache/stats", async (req, res) => {
       data: stats,
     });
   } catch (error) {
+    console.error('Cache stats error:', error.message);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Failed to retrieve cache stats',
     });
   }
 });
 
-// Cache flush endpoint (admin only - no auth for now)
-app.post("/cache/flush", async (req, res) => {
+// Cache flush endpoint (admin only)
+app.post("/cache/flush", protect, restrictTo('admin', 'super_admin'), async (req, res) => {
   try {
     const cache = require("./shared/config/redis");
     await cache.flush();
@@ -145,9 +147,10 @@ app.post("/cache/flush", async (req, res) => {
       message: "Cache flushed successfully",
     });
   } catch (error) {
+    console.error('Cache flush error:', error.message);
     res.status(500).json({
       success: false,
-      message: error.message,
+      message: 'Failed to flush cache',
     });
   }
 });
@@ -229,6 +232,10 @@ const startServer = async () => {
     // Initialize QR activation cron job for gate entry
     const { startQRActivationJob } = require('./jobs/qrActivation.job');
     startQRActivationJob();
+
+    // Initialize scheduled email sender
+    const emailScheduler = require('./modules/event-management/services/emailScheduler.service');
+    emailScheduler.start();
     
     app.listen(config.port, () => {
       console.log(

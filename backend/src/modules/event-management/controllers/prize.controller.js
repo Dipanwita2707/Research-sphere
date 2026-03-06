@@ -1,133 +1,80 @@
 /**
  * Prize Controller
  * Controller for managing event prizes
+ *
+ * Uses asyncHandler to delegate all errors to the global Express error middleware.
+ * Service layer throws typed AppError subclasses (NotFoundError, ForbiddenError, etc.)
+ * so the error handler can set the correct HTTP status automatically.
  */
 
+const asyncHandler = require('../../../shared/utils/asyncHandler');
+const ApiResponse = require('../../../shared/utils/ApiResponse');
 const prizeService = require('../services/prize.service');
 
-/**
- * Get all prizes for an event
- */
-const getPrizes = async (req, res) => {
-  try {
-    const { id: eventId } = req.params;
-    const prizes = await prizeService.getPrizes(eventId);
-    res.json(prizes);
-  } catch (error) {
-    console.error('Error getting prizes:', error);
-    res.status(500).json({ message: error.message || 'Failed to get prizes' });
-  }
-};
+/** @route GET /api/events/:id/prizes */
+const getPrizes = asyncHandler(async (req, res) => {
+  const { id: eventId } = req.params;
+  const prizes = await prizeService.getPrizes(eventId);
+  return ApiResponse.success(res, prizes, 'Prizes retrieved');
+});
 
-/**
- * Get a specific prize
- */
-const getPrizeById = async (req, res) => {
-  try {
-    const { prizeId } = req.params;
-    const prize = await prizeService.getPrizeById(prizeId);
-    if (!prize) {
-      return res.status(404).json({ message: 'Prize not found' });
-    }
-    res.json(prize);
-  } catch (error) {
-    console.error('Error getting prize:', error);
-    res.status(500).json({ message: error.message || 'Failed to get prize' });
-  }
-};
+/** @route GET /api/events/:id/prizes/:prizeId */
+const getPrizeById = asyncHandler(async (req, res) => {
+  const { prizeId } = req.params;
+  const prize = await prizeService.getPrizeById(prizeId);
+  return ApiResponse.success(res, prize, 'Prize retrieved');
+});
 
-/**
- * Create a new prize
- */
-const createPrize = async (req, res) => {
-  try {
-    const { id: eventId } = req.params;
-    const userId = req.user.id;
-    const prize = await prizeService.createPrize(eventId, req.body, userId);
-    res.status(201).json(prize);
-  } catch (error) {
-    console.error('Error creating prize:', error);
-    res.status(400).json({ message: error.message || 'Failed to create prize' });
-  }
-};
+/** @route POST /api/events/:id/prizes */
+const createPrize = asyncHandler(async (req, res) => {
+  const { id: eventId } = req.params;
+  const userId = req.user.id;
+  const prize = await prizeService.createPrize(eventId, req.body, userId);
+  return ApiResponse.created(res, prize, 'Prize created successfully');
+});
 
-/**
- * Update a prize
- */
-const updatePrize = async (req, res) => {
-  try {
-    const { prizeId } = req.params;
-    const userId = req.user.id;
-    const prize = await prizeService.updatePrize(prizeId, req.body, userId);
-    res.json(prize);
-  } catch (error) {
-    console.error('Error updating prize:', error);
-    res.status(400).json({ message: error.message || 'Failed to update prize' });
-  }
-};
+/** @route PUT /api/events/:id/prizes/:prizeId */
+const updatePrize = asyncHandler(async (req, res) => {
+  const { prizeId } = req.params;
+  const userId = req.user.id;
+  const prize = await prizeService.updatePrize(prizeId, req.body, userId);
+  return ApiResponse.success(res, prize, 'Prize updated successfully');
+});
 
-/**
- * Delete a prize
- */
-const deletePrize = async (req, res) => {
-  try {
-    const { prizeId } = req.params;
-    const userId = req.user.id;
-    await prizeService.deletePrize(prizeId, userId);
-    res.json({ message: 'Prize deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting prize:', error);
-    res.status(400).json({ message: error.message || 'Failed to delete prize' });
-  }
-};
+/** @route DELETE /api/events/:id/prizes/:prizeId */
+const deletePrize = asyncHandler(async (req, res) => {
+  const { prizeId } = req.params;
+  const userId = req.user.id;
+  await prizeService.deletePrize(prizeId, userId);
+  return ApiResponse.success(res, null, 'Prize deleted successfully');
+});
 
-/**
- * Reorder prizes
- */
-const reorderPrizes = async (req, res) => {
-  try {
-    const { id: eventId } = req.params;
-    const { prizeOrders } = req.body;
-    const userId = req.user.id;
-    const prizes = await prizeService.reorderPrizes(eventId, prizeOrders, userId);
-    res.json(prizes);
-  } catch (error) {
-    console.error('Error reordering prizes:', error);
-    res.status(400).json({ message: error.message || 'Failed to reorder prizes' });
-  }
-};
+/** @route PUT /api/events/:id/prizes/reorder */
+const reorderPrizes = asyncHandler(async (req, res) => {
+  const { id: eventId } = req.params;
+  const { prizeOrders } = req.body;
+  const userId = req.user.id;
+  const prizes = await prizeService.reorderPrizes(eventId, prizeOrders, userId);
+  return ApiResponse.success(res, prizes, 'Prizes reordered');
+});
 
-/**
- * Bulk upsert prizes
- */
-const bulkUpsertPrizes = async (req, res) => {
-  try {
-    const { id: eventId } = req.params;
-    const { prizes } = req.body;
-    const userId = req.user.id;
-    const result = await prizeService.bulkUpsertPrizes(eventId, prizes, userId);
-    res.json(result);
-  } catch (error) {
-    console.error('Error bulk upserting prizes:', error);
-    res.status(400).json({ message: error.message || 'Failed to save prizes' });
-  }
-};
+/** @route PUT /api/events/:id/prizes/bulk */
+const bulkUpsertPrizes = asyncHandler(async (req, res) => {
+  const { id: eventId } = req.params;
+  const { prizes } = req.body;
+  const userId = req.user.id;
+  const result = await prizeService.bulkUpsertPrizes(eventId, prizes, userId);
+  return ApiResponse.success(res, result, 'Prizes saved');
+});
 
-/**
- * Toggle prizes enabled
- */
-const togglePrizesEnabled = async (req, res) => {
-  try {
-    const { id: eventId } = req.params;
-    const { enabled } = req.body;
-    const userId = req.user.id;
-    const event = await prizeService.togglePrizesEnabled(eventId, enabled, userId);
-    res.json(event);
-  } catch (error) {
-    console.error('Error toggling prizes:', error);
-    res.status(400).json({ message: error.message || 'Failed to toggle prizes' });
-  }
-};
+/** @route PUT /api/events/:id/prizes/toggle */
+const togglePrizesEnabled = asyncHandler(async (req, res) => {
+  const { id: eventId } = req.params;
+  const { enabled } = req.body;
+  const userId = req.user.id;
+  const event = await prizeService.togglePrizesEnabled(eventId, enabled, userId);
+  return ApiResponse.success(res, event, `Prizes ${enabled ? 'enabled' : 'disabled'}`);
+});
 
 module.exports = {
   getPrizes,

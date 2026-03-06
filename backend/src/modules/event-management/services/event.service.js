@@ -29,16 +29,22 @@ const {
   generateEventId,
   generateRegistrationId,
   getEventById,
+  getEventLean,
   canRegisterForEvent,
   isEventVolunteer,
+  isEventManager,
   validateQRCodeAndGetRegistration,
+  invalidateResolveEventCache,
 } = require("../utils/eventHelpers");
 const { generateQRCode } = require("../utils/qrCodeGenerator");
+const { buildVisibilityFilter, isRegistrationOpen } = require('./eventSettings.service');
 const crypto = require("crypto");
+const log = require("../../../shared/utils/logger");
 
 // ── Event cache invalidation helper ──────────────────────────────────────────
 // Called by mutation functions (update, publish, register) to bust stale cache.
 async function invalidateEventCaches(eventId) {
+  invalidateResolveEventCache(eventId); // bust in-memory resolveEvent cache
   await Promise.all([
     cache.del(`event:detail:${eventId}`),
     cache.del(`event:stats:${eventId}`),
@@ -57,10 +63,20 @@ async function invalidateEventCaches(eventId) {
  *   - venue/stall: { isFestival: false, event: Event }
  */
 const createEventFromNoting = async (noteId, userId) => {
-  // Get the noting with event details
+  // Get the noting with event details + optional club association
   const noting = await prisma.note.findUnique({
     where: { id: noteId },
-    include: { createdBy: true },
+    include: {
+      createdBy: true,
+      eventClub: {
+        select: {
+          id: true,
+          chairpersonId: true,
+          name: true,
+          status: true,
+        },
+      },
+    },
   });
 
   if (!noting) throw new NotFoundError("Noting not found");
@@ -201,6 +217,25 @@ const createEventFromNoting = async (noteId, userId) => {
       return results;
     });
 
+    // ── Auto-grant club chairperson for all festival sub-events ─────────────
+    if (noting.eventClub && noting.eventClub.chairpersonId && createdEvents.length > 0) {
+      try {
+        const volunteerRows = createdEvents.map((ev) => ({
+          id: crypto.randomUUID(),
+          eventId: ev.id,
+          userId: noting.eventClub.chairpersonId,
+          role: "event_manager",
+          canScanQr: true,
+        }));
+        await prisma.eventVolunteer.createMany({ data: volunteerRows });
+        log.ok(
+          `Auto-granted event management to chairperson ${noting.eventClub.chairpersonId} for ${createdEvents.length} festival sub-events (club: ${noting.eventClub.name})`,
+        );
+      } catch (err) {
+        log.error(`Failed to auto-grant chairperson permissions for festival: ${err.message}`);
+      }
+    }
+
     return { isFestival: true, events: createdEvents };
   }
 
@@ -303,6 +338,29 @@ const createEventFromNoting = async (noteId, userId) => {
       where: { id: event.id },
       data: { prizesEnabled: true },
     });
+  }
+
+  // ── Auto-grant club chairperson full event management permissions ────────
+  // When the noting is associated with a club, add the chairperson as an
+  // EventVolunteer with role 'event_manager' so they can manage the event.
+  if (noting.eventClub && noting.eventClub.chairpersonId) {
+    try {
+      await prisma.eventVolunteer.create({
+        data: {
+          id: crypto.randomUUID(),
+          eventId: event.id,
+          userId: noting.eventClub.chairpersonId,
+          role: "event_manager",
+          canScanQr: true,
+        },
+      });
+      log.ok(
+        `Auto-granted event management to chairperson ${noting.eventClub.chairpersonId} for event ${event.eventId} (club: ${noting.eventClub.name})`,
+      );
+    } catch (err) {
+      // Don't fail event creation if volunteer assignment fails (e.g. duplicate)
+      log.error(`Failed to auto-grant chairperson permissions: ${err.message}`);
+    }
   }
 
   return { isFestival: false, event };
@@ -456,7 +514,7 @@ const validateEventRequiredFields = (eventData) => {
   if (
     eventData.longDescription &&
     eventData.longDescription.length >
-      (LIMITS.MAX_LONG_DESCRIPTION_LENGTH || 50000)
+    (LIMITS.MAX_LONG_DESCRIPTION_LENGTH || 50000)
   ) {
     throw new ValidationError("Detailed Description exceeds maximum length.");
   }
@@ -582,9 +640,12 @@ const validateEventRequiredFields = (eventData) => {
 const updateEvent = async (eventId, userId, updateData) => {
   const event = await getEventById(prisma, eventId);
 
-  // Verify user is the event creator
+  // Verify user is the event creator or an assigned event manager (club chairperson)
   if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can update the event");
+    const hasManagerAccess = await isEventManager(prisma, eventId, userId);
+    if (!hasManagerAccess) {
+      throw new ForbiddenError("Only the event creator or assigned manager can update the event");
+    }
   }
 
   // Locked fields cannot be updated (they come from the noting)
@@ -729,9 +790,12 @@ const updateEvent = async (eventId, userId, updateData) => {
 const publishEvent = async (eventId, userId) => {
   const event = await getEventById(prisma, eventId);
 
-  // Verify user is the event creator
+  // Verify user is the event creator or an assigned event manager (club chairperson)
   if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can publish the event");
+    const hasManagerAccess = await isEventManager(prisma, eventId, userId);
+    if (!hasManagerAccess) {
+      throw new ForbiddenError("Only the event creator or assigned manager can publish the event");
+    }
   }
 
   // Allow publishing/republishing for draft and already published events
@@ -838,6 +902,33 @@ const listEvents = async (filters, pagination, userId) => {
     participationType: true,
     capacityFixed: true,
     prizesEnabled: true,
+    // Noting-derived fields (duty leave, sponsorship, resources)
+    dutyLeaveAvailable: true,
+    dutyLeaveEligibility: true,
+    dutyLeaveRoleType: true,
+    hasSponsorship: true,
+    sponsors: true,
+    showSponsorshipPublicly: true,
+    hasResources: true,
+    resources: true,
+    certificateAvailable: true,
+    logoImageUrl: true,
+    note: {
+      select: {
+        notingId: true,
+        status: true,
+        category: true,
+        subcategory: true,
+        eventSponsors: true,
+        eventResources: true,
+        eventHasSponsorship: true,
+        eventHasResources: true,
+        eventDutyLeaveAvailable: true,
+        eventDutyLeaveEligibility: true,
+        eventDutyLeaveRoleType: true,
+        subEvents: true,
+      },
+    },
   };
 
   // Special stall-open filter: return events open for student stall applications
@@ -893,7 +984,11 @@ const listEvents = async (filters, pagination, userId) => {
   // Draft events are only visible to their creator
   // Published/Ongoing/Completed events are visible to everyone
   if (myEvents) {
-    where.createdById = userId;
+    // Show events created by user OR where user is an assigned event_manager (club chairperson)
+    where.OR = [
+      { createdById: userId },
+      { EventVolunteer: { some: { userId, role: "event_manager" } } },
+    ];
     if (status) {
       where.status = status;
     }
@@ -901,12 +996,15 @@ const listEvents = async (filters, pagination, userId) => {
     where.OR = [
       { status: { in: ["published", "ongoing", "completed"] } },
       { AND: [{ status: "draft" }, { createdById: userId }] },
+      { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
     ];
 
     if (status) {
       if (status === "draft") {
-        where.AND = [{ status: "draft" }, { createdById: userId }];
-        delete where.OR;
+        where.OR = [
+          { AND: [{ status: "draft" }, { createdById: userId }] },
+          { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
+        ];
       } else {
         where.status = status;
         delete where.OR;
@@ -935,82 +1033,13 @@ const listEvents = async (filters, pagination, userId) => {
   }
 
   // ── Visibility filter: exclude events user cannot see ─────────────────
-  // We do this by finding event IDs that are explicitly hidden from this user,
-  // then excluding them. Events without visibility config remain visible (legacy).
-  const userForVisibility = await prisma.userLogin.findUnique({
-    where: { id: userId },
-    select: {
-      role: true,
-      studentLogin: {
-        select: {
-          programId: true,
-          sectionId: true,
-          program: {
-            select: {
-              id: true,
-              departmentId: true,
-              department: { select: { id: true, facultyId: true } },
-            },
-          },
-          section: { select: { id: true, batchYear: true } },
-        },
-      },
-    },
-  });
-
-  // Only apply visibility filter if not a superadmin (superadmin sees all)
-  if (userForVisibility && userForVisibility.role !== 'superadmin' && !myEvents) {
-    // Get all visibility records for events that are either inactive or exclude this role
-    const allVisibility = await prisma.eventVisibility.findMany({
-      select: {
-        eventId: true,
-        isActive: true,
-        visibleToRoles: true,
-        studentFilterType: true,
-        allowedSchoolIds: true,
-        allowedDepartmentIds: true,
-        allowedProgramIds: true,
-        allowedBatchYears: true,
-        allowedSectionIds: true,
-      },
-    });
-
-    const hiddenEventIds = [];
-    const role = userForVisibility.role;
-    const student = userForVisibility.studentLogin;
-
-    for (const v of allVisibility) {
-      // NOTE: isActive controls registration open/close, NOT visibility.
-      // So we do NOT hide events based on isActive — only role/student filters.
-
-      const roles = Array.isArray(v.visibleToRoles) ? v.visibleToRoles : [];
-      if (!roles.includes(role)) { hiddenEventIds.push(v.eventId); continue; }
-
-      // Student granular filtering
-      if (role === 'student' && v.studentFilterType === 'custom' && student) {
-        const schools = Array.isArray(v.allowedSchoolIds) ? v.allowedSchoolIds : [];
-        const depts = Array.isArray(v.allowedDepartmentIds) ? v.allowedDepartmentIds : [];
-        const progs = Array.isArray(v.allowedProgramIds) ? v.allowedProgramIds : [];
-        const batches = Array.isArray(v.allowedBatchYears) ? v.allowedBatchYears : [];
-        const sects = Array.isArray(v.allowedSectionIds) ? v.allowedSectionIds : [];
-
-        const hasAnyFilter = schools.length + depts.length + progs.length + batches.length + sects.length > 0;
-        if (hasAnyFilter) {
-          let matched = false;
-          if (sects.length > 0 && student.sectionId && sects.includes(student.sectionId)) matched = true;
-          if (!matched && batches.length > 0 && student.section?.batchYear && batches.includes(student.section.batchYear)) matched = true;
-          if (!matched && progs.length > 0 && student.programId && progs.includes(student.programId)) matched = true;
-          if (!matched && depts.length > 0 && student.program?.departmentId && depts.includes(student.program.departmentId)) matched = true;
-          if (!matched && schools.length > 0 && student.program?.department?.facultyId && schools.includes(student.program.department.facultyId)) matched = true;
-          if (!matched) hiddenEventIds.push(v.eventId);
-        }
-      } else if (role === 'student' && v.studentFilterType === 'custom' && !student) {
-        hiddenEventIds.push(v.eventId);
-      }
-    }
-
-    if (hiddenEventIds.length > 0) {
-      where.NOT = { ...(where.NOT || {}), id: { in: hiddenEventIds } };
+  // Use buildVisibilityFilter to push filtering to SQL instead of loading all records into memory
+  if (!myEvents) {
+    const visibilityFilter = await buildVisibilityFilter(userId);
+    // Merge visibility filter into the where clause
+    if (visibilityFilter && Object.keys(visibilityFilter).length > 0) {
+      where.AND = where.AND || [];
+      where.AND.push(visibilityFilter);
     }
   }
 
@@ -1078,7 +1107,6 @@ const registerForEvent = async (eventId, userId) => {
   const event = await getEventById(prisma, eventId);
 
   // Check if registration is open (via Event Settings toggle)
-  const { isRegistrationOpen } = require('./eventSettings.service');
   const regOpen = await isRegistrationOpen(event.id);
   if (!regOpen) {
     throw new ValidationError('Registration is currently closed for this event');
@@ -1209,192 +1237,11 @@ const getUserRegistrations = async (userId, filters, pagination) => {
 };
 
 /**
- * Assign volunteer to event
- */
-const assignVolunteer = async (eventId, userId, volunteerData, assignedBy) => {
-  const event = await getEventById(prisma, eventId);
-
-  // Verify user is the event creator
-  if (event.createdById !== assignedBy) {
-    throw new ForbiddenError("Only the event creator can assign volunteers");
-  }
-
-  // Check if volunteer already assigned
-  const existing = await prisma.eventVolunteer.findFirst({
-    where: {
-      eventId,
-      userId,
-    },
-  });
-
-  if (existing) {
-    throw new ValidationError(
-      "User is already assigned as a volunteer for this event",
-    );
-  }
-
-  // Create volunteer assignment
-  const volunteer = await prisma.eventVolunteer.create({
-    data: {
-      id: crypto.randomUUID(), // Generate UUID for primary key
-      eventId,
-      userId,
-      role: volunteerData.role,
-      canScanQr:
-        volunteerData.canScanQr !== undefined ? volunteerData.canScanQr : true,
-      assignedGate: volunteerData.assignedGate,
-    },
-    include: {
-      user_login: {
-        select: {
-          id: true,
-          uid: true,
-          email: true,
-          employeeDetails: {
-            select: {
-              firstName: true,
-              lastName: true,
-              displayName: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  return volunteer;
-};
-
-/**
- * Scan QR code for event entry/exit
- */
-const scanQRCode = async (
-  eventId,
-  qrCode,
-  entryType,
-  volunteerId,
-  scanData,
-) => {
-  // Verify volunteer authorization
-  const canScan = await isEventVolunteer(prisma, eventId, volunteerId);
-  if (!canScan) {
-    throw new ForbiddenError(ERRORS.NOT_A_VOLUNTEER);
-  }
-
-  // Validate QR code and get registration
-  const registration = await validateQRCodeAndGetRegistration(
-    prisma,
-    qrCode,
-    eventId,
-  );
-
-  // Entry: block if already checked in (must checkout first)
-  if (entryType === "entry" && registration.hasEntered) {
-    throw new ValidationError(ERRORS.ALREADY_ENTERED);
-  }
-  // Exit: block if not checked in (must checkin first)
-  if (entryType === "exit" && !registration.hasEntered) {
-    throw new ValidationError(ERRORS.NOT_CHECKED_IN);
-  }
-
-  // Get volunteer details
-  const volunteer = await prisma.eventVolunteer.findFirst({
-    where: {
-      eventId,
-      userId: volunteerId,
-    },
-  });
-
-  // Create entry log
-  const entry = await prisma.$transaction(async (tx) => {
-    const entryLog = await tx.eventEntry.create({
-      data: {
-        id: crypto.randomUUID(), // Generate UUID for primary key
-        eventId,
-        registrationId: registration.id,
-        volunteerId: volunteer.id,
-        entryType,
-        gateLocation: scanData.gateLocation,
-        remarks: scanData.remarks,
-      },
-      include: {
-        EventRegistration: {
-          include: {
-            user_login: {
-              select: {
-                id: true,
-                uid: true,
-                email: true,
-                employeeDetails: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    displayName: true,
-                  },
-                },
-                studentLogin: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    displayName: true,
-                    registrationNo: true,
-                    studentId: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        EventVolunteer: {
-          include: {
-            user_login: {
-              select: {
-                id: true,
-                uid: true,
-                employeeDetails: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    displayName: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Update registration entry status
-    if (entryType === "entry") {
-      await tx.eventRegistration.update({
-        where: { id: registration.id },
-        data: {
-          hasEntered: true,
-          enteredAt: new Date(),
-        },
-      });
-    } else if (entryType === "exit") {
-      await tx.eventRegistration.update({
-        where: { id: registration.id },
-        data: {
-          hasEntered: false,
-        },
-      });
-    }
-
-    return entryLog;
-  });
-
-  return entry;
-};
-
-/**
  * Get event statistics (comprehensive)
  * Optimized: Single raw SQL for counts + date grouping, separate query for recent registrations
  */
 const getEventStatistics = async (eventId, userId) => {
-  const event = await getEventById(prisma, eventId);
+  const event = await getEventLean(prisma, eventId);
 
   // Verify user is the event creator
   if (event.createdById !== userId) {
@@ -1407,56 +1254,56 @@ const getEventStatistics = async (eventId, userId) => {
   if (cached) return cached;
 
   // Single raw SQL for all registration counts + revenue (replaces 6 count + 1 aggregate queries)
-  const statsResult = await prisma.$queryRaw`
-    SELECT
-      COUNT(*)::int as total,
-      COUNT(*) FILTER (WHERE status = 'confirmed')::int as confirmed,
-      COUNT(*) FILTER (WHERE status = 'pending')::int as pending,
-      COUNT(*) FILTER (WHERE status = 'cancelled')::int as cancelled,
-      COUNT(*) FILTER (WHERE status = 'waitlisted')::int as waitlisted,
-      COUNT(*) FILTER (WHERE "hasEntered" = true)::int as attended,
-      COALESCE(SUM("amountPaid") FILTER (WHERE "paymentStatus" = 'completed'), 0)::float as revenue
-    FROM "EventRegistration"
-    WHERE "eventId" = ${eventId}
-  `;
-  const stats = statsResult[0] || {};
-
-  // Date grouping via SQL (replaces full table scan findMany)
-  const dateGroups = await prisma.$queryRaw`
-    SELECT DATE("registeredAt")::text as date, COUNT(*)::int as count
-    FROM "EventRegistration"
-    WHERE "eventId" = ${eventId}
-    GROUP BY DATE("registeredAt")
-    ORDER BY date ASC
-  `;
-
-  const [volunteerCount, totalEntries, totalExits, recentRegistrations] =
-    await Promise.all([
-      prisma.eventVolunteer.count({ where: { eventId } }),
-      prisma.eventEntry.count({ where: { eventId, entryType: "entry" } }),
-      prisma.eventEntry.count({ where: { eventId, entryType: "exit" } }),
-      prisma.eventRegistration.findMany({
-        where: { eventId },
-        include: {
-          user_login: {
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              employeeDetails: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                },
+  // Also includes volunteer count, entry/exit counts in one combined query
+  const [statsResult, dateGroups, recentRegistrations] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId}) as total,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'confirmed') as confirmed,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'pending') as pending,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'cancelled') as cancelled,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'waitlisted') as waitlisted,
+        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "hasEntered" = true) as attended,
+        (SELECT COALESCE(SUM("amountPaid"), 0)::float FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "paymentStatus" = 'completed') as revenue,
+        (SELECT COUNT(*)::int FROM "EventVolunteer" WHERE "eventId" = ${eventId}) as "volunteerCount",
+        (SELECT COUNT(*)::int FROM "EventEntry" WHERE "eventId" = ${eventId} AND "entryType" = 'entry') as "totalEntries",
+        (SELECT COUNT(*)::int FROM "EventEntry" WHERE "eventId" = ${eventId} AND "entryType" = 'exit') as "totalExits"
+    `,
+    // Date grouping via SQL (replaces full table scan findMany)
+    prisma.$queryRaw`
+      SELECT DATE("registeredAt")::text as date, COUNT(*)::int as count
+      FROM "EventRegistration"
+      WHERE "eventId" = ${eventId}
+      GROUP BY DATE("registeredAt")
+      ORDER BY date ASC
+    `,
+    prisma.eventRegistration.findMany({
+      where: { eventId },
+      include: {
+        user_login: {
+          select: {
+            id: true,
+            uid: true,
+            email: true,
+            employeeDetails: {
+              select: {
+                firstName: true,
+                lastName: true,
+                displayName: true,
               },
             },
           },
         },
-        orderBy: { registeredAt: "desc" },
-        take: 50,
-      }),
-    ]);
+      },
+      orderBy: { registeredAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  const stats = statsResult[0] || {};
+  const volunteerCount = stats.volunteerCount || 0;
+  const totalEntries = stats.totalEntries || 0;
+  const totalExits = stats.totalExits || 0;
 
   const registrationsByDate = dateGroups.map((r) => ({
     date: r.date,
@@ -1489,14 +1336,14 @@ const getEventStatistics = async (eventId, userId) => {
       registeredAt: r.registeredAt,
       user: r.user_login
         ? {
-            id: r.user_login.id,
-            uid: r.user_login.uid,
-            email: r.user_login.email,
-            name:
-              r.user_login.employeeDetails?.displayName ||
-              `${r.user_login.employeeDetails?.firstName || ""} ${r.user_login.employeeDetails?.lastName || ""}`.trim() ||
-              r.user_login.uid,
-          }
+          id: r.user_login.id,
+          uid: r.user_login.uid,
+          email: r.user_login.email,
+          name:
+            r.user_login.employeeDetails?.displayName ||
+            `${r.user_login.employeeDetails?.firstName || ""} ${r.user_login.employeeDetails?.lastName || ""}`.trim() ||
+            r.user_login.uid,
+        }
         : null,
     })),
   };
@@ -1506,583 +1353,12 @@ const getEventStatistics = async (eventId, userId) => {
   return result;
 };
 
-/**
- * Get events where the current user is assigned as a volunteer
- */
-const getMyVolunteerAssignments = async (userId) => {
-  const assignments = await prisma.eventVolunteer.findMany({
-    where: { userId },
-    include: {
-      Event: {
-        select: {
-          id: true,
-          eventId: true,
-          name: true,
-          eventType: true,
-          description: true,
-          startDate: true,
-          endDate: true,
-          venue: true,
-          status: true,
-          bannerImageUrl: true,
-          maxCapacity: true,
-          _count: {
-            select: { EventRegistration: true },
-          },
-        },
-      },
-    },
-    orderBy: { assignedAt: "desc" },
-  });
-
-  return assignments.map((a) => ({
-    id: a.id,
-    eventId: a.eventId,
-    role: a.role,
-    canScanQr: a.canScanQr,
-    assignedGate: a.assignedGate,
-    assignedAt: a.assignedAt,
-    event: a.Event
-      ? {
-          id: a.Event.id,
-          eventId: a.Event.eventId,
-          name: a.Event.name,
-          eventType: a.Event.eventType,
-          description: a.Event.description,
-          startDate: a.Event.startDate,
-          endDate: a.Event.endDate,
-          venue: a.Event.venue,
-          status: a.Event.status,
-          bannerImageUrl: a.Event.bannerImageUrl,
-          currentRegistrations: a.Event._count?.EventRegistration || 0,
-          maxCapacity: a.Event.maxCapacity,
-        }
-      : null,
-  }));
-};
-
-/**
- * Get volunteer scan activity history for the current user
- */
-const getMyVolunteerActivity = async (userId, filters = {}) => {
-  const { page = 1, limit = 30, eventId, search, startDate, endDate } = filters;
-
-  // First get volunteer IDs for this user
-  const volunteerRecords = await prisma.eventVolunteer.findMany({
-    where: { userId },
-    select: { id: true, eventId: true },
-  });
-
-  if (volunteerRecords.length === 0) {
-    return {
-      entries: [],
-      pagination: { page, limit, total: 0, totalPages: 0 },
-    };
-  }
-
-  const volunteerIds = volunteerRecords.map((v) => v.id);
-  const volunteerEventIds = volunteerRecords.map((v) => v.eventId);
-
-  const where = {
-    volunteerId: { in: volunteerIds },
-  };
-
-  if (eventId) {
-    where.eventId = eventId;
-  }
-
-  if (startDate || endDate) {
-    where.scannedAt = {};
-    if (startDate) where.scannedAt.gte = new Date(startDate);
-    if (endDate) where.scannedAt.lte = new Date(endDate);
-  }
-
-  const [entries, total] = await Promise.all([
-    prisma.eventEntry.findMany({
-      where,
-      include: {
-        EventRegistration: {
-          include: {
-            user_login: {
-              select: {
-                id: true,
-                uid: true,
-                email: true,
-                employeeDetails: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    displayName: true,
-                  },
-                },
-                studentLogin: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    displayName: true,
-                    registrationNo: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-        Event: {
-          select: {
-            id: true,
-            eventId: true,
-            name: true,
-            eventType: true,
-            venue: true,
-            startDate: true,
-            endDate: true,
-          },
-        },
-      },
-      orderBy: { scannedAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.eventEntry.count({ where }),
-  ]);
-
-  // Format entries with user names
-  const formattedEntries = entries.map((e) => {
-    const userLogin = e.EventRegistration?.user_login;
-    const empDetails = userLogin?.employeeDetails;
-    const studentDetails = userLogin?.studentLogin;
-    const userName =
-      empDetails?.displayName ||
-      `${empDetails?.firstName || ""} ${empDetails?.lastName || ""}`.trim() ||
-      studentDetails?.displayName ||
-      `${studentDetails?.firstName || ""} ${studentDetails?.lastName || ""}`.trim() ||
-      userLogin?.uid ||
-      "Unknown";
-
-    return {
-      id: e.id,
-      eventId: e.eventId,
-      registrationId: e.registrationId,
-      entryType: e.entryType,
-      scannedAt: e.scannedAt,
-      gateLocation: e.gateLocation,
-      remarks: e.remarks,
-      event: e.Event
-        ? {
-            id: e.Event.id,
-            eventId: e.Event.eventId,
-            name: e.Event.name,
-            eventType: e.Event.eventType,
-            venue: e.Event.venue,
-            startDate: e.Event.startDate,
-            endDate: e.Event.endDate,
-          }
-        : null,
-      participant: {
-        id: userLogin?.id || null,
-        uid: userLogin?.uid || null,
-        email: userLogin?.email || null,
-        name: userName,
-        registrationNo: studentDetails?.registrationNo || null,
-      },
-    };
-  });
-
-  return {
-    entries: formattedEntries,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
-};
-
-/**
- * Get volunteer activity for a specific volunteer (event creator view)
- */
-const getVolunteerActivity = async (
-  eventId,
-  volunteerId,
-  userId,
-  filters = {},
-) => {
-  const event = await getEventById(prisma, eventId);
-  if (event.createdById !== userId) {
-    throw new ForbiddenError(
-      "Only the event creator can view volunteer activity",
-    );
-  }
-
-  const volunteer = await prisma.eventVolunteer.findFirst({
-    where: { id: volunteerId, eventId },
-    include: {
-      user_login: {
-        select: {
-          id: true,
-          uid: true,
-          email: true,
-          employeeDetails: {
-            select: { firstName: true, lastName: true, displayName: true },
-          },
-          studentLogin: {
-            select: {
-              firstName: true,
-              lastName: true,
-              displayName: true,
-              registrationNo: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  if (!volunteer) {
-    throw new NotFoundError("Volunteer not found for this event");
-  }
-
-  const { page = 1, limit = 50, startDate, endDate } = filters;
-  const where = { eventId, volunteerId };
-
-  if (startDate || endDate) {
-    where.scannedAt = {};
-    if (startDate) where.scannedAt.gte = new Date(startDate);
-    if (endDate) where.scannedAt.lte = new Date(endDate);
-  }
-
-  const [entries, total] = await Promise.all([
-    prisma.eventEntry.findMany({
-      where,
-      include: {
-        EventRegistration: {
-          include: {
-            user_login: {
-              select: {
-                id: true,
-                uid: true,
-                email: true,
-                employeeDetails: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    displayName: true,
-                  },
-                },
-                studentLogin: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    displayName: true,
-                    registrationNo: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { scannedAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.eventEntry.count({ where }),
-  ]);
-
-  const ul = volunteer.user_login;
-  const emp = ul?.employeeDetails;
-  const stu = ul?.studentLogin;
-  const volunteerName =
-    emp?.displayName ||
-    (emp ? `${emp.firstName || ""} ${emp.lastName || ""}`.trim() : null) ||
-    stu?.displayName ||
-    (stu ? `${stu.firstName || ""} ${stu.lastName || ""}`.trim() : null) ||
-    ul?.uid ||
-    "Unknown";
-
-  const formattedEntries = entries.map((e) => {
-    const userLogin = e.EventRegistration?.user_login;
-    const empDetails = userLogin?.employeeDetails;
-    const studentDetails = userLogin?.studentLogin;
-    const userName =
-      empDetails?.displayName ||
-      `${empDetails?.firstName || ""} ${empDetails?.lastName || ""}`.trim() ||
-      studentDetails?.displayName ||
-      `${studentDetails?.firstName || ""} ${studentDetails?.lastName || ""}`.trim() ||
-      userLogin?.uid ||
-      "Unknown";
-
-    return {
-      id: e.id,
-      eventId: e.eventId,
-      registrationId: e.registrationId,
-      entryType: e.entryType,
-      scannedAt: e.scannedAt,
-      gateLocation: e.gateLocation,
-      remarks: e.remarks,
-      participant: {
-        id: userLogin?.id || null,
-        uid: userLogin?.uid || null,
-        email: userLogin?.email || null,
-        name: userName,
-        registrationNo: studentDetails?.registrationNo || null,
-      },
-    };
-  });
-
-  return {
-    volunteer: {
-      id: volunteer.id,
-      role: volunteer.role,
-      assignedGate: volunteer.assignedGate,
-      canScanQr: volunteer.canScanQr,
-      assignedAt: volunteer.assignedAt,
-      user: ul
-        ? { id: ul.id, uid: ul.uid, email: ul.email, name: volunteerName }
-        : null,
-    },
-    event: {
-      id: event.id,
-      eventId: event.eventId,
-      name: event.name,
-      venue: event.venue,
-      startDate: event.startDate,
-      endDate: event.endDate,
-    },
-    entries: formattedEntries,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
-};
-
-/**
- * Submit event feedback (10 points 1-10 + short description)
- * Public - no auth required
- */
-const submitEventFeedback = async (eventId, { points, shortDescription }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError("Event not found");
-
-  const pts = Array.isArray(points) ? points : [];
-  if (pts.length !== 10) {
-    throw new ValidationError(
-      "Please provide exactly 10 ratings (1-10) for each point.",
-    );
-  }
-  const valid = pts.every((p) => typeof p === "number" && p >= 1 && p <= 10);
-  if (!valid) {
-    throw new ValidationError("Each point must be a number between 1 and 10.");
-  }
-
-  const feedback = await prisma.eventFeedback.create({
-    data: {
-      eventId,
-      points: pts,
-      shortDescription: shortDescription
-        ? String(shortDescription).trim().slice(0, 2000)
-        : null,
-    },
-  });
-  return feedback;
-};
-
-/**
- * Get minimal event info for feedback form (public - no auth, for QR scanner users)
- */
-const getEventFeedbackFormInfo = async (eventId) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event || event.status !== "published") {
-    throw new NotFoundError("Event not found");
-  }
-  return { id: event.id, name: event.name };
-};
-
-/**
- * Get event feedback list (event creator only)
- */
-const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError("Event not found");
-  if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can view feedback");
-  }
-
-  // Fetch paginated items, count, and average in parallel (single pass each)
-  // Replaces the previous double table scan (findMany ALL → reduce in JS + redundant count)
-  const [items, total, avgResult] = await Promise.all([
-    prisma.eventFeedback.findMany({
-      where: { eventId },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.eventFeedback.count({ where: { eventId } }),
-    // Use raw SQL to compute average of JSON array points in one pass
-    // Each feedback has points: [1-10, 1-10, ...10 items], avg per feedback = sum/10
-    prisma.$queryRaw`
-      SELECT COALESCE(
-        AVG(
-          (SELECT SUM(val::float) / 10
-           FROM jsonb_array_elements_text(points::jsonb) AS val)
-        ), 0
-      )::float AS "overallAvg"
-      FROM "EventFeedback"
-      WHERE "eventId" = ${eventId}
-    `,
-  ]);
-
-  const overallAvg = avgResult[0]?.overallAvg ?? 0;
-
-  return {
-    feedback: items,
-    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    summary: {
-      totalFeedback: total, // Reuse count instead of redundant second count()
-      overallAvg: Number(overallAvg.toFixed(2)),
-    },
-  };
-};
-
-/**
- * Get stall info for feedback form (public - no auth)
- */
-const getStallFeedbackFormInfo = async (eventId, stallId) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event || event.status !== 'published') {
-    throw new NotFoundError('Event not found');
-  }
-  const stall = await prisma.stall.findFirst({
-    where: { stallId, eventId: event.id, isActive: true },
-  });
-  if (!stall) throw new NotFoundError('Stall not found');
-  return { id: event.id, eventName: event.name, stallId: stall.stallId, stallName: stall.stallName };
-};
-
-/**
- * Submit stall feedback (public - no auth)
- */
-const STALL_FEEDBACK_LABELS = [
-  'Overall Experience', 'Product / Food Quality', 'Pricing & Value',
-  'Staff Friendliness', 'Cleanliness', 'Presentation & Setup',
-  'Wait Time', 'Variety', 'Packaging', 'Would Recommend',
-];
-
-const submitStallFeedback = async (eventId, stallId, { points, shortDescription }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError('Event not found');
-
-  const stall = await prisma.stall.findFirst({
-    where: { stallId, eventId: event.id, isActive: true },
-  });
-  if (!stall) throw new NotFoundError('Stall not found');
-
-  const pts = Array.isArray(points) ? points : [];
-  if (pts.length !== 10) {
-    throw new ValidationError('Please provide exactly 10 ratings (1-10) for each criterion.');
-  }
-  const valid = pts.every((p) => typeof p === 'number' && p >= 1 && p <= 10);
-  if (!valid) throw new ValidationError('Each rating must be a number between 1 and 10.');
-
-  const feedback = await prisma.stallFeedback.create({
-    data: {
-      eventId: event.id,
-      stallId: stall.stallId,
-      points: pts,
-      shortDescription: shortDescription ? String(shortDescription).trim().slice(0, 2000) : null,
-    },
-  });
-  return { id: feedback.id };
-};
-
-/**
- * Get stall feedback list (event creator only)
- */
-const getStallFeedback = async (eventId, stallId, userId, { page = 1, limit = 20 }) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError('Event not found');
-  if (event.createdById !== userId) throw new ForbiddenError('Only the event creator can view stall feedback');
-
-  const stall = await prisma.stall.findFirst({ where: { stallId, eventId: event.id } });
-  if (!stall) throw new NotFoundError('Stall not found');
-
-  // Fetch paginated items, count, and average in parallel (single pass each)
-  // Replaces the double table scan (findMany ALL → reduce in JS)
-  const [items, total, avgResult] = await Promise.all([
-    prisma.stallFeedback.findMany({
-      where: { stallId, eventId: event.id },
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.stallFeedback.count({ where: { stallId, eventId: event.id } }),
-    prisma.$queryRaw`
-      SELECT COALESCE(
-        AVG(
-          (SELECT SUM(val::float) / 10
-           FROM jsonb_array_elements_text(points::jsonb) AS val)
-        ), 0
-      )::float AS "overallAvg"
-      FROM "StallFeedback"
-      WHERE "stallId" = ${stallId} AND "eventId" = ${event.id}
-    `,
-  ]);
-
-  const overallAvg = avgResult[0]?.overallAvg ?? 0;
-
-  return {
-    feedback: items,
-    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    summary: { totalFeedback: total, overallAvg: Number(overallAvg.toFixed(2)) },
-  };
-};
-
-const getStallOwnerFeedback = async (eventId, stallId, userId, { page = 1, limit = 20 } = {}) => {
-  const event = await getEventById(prisma, eventId);
-  if (!event) throw new NotFoundError('Event not found');
-
-  // Verify the requesting user owns this stall (approved application)
-  const application = await prisma.stallApplication.findFirst({
-    where: { eventId: event.id, stallId, applicantId: userId, applicationStatus: 'approved' },
-  });
-  if (!application) throw new ForbiddenError('You do not own this stall');
-
-  const where = { stallId, eventId: event.id };
-
-  const [items, total, allFb] = await Promise.all([
-    prisma.stallFeedback.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.stallFeedback.count({ where }),
-    prisma.stallFeedback.findMany({ where, select: { points: true } }),
-  ]);
-
-  const perCriterion = STALL_FEEDBACK_LABELS.map((label, i) => ({
-    label,
-    avg: allFb.length > 0
-      ? Number((allFb.reduce((sum, f) => sum + (Array.isArray(f.points) ? (f.points[i] ?? 0) : 0), 0) / allFb.length).toFixed(2))
-      : 0,
-  }));
-
-  const overallAvg = allFb.length > 0
-    ? allFb.reduce((sum, f) => sum + (Array.isArray(f.points) ? f.points.reduce((a, b) => a + b, 0) / 10 : 0), 0) / allFb.length
-    : 0;
-
-  return {
-    feedback: items,
-    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    summary: { totalFeedback: total, overallAvg: Number(overallAvg.toFixed(2)), perCriterion },
-  };
-};
+// ── Re-export volunteer & feedback services (split for Single Responsibility) ──
+const volunteerService = require('./eventVolunteer.service');
+const feedbackService = require('./eventFeedback.service');
 
 module.exports = {
+  // Core event operations (this file)
   createEventFromNoting,
   getEventDetails,
   updateEvent,
@@ -2090,17 +1366,9 @@ module.exports = {
   listEvents,
   registerForEvent,
   getUserRegistrations,
-  assignVolunteer,
-  scanQRCode,
   getEventStatistics,
-  getMyVolunteerAssignments,
-  getMyVolunteerActivity,
-  getVolunteerActivity,
-  submitEventFeedback,
-  getEventFeedback,
-  getEventFeedbackFormInfo,
-  getStallFeedbackFormInfo,
-  submitStallFeedback,
-  getStallFeedback,
-  getStallOwnerFeedback,
+  // Re-exports from eventVolunteer.service.js
+  ...volunteerService,
+  // Re-exports from eventFeedback.service.js
+  ...feedbackService,
 };

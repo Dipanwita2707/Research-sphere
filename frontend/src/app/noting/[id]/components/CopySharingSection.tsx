@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Users,
   X,
@@ -26,6 +26,7 @@ import {
   useForwardCopy,
   useCompleteCopy,
   useNoteCopies,
+  useSearchEmployees,
   NOTING_QUERY_KEYS,
 } from "@/features/noting-management/hooks/useNoting";
 import { notingService } from "@/features/noting-management/services/noting.service";
@@ -55,18 +56,9 @@ export default function CopySharingSection({
   // ── Copy sharing state ──
   const [showCopyPanel, setShowCopyPanel] = useState(false);
   const [copySearchQuery, setCopySearchQuery] = useState("");
-  const [copySearchResults, setCopySearchResults] = useState<
-    {
-      id: string;
-      uid: string;
-      role: string;
-      displayName: string;
-      empId: string;
-      department: string;
-      school: string;
-    }[]
-  >([]);
-  const [copySearchLoading, setCopySearchLoading] = useState(false);
+  // TanStack Query hook with built-in 500ms debounce + caching
+  const { data: rawCopySearchResults = [], isLoading: copySearchLoading } =
+    useSearchEmployees(copySearchQuery);
   const [selectedCopyUsers, setSelectedCopyUsers] = useState<
     { id: string; uid: string; displayName: string; department: string }[]
   >([]);
@@ -104,36 +96,17 @@ export default function CopySharingSection({
       note?.createdById === currentUserId,
   });
 
-  // ── Copy search with debounce ──
-  useEffect(() => {
-    if (copySearchQuery.trim().length < 2) {
-      setCopySearchResults([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setCopySearchLoading(true);
-      try {
-        const results = await notingService.searchEmployees(
-          copySearchQuery.trim(),
-        );
-        const existingCopyUserIds = new Set(
-          copies.map((c) => (c as any).assignedToId),
-        );
-        setCopySearchResults(
-          results.filter(
-            (r) =>
-              !selectedCopyUsers.some((s) => s.id === r.id) &&
-              !existingCopyUserIds.has(r.id),
-          ),
-        );
-      } catch {
-        setCopySearchResults([]);
-      } finally {
-        setCopySearchLoading(false);
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [copySearchQuery, selectedCopyUsers]);
+  // Derive filtered search results — exclude already-selected and existing copy recipients
+  const copySearchResults = useMemo(() => {
+    const existingCopyUserIds = new Set(
+      copies.map((c) => (c as any).assignedToId),
+    );
+    return rawCopySearchResults.filter(
+      (r) =>
+        !selectedCopyUsers.some((s) => s.id === r.id) &&
+        !existingCopyUserIds.has(r.id),
+    );
+  }, [rawCopySearchResults, selectedCopyUsers, copies]);
 
   // ── Handler functions ──
   const doSendCopy = async () => {
@@ -383,7 +356,6 @@ export default function CopySharingSection({
                       },
                     ]);
                     setCopySearchQuery("");
-                    setCopySearchResults([]);
                   }}
                   className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-left text-sm"
                 >

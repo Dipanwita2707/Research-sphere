@@ -43,7 +43,7 @@ interface UsePaymentReturn {
   /** Initiate individual payment flow */
   initiateIndividualPayment: () => Promise<void>;
   /** Initiate team payment flow */
-  initiateTeamPayment: (teamId: string) => Promise<void>;
+  initiateTeamPayment: (teamId: string, couponCode?: string) => Promise<void>;
   /** Whether payment is in progress */
   isProcessing: boolean;
   /** Whether Razorpay script is loading */
@@ -145,6 +145,15 @@ export const usePayment = ({
       // 2. Create order on backend
       const orderData: RazorpayOrderResponse = await eventService.createIndividualPaymentOrder(eventId);
 
+      // 2b. If coupon covered 100% → no Razorpay needed, already confirmed
+      if ((orderData as any).couponFullyFree) {
+        setIsLoading(false);
+        setIsProcessing(false);
+        processingRef.current = false;
+        onSuccess?.({ message: (orderData as any).message || 'Registration confirmed — coupon covered the full amount!' });
+        return;
+      }
+
       setIsLoading(false);
       setIsProcessing(true);
 
@@ -170,7 +179,7 @@ export const usePayment = ({
    * Team Payment Flow
    */
   const initiateTeamPayment = useCallback(
-    async (teamId: string) => {
+    async (teamId: string, couponCode?: string) => {
       if (processingRef.current) return;
       processingRef.current = true;
       setError(null);
@@ -184,7 +193,16 @@ export const usePayment = ({
         }
 
         // 2. Create team order on backend
-        const orderData: RazorpayOrderResponse = await eventService.createTeamPaymentOrder(eventId, teamId);
+        const orderData: RazorpayOrderResponse = await eventService.createTeamPaymentOrder(eventId, teamId, couponCode);
+
+        // 2b. If coupon covered 100% → no Razorpay needed, backend already confirmed
+        if ((orderData as any).couponFullyFree) {
+          setIsLoading(false);
+          setIsProcessing(false);
+          processingRef.current = false;
+          onSuccess?.({ message: (orderData as any).message || 'Registration confirmed — coupon covered the full amount!' });
+          return;
+        }
 
         setIsLoading(false);
         setIsProcessing(true);

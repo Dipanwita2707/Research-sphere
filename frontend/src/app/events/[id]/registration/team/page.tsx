@@ -8,7 +8,7 @@ import {
   ArrowLeft, Users, UserPlus, Search, X, Send, Clock,
   AlertCircle, CheckCircle2, XCircle, Plus, Trash2,
   Crown, Mail, Info, Eye, EyeOff, ExternalLink, UserMinus, Bell, ArrowRight,
-  CreditCard, IndianRupee, Shield, Loader2, Phone, Hash, Lock, QrCode,
+  CreditCard, IndianRupee, Shield, Loader2, Phone, Hash, Lock, QrCode, Tag,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import { usePayment } from '@/features/event-management/hooks/usePayment';
@@ -20,6 +20,7 @@ import type {
   SearchableUser,
   TeamSearchResult,
   PaymentStatusResponse,
+  CouponValidationResult,
 } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
@@ -565,6 +566,39 @@ export default function TeamManagementPage() {
   const teamFee = eventSettings?.teamRegistrationFee || eventSettings?.registrationFee || 0;
   const isTeamPaid = paymentStatus?.isPaid;
 
+  // Coupon state
+  const [couponInput, setCouponInput] = useState('');
+  const [couponCode, setCouponCode] = useState('');
+  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
+  const [couponValidating, setCouponValidating] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+
+  const handleValidateCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponValidating(true);
+    setCouponError(null);
+    try {
+      const result = await eventService.validateCoupon(eventId, couponInput.trim(), teamFee);
+      setCouponResult(result);
+      setCouponCode(couponInput.trim().toUpperCase());
+    } catch (err: any) {
+      setCouponError(err?.response?.data?.message || 'Invalid or expired coupon code');
+      setCouponResult(null);
+      setCouponCode('');
+    } finally {
+      setCouponValidating(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponInput('');
+    setCouponResult(null);
+    setCouponError(null);
+  };
+
+  const payableAmount = couponResult ? couponResult.finalAmount : teamFee;
+
   const {
     initiateTeamPayment,
     isProcessing: paymentProcessing,
@@ -643,7 +677,7 @@ export default function TeamManagementPage() {
   /** Initiate Razorpay payment for the team */
   const handleTeamPayment = async () => {
     if (!myTeam) return;
-    await initiateTeamPayment(myTeam.id);
+    await initiateTeamPayment(myTeam.id, couponCode || undefined);
   };
 
   const [togglingVisibility, setTogglingVisibility] = useState(false);
@@ -955,69 +989,104 @@ export default function TeamManagementPage() {
                           </span>
                         </h3>
                         <div className="grid grid-cols-1 gap-3">
-                          {myTeam.members?.map((member) => (
-                            <MemberCard
-                              key={member.id}
-                              member={member}
-                              isLeader={member.role === 'leader'}
-                              showRemove={member.role !== 'leader' && !myTeam.isComplete}
-                              onRemove={() => handleRemoveMember(member.id)}
-                            />
-                          ))}
+                          {myTeam.members?.map((member) => {
+                            const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
+                            const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
+                            const isLocked = isRegistrationConfirmed; // Don't lock removal at max capacity, only when confirmed
+                            
+                            return (
+                              <MemberCard
+                                key={member.id}
+                                member={member}
+                                isLeader={member.role === 'leader'}
+                                showRemove={member.role !== 'leader' && !isLocked}
+                                onRemove={() => handleRemoveMember(member.id)}
+                              />
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
 
-                    {/* Invite Section - hidden after registration is complete */}
-                    {!myTeam.isComplete && (
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden p-6">
-                      <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
-                        Invite New Members
-                      </h3>
+                    {/* Invite Section - hidden when team is locked (max capacity or registration confirmed) */}
+                    {(() => {
+                      const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
+                      const currentSize = myTeam?.members?.length || 0;
+                      const isAtMaxCapacity = maxSize && currentSize >= maxSize;
+                      const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
+                      const isLocked = isAtMaxCapacity || isRegistrationConfirmed;
 
-                      <div className="flex gap-3 mb-6">
-                        <div className="relative flex-1 group">
-                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                          <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
-                            placeholder="Search by name or email..."
-                          />
-                        </div>
-                        <button
-                          onClick={handleSearchUsers}
-                          disabled={searching || !searchQuery.trim()}
-                          className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {searching ? <Skeleton className="w-4 h-4 rounded-sm" /> : 'Search'}
-                        </button>
-                      </div>
+                      if (isLocked) {
+                        return (
+                          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-2xl border border-amber-200 dark:border-amber-800 p-6">
+                            <div className="flex items-start gap-3">
+                              <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                              <div>
+                                <h4 className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                                  {isRegistrationConfirmed ? 'Team Locked' : 'Team Full'}
+                                </h4>
+                                <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                                  {isRegistrationConfirmed 
+                                    ? 'Registration completed. Team modifications are locked.'
+                                    : `Team is full. Maximum member limit (${maxSize}) reached.`
+                                  }
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
 
-                      {searchResults.length > 0 && (
-                        <div className="space-y-3 animate-in fade-in slide-in-from-top-4">
-                          {searchResults.map((user) => (
-                            <MemberCard
-                              key={user.id}
-                              searchUser={user}
-                              variant="search"
-                              onInvite={() => handleInviteUser(user.id)}
-                            />
-                          ))}
-                        </div>
-                      )}
+                      return (
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden p-6">
+                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
+                            Invite New Members
+                          </h3>
 
-                      {searchQuery && searchResults.length === 0 && !searching && (
-                        <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            No users found matching &ldquo;{searchQuery}&rdquo;
-                          </p>
+                          <div className="flex gap-3 mb-6">
+                            <div className="relative flex-1 group">
+                              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                              <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                                placeholder="Search by name or email..."
+                              />
+                            </div>
+                            <button
+                              onClick={handleSearchUsers}
+                              disabled={searching || !searchQuery.trim()}
+                              className="px-6 py-3 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl font-bold hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                            >
+                              {searching ? <Skeleton className="w-4 h-4 rounded-sm" /> : 'Search'}
+                            </button>
+                          </div>
+
+                          {searchResults.length > 0 && (
+                            <div className="space-y-3 animate-in fade-in slide-in-from-top-4">
+                              {searchResults.map((user) => (
+                                <MemberCard
+                                  key={user.id}
+                                  searchUser={user}
+                                  variant="search"
+                                  onInvite={() => handleInviteUser(user.id)}
+                                />
+                              ))}
+                            </div>
+                          )}
+
+                          {searchQuery && searchResults.length === 0 && !searching && (
+                            <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                No users found matching &ldquo;{searchQuery}&rdquo;
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -1142,9 +1211,53 @@ export default function TeamManagementPage() {
                 <p className="text-blue-100 text-sm mb-4 relative z-10 opacity-90">
                   Your team is finalized. Pay to confirm all registrations.
                 </p>
+
+                {/* Coupon Input */}
+                {!couponResult ? (
+                  <div className="flex gap-2 mb-4 relative z-10">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleValidateCoupon(); } }}
+                      placeholder="Coupon code (optional)"
+                      className="flex-1 px-3 py-2 rounded-lg bg-white/20 text-white placeholder-blue-200 border border-white/30 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-white/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleValidateCoupon}
+                      disabled={couponValidating || !couponInput.trim()}
+                      className="px-3 py-2 bg-white text-blue-700 font-bold rounded-lg text-sm hover:bg-blue-50 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {couponValidating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Tag className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between mb-4 px-3 py-2 bg-white/20 border border-white/30 rounded-lg relative z-10">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-300" />
+                      <span className="font-mono font-bold text-white text-sm">{couponResult.code}</span>
+                      <span className="text-blue-200 text-xs">−₹{couponResult.discountAmount.toLocaleString('en-IN')}</span>
+                    </div>
+                    <button type="button" onClick={handleRemoveCoupon} className="text-white/70 hover:text-white">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {couponError && (
+                  <p className="text-red-300 text-xs mb-3 flex items-center gap-1 relative z-10">
+                    <AlertCircle className="w-3.5 h-3.5" /> {couponError}
+                  </p>
+                )}
+
+                {/* Amount */}
                 <div className="flex items-center gap-1 text-2xl font-bold mb-4 relative z-10">
                   <IndianRupee className="w-5 h-5" />
-                  {teamFee.toLocaleString('en-IN')}
+                  {payableAmount.toLocaleString('en-IN')}
+                  {couponResult && (
+                    <span className="text-sm font-normal line-through text-blue-300 ml-2">₹{teamFee.toLocaleString('en-IN')}</span>
+                  )}
                 </div>
                 <button
                   onClick={handleTeamPayment}
@@ -1156,6 +1269,11 @@ export default function TeamManagementPage() {
                       <Loader2 className="w-5 h-5 animate-spin" />
                       Processing...
                     </>
+                  ) : payableAmount === 0 ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      Register Free
+                    </>
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
@@ -1163,9 +1281,11 @@ export default function TeamManagementPage() {
                     </>
                   )}
                 </button>
-                <div className="flex items-center gap-1 mt-3 text-[11px] text-white/60 relative z-10">
-                  <Shield className="w-3 h-3" /> Secured by Razorpay
-                </div>
+                {payableAmount > 0 && (
+                  <div className="flex items-center gap-1 mt-3 text-[11px] text-white/60 relative z-10">
+                    <Shield className="w-3 h-3" /> Secured by Razorpay
+                  </div>
+                )}
               </div>
             )}
 
@@ -1266,20 +1386,37 @@ export default function TeamManagementPage() {
 
               {/* Content Area */}
               <div className="p-4 min-h-[300px] max-h-[500px] overflow-y-auto custom-scrollbar">
-                {/* Locked state when registration is complete */}
-                {myTeam?.isComplete ? (
-                  <div className="flex flex-col items-center justify-center h-48 text-center gap-3 opacity-80">
-                    <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                      <Lock className="w-6 h-6 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Registration Confirmed</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-[200px]">
-                        Invitations & join requests are disabled after registration is complete.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
+                {/* Locked state - Two conditions: 1) Team at max capacity OR 2) Registration confirmed */}
+                {(() => {
+                  const maxSize = eventSettings?.maxTeamSize || myTeam?.event?.maxTeamSize;
+                  const currentSize = myTeam?.members?.length || 0;
+                  const isAtMaxCapacity = maxSize && currentSize >= maxSize;
+                  const isRegistrationConfirmed = myTeam?.status === 'confirmed' && (isTeamPaid || !isPaidEvent);
+                  const isLocked = isAtMaxCapacity || isRegistrationConfirmed;
+
+                  if (isLocked) {
+                    return (
+                      <div className="flex flex-col items-center justify-center h-48 text-center gap-3 opacity-80">
+                        <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                          <Lock className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            {isRegistrationConfirmed ? 'Registration Completed' : 'Team is Full'}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-[240px]">
+                            {isRegistrationConfirmed 
+                              ? 'Registration completed. Team modifications are locked.'
+                              : `Team is full. Maximum member limit (${maxSize}) reached.`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })() || (
                 <>
                 {activeSection === 'invitations' && (
                   <div className="space-y-6">

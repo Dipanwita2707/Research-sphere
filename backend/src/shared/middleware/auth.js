@@ -1,9 +1,31 @@
+﻿/**
+ * @module auth
+ * @description Authentication & authorization middleware for Express routes.
+ *
+ * Provides JWT verification (protect), role gating (restrictTo), and
+ * fine-grained permission checks for all modules: DSW, Noting, Events,
+ * IPR, Research, Gate-Entry, and DRD.
+ *
+ * Usage patterns:
+ *   router.get('/secure', protect, handler)
+ *   router.post('/admin', protect, restrictTo('admin'), handler)
+ *   router.put('/event', protect, requireEventPermission('event_publish'), handler)
+ */
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 const config = require('../config/app.config');
 const cache = require('../config/redis');
+const log = require('../utils/logger');
 
-// Protect routes - verify JWT token (OPTIMIZED WITH CACHING)
+/**
+ * Authenticate incoming request by verifying JWT token.
+ * Extracts token from Authorization header (Bearer) or cookies.
+ * Populates req.user with cached user data (roles, permissions, dept access).
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ * @returns {void} Calls next() on success, 401 on missing/invalid token
+ */
 const protect = async (req, res, next) => {
   try {
     let token;
@@ -23,8 +45,8 @@ const protect = async (req, res, next) => {
     }
 
     try {
-      // Verify token
-      const decoded = jwt.verify(token, config.jwt.secret);
+      // Verify token â€” pin algorithm to prevent algorithm-switching attacks
+      const decoded = jwt.verify(token, config.jwt.secret, { algorithms: ['HS256'] });
       const cacheKey = `${cache.CACHE_KEYS.USER}auth:${decoded.id}`;
 
       // Try cache first for faster auth
@@ -123,10 +145,34 @@ const protect = async (req, res, next) => {
             }
           });
 
+          // PERF FIX: Pre-cache chairperson club lookup for student users.
+          // This avoids a DB query on EVERY request in checkAnyPermission and
+          // getMyNotingPermissions — both of which do prisma.club.findFirst()
+          // for students who have no default noting permissions.
+          let chairpersonClubData = null;
+          if (userData.role === 'student') {
+            try {
+              const chairClub = await prisma.club.findFirst({
+                where: {
+                  chairpersonId: userData.id,
+                  status: { in: ['approved', 'active'] },
+                },
+                select: { id: true, name: true, facultyFacilitatorId: true },
+              });
+              if (chairClub) {
+                chairpersonClubData = chairClub;
+              }
+            } catch (err) {
+              // Non-critical — fall through gracefully
+            }
+          }
+
           return {
             ...userData,
             centralDeptPermissions: mergedCentralPerms,
             schoolDeptPermissions: mergedSchoolPerms,
+            // Cached chairperson info — avoids DB hit per request
+            _chairpersonClub: chairpersonClubData,
           };
         },
         cache.CACHE_TTL.USER_SESSION
@@ -157,7 +203,7 @@ const protect = async (req, res, next) => {
       });
     }
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    log.error('Auth middleware error:', error);
     return res.status(500).json({
       success: false,
       message: 'Server error during authentication'
@@ -165,7 +211,12 @@ const protect = async (req, res, next) => {
   }
 };
 
-// Restrict to specific user roles
+/**
+ * Restrict route to specific user roles (e.g. 'admin', 'faculty').
+ * Must be used after protect() middleware.
+ * @param {...string} roles - Allowed roles (OR logic)
+ * @returns {import('express').RequestHandler} 403 if user role not in list
+ */
 const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
@@ -178,7 +229,13 @@ const restrictTo = (...roles) => {
   };
 };
 
-// Check department permission
+/**
+ * Check if user holds an active permission for a specific department.
+ * Queries UserDepartmentPermission table directly.
+ * @param {string} department - Department identifier to check against
+ * @param {string} [permissionKey] - Specific permission key within the department (optional)
+ * @returns {import('express').RequestHandler} 403 if permission missing
+ */
 const checkDepartmentPermission = (department, permissionKey) => {
   return async (req, res, next) => {
     try {
@@ -207,7 +264,7 @@ const checkDepartmentPermission = (department, permissionKey) => {
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Server error during permission check'
@@ -216,7 +273,13 @@ const checkDepartmentPermission = (department, permissionKey) => {
   };
 };
 
-// Check if user has specific permission for a module
+/**
+ * Require a specific permission for a module, checking both naming conventions
+ * (e.g. 'ipr_review' and 'drd_ipr_review'). Checks central or school department.
+ * @param {'central-department'|'school-department'} departmentType - Department type to search
+ * @param {string} permissionName - Permission key to verify
+ * @returns {import('express').RequestHandler} 403 with details if denied
+ */
 const requirePermission = (departmentType, permissionName) => {
   return (req, res, next) => {
     try {
@@ -257,15 +320,13 @@ const requirePermission = (departmentType, permissionName) => {
       if (!hasPermission) {
         return res.status(403).json({
           success: false,
-          message: `Access denied - ${permissionName} permission required for ${departmentType}`,
-          requiredPermission: permissionName,
-          checkedVariants: permissionVariants
+          message: 'Access denied - insufficient permissions',
         });
       }
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -274,7 +335,12 @@ const requirePermission = (departmentType, permissionName) => {
   };
 };
 
-// Check if user has any of the specified permissions
+/**
+ * Require ANY of the specified permissions (OR logic), checking both naming conventions.
+ * @param {'central-department'|'school-department'} departmentType - Department type to search
+ * @param {string[]} permissionNames - Array of permission keys (user needs at least one)
+ * @returns {import('express').RequestHandler} 403 with details if none match
+ */
 const requireAnyPermission = (departmentType, permissionNames) => {
   return (req, res, next) => {
     try {
@@ -315,15 +381,13 @@ const requireAnyPermission = (departmentType, permissionNames) => {
       if (!hasAnyPermission) {
         return res.status(403).json({
           success: false,
-          message: `Access denied - one of [${permissionNames.join(', ')}] permissions required for ${departmentType}`,
-          requiredPermissions: permissionNames,
-          checkedVariants: [...new Set(expandedPermissionNames)]
+          message: 'Access denied - insufficient permissions',
         });
       }
 
       next();
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -387,7 +451,7 @@ const checkIprFilePermission = (req, res, next) => {
       message: 'Access denied - You do not have permission to file IPR applications'
     });
   } catch (error) {
-    console.error('IPR file permission check error:', error);
+    log.error('IPR file permission check error:', error);
     return res.status(500).json({
       success: false,
       message: 'Permission check failed'
@@ -442,7 +506,7 @@ const checkResearchFilePermission = (req, res, next) => {
       message: 'Access denied - You do not have permission to file Research Contributions'
     });
   } catch (error) {
-    console.error('Research file permission check error:', error);
+    log.error('Research file permission check error:', error);
     return res.status(500).json({
       success: false,
       message: 'Permission check failed'
@@ -536,18 +600,17 @@ const checkPermission = (permissionKey, options = {}) => {
             return next();
           }
         } catch (clubErr) {
-          console.error('Chairperson club check error:', clubErr);
+          log.error('Chairperson club check error:', clubErr);
         }
       }
 
       // Access denied
       return res.status(403).json({
         success: false,
-        message: errorMessage || `Access denied - '${permissionKey}' permission required`,
-        requiredPermission: permissionKey
+        message: errorMessage || 'Access denied - insufficient permissions',
       });
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -619,28 +682,21 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
         ];
         const hasChairpersonKey = permissionKeys.some(k => CHAIRPERSON_EVENT_PERMISSIONS.includes(k));
         if (hasChairpersonKey) {
-          try {
-            const chairpersonClub = await prisma.club.findFirst({
-              where: { chairpersonId: user.id, status: { in: ['approved', 'active'] } },
-              select: { id: true },
-            });
-            if (chairpersonClub) {
-              req.chairpersonClubId = chairpersonClub.id;
-              return next();
-            }
-          } catch (clubErr) {
-            console.error('Chairperson club check error (checkAnyPermission):', clubErr);
+          // PERF FIX: Use pre-cached chairperson club from protect middleware
+          // instead of doing prisma.club.findFirst on every request.
+          if (user._chairpersonClub) {
+            req.chairpersonClubId = user._chairpersonClub.id;
+            return next();
           }
         }
       }
 
       return res.status(403).json({
         success: false,
-        message: errorMessage || `Access denied - one of [${permissionKeys.join(', ')}] permissions required`,
-        requiredPermissions: permissionKeys
+        message: errorMessage || 'Access denied - insufficient permissions',
       });
     } catch (error) {
-      console.error('Permission check error:', error);
+      log.error('Permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Permission check failed'
@@ -657,7 +713,7 @@ const requireDSWPermission = (permissionKey) => {
   return checkPermission(permissionKey, {
     checkDefaultPermissions: true,
     departmentType: 'central-department',
-    errorMessage: `DSW access denied - '${permissionKey}' permission required`
+    errorMessage: 'DSW access denied - insufficient permissions'
   });
 };
 
@@ -669,7 +725,7 @@ const requireNotingPermission = (permissionKey) => {
   return checkPermission(permissionKey, {
     checkDefaultPermissions: true,
     departmentType: 'central-department',
-    errorMessage: `Noting access denied - '${permissionKey}' permission required`
+    errorMessage: 'Noting access denied - insufficient permissions'
   });
 };
 
@@ -681,7 +737,7 @@ const requireEventPermission = (permissionKey) => {
   return checkPermission(permissionKey, {
     checkDefaultPermissions: true,
     departmentType: 'central-department',
-    errorMessage: `Event access denied - '${permissionKey}' permission required`
+    errorMessage: 'Event access denied - insufficient permissions'
   });
 };
 
@@ -714,7 +770,7 @@ const requireOwnershipOrPermission = (ownershipCheck, permissionKey, options = {
       const permissionMiddleware = checkPermission(permissionKey, options);
       return permissionMiddleware(req, res, next);
     } catch (error) {
-      console.error('Ownership/permission check error:', error);
+      log.error('Ownership/permission check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Authorization check failed'
@@ -785,7 +841,7 @@ const checkGateEntryAccess = (requireVerifyAccess = false) => {
       // All users (including students) can access basic features (create pass, view own passes)
       next();
     } catch (error) {
-      console.error('Gate Entry access check error:', error);
+      log.error('Gate Entry access check error:', error);
       return res.status(500).json({
         success: false,
         message: 'Access verification failed'

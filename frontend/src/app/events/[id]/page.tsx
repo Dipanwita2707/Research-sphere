@@ -239,7 +239,7 @@ export default function EventDetailPage() {
                 if (el)
                   el.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
-              className="absolute top-4 right-4 group flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 hover:border-amber-400/60 transition-all duration-300 shadow-lg hover:shadow-amber-500/20 hover:shadow-xl cursor-pointer"
+              className="absolute top-4 right-4 group flex items-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 hover:border-amber-400/60 transition-all duration-300 shadow-lg hover:shadow-amber-500/20 hover:shadow-xl cursor-pointer max-w-[calc(100%-2rem)]"
             >
               {/* Trophy icon with glow */}
               <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-amber-400/20 group-hover:bg-amber-400/40 transition-colors duration-300">
@@ -343,7 +343,7 @@ export default function EventDetailPage() {
                 )}
 
                 {/* Quick meta row */}
-                <div className="flex flex-wrap items-center gap-6 mt-6 text-sm font-medium text-gray-500 dark:text-gray-400">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-6 mt-6 text-sm font-medium text-gray-500 dark:text-gray-400">
                   <span className="inline-flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-gray-400" />
                     <span className="text-gray-900 dark:text-white">
@@ -611,7 +611,7 @@ export default function EventDetailPage() {
                 </h3>
                 {event.longDescription ? (
                   <div
-                    className="noting-description-content text-base text-gray-700 dark:text-gray-300"
+                    className="noting-description-content text-base text-gray-700 dark:text-gray-300 overflow-x-auto"
                     dangerouslySetInnerHTML={{ __html: event.longDescription }}
                   />
                 ) : (

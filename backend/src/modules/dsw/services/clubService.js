@@ -745,7 +745,7 @@ async function addMember(
   const [club, student] = await Promise.all([
     prisma.club.findUnique({
       where: { id: clubId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, chairpersonId: true },
     }),
     prisma.userLogin.findUnique({
       where: { id: studentId },
@@ -763,6 +763,11 @@ async function addMember(
 
   if (!student || student.role !== "student") {
     throw new Error(ErrorMessages.INVALID_MEMBER);
+  }
+
+  // Chairperson cannot be added as a regular member — they are the club head
+  if (club.chairpersonId === studentId) {
+    throw new Error("Cannot add the Chairperson as a regular member. They already manage this club as its head.");
   }
 
   // Check if already a member (depends on both validations above passing)
@@ -935,7 +940,9 @@ async function removeMember(
   const member = await prisma.clubMember.findUnique({
     where: { id: memberId },
     include: {
-      club: true,
+      club: {
+        select: { id: true, chairpersonId: true },
+      },
     },
   });
 
@@ -945,6 +952,11 @@ async function removeMember(
 
   if (!member.isActive) {
     throw new Error("Member is already inactive");
+  }
+
+  // Chairperson cannot be removed — they are the club head
+  if (member.club.chairpersonId === member.studentId) {
+    throw new Error("Cannot remove the Chairperson. They are the head of this club and cannot be deleted.");
   }
 
   const updatedMember = await prisma.clubMember.update({
