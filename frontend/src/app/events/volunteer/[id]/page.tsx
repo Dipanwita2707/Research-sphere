@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -23,14 +23,13 @@ import {
   History,
   Tag,
   Mail,
-  Hash,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
-import type { Event } from '@/features/event-management/types/event.types';
+import type { Event, PassPreviewData } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage, getErrorStatusCode, isNetworkError } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
+import { Skeleton } from "@/components/skeletons";
 
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
@@ -38,6 +37,7 @@ const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300
 interface ScanResult {
   id?: string;
   entryType: 'entry' | 'exit';
+  entryCount?: number;
   scannedAt: string;
   success: boolean;
   isWarning?: boolean; // Business rule (e.g. already entered) - not counted as failed
@@ -48,6 +48,21 @@ interface ScanResult {
   participantUid?: string;
   participantEmail?: string;
   registrationId?: string;
+}
+
+interface PersistedVolunteerActivityEntry {
+  id: string;
+  registrationId: string;
+  entryType: 'entry' | 'exit';
+  entryCount?: number;
+  scannedAt: string;
+  gateLocation?: string;
+  participant: {
+    name: string;
+    uid?: string | null;
+    email?: string | null;
+    registrationNo?: string | null;
+  };
 }
 
 export default function VolunteerEventPage() {
@@ -69,21 +84,55 @@ export default function VolunteerEventPage() {
   const [recentScans, setRecentScans] = useState<ScanResult[]>([]);
   const [scanMode, setScanMode] = useState<'input' | 'camera'>('input');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [persistedScans, setPersistedScans] = useState<ScanResult[]>([]);
+  const [persistedStats, setPersistedStats] = useState({ entries: 0, exits: 0, total: 0 });
 
   // Stats
   const [sessionStats, setSessionStats] = useState({ entries: 0, exits: 0, failed: 0 });
+
+  // Group entry modal state
+  const [groupModal, setGroupModal] = useState<{ preview: PassPreviewData; qrCode: string } | null>(null);
+  const [groupCount, setGroupCount] = useState(1);
+  const [groupSubmitting, setGroupSubmitting] = useState(false);
 
   const qrInputRef = useRef<HTMLInputElement>(null);
   const html5QrCodeRef = useRef<any>(null);
   const handleScanRef = useRef<(qrCode?: string) => Promise<void>>(() => Promise.resolve());
   const isProcessingRef = useRef(false);
+  const cameraActiveRef = useRef(false); // Guards decode callback during mode-switch transitions
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch event details
         const eventData = await eventService.getEventById(eventId);
         setEvent(eventData);
+
+        try {
+          const activityData = await eventService.getMyVolunteerActivity(1, 20, { eventId });
+          setPersistedScans(
+            (activityData.entries || []).map((entry: PersistedVolunteerActivityEntry) => ({
+              id: entry.id,
+              entryType: entry.entryType,
+              entryCount: entry.entryCount || 1,
+              scannedAt: entry.scannedAt,
+              success: true,
+              gateLocation: entry.gateLocation,
+              participantName: entry.participant?.name,
+              participantUid: entry.participant?.uid || undefined,
+              participantEmail: entry.participant?.email || undefined,
+              registrationId: entry.registrationId,
+            }))
+          );
+          setPersistedStats({
+            entries: activityData.stats?.totalEntries || 0,
+            exits: activityData.stats?.totalExits || 0,
+            total: activityData.stats?.totalScans || 0,
+          });
+        } catch (activityError: any) {
+          setPersistedScans([]);
+          setPersistedStats({ entries: 0, exits: 0, total: 0 });
+          toast({ type: 'warning', message: `Unable to load previous scan history: ${getErrorMessage(activityError)}` });
+        }
 
         // Try to fetch volunteer info for this user
         try {
@@ -116,6 +165,24 @@ export default function VolunteerEventPage() {
     }
   }, [scanMode]);
 
+  const combinedRecentScans = useMemo(() => {
+    const merged = [...recentScans, ...persistedScans];
+    const uniqueScans = merged.filter((scan, index, scans) => {
+      if (!scan.success || !scan.id) return true;
+      return index === scans.findIndex((candidate) => candidate.success && candidate.id === scan.id);
+    });
+
+    return uniqueScans
+      .sort((left, right) => new Date(right.scannedAt).getTime() - new Date(left.scannedAt).getTime())
+      .slice(0, 20);
+  }, [recentScans, persistedScans]);
+
+  const displayedStats = useMemo(() => ({
+    entries: persistedStats.entries + sessionStats.entries,
+    exits: persistedStats.exits + sessionStats.exits,
+    failed: sessionStats.failed,
+  }), [persistedStats, sessionStats]);
+
   const handleScan = async (qrCode?: string) => {
     const code = qrCode || qrInput.trim();
     if (!code) {
@@ -126,51 +193,26 @@ export default function VolunteerEventPage() {
     isProcessingRef.current = true;
     setScanning(true);
     try {
-      const result = await eventService.scanQRCode(eventId, {
-        qrCode: code,
-        entryType,
-        gateLocation: gateLocation || undefined,
-        remarks: remarks || undefined,
-      });
+      // First get pass preview to check capacity
+      const preview = await eventService.previewQRScan(eventId, code, entryType);
 
-      const regData = (result as any).EventRegistration || result.registration;
-      const userInfo = regData?.user_login || regData?.user;
-      const empDetails = userInfo?.employeeDetails;
-      const studentDetails = userInfo?.studentLogin;
-      const participantName =
-        empDetails?.displayName ||
-        `${empDetails?.firstName || ''} ${empDetails?.lastName || ''}`.trim() ||
-        studentDetails?.displayName ||
-        `${studentDetails?.firstName || ''} ${studentDetails?.lastName || ''}`.trim() ||
-        userInfo?.uid || 'Unknown';
+      if (preview.maxForThisScan <= 0) {
+        const msg = entryType === 'entry'
+          ? `Pass capacity reached (${preview.currentlyInside}/${preview.totalAllowedEntries} currently inside)`
+          : 'No one is currently inside for this pass';
+        toast({ type: 'warning', message: msg });
+        setQrInput('');
+        return;
+      }
 
-      const scan: ScanResult = {
-        id: result.id,
-        entryType,
-        scannedAt: new Date().toISOString(),
-        success: true,
-        participantName,
-        participantUid: userInfo?.uid,
-        participantEmail: userInfo?.email,
-        registrationId: regData?.registrationId,
-        gateLocation: gateLocation || undefined,
-      };
-
-      setRecentScans((prev) => [scan, ...prev.slice(0, 19)]);
-      setSessionStats((prev) => ({
-        ...prev,
-        entries: entryType === 'entry' ? prev.entries + 1 : prev.entries,
-        exits: entryType === 'exit' ? prev.exits + 1 : prev.exits,
-      }));
-
-      toast({
-        type: 'success',
-        message: `${entryType === 'entry' ? 'Check-in' : 'Check-out'} successful for ${participantName}`,
-      });
-
-      setQrInput('');
-      setRemarks('');
-      setTimeout(() => qrInputRef.current?.focus(), 100);
+      // If pass allows only 1 person for this scan, proceed directly
+      if (preview.maxForThisScan === 1) {
+        await executeScan(code, 1);
+      } else {
+        // Show group entry modal
+        setGroupCount(preview.maxForThisScan);
+        setGroupModal({ preview, qrCode: code });
+      }
     } catch (error: any) {
       const errorMsg = getErrorMessage(error);
       const status = getErrorStatusCode(error);
@@ -180,7 +222,8 @@ export default function VolunteerEventPage() {
           errorMsg.toLowerCase().includes('not checked in') ||
           errorMsg.toLowerCase().includes('check in first') ||
           errorMsg.toLowerCase().includes('check out first') ||
-          errorMsg.toLowerCase().includes('not confirmed'));
+          errorMsg.toLowerCase().includes('not confirmed') ||
+          errorMsg.toLowerCase().includes('capacity reached'));
       const isRealFailure =
         !isValidationWarning &&
         (isNetworkError(error) || (status != null && status >= 500) || status === 404);
@@ -207,6 +250,72 @@ export default function VolunteerEventPage() {
     }
   };
 
+  const executeScan = async (code: string, peopleCount: number) => {
+    const result = await eventService.scanQRCode(eventId, {
+      qrCode: code,
+      entryType,
+      peopleCount,
+      gateLocation: gateLocation || undefined,
+      remarks: remarks || undefined,
+    });
+
+    const regData = (result as any).EventRegistration || result.registration;
+    const userInfo = regData?.user_login || regData?.user;
+    const empDetails = userInfo?.employeeDetails;
+    const studentDetails = userInfo?.studentLogin;
+    const participantName =
+      userInfo?.name ||
+      empDetails?.displayName ||
+      `${empDetails?.firstName || ''} ${empDetails?.lastName || ''}`.trim() ||
+      studentDetails?.displayName ||
+      `${studentDetails?.firstName || ''} ${studentDetails?.lastName || ''}`.trim() ||
+      userInfo?.uid || 'Unknown';
+
+    const scan: ScanResult = {
+      id: result.id,
+      entryType,
+      entryCount: peopleCount,
+      scannedAt: new Date().toISOString(),
+      success: true,
+      participantName,
+      participantUid: userInfo?.uid,
+      participantEmail: userInfo?.email,
+      registrationId: regData?.registrationId,
+      gateLocation: gateLocation || undefined,
+    };
+
+    setRecentScans((prev) => [scan, ...prev.slice(0, 19)]);
+    setSessionStats((prev) => ({
+      ...prev,
+      entries: entryType === 'entry' ? prev.entries + peopleCount : prev.entries,
+      exits: entryType === 'exit' ? prev.exits + peopleCount : prev.exits,
+    }));
+
+    const action = entryType === 'entry' ? 'Check-in' : 'Check-out';
+    const countLabel = peopleCount > 1 ? ` (${peopleCount} people)` : '';
+    toast({
+      type: 'success',
+      message: `${action} successful for ${participantName}${countLabel}`,
+    });
+
+    setQrInput('');
+    setRemarks('');
+    setTimeout(() => qrInputRef.current?.focus(), 100);
+  };
+
+  const confirmGroupEntry = async () => {
+    if (!groupModal) return;
+    setGroupSubmitting(true);
+    try {
+      await executeScan(groupModal.qrCode, groupCount);
+      setGroupModal(null);
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) });
+    } finally {
+      setGroupSubmitting(false);
+    }
+  };
+
   handleScanRef.current = handleScan;
 
   // Camera QR scanner using html5-qrcode
@@ -218,10 +327,12 @@ export default function VolunteerEventPage() {
       const { Html5Qrcode } = await import('html5-qrcode');
       const html5QrCode = new Html5Qrcode('qr-reader');
       html5QrCodeRef.current = html5QrCode;
+      cameraActiveRef.current = true;
       await html5QrCode.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText: string) => {
+          if (!cameraActiveRef.current) return;
           const code = decodedText?.trim();
           if (code) {
             handleScanRef.current?.(code);
@@ -230,6 +341,8 @@ export default function VolunteerEventPage() {
         () => {}
       );
     } catch (err) {
+      cameraActiveRef.current = false;
+      html5QrCodeRef.current = null;
       console.error('Camera scanner error:', err);
       toast({ type: 'error', message: 'Could not access camera. Use manual input below.' });
       setScanMode('input');
@@ -237,28 +350,25 @@ export default function VolunteerEventPage() {
   }, [toast]);
 
   const stopCameraScanner = useCallback(() => {
-    if (html5QrCodeRef.current) {
-      html5QrCodeRef.current
-        .stop()
-        .catch(() => {})
-        .finally(() => {
-          html5QrCodeRef.current = null;
-        });
+    cameraActiveRef.current = false;
+    const scanner = html5QrCodeRef.current;
+    html5QrCodeRef.current = null;
+    if (scanner) {
+      try {
+        scanner.stop().catch(() => {});
+      } catch {
+        // Ignore synchronous errors from the library during stop
+      }
     }
   }, []);
 
+  // Only handle cleanup on unmount — start/stop is driven by click handlers
   useEffect(() => {
-    if (scanMode === 'camera') {
-      const t = setTimeout(() => startCameraScanner(), 100);
-      return () => {
-        clearTimeout(t);
-        stopCameraScanner();
-      };
-    } else {
+    return () => {
       stopCameraScanner();
-      return undefined;
-    }
-  }, [scanMode, startCameraScanner, stopCameraScanner]);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,6 +427,7 @@ export default function VolunteerEventPage() {
   const isLive = eventStatus === 'ongoing';
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
@@ -428,14 +539,14 @@ export default function VolunteerEventPage() {
           <div className={CARD + ' p-4 text-center'}>
             <div className="flex items-center justify-center gap-2 mb-1">
               <LogIn className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <span className="text-2xl font-bold text-green-600 dark:text-green-400">{sessionStats.entries}</span>
+              <span className="text-2xl font-bold text-green-600 dark:text-green-400">{displayedStats.entries}</span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">Check-ins</p>
           </div>
           <div className={CARD + ' p-4 text-center'}>
             <div className="flex items-center justify-center gap-2 mb-1">
               <LogOut className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{sessionStats.exits}</span>
+              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">{displayedStats.exits}</span>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">Check-outs</p>
           </div>
@@ -463,14 +574,14 @@ export default function VolunteerEventPage() {
               </div>
               <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
                 <button
-                  onClick={() => setScanMode('input')}
+                  onClick={() => { stopCameraScanner(); setScanMode('input'); }}
                   className={`p-2 rounded-md transition-colors ${scanMode === 'input' ? 'bg-white dark:bg-gray-600 shadow-sm' : 'text-gray-500'}`}
                   title="Manual Input"
                 >
                   <Keyboard className="h-4 w-4" />
                 </button>
                 <button
-                  onClick={() => setScanMode('camera')}
+                  onClick={() => { setScanMode('camera'); setTimeout(() => startCameraScanner(), 150); }}
                   className={`p-2 rounded-md transition-colors ${scanMode === 'camera' ? 'bg-white dark:bg-gray-600 shadow-sm' : 'text-gray-500'}`}
                   title="Camera Scanner"
                 >
@@ -512,14 +623,12 @@ export default function VolunteerEventPage() {
               </div>
             </div>
 
-            {scanMode === 'camera' ? (
-              <div className="mb-5">
-                <div id="qr-reader" className="rounded-lg overflow-hidden min-h-[250px] [&_video]:!rounded-lg [&_img]:!rounded-lg" />
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-                  Point camera at entry pass QR. Use manual input below if camera fails.
-                </p>
-              </div>
-            ) : null}
+            <div className={`mb-5 ${scanMode === 'camera' ? '' : 'hidden'}`}>
+              <div id="qr-reader" className="rounded-lg overflow-hidden min-h-[250px] [&_video]:!rounded-lg [&_img]:!rounded-lg" />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
+                Point camera at entry pass QR. Use manual input below if camera fails.
+              </p>
+            </div>
 
             <form onSubmit={handleFormSubmit} className="space-y-4">
               {/* QR Code Input */}
@@ -617,7 +726,7 @@ export default function VolunteerEventPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Scans</h2>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">This session ({recentScans.length} scans)</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Stored history + this session ({persistedStats.total + recentScans.length} scans)</p>
                 </div>
               </div>
               {recentScans.length > 0 && (
@@ -633,17 +742,17 @@ export default function VolunteerEventPage() {
               )}
             </div>
 
-            {recentScans.length === 0 ? (
+            {combinedRecentScans.length === 0 ? (
               <div className="text-center py-12">
                 <QrCode className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-600 dark:text-gray-400 font-medium">No scans yet</p>
                 <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-                  Scanned entries will appear here in real-time
+                  Previous and new scans will appear here
                 </p>
               </div>
             ) : (
               <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-                {recentScans.map((scan, index) => (
+                {combinedRecentScans.map((scan, index) => (
                   <div
                     key={index}
                     className={`p-4 rounded-lg border transition-all ${
@@ -684,13 +793,30 @@ export default function VolunteerEventPage() {
                               <p className="font-semibold text-gray-900 dark:text-white">
                                 {scan.participantName}
                               </p>
-                              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                                scan.entryType === 'entry'
-                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                  : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                              }`}>
-                                {scan.entryType === 'entry' ? 'IN' : 'OUT'}
-                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {(scan.entryCount || 1) > 1 && (
+                                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                                    {scan.entryCount} people
+                                  </span>
+                                )}
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                  scan.entryType === 'entry'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                    : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                }`}>
+                                  {scan.entryType === 'entry' ? 'IN' : 'OUT'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="mt-1.5 space-y-0.5">
+                              <p className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-1">
+                                <User className="h-3 w-3" /> {scan.participantName} {(scan.entryCount || 1) > 1 ? '(Pass Holder)' : ''}
+                              </p>
+                              {(scan.entryCount || 1) > 1 && Array.from({ length: (scan.entryCount || 1) - 1 }, (_, i) => (
+                                <p key={i} className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                  <Users className="h-3 w-3" /> Guest {i + 1}
+                                </p>
+                              ))}
                             </div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                               {scan.participantUid && (
@@ -739,6 +865,7 @@ export default function VolunteerEventPage() {
               <p className="font-medium mb-1">Volunteer Scanning Tips</p>
               <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200 text-xs">
                 <li>Switch between <strong>Check-in</strong> and <strong>Check-out</strong> using the action buttons</li>
+                <li>For group passes, a popup will appear to select how many people are entering/exiting</li>
                 <li>Participants cannot check-in twice — the system will prevent duplicate entries</li>
                 <li>Participants must check-in before they can check-out</li>
                 <li>The QR input auto-focuses after each scan for rapid processing</li>
@@ -749,5 +876,127 @@ export default function VolunteerEventPage() {
         </div>
       </div>
     </div>
+
+    {/* Group Entry Modal */}
+    {groupModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !groupSubmitting && setGroupModal(null)}>
+        <div className={`${CARD} w-full max-w-md p-6 animate-in fade-in zoom-in-95 duration-200`} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-3 mb-5">
+            <div className={`p-3 rounded-xl ${entryType === 'entry' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
+              <Users className={`h-6 w-6 ${entryType === 'entry' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'}`} />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Group {entryType === 'entry' ? 'Check-in' : 'Check-out'}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {groupModal.preview.participant.name}
+              </p>
+            </div>
+          </div>
+
+          {/* Pass Status */}
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-5 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Pass Limit</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{groupModal.preview.totalAllowedEntries} people</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">Currently Inside</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{groupModal.preview.currentlyInside}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-400">
+                {entryType === 'entry' ? 'Available Entry Slots' : 'Can Exit'}
+              </span>
+              <span className={`font-bold text-lg ${groupModal.preview.maxForThisScan > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {groupModal.preview.maxForThisScan}
+              </span>
+            </div>
+          </div>
+
+          {/* People Count Selector */}
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              How many people are {entryType === 'entry' ? 'entering' : 'exiting'}?
+            </label>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => setGroupCount(Math.max(1, groupCount - 1))}
+                disabled={groupCount <= 1}
+                className="w-12 h-12 rounded-xl border-2 border-gray-300 dark:border-gray-600 text-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                −
+              </button>
+              <span className="text-4xl font-bold text-gray-900 dark:text-white w-16 text-center tabular-nums">
+                {groupCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setGroupCount(Math.min(groupModal.preview.maxForThisScan, groupCount + 1))}
+                disabled={groupCount >= groupModal.preview.maxForThisScan}
+                className="w-12 h-12 rounded-xl border-2 border-gray-300 dark:border-gray-600 text-xl font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              >
+                +
+              </button>
+            </div>
+            {/* Quick-select buttons */}
+            {groupModal.preview.maxForThisScan > 2 && (
+              <div className="flex justify-center gap-2 mt-3">
+                {Array.from({ length: groupModal.preview.maxForThisScan }, (_, i) => i + 1).slice(0, 6).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setGroupCount(n)}
+                    className={`w-10 h-10 rounded-lg text-sm font-semibold transition-colors ${
+                      groupCount === n
+                        ? entryType === 'entry'
+                          ? 'bg-green-600 text-white'
+                          : 'bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setGroupModal(null)}
+              disabled={groupSubmitting}
+              className="flex-1 py-3 px-4 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={confirmGroupEntry}
+              disabled={groupSubmitting}
+              className={`flex-1 py-3 px-4 rounded-lg text-white font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${
+                entryType === 'entry'
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-blue-600 hover:bg-blue-700'
+              }`}
+            >
+              {groupSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  {entryType === 'entry' ? <LogIn className="h-5 w-5" /> : <LogOut className="h-5 w-5" />}
+                  {entryType === 'entry' ? 'Check-in' : 'Check-out'} {groupCount} {groupCount === 1 ? 'person' : 'people'}
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

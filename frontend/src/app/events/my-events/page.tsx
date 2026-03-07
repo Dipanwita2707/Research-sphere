@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, Users, Edit, CheckCircle, AlertCircle, Eye, Trash2, QrCode, Settings, BarChart3, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 import { useMyCreatedEvents } from '@/features/event-management/hooks/useEvents';
 import { EVENT_TYPE_LABELS } from '@/features/event-management/constants';
 import type { Event } from '@/features/event-management/types/event.types';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { useAuthStore } from '@/shared/auth/authStore';
+import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
 
 /** Status → icon mapping (page-specific) */
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -68,9 +71,27 @@ function groupEvents(eventList: Event[]): GroupedItem[] {
 }
 
 export default function MyCreatedEventsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
+  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
+  const { data: notingPerms, isLoading: permsLoading } = useNotingPermissions({ enabled: !!isStudent });
+  const isChairperson = !!(notingPerms?.isClubChairperson);
+
+  // Access guard: students who are not club chairpersons cannot access this page
+  useEffect(() => {
+    if (isStudent && !permsLoading && !isChairperson) {
+      router.replace('/events');
+    }
+  }, [isStudent, permsLoading, isChairperson, router]);
+
   const { data: allEvents = [], isLoading: loading } = useMyCreatedEvents();
   const [activeTab, setActiveTab] = useState<'draft' | 'published' | 'past'>('published');
   const [expandedFestivals, setExpandedFestivals] = useState<Set<string>>(new Set());
+
+  // Show skeleton while checking permissions for students
+  if (isStudent && permsLoading) return <PageSkeleton />;
+  // Render nothing while redirect is in progress
+  if (isStudent && !isChairperson) return null;
 
   // Filter events by active tab (client-side - no refetch, data persists)
   const events = React.useMemo(() => {

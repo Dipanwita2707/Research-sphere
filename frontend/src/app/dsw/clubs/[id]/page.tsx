@@ -37,6 +37,10 @@ import {
   useRemoveMember,
   useUpdateMemberRole,
   useClubEvents,
+  useApplyToClub,
+  useMyClubApplications,
+  useClubApplications,
+  useReviewClubApplication,
 } from "@/features/dsw/hooks";
 import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
@@ -611,7 +615,7 @@ function AddMemberModal({
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TabKey = "overview" | "team" | "details" | "events";
+type TabKey = "overview" | "team" | "details" | "applications" | "events";
 
 interface ConfirmDeleteState {
   memberId: string;
@@ -627,7 +631,7 @@ export default function ClubDetailsPage() {
 
   const searchParams = useSearchParams();
   const rawTab = searchParams.get("tab") as TabKey | null;
-  const validTabs: TabKey[] = ["overview", "team", "details", "events"];
+  const validTabs: TabKey[] = ["overview", "team", "details", "applications", "events"];
   const activeTab: TabKey =
     rawTab && validTabs.includes(rawTab) ? rawTab : "overview";
 
@@ -647,12 +651,24 @@ export default function ClubDetailsPage() {
   const [confirmDelete, setConfirmDelete] = useState<ConfirmDeleteState | null>(
     null,
   );
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [reviewActionId, setReviewActionId] = useState<string | null>(null);
 
   const { user: currentUser } = useAuthStore();
+  const normalizedUserRole = String(
+    currentUser?.userType ?? (currentUser as any)?.role ?? "",
+  ).toLowerCase();
+  const isStudentUser = normalizedUserRole === "student";
+  const isAdminUser = normalizedUserRole === "admin" || normalizedUserRole === "superadmin";
   const { data: response, isLoading, error } = useClub(clubId);
   const { data: clubEvents = [], isLoading: eventsLoading, error: eventsError } = useClubEvents(clubId);
+  const { data: myApplications = [] } = useMyClubApplications();
+  const { data: clubApplications = [] } = useClubApplications(clubId);
   const removeMember = useRemoveMember(clubId);
   const updateMemberRole = useUpdateMemberRole(clubId);
+  const applyToClub = useApplyToClub();
+  const reviewClubApplication = useReviewClubApplication(clubId);
 
   const club = response?.success ? response.data : null;
   const errorMessage = error ? getErrorMessage(error) : null;
@@ -692,9 +708,24 @@ export default function ClubDetailsPage() {
     (
       currentUser.id === club?.chairpersonId ||
       currentUser.id === club?.facultyFacilitatorId ||
-      currentUser.userType === "admin"
+      isAdminUser
     )
   );
+
+  const isMember = !!(
+    currentUser &&
+    activeMembers.some((m) => m.studentId === currentUser.id)
+  );
+
+  const myApplication = currentUser
+    ? myApplications.find((a) => a.clubId === clubId)
+    : undefined;
+
+  const canApplyToClub =
+    isStudentUser &&
+    !canManage &&
+    !isMember &&
+    (!myApplication || myApplication.status === "rejected");
 
   // Filtered member groups — respects roleFilter when set
   const filteredLeadership = roleFilter
@@ -728,6 +759,28 @@ export default function ClubDetailsPage() {
   const handleEdit = useCallback((member: ClubMember) => {
     setEditingMember(member);
   }, []);
+
+  const handleApplyToClub = async () => {
+    try {
+      setApplyError(null);
+      await applyToClub.mutateAsync({ clubId });
+      setShowApplyModal(false);
+    } catch (err) {
+      setApplyError(getErrorMessage(err));
+    }
+  };
+
+  const handleReview = async (
+    applicationId: string,
+    decision: "approved" | "rejected",
+  ) => {
+    try {
+      setReviewActionId(`${applicationId}:${decision}`);
+      await reviewClubApplication.mutateAsync({ applicationId, decision });
+    } finally {
+      setReviewActionId(null);
+    }
+  };
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (isLoading) return <PageSkeleton message="Loading club details…" />;
@@ -797,6 +850,13 @@ export default function ClubDetailsPage() {
       label: "Details",
       icon: <FileText className="w-4 h-4" />,
     },
+    ...(canManage
+      ? [{
+          key: "applications" as TabKey,
+          label: "Club Application Requests",
+          icon: <Users className="w-4 h-4" />,
+        }]
+      : []),
     {
       key: "events",
       label: "Events",
@@ -826,6 +886,59 @@ export default function ClubDetailsPage() {
           member={editingMember}
           onClose={() => setEditingMember(null)}
         />
+      )}
+
+      {showApplyModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={(e) => e.target === e.currentTarget && setShowApplyModal(false)}
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Apply to {club.name}</h3>
+              <button
+                type="button"
+                onClick={() => setShowApplyModal(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <ReadOnlyField
+                label="Full Name"
+                value={`${currentUser?.firstName ?? ""} ${currentUser?.lastName ?? ""}`.trim() || currentUser?.student?.displayName || currentUser?.username || "-"}
+              />
+              <ReadOnlyField label="Email" value={currentUser?.email || "-"} />
+              <ReadOnlyField label="Mobile Number" value={currentUser?.employeeDetails?.phone || "-"} />
+              <ReadOnlyField label="Program" value={currentUser?.student?.program || "-"} />
+              <ReadOnlyField label="Course" value={currentUser?.student?.registrationNo || currentUser?.student?.studentId || "-"} />
+            </div>
+
+            {applyError && (
+              <p className="text-sm text-red-600 dark:text-red-400">{applyError}</p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowApplyModal(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyToClub}
+                disabled={applyToClub.isPending}
+                className="px-4 py-2 rounded-lg bg-sgt-600 hover:bg-sgt-700 text-white text-sm font-semibold disabled:opacity-60"
+              >
+                {applyToClub.isPending ? "Applying..." : "Apply"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Confirm Delete Dialog */}
@@ -937,6 +1050,21 @@ export default function ClubDetailsPage() {
               {/* Status + actions */}
               <div className="flex items-center gap-3 flex-shrink-0">
                 <ClubStatusBadge status={club.status} size="md" />
+                {myApplication && (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-white/20 border border-white/30">
+                    Application: {myApplication.status}
+                  </span>
+                )}
+                {canApplyToClub && (
+                  <button
+                    type="button"
+                    onClick={() => setShowApplyModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-500/90 hover:bg-emerald-500 rounded-xl text-sm font-bold text-white border border-emerald-300/40 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Apply to Club
+                  </button>
+                )}
                 {canManage && (
                   <button
                     type="button"
@@ -1457,6 +1585,94 @@ export default function ClubDetailsPage() {
         )}
 
         {/* ════════════════════════════════════════════════════════════════════ */}
+        {/* APPLICATIONS TAB                                                    */}
+        {/* ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === "applications" && canManage && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 sm:p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Club Application Requests</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Review and accept or reject student join requests.
+              </p>
+            </div>
+
+            {clubApplications.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-5xl mb-3">📭</div>
+                <p className="text-gray-500 dark:text-gray-400 font-medium">No application requests yet</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                      <th className="py-2 pr-3">Student</th>
+                      <th className="py-2 pr-3">Email</th>
+                      <th className="py-2 pr-3">Mobile</th>
+                      <th className="py-2 pr-3">Program/Course</th>
+                      <th className="py-2 pr-3">Applied On</th>
+                      <th className="py-2 pr-3">Status</th>
+                      <th className="py-2 pr-0 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clubApplications.map((app) => {
+                      const approveId = `${app.id}:approved`;
+                      const rejectId = `${app.id}:rejected`;
+                      const isPending = app.status === "pending";
+                      return (
+                        <tr key={app.id} className="border-b border-gray-100 dark:border-gray-700/60">
+                          <td className="py-3 pr-3 font-medium text-gray-900 dark:text-gray-100">{app.applicantName}</td>
+                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{app.email || "-"}</td>
+                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{app.mobileNumber || "-"}</td>
+                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{[app.program, app.course].filter(Boolean).join(" / ") || "-"}</td>
+                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{new Date(app.createdAt).toLocaleDateString()}</td>
+                          <td className="py-3 pr-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
+                              app.status === "approved"
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                                : app.status === "rejected"
+                                  ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                                  : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                            }`}>
+                              {app.status}
+                            </span>
+                          </td>
+                          <td className="py-3 pr-0">
+                            {isPending ? (
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleReview(app.id, "approved")}
+                                  disabled={reviewActionId === approveId || reviewActionId === rejectId}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 hover:bg-green-700 text-white disabled:opacity-60"
+                                >
+                                  {reviewActionId === approveId ? "Accepting..." : "Accept"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleReview(app.id, "rejected")}
+                                  disabled={reviewActionId === approveId || reviewActionId === rejectId}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-600 hover:bg-red-700 text-white disabled:opacity-60"
+                                >
+                                  {reviewActionId === rejectId ? "Rejecting..." : "Reject"}
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-right text-xs text-gray-400">Reviewed</p>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════════ */}
         {/* EVENTS TAB                                                          */}
         {/* ════════════════════════════════════════════════════════════════════ */}
         {activeTab === "events" && (
@@ -1500,6 +1716,15 @@ export default function ClubDetailsPage() {
               <div className="space-y-3">
                 {clubEvents.map((event) => {
                   const isPast = new Date(event.endDate) < new Date();
+                  const canManageEvent =
+                    isAdminUser ||
+                    (!!currentUser?.id && (
+                      event.createdById === currentUser.id ||
+                      currentUser.id === club?.chairpersonId
+                    ));
+                  const eventTargetPath = canManageEvent
+                    ? `/events/${event.eventId}/management`
+                    : `/events/${event.eventId}`;
                   const statusColor =
                     event.status === "published" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                     : event.status === "draft" ? "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
@@ -1507,7 +1732,7 @@ export default function ClubDetailsPage() {
                   return (
                     <div
                       key={event.id}
-                      onClick={() => router.push(`/events/${event.eventId}/manage`)}
+                      onClick={() => router.push(eventTargetPath)}
                       className="group flex items-center gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all"
                     >
                       {/* Date badge */}
@@ -1559,5 +1784,18 @@ export default function ClubDetailsPage() {
         )}
       </div>
     </>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <input
+        value={value || "-"}
+        readOnly
+        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm"
+      />
+    </div>
   );
 }

@@ -138,28 +138,28 @@ router.post(
   '/:id/approve',
   checkAnyPermission(NOTING_APPROVAL_KEYS, { checkDefaultPermissions: true }),
   validators.approveNoteValidation,
-  asyncHandler(requireNoteApprover),
+  asyncHandler(requireNoteApprover(['noting_approve'], 'approve this note')),
   workflowCtrl.approve
 );
 router.post(
   '/:id/reject',
   checkAnyPermission([...NOTING_APPROVAL_KEYS, 'noting_return'], { checkDefaultPermissions: true }),
   validators.rejectNoteValidation,
-  asyncHandler(requireNoteApprover),
+  asyncHandler(requireNoteApprover(['noting_reject'], 'reject this note')),
   workflowCtrl.reject
 );
 router.post(
   '/:id/revert',
   checkPermission('noting_return', { checkDefaultPermissions: true }),
   validators.revertNoteValidation,
-  asyncHandler(requireNoteApprover),
+  asyncHandler(requireNoteApprover(['noting_return'], 'revert this note')),
   workflowCtrl.revert
 );
 router.post(
   '/:id/forward',
   checkAnyPermission(['noting_forward', ...NOTING_APPROVAL_KEYS], { checkDefaultPermissions: true }),
   validators.forwardNoteValidation,
-  asyncHandler(requireNoteApprover),
+  asyncHandler(requireNoteApprover(['noting_forward'], 'forward this note')),
   workflowCtrl.forward
 );
 
@@ -168,7 +168,7 @@ router.post(
   '/:id/auto-forward',
   checkAnyPermission(['noting_forward', ...NOTING_APPROVAL_KEYS], { checkDefaultPermissions: true }),
   validators.noteIdValidation,
-  asyncHandler(requireNoteApprover),
+  asyncHandler(requireNoteApprover(['noting_forward'], 'auto-forward this note')),
   workflowCtrl.autoForward
 );
 
@@ -177,14 +177,14 @@ router.post(
   '/:id/recommend',
   checkAnyPermission(NOTING_APPROVAL_KEYS, { checkDefaultPermissions: true }),
   validators.recommendNoteValidation,
-  asyncHandler(requireNoteApprover),
+  asyncHandler(requireNoteApprover(['noting_add_comment'], 'recommend this note')),
   workflowCtrl.recommend
 );
 router.post(
   '/:id/not-recommend',
   checkAnyPermission(NOTING_APPROVAL_KEYS, { checkDefaultPermissions: true }),
   validators.notRecommendNoteValidation,
-  asyncHandler(requireNoteApprover),
+  asyncHandler(requireNoteApprover(['noting_not_recommend'], 'mark this note as not recommended')),
   workflowCtrl.notRecommend
 );
 

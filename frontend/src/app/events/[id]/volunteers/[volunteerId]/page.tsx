@@ -31,6 +31,7 @@ const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300
 interface ActivityEntry {
   id: string;
   entryType: 'entry' | 'exit';
+  entryCount?: number;
   scannedAt: string;
   gateLocation?: string;
   remarks?: string;
@@ -85,8 +86,8 @@ export default function VolunteerActivityDetailPage() {
   }, [entries, search, typeFilter]);
 
   const stats = useMemo(() => {
-    const checkIns = entries.filter((e) => e.entryType === 'entry').length;
-    const checkOuts = entries.filter((e) => e.entryType === 'exit').length;
+    const checkIns = entries.reduce((sum, e) => sum + (e.entryType === 'entry' ? (e.entryCount || 1) : 0), 0);
+    const checkOuts = entries.reduce((sum, e) => sum + (e.entryType === 'exit' ? (e.entryCount || 1) : 0), 0);
     return { checkIns, checkOuts, total: entries.length };
   }, [entries]);
 
@@ -302,6 +303,16 @@ export default function VolunteerActivityDetailPage() {
                                     <p className="font-semibold text-gray-900 dark:text-white">
                                       {entry.participant.name}
                                     </p>
+                                    <div className="mt-1.5 space-y-0.5">
+                                      <p className="text-xs text-gray-600 dark:text-gray-300 flex items-center gap-1">
+                                        <User className="h-3 w-3" /> {entry.participant.name} {(entry.entryCount || 1) > 1 ? '(Pass Holder)' : ''}
+                                      </p>
+                                      {(entry.entryCount || 1) > 1 && Array.from({ length: (entry.entryCount || 1) - 1 }, (_, i) => (
+                                        <p key={i} className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                          <User className="h-3 w-3" /> Guest {i + 1}
+                                        </p>
+                                      ))}
+                                    </div>
                                     <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
                                       {entry.participant.uid && (
                                         <span className="flex items-center gap-1">
@@ -331,15 +342,22 @@ export default function VolunteerActivityDetailPage() {
                                     )}
                                   </div>
                                 </div>
-                                <span
-                                  className={`text-xs font-medium px-2 py-1 rounded-full shrink-0 ${
-                                    entry.entryType === 'entry'
-                                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                      : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                  }`}
-                                >
-                                  {entry.entryType === 'entry' ? 'IN' : 'OUT'}
-                                </span>
+                                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                  <span
+                                    className={`text-xs font-medium px-2 py-1 rounded-full ${
+                                      entry.entryType === 'entry'
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                        : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                    }`}
+                                  >
+                                    {entry.entryType === 'entry' ? 'IN' : 'OUT'}
+                                  </span>
+                                  {(entry.entryCount || 1) > 1 && (
+                                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                                      {entry.entryCount} people
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           ))}

@@ -207,6 +207,8 @@ export interface Event {
   allowWithdrawRegistration?: boolean;
   allowEditAfterSubmission?: boolean;
   lockTeamAfterDeadline?: boolean;
+  allowExtraPasses?: boolean;
+  maxExtraPassesPerUser?: number;
 
   // Team Discovery Settings
   allowPublicTeamListing?: boolean;
@@ -265,6 +267,22 @@ export interface EventRegistration {
   amountPaid?: number;
   hasEntered: boolean;
   enteredAt?: string;
+  extraPassCount?: number;
+  totalAllowedEntries?: number;
+  checkedInCount?: number;
+  checkedOutCount?: number;
+  studentInside?: boolean;
+  guests?: EventExtraPass[];
+  extraPassSummary?: {
+    extraPassCount: number;
+    totalAllowedEntries: number;
+    checkedInCount: number;
+    checkedOutCount?: number;
+    currentlyInside?: number;
+    availableEntrySlots?: number;
+    remainingEntries: number;
+    studentInside?: boolean;
+  };
   registeredAt: string;
   updatedAt: string;
   event?: Event;
@@ -274,6 +292,15 @@ export interface EventRegistration {
     email?: string;
     name: string;
   };
+}
+
+export interface EventExtraPass {
+  id: string;
+  guestName: string;
+  guestEmail: string;
+  mobileNumber: string;
+  relationship: string;
+  createdAt: string;
 }
 
 export interface EventVolunteer {
@@ -298,10 +325,12 @@ export interface EventEntry {
   registrationId: string;
   volunteerId: string;
   entryType: 'entry' | 'exit';
+  entryCount?: number;
   scannedAt: string;
   gateLocation?: string;
   remarks?: string;
   registration?: EventRegistration;
+  message?: string;
   volunteer?: EventVolunteer;
 }
 
@@ -387,9 +416,29 @@ export interface VolunteerFormData {
 
 export interface QRScanData {
   qrCode: string;
-  entryType: 'entry' | 'exit';
+  entryType?: 'entry' | 'exit';
+  entriesToCheckIn?: number;
+  peopleCount?: number;
+  markStudentExit?: boolean;
   gateLocation?: string;
   remarks?: string;
+}
+
+export interface PassPreviewData {
+  registrationId: string;
+  qrCode: string;
+  entryType: 'entry' | 'exit';
+  participant: {
+    name: string;
+    uid?: string;
+    email?: string;
+  };
+  totalAllowedEntries: number;
+  checkedInCount: number;
+  checkedOutCount: number;
+  currentlyInside: number;
+  availableEntrySlots: number;
+  maxForThisScan: number;
 }
 
 export interface EventFilters {

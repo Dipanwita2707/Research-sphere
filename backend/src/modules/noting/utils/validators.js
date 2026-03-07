@@ -163,6 +163,12 @@ function validateNoteForSubmission(note) {
       throw new ValidationError('Please enter a valid amount (₹) in Budget / Amount when "Amount required" is selected.');
     }
     const amtNum = Number(amt);
+    if (!Number.isInteger(amtNum)) {
+      throw new ValidationError('Amount must be a whole number (integer). Decimal values are not allowed.');
+    }
+    if (amtNum <= 1) {
+      throw new ValidationError('Amount must be greater than ₹1.');
+    }
     if (amtNum > LIMITS.AMOUNT_MAX) {
       throw new ValidationError(`Amount cannot exceed ₹10,00,000 (10 lakh). Please reduce the amount.`);
     }

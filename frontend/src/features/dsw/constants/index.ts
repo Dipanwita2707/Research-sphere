@@ -132,6 +132,10 @@ export const DSW_API_ENDPOINTS = {
   MY_CLUB_REQUESTS: `${DSW_API_BASE}/clubs/my-requests`,
   CLUB_MEMBERS: (id: string) => `${DSW_API_BASE}/clubs/${id}/members`,
   CLUB_EVENTS: (id: string) => `${DSW_API_BASE}/clubs/${id}/events`,
+  CLUB_APPLICATIONS: (id: string) => `${DSW_API_BASE}/clubs/${id}/applications`,
+  CLUB_APPLICATION_REVIEW: (clubId: string, applicationId: string) =>
+    `${DSW_API_BASE}/clubs/${clubId}/applications/${applicationId}/review`,
+  MY_CLUB_APPLICATIONS: `${DSW_API_BASE}/clubs/applications/my`,
   ADD_MEMBER: (id: string) => `${DSW_API_BASE}/clubs/${id}/members`,
   REMOVE_MEMBER: (clubId: string, memberId: string) =>
     `${DSW_API_BASE}/clubs/${clubId}/members/${memberId}`,

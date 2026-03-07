@@ -397,12 +397,27 @@ export default function EventDetailPage() {
 
                 {/* Registered Badge  - shown first (above prizes) for visibility */}
                 {isRegistered && event.userRegistration && (
-                  <div className="flex justify-end mb-1">
+                  <div className="flex flex-col items-start md:items-end gap-3 mb-1">
                     <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-100 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-full shadow-sm">
                       <CheckCircle2 className="w-5 h-5 text-emerald-700 dark:text-emerald-400" />
                       <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide">
                         Registered
                       </span>
+                    </div>
+
+                    <div className="flex flex-col items-start md:items-end gap-2">
+                      <Link
+                        href="/events/registrations"
+                        className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 dark:bg-blue-500 text-white text-sm font-bold rounded-xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-all shadow-sm w-full md:w-auto"
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        {event.allowExtraPasses ? "Add Guest Pass" : "Manage Pass"}
+                      </Link>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 md:text-right max-w-[260px]">
+                        {event.allowExtraPasses
+                          ? "Guest passes are managed from My Tickets for your registration."
+                          : "Open My Tickets to view your pass details."}
+                      </p>
                     </div>
                   </div>
                 )}

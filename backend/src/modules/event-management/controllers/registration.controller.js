@@ -67,9 +67,39 @@ const getProfileData = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, profile, 'Profile data fetched successfully');
 });
 
+/**
+ * Create extra pass for current user's registration
+ *
+ * @route POST /api/events/:id/extra-passes
+ * @access Protected
+ */
+const createExtraPass = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const data = await registrationService.createExtraPass(id, userId, req.body || {});
+  return ApiResponse.success(res, data, 'Extra pass created successfully');
+});
+
+/**
+ * Get current user's extra passes for an event
+ *
+ * @route GET /api/events/:id/extra-passes
+ * @access Protected
+ */
+const getMyExtraPasses = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const data = await registrationService.getMyExtraPasses(id, userId);
+  return ApiResponse.success(res, data, 'Extra passes fetched successfully');
+});
+
 module.exports = {
   getRegistrationForm,
   submitRegistrationForm,
   getRegistrationDashboard,
   getProfileData,
+  createExtraPass,
+  getMyExtraPasses,
 };

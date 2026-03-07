@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "post api auth login with valid and invalid credentials",
+    "description": "Test the POST /api/auth/login endpoint with valid credentials to receive a 200 response with JWT token and user profile, and with invalid credentials to receive a 401 Unauthorized response."
+  },
+  {
+    "id": "TC002",
+    "title": "get api events with search and filter parameters",
+    "description": "Test the GET /api/events endpoint without authentication using various query parameters such as search, type, and page to verify correct filtering, pagination, and response with matching events or empty results."
+  },
+  {
+    "id": "TC003",
+    "title": "get api events id for published and unpublished events",
+    "description": "Test the GET /api/events/:id endpoint for published events to receive full event details with 200 response, and for unpublished or restricted events as a student to receive 404 Not Found, while admin users receive 200 with event details."
+  },
+  {
+    "id": "TC004",
+    "title": "post api events id register for free and paid events",
+    "description": "Test the POST /api/events/:id/register endpoint with authenticated student users to register for free events successfully with 201 response including registration and QR code, and handle errors such as already registered or event full with 400 responses."
+  },
+  {
+    "id": "TC005",
+    "title": "post api events id teams create and join teams",
+    "description": "Test the POST /api/events/:id/teams endpoint to create a new team with a unique team name and receive 201 response, and test joining an existing team with POST /api/events/:id/teams/:teamId/join to receive 200 response or 400 errors for full or duplicate membership."
+  },
+  {
+    "id": "TC006",
+    "title": "post api events id payments initiate and verify payment",
+    "description": "Test the POST /api/events/:id/payments endpoint to initiate Razorpay payment order for a registration and receive order details, and test payment verification with valid and invalid signatures to confirm registration status updates or receive 400 error."
+  },
+  {
+    "id": "TC007",
+    "title": "post api events id coupons validate coupon codes",
+    "description": "Test the POST /api/events/:id/coupons/validate endpoint with valid coupon codes to receive discount details and with expired or max usage coupons to receive 400 errors indicating invalid or expired coupons."
+  },
+  {
+    "id": "TC008",
+    "title": "post api events id scan qr code attendance",
+    "description": "Test the POST /api/events/:id/scan endpoint with authorized volunteers scanning valid QR codes for entry and exit, receiving success responses, and test unauthorized users receiving 403 errors and invalid or duplicate scans receiving 400 errors."
+  },
+  {
+    "id": "TC009",
+    "title": "post api events id certificates generate and verify",
+    "description": "Test the POST /api/events/:id/certificates/generate endpoint to generate certificates for eligible registrations and receive generated count, and test the GET /api/certificates/verify/:code endpoint with valid and invalid codes to verify certificate authenticity or receive 404."
+  },
+  {
+    "id": "TC010",
+    "title": "post api events id bulk email send with credit checks",
+    "description": "Test the POST /api/events/:id/bulk-email endpoint with sufficient email credits to send bulk emails successfully and receive sent count, and test with insufficient credits to receive 400 error and no emails sent."
+  }
+]

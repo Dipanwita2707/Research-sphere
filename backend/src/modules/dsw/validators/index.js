@@ -285,6 +285,49 @@ const validateCategoryCreation = [
   handleValidationErrors,
 ];
 
+const validateClubApplicationCreate = [
+  param("clubId")
+    .notEmpty()
+    .withMessage("Club ID is required")
+    .isUUID()
+    .withMessage("Invalid club ID"),
+
+  body("clubId")
+    .optional()
+    .isUUID()
+    .withMessage("Invalid club ID"),
+
+  handleValidationErrors,
+];
+
+const validateClubApplicationReview = [
+  param("clubId")
+    .notEmpty()
+    .withMessage("Club ID is required")
+    .isUUID()
+    .withMessage("Invalid club ID"),
+
+  param("applicationId")
+    .notEmpty()
+    .withMessage("Application ID is required")
+    .isUUID()
+    .withMessage("Invalid application ID"),
+
+  body("decision")
+    .notEmpty()
+    .withMessage("Decision is required")
+    .isIn(["approved", "rejected"])
+    .withMessage("Decision must be approved or rejected"),
+
+  body("reviewNote")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Review note must not exceed 500 characters"),
+
+  handleValidationErrors,
+];
+
 module.exports = {
   validateClubCreation,
   validateAddMember,
@@ -293,5 +336,7 @@ module.exports = {
   validateGetClubs,
   validateClubId,
   validateCategoryCreation,
+  validateClubApplicationCreate,
+  validateClubApplicationReview,
   handleValidationErrors,
 };

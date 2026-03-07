@@ -256,6 +256,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
   const [localPrograms, setLocalPrograms] = useState<string[] | null>(null);
   const [localBatchYears, setLocalBatchYears] = useState<number[] | null>(null);
   const [localSections, setLocalSections] = useState<string[] | null>(null);
+  const [localAllowExtraPasses, setLocalAllowExtraPasses] = useState<boolean | null>(null);
+  const [localMaxExtraPassesPerUser, setLocalMaxExtraPassesPerUser] = useState<number | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Effective values (local overrides server)
@@ -266,6 +268,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
   const selectedPrograms = localPrograms ?? settings?.allowedProgramIds ?? [];
   const selectedBatchYears = localBatchYears ?? settings?.allowedBatchYears ?? [];
   const selectedSections = localSections ?? settings?.allowedSectionIds ?? [];
+  const allowExtraPasses = localAllowExtraPasses ?? settings?.allowExtraPasses ?? false;
+  const maxExtraPassesPerUser = localMaxExtraPassesPerUser ?? settings?.maxExtraPassesPerUser ?? 0;
 
   const isStudentEnabled = roles.includes('student');
 
@@ -355,6 +359,26 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
     }
   }, [toggleMutation, onToast]);
 
+  const handleToggleExtraPasses = useCallback(() => {
+    setLocalAllowExtraPasses((prev) => {
+      const current = prev ?? settings?.allowExtraPasses ?? false;
+      return !current;
+    });
+    if (!allowExtraPasses) {
+      setLocalMaxExtraPassesPerUser((prev) => prev ?? Math.max(1, settings?.maxExtraPassesPerUser ?? 1));
+    } else {
+      setLocalMaxExtraPassesPerUser(0);
+    }
+    markChanged();
+  }, [allowExtraPasses, settings?.allowExtraPasses, settings?.maxExtraPassesPerUser, markChanged]);
+
+  const handleMaxExtraPassesChange = useCallback((value: string) => {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return;
+    setLocalMaxExtraPassesPerUser(Math.max(0, Math.min(20, Math.floor(numeric))));
+    markChanged();
+  }, [markChanged]);
+
   const handleSave = useCallback(async () => {
     const payload: EventVisibilityUpdate = {
       visibleToRoles: roles,
@@ -364,6 +388,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
       allowedProgramIds: selectedPrograms,
       allowedBatchYears: selectedBatchYears,
       allowedSectionIds: selectedSections,
+      allowExtraPasses,
+      maxExtraPassesPerUser: allowExtraPasses ? Math.max(1, maxExtraPassesPerUser) : 0,
     };
 
     try {
@@ -377,13 +403,16 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
       setLocalPrograms(null);
       setLocalBatchYears(null);
       setLocalSections(null);
+      setLocalAllowExtraPasses(null);
+      setLocalMaxExtraPassesPerUser(null);
       onToast({ type: 'success', message: 'Event settings saved successfully' });
     } catch (err: any) {
       onToast({ type: 'error', message: err?.response?.data?.message || 'Failed to save event settings' });
     }
   }, [
     roles, filterType, selectedSchools, selectedDepts, selectedPrograms,
-    selectedBatchYears, selectedSections, updateMutation, onToast,
+    selectedBatchYears, selectedSections, allowExtraPasses, maxExtraPassesPerUser,
+    updateMutation, onToast,
   ]);
 
   const handleReset = useCallback(() => {
@@ -394,6 +423,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
     setLocalPrograms(null);
     setLocalBatchYears(null);
     setLocalSections(null);
+    setLocalAllowExtraPasses(null);
+    setLocalMaxExtraPassesPerUser(null);
     setHasChanges(false);
   }, []);
 
@@ -479,6 +510,47 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
             </div>
           </div>
         )}
+      </div>
+
+      <div className={CARD}>
+        <div className={CARD_HEADER}>
+          <div className="flex items-center gap-2.5">
+            <Users className="w-5 h-5 text-sgt-600 dark:text-sgt-400" />
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+              Extra Pass Settings
+            </h3>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Control whether registered users can add guests and how many guests are allowed per registration.
+          </p>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">Allow Extra Passes</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Users can add guest details under the same QR code.</p>
+            </div>
+            <ToggleSwitch enabled={allowExtraPasses} onToggle={handleToggleExtraPasses} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Maximum Extra Passes Per User
+            </label>
+            <input
+              type="number"
+              min={allowExtraPasses ? 1 : 0}
+              max={20}
+              value={allowExtraPasses ? Math.max(1, maxExtraPassesPerUser) : 0}
+              onChange={(e) => handleMaxExtraPassesChange(e.target.value)}
+              disabled={!allowExtraPasses}
+              className="w-full max-w-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 disabled:opacity-60"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Example: If set to 3, each registration can add up to 3 guest passes.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── Visibility Configuration ──────────────────────────────── */}

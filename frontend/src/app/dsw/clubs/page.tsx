@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Users,
   Search,
@@ -12,14 +12,16 @@ import {
   CheckCircle,
   ArrowRight,
   FileText,
+  Send,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useClubs } from "@/features/dsw/hooks";
+import { useApplyToClub, useClubs, useMyClubApplications } from "@/features/dsw/hooks";
 import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
 import { ClubFilters } from "@/features/dsw/types";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { useDebounce } from "@/shared/hooks/useDebounce";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { useAuthStore } from "@/shared/auth/authStore";
 
 export default function AllClubsPage() {
   const router = useRouter();
@@ -31,6 +33,9 @@ export default function AllClubsPage() {
   });
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput, 300);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [selectedClubId, setSelectedClubId] = useState("");
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   // Pending submission banner state
   const [pendingBanner, setPendingBanner] = useState<{
@@ -66,9 +71,58 @@ export default function AllClubsPage() {
   }, [debouncedSearch]);
 
   const { data: response, isLoading, error } = useClubs(filters);
+  const { data: myApplications = [] } = useMyClubApplications();
+  const applyToClub = useApplyToClub();
+  const { user } = useAuthStore();
+  const normalizedUserRole = String(
+    user?.userType ?? (user as any)?.role ?? "",
+  ).toLowerCase();
+  const isStudentUser = normalizedUserRole === "student";
   const clubs = response?.success ? (response.data ?? []) : [];
   const total = response?.pagination?.total ?? 0;
   const errorMessage = error ? getErrorMessage(error) : null;
+
+  const applicationMap = useMemo(() => {
+    const map = new Map<string, "pending" | "approved" | "rejected">();
+    myApplications.forEach((app) => {
+      if (!map.has(app.clubId)) {
+        map.set(app.clubId, app.status);
+      }
+    });
+    return map;
+  }, [myApplications]);
+
+  const profileData = useMemo(() => {
+    const fullName =
+      `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() ||
+      user?.student?.displayName ||
+      user?.username ||
+      "";
+
+    return {
+      fullName,
+      email: user?.email || "",
+      mobileNumber: user?.employeeDetails?.phone || "",
+      program: user?.student?.program || "",
+      course: user?.student?.registrationNo || user?.student?.studentId || "",
+    };
+  }, [user]);
+
+  const handleApply = async () => {
+    if (!selectedClubId) {
+      setApplyError("Please select a club first.");
+      return;
+    }
+
+    try {
+      setApplyError(null);
+      await applyToClub.mutateAsync({ clubId: selectedClubId });
+      setShowApplyModal(false);
+      setSelectedClubId("");
+    } catch (err) {
+      setApplyError(getErrorMessage(err));
+    }
+  };
 
   const handleStatusFilter = (status: string) => {
     setFilters((prev) => ({
@@ -184,6 +238,17 @@ export default function AllClubsPage() {
             Showing {clubs.length} of {total} clubs
           </p>
         </div>
+
+        {isStudentUser && (
+          <button
+            type="button"
+            onClick={() => setShowApplyModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-sgt-600 hover:bg-sgt-700 text-white rounded-lg font-semibold text-sm"
+          >
+            <Send className="w-4 h-4" />
+            Apply to Clubs
+          </button>
+        )}
       </div>
 
       {errorMessage && (
@@ -247,6 +312,11 @@ export default function AllClubsPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     {club.clubId}
                   </p>
+                  {applicationMap.get(club.id) && (
+                    <p className="mt-1 text-xs font-semibold text-sgt-600 dark:text-sgt-300">
+                      Application: {applicationMap.get(club.id)}
+                    </p>
+                  )}
                 </div>
                 <ClubStatusBadge status={club.status} size="sm" />
               </div>
@@ -325,6 +395,102 @@ export default function AllClubsPage() {
           </button>
         </div>
       )}
+
+      {showApplyModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowApplyModal(false);
+              setApplyError(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Apply to Club</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowApplyModal(false);
+                  setApplyError(null);
+                }}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Club Selection</label>
+              <select
+                value={selectedClubId}
+                onChange={(e) => setSelectedClubId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+              >
+                <option value="">Select Club</option>
+                {clubs
+                  .filter((club) => club.status === "active")
+                  .map((club) => {
+                    const status = applicationMap.get(club.id);
+                    const disabled = status === "pending" || status === "approved";
+                    return (
+                      <option key={club.id} value={club.id} disabled={disabled}>
+                        {club.name}{disabled ? ` (${status})` : ""}
+                      </option>
+                    );
+                  })}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <ReadOnlyField label="Full Name" value={profileData.fullName} />
+              <ReadOnlyField label="Email" value={profileData.email} />
+              <ReadOnlyField label="Mobile Number" value={profileData.mobileNumber} />
+              <ReadOnlyField label="Program" value={profileData.program} />
+              <ReadOnlyField label="Course" value={profileData.course} />
+            </div>
+
+            {applyError && (
+              <p className="text-sm text-red-600 dark:text-red-400">{applyError}</p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowApplyModal(false);
+                  setApplyError(null);
+                }}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={applyToClub.isPending}
+                className="px-4 py-2 rounded-lg bg-sgt-600 hover:bg-sgt-700 text-white text-sm font-semibold disabled:opacity-60"
+              >
+                {applyToClub.isPending ? "Applying..." : "Apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <input
+        value={value || "-"}
+        readOnly
+        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm"
+      />
     </div>
   );
 }

@@ -22,6 +22,21 @@ const listEvents = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { page, limit, status, eventType, search, myEvents, filter, studentApply } = req.query;
 
+  // ── Access guard for myEvents=true ─────────────────────────────────────
+  // Only faculty, staff, admin/superadmin, and students who are a club
+  // chairperson of an active/approved club may request their own event list.
+  if (myEvents === 'true') {
+    const role = req.user.role;
+    const isPrivileged = role === 'faculty' || role === 'staff' || role === 'admin' || role === 'superadmin';
+    const isChairperson = role === 'student' && !!req.user._chairpersonClub;
+    if (!isPrivileged && !isChairperson) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied — only faculty, admins, and club chairpersons can view created events',
+      });
+    }
+  }
+
   const filters = {
     status,
     eventType,
@@ -138,9 +153,9 @@ const registerForEvent = asyncHandler(async (req, res) => {
  */
 const getMyRegistrations = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { page, limit, status } = req.query;
+  const { page, limit, status, search } = req.query;
   
-  const filters = { status };
+  const filters = { status, search };
   const pagination = {
     page: parseInt(page) || 1,
     limit: parseInt(limit) || 20,
@@ -193,17 +208,34 @@ const assignVolunteer = asyncHandler(async (req, res) => {
  * @route POST /api/events/:id/scan
  * @access Protected (Volunteers only)
  */
+const previewQRScan = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+  const { qrCode, entryType = 'entry' } = req.body;
+
+  const preview = await eventService.previewQRScan(id, qrCode, entryType, userId);
+  return ApiResponse.success(res, preview, 'Pass info retrieved');
+});
+
 const scanQRCode = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
-  const { qrCode, entryType, gateLocation, remarks } = req.body;
+  const {
+    qrCode,
+    entryType = 'entry',
+    entriesToCheckIn,
+    peopleCount,
+    markStudentExit,
+    gateLocation,
+    remarks,
+  } = req.body;
   
   const entry = await eventService.scanQRCode(
     id,
     qrCode,
     entryType,
     userId,
-    { gateLocation, remarks }
+    { gateLocation, remarks, entriesToCheckIn, peopleCount, markStudentExit }
   );
   
   return ApiResponse.success(res, entry, `QR code scanned successfully - ${entryType}`);
@@ -425,6 +457,17 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
+        EventExtraPass: {
+          select: {
+            id: true,
+            guestName: true,
+            guestEmail: true,
+            mobileNumber: true,
+            relationship: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: [
         // Group by team (null teamId last), then by team id, then by registeredAt
@@ -441,8 +484,26 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
     ...r,
     team: r.EventTeam || null,
     latestPayment: r.Payment?.[0] || null,
+    guests: r.EventExtraPass || [],
+    extraPassSummary: {
+      extraPassCount: r.extraPassCount ?? 0,
+      totalAllowedEntries: r.totalAllowedEntries ?? 1,
+      checkedInCount: r.checkedInCount ?? 0,
+      checkedOutCount: r.checkedOutCount ?? 0,
+      currentlyInside: Math.max(0, (r.checkedInCount ?? 0) - (r.checkedOutCount ?? 0)),
+      availableEntrySlots: Math.max(
+        0,
+        (r.totalAllowedEntries ?? 1) - Math.max(0, (r.checkedInCount ?? 0) - (r.checkedOutCount ?? 0)),
+      ),
+      remainingEntries: Math.max(
+        0,
+        (r.totalAllowedEntries ?? 1) - Math.max(0, (r.checkedInCount ?? 0) - (r.checkedOutCount ?? 0)),
+      ),
+      studentInside: r.studentInsideAssumed ?? Math.max(0, (r.checkedInCount ?? 0) - (r.checkedOutCount ?? 0)) > 0,
+    },
     Payment: undefined,
     EventTeam: undefined,
+    EventExtraPass: undefined,
   }));
 
   return ApiResponse.success(res, {
@@ -576,6 +637,26 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
         orderBy: { scannedAt: 'desc' },
         take: 20,
       },
+      // Custom form field responses
+      EventFieldResponse: {
+        include: {
+          EventCustomField: {
+            select: { id: true, fieldLabel: true, fieldName: true, fieldType: true, sortOrder: true },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+      },
+      EventExtraPass: {
+        select: {
+          id: true,
+          guestName: true,
+          guestEmail: true,
+          mobileNumber: true,
+          relationship: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   });
 
@@ -625,10 +706,40 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
     payments = teamPayments;
   }
 
+  // Map field responses to label+value pairs for easy display
+  const formFields = (registration.EventFieldResponse || [])
+    .sort((a, b) => (a.EventCustomField?.sortOrder ?? 0) - (b.EventCustomField?.sortOrder ?? 0))
+    .map(r => ({
+      fieldId: r.fieldId,
+      label: r.EventCustomField?.fieldLabel || r.EventCustomField?.fieldName || r.fieldId,
+      fieldType: r.EventCustomField?.fieldType || 'text',
+      value: r.value || null,
+      fileUrl: r.fileUrl || null,
+    }));
+
   return ApiResponse.success(res, {
     ...registration,
+    guests: registration.EventExtraPass || [],
+    extraPassSummary: {
+      extraPassCount: registration.extraPassCount ?? 0,
+      totalAllowedEntries: registration.totalAllowedEntries ?? 1,
+      checkedInCount: registration.checkedInCount ?? 0,
+      checkedOutCount: registration.checkedOutCount ?? 0,
+      currentlyInside: Math.max(0, (registration.checkedInCount ?? 0) - (registration.checkedOutCount ?? 0)),
+      availableEntrySlots: Math.max(
+        0,
+        (registration.totalAllowedEntries ?? 1) - Math.max(0, (registration.checkedInCount ?? 0) - (registration.checkedOutCount ?? 0)),
+      ),
+      // Legacy alias for existing UI consumers.
+      remainingEntries: Math.max(
+        0,
+        (registration.totalAllowedEntries ?? 1) - Math.max(0, (registration.checkedInCount ?? 0) - (registration.checkedOutCount ?? 0)),
+      ),
+      studentInside: registration.studentInsideAssumed ?? Math.max(0, (registration.checkedInCount ?? 0) - (registration.checkedOutCount ?? 0)) > 0,
+    },
     team: teamData,
     payments,
+    formFields,
     entries: (registration.EventEntry || []).map(e => ({
       id: e.id,
       entryType: e.entryType,
@@ -641,6 +752,8 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
     EventTeam: undefined,
     Payment: undefined,
     EventEntry: undefined,
+    EventExtraPass: undefined,
+    EventFieldResponse: undefined,
   }, 'Registration details fetched successfully');
 });
 
@@ -990,6 +1103,7 @@ module.exports = {
   getMyRegistrations,
   getEventStatistics,
   assignVolunteer,
+  previewQRScan,
   scanQRCode,
   getEventRegistrations,
   getRegistrationDetails,

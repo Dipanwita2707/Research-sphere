@@ -65,6 +65,14 @@ export default function VolunteersPage() {
         eventService.getEvent(eventId),
         eventService.getVolunteers(eventId)
       ]);
+
+      // ── Security: block users who cannot manage this event ──
+      if (!(eventData as any).canManage) {
+        toast({ type: 'error', message: 'You do not have permission to manage volunteers for this event' });
+        router.replace('/events');
+        return;
+      }
+
       setEvent(eventData);
       setVolunteers(volunteersData);
     } catch (error: any) {

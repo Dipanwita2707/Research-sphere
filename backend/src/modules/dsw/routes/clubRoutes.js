@@ -13,6 +13,8 @@ const {
   validateAddMember,
   validateRemoveMember,
   validateGetClubs,
+  validateClubApplicationCreate,
+  validateClubApplicationReview,
 } = require("../validators");
 const {
   canViewClub,
@@ -46,6 +48,9 @@ router.post(
 // Get my clubs
 router.get("/my", protect, canViewClub, clubController.getMyClubs);
 
+// Get my club applications
+router.get("/applications/my", protect, clubController.getMyClubApplications);
+
 // Get club by ID
 router.get(
   "/:clubId",
@@ -71,6 +76,31 @@ router.get(
   canViewClub,
   validateClubId,
   clubController.getClubMembers,
+);
+
+// Student applies to join a club
+router.post(
+  "/:clubId/applications",
+  protect,
+  validateClubApplicationCreate,
+  clubController.createClubApplication,
+);
+
+// Club owner/facilitator reviews applications
+router.get(
+  "/:clubId/applications",
+  protect,
+  canManageMembers,
+  validateClubId,
+  clubController.getClubApplications,
+);
+
+router.patch(
+  "/:clubId/applications/:applicationId/review",
+  protect,
+  canManageMembers,
+  validateClubApplicationReview,
+  clubController.reviewClubApplication,
 );
 
 // Add member to club

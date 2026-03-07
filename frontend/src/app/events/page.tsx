@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Calendar, MapPin, Users, Search, Filter, X, Calendar as CalendarIcon, Eye, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEvents, EVENT_QUERY_KEYS } from '@/features/event-management/hooks/useEvents';
@@ -12,6 +13,8 @@ import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { useDebounce } from '@/shared/hooks/useDebounce';
 import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 import { EVENT_TYPE_LABELS, STATUS_CONFIG } from '@/features/event-management/constants';
+import { useAuthStore } from '@/shared/auth/authStore';
+import { useMyClubs } from '@/features/dsw/hooks';
 
 /** Browse-page grouped item */
 type BrowseGroupedItem =
@@ -53,6 +56,8 @@ function groupBrowseEvents(eventList: Event[]): BrowseGroupedItem[] {
 }
 
 export default function EventsPage() {
+  const router = useRouter();
+  const { user } = useAuthStore();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
@@ -60,6 +65,13 @@ export default function EventsPage() {
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState<EventFilters>({});
   const debouncedSearch = useDebounce(searchInput, 300);
+  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
+  const { data: myClubsData, isLoading: isMyClubsLoading } = useMyClubs();
+  const isClubChairperson = !!(isStudent && user?.id && myClubsData?.data?.some(
+    club => club.chairpersonId === user.id && club.status === 'active'
+  ));
+  const canBrowseEvents = !isStudent || isClubChairperson;
+  const isAccessCheckLoading = isStudent && !isClubChairperson && isMyClubsLoading;
 
   /** Prefetch event detail on card hover so navigation is instant */
   const handlePrefetch = useCallback(
@@ -78,7 +90,13 @@ export default function EventsPage() {
     setPage(1);
   }, [debouncedSearch]);
 
-  const { data: result, isLoading, error } = useEvents(filters, page, 20);
+  useEffect(() => {
+    if (!isAccessCheckLoading && !canBrowseEvents) {
+      router.replace('/dashboard');
+    }
+  }, [canBrowseEvents, isAccessCheckLoading, router]);
+
+  const { data: result, isLoading, error } = useEvents(filters, page, 20, canBrowseEvents);
   const events = result?.events ?? [];
   const pagination = result?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 0 };
   const lastErrorRef = useRef<string | null>(null);
@@ -149,6 +167,19 @@ export default function EventsPage() {
     const now = new Date();
     return new Date(event.startDate) <= now && new Date(event.endDate) >= now;
   };
+
+  if (isAccessCheckLoading || !canBrowseEvents) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+          <PageHeaderSkeleton />
+          <div className="mt-6">
+            <CardSkeleton />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

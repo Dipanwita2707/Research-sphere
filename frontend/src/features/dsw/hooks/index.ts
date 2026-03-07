@@ -23,6 +23,7 @@ import {
   AuditLogFilters,
   ClubCreationFormData,
   ClubCreationRequest,
+  ClubMemberApplication,
 } from "../types";
 
 // Query Keys
@@ -33,6 +34,8 @@ export const DSW_QUERY_KEYS = {
   myClubRequests: () => ["dsw", "my-club-requests"],
   clubMembers: (clubId: string) => ["dsw", "clubs", clubId, "members"],
   clubEvents: (clubId: string) => ["dsw", "clubs", clubId, "events"],
+  clubApplications: (clubId: string) => ["dsw", "clubs", clubId, "applications"],
+  myClubApplications: () => ["dsw", "clubs", "applications", "my"],
   categories: () => ["dsw", "categories"],
   statistics: () => ["dsw", "statistics"],
   auditLogs: (clubId: string, filters?: AuditLogFilters) => [
@@ -117,6 +120,66 @@ export function useClubEvents(clubId: string) {
     },
     enabled: !!clubId,
     staleTime: 60 * 1000,
+  });
+}
+
+export function useClubApplications(clubId: string) {
+  return useQuery<ClubMemberApplication[]>({
+    queryKey: DSW_QUERY_KEYS.clubApplications(clubId),
+    queryFn: async () => {
+      const res = await dswAPI.clubs.getClubApplications(clubId);
+      return res.data ?? [];
+    },
+    enabled: !!clubId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useMyClubApplications() {
+  return useQuery<ClubMemberApplication[]>({
+    queryKey: DSW_QUERY_KEYS.myClubApplications(),
+    queryFn: async () => {
+      const res = await dswAPI.clubs.getMyClubApplications();
+      return res.data ?? [];
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useApplyToClub() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ clubId }: { clubId: string }) => dswAPI.clubs.applyToClub(clubId),
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(vars.clubId) });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.clubs() });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.myClubApplications() });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.clubApplications(vars.clubId) });
+    },
+  });
+}
+
+export function useReviewClubApplication(clubId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      applicationId,
+      decision,
+      reviewNote,
+    }: {
+      applicationId: string;
+      decision: "approved" | "rejected";
+      reviewNote?: string;
+    }) => dswAPI.clubs.reviewClubApplication(clubId, applicationId, decision, reviewNote),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.clubApplications(clubId) });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.clubMembers(clubId) });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.club(clubId) });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.myClubApplications() });
+      queryClient.invalidateQueries({ queryKey: DSW_QUERY_KEYS.myClubs() });
+    },
   });
 }
 

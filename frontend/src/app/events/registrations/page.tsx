@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, AlertCircle, Ticket as TicketIcon } from 'lucide-react';
+import { Calendar, MapPin, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, Search, Ticket as TicketIcon } from 'lucide-react';
 import QRCodeGenerator from 'qrcode';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { EventRegistration } from '@/features/event-management/types/event.types';
@@ -10,7 +10,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import TicketModal from '@/components/TicketModal';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
+import { CardSkeleton } from "@/components/skeletons";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', icon: Clock },
@@ -22,6 +22,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   incomplete_team: { label: 'Incomplete Team', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', icon: Users },
 };
 
+const REGISTRATION_STATUS_OPTIONS = [
+  { id: '', label: 'All Tickets' },
+  { id: 'confirmed', label: 'Active' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'waitlisted', label: 'Waitlist' },
+  { id: 'cancelled', label: 'Cancelled' },
+];
+
 export default function MyRegistrationsPage() {
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
@@ -32,11 +40,29 @@ export default function MyRegistrationsPage() {
   const [selectedTicket, setSelectedTicket] = useState<EventRegistration | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [addingGuestFor, setAddingGuestFor] = useState<string | null>(null);
+  const [guestForm, setGuestForm] = useState({ guestName: '', guestEmail: '', mobileNumber: '', relationship: '' });
+  const [submittingGuest, setSubmittingGuest] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchRegistrations = async () => {
     setLoading(true);
     try {
-      const result = await eventService.getMyRegistrations(page, 20, statusFilter || undefined);
+      const result = await eventService.getMyRegistrations(
+        page,
+        20,
+        statusFilter || undefined,
+        debouncedSearch || undefined
+      );
       setRegistrations(result.registrations);
       setPagination(result.pagination);
     } catch (error: any) {
@@ -48,7 +74,7 @@ export default function MyRegistrationsPage() {
 
   useEffect(() => {
     fetchRegistrations();
-  }, [page, statusFilter]);
+  }, [page, statusFilter, debouncedSearch]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -102,6 +128,36 @@ export default function MyRegistrationsPage() {
     }
   };
 
+  const handleCreateExtraPass = async (registration: EventRegistration) => {
+    const eventId = (registration as any).Event?.id || registration.event?.id;
+    if (!eventId) {
+      toast({ type: 'error', message: 'Unable to detect event for this registration' });
+      return;
+    }
+
+    if (!guestForm.guestName.trim() || !guestForm.guestEmail.trim() || !guestForm.mobileNumber.trim() || !guestForm.relationship.trim()) {
+      toast({ type: 'error', message: 'Please fill all guest details' });
+      return;
+    }
+
+    setSubmittingGuest(true);
+    try {
+      await eventService.createExtraPass(eventId, {
+        guestName: guestForm.guestName.trim(),
+        guestEmail: guestForm.guestEmail.trim(),
+        mobileNumber: guestForm.mobileNumber.trim(),
+        relationship: guestForm.relationship.trim(),
+      });
+      toast({ type: 'success', message: 'Extra pass created successfully' });
+      setGuestForm({ guestName: '', guestEmail: '', mobileNumber: '', relationship: '' });
+      await fetchRegistrations();
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) });
+    } finally {
+      setSubmittingGuest(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] dark:bg-black font-sans selection:bg-blue-500/30">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
@@ -129,32 +185,55 @@ export default function MyRegistrationsPage() {
           </Link>
         </div>
 
-        {/* Tab-style Filter */}
-        <div className="flex overflow-x-auto pb-4 mb-8 gap-2 no-scrollbar">
-          {[
-            { id: '', label: 'All Tickets' },
-            { id: 'confirmed', label: 'Active' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'waitlisted', label: 'Waitlist' },
-            { id: 'cancelled', label: 'Cancelled' },
-          ].map((status) => (
-            <button
-              key={status.id}
-              onClick={() => {
-                setStatusFilter(status.id);
+        <div className="mb-8 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4">
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className={`
-                whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold transition-all border
-                ${statusFilter === status.id
-                  ? 'bg-gray-900 dark:bg-white text-white dark:text-black border-gray-900 dark:border-white shadow-lg shadow-gray-200 dark:shadow-none translate-y-[-1px]'
-                  : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }
-              `}
+              className="w-full appearance-none rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 pr-10 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
             >
-              {status.label}
-            </button>
-          ))}
+              {REGISTRATION_STATUS_OPTIONS.map((status) => (
+                <option key={status.id || 'all'} value={status.id}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              placeholder={statusFilter ? 'Search within selected status' : 'Search all tickets'}
+              className="w-full rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-11 py-3 pr-11 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Registrations List */}
@@ -169,7 +248,9 @@ export default function MyRegistrationsPage() {
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">No tickets found</h3>
               <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto leading-relaxed">
-                You haven't registered for any events yet. Join an event to see your tickets here.
+                {searchTerm || statusFilter
+                  ? 'No tickets match the selected filter and search.'
+                  : "You haven't registered for any events yet. Join an event to see your tickets here."}
               </p>
               <Link
                 href="/events"
@@ -190,6 +271,17 @@ export default function MyRegistrationsPage() {
                 const eventVenue = (registration as any).Event?.venue || registration.event?.venue;
                 const eventType = (registration as any).Event?.eventType || registration.event?.eventType;
                 const regId = registration.registrationId;
+                const eventAllowsExtraPasses = Boolean((registration as any).Event?.allowExtraPasses ?? registration.event?.allowExtraPasses);
+                const maxExtraPasses = Number((registration as any).Event?.maxExtraPassesPerUser ?? registration.event?.maxExtraPassesPerUser ?? 0);
+                const summary = registration.extraPassSummary || {
+                  extraPassCount: registration.extraPassCount || 0,
+                  totalAllowedEntries: registration.totalAllowedEntries || 1,
+                  checkedInCount: registration.checkedInCount || 0,
+                  remainingEntries: Math.max(0, (registration.totalAllowedEntries || 1) - (registration.checkedInCount || 0)),
+                };
+                const guests = registration.guests || [];
+                const canAddExtraPass = eventAllowsExtraPasses && summary.extraPassCount < maxExtraPasses;
+                const registrationEligible = !['cancelled', 'rejected', 'draft', 'waitlisted'].includes(registration.status);
 
                 const getStatusStyles = (status: string) => {
                   switch (status) {
@@ -285,6 +377,67 @@ export default function MyRegistrationsPage() {
                               Checked in at {formatDate(registration.enteredAt)}
                             </div>
                           )}
+
+                          <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-white/80 dark:bg-gray-900/40">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Group Pass Summary</p>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
+                                <p className="text-gray-500">Total People</p>
+                                <p className="font-bold text-gray-900 dark:text-gray-100">{summary.totalAllowedEntries}</p>
+                              </div>
+                              <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
+                                <p className="text-gray-500">Checked In</p>
+                                <p className="font-bold text-gray-900 dark:text-gray-100">{summary.checkedInCount}</p>
+                              </div>
+                              <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
+                                <p className="text-gray-500">Remaining</p>
+                                <p className="font-bold text-gray-900 dark:text-gray-100">{summary.remainingEntries}</p>
+                              </div>
+                            </div>
+
+                            {eventAllowsExtraPasses && registrationEligible && (
+                              <div className="mt-3">
+                                <button
+                                  onClick={() => setAddingGuestFor(prev => prev === registration.id ? null : registration.id)}
+                                  disabled={!canAddExtraPass}
+                                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-blue-600 text-white disabled:bg-gray-300 disabled:text-gray-600"
+                                >
+                                  Add Extra Pass
+                                </button>
+                                <p className="text-xs text-gray-500 mt-1">Used: {summary.extraPassCount}/{maxExtraPasses} guest passes</p>
+                              </div>
+                            )}
+
+                            {addingGuestFor === registration.id && canAddExtraPass && (
+                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input value={guestForm.guestName} onChange={(e) => setGuestForm(prev => ({ ...prev, guestName: e.target.value }))} placeholder="Guest Name" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <input value={guestForm.guestEmail} onChange={(e) => setGuestForm(prev => ({ ...prev, guestEmail: e.target.value }))} placeholder="Guest Email" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <input value={guestForm.mobileNumber} onChange={(e) => setGuestForm(prev => ({ ...prev, mobileNumber: e.target.value }))} placeholder="Mobile Number" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <input value={guestForm.relationship} onChange={(e) => setGuestForm(prev => ({ ...prev, relationship: e.target.value }))} placeholder="Relationship" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <button
+                                  onClick={() => handleCreateExtraPass(registration)}
+                                  disabled={submittingGuest}
+                                  className="sm:col-span-2 px-3 py-2 rounded-lg text-xs font-semibold bg-gray-900 text-white disabled:opacity-60"
+                                >
+                                  {submittingGuest ? 'Creating...' : 'Create Guest Pass'}
+                                </button>
+                              </div>
+                            )}
+
+                            {guests.length > 0 && (
+                              <div className="mt-3">
+                                <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Guest List</p>
+                                <div className="space-y-1 max-h-28 overflow-y-auto">
+                                  {guests.map((guest) => (
+                                    <div key={guest.id} className="text-xs px-2 py-1 rounded bg-gray-50 dark:bg-gray-800 flex justify-between gap-2">
+                                      <span className="font-medium text-gray-800 dark:text-gray-100">{guest.guestName}</span>
+                                      <span className="text-gray-500">{guest.relationship}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 

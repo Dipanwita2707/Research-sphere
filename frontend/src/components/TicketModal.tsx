@@ -216,7 +216,7 @@ export default function TicketModal({ registration, onClose }: TicketModalProps)
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-800">
                 <span className="text-xs font-semibold text-gray-500 uppercase">Admit</span>
-                <span className="text-sm font-bold text-black dark:text-white">01 Only</span>
+                <span className="text-sm font-bold text-black dark:text-white">{registration.totalAllowedEntries || 1} Only</span>
               </div>
             </div>
 

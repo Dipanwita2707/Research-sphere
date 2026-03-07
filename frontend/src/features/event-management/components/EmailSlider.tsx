@@ -257,6 +257,11 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
         onClose();
         setSubject(''); setBody(''); setFilter('all'); setReplyTo('');
         setScheduleMode(false); setScheduledDate(''); setScheduledTime('09:00');
+      } else if (result.queued) {
+        toast({ type: 'success', message: `Email queued — sending to ${result.recipientCount ?? recipientCount} recipient(s) in background.` });
+        onClose();
+        eventService.getEmailCredits(eventId).then(setCredits).catch(() => {});
+        setSubject(''); setBody(''); setFilter('all'); setReplyTo('');
       } else if (result.success) {
         toast({ type: 'success', message: `Email sent to ${result.sent} recipient(s)!` });
         onClose();

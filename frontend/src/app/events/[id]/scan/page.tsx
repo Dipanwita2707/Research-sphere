@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, QrCode, CheckCircle, XCircle, Clock, User, MapPin, AlertCircle } from 'lucide-react';
+import { ArrowLeft, QrCode, CheckCircle, XCircle, Clock, MapPin, AlertCircle, Users } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
@@ -21,6 +21,8 @@ export default function QRScannerPage() {
   const [scanning, setScanning] = useState(false);
   const [qrInput, setQrInput] = useState('');
   const [entryType, setEntryType] = useState<'entry' | 'exit'>('entry');
+  const [entriesToCheckIn, setEntriesToCheckIn] = useState(1);
+  const [markStudentExit, setMarkStudentExit] = useState(false);
   const [gateLocation, setGateLocation] = useState('');
   const [remarks, setRemarks] = useState('');
   const [recentScans, setRecentScans] = useState<any[]>([]);
@@ -60,6 +62,9 @@ export default function QRScannerPage() {
       const result = await eventService.scanQRCode(eventId, {
         qrCode: qrInput.trim(),
         entryType,
+        entriesToCheckIn,
+        peopleCount: entriesToCheckIn,
+        markStudentExit: entryType === 'exit' ? markStudentExit : undefined,
         gateLocation: gateLocation || undefined,
         remarks: remarks || undefined,
       });
@@ -73,7 +78,11 @@ export default function QRScannerPage() {
 
       toast({ 
         type: 'success', 
-        message: `Successfully scanned ${entryType} for ${result.registration?.user?.name || 'user'}` 
+        message:
+          result.message ||
+          (entryType === 'exit'
+            ? `Checked out ${entriesToCheckIn} attendee(s)`
+            : `Checked in ${entriesToCheckIn} attendee(s)`),
       });
 
       // Clear form
@@ -157,36 +166,66 @@ export default function QRScannerPage() {
             </div>
 
             <form onSubmit={handleScan} className="space-y-4">
-              {/* Entry Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Entry Type
-                </label>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Action
+                </p>
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setEntryType('entry')}
-                    className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
+                    disabled={scanning}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium ${
                       entryType === 'entry'
-                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                        ? 'bg-green-600 text-white border-green-600'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
                     }`}
                   >
-                    Entry
+                    Entry +1
                   </button>
                   <button
                     type="button"
                     onClick={() => setEntryType('exit')}
-                    className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
+                    disabled={scanning}
+                    className={`px-3 py-2 rounded-lg border text-sm font-medium ${
                       entryType === 'exit'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
-                        : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300'
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'
                     }`}
                   >
-                    Exit
+                    Exit +1
                   </button>
                 </div>
               </div>
+
+              <div>
+                <label htmlFor="entriesToCheckIn" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of People {entryType === 'exit' ? 'Exiting' : 'Entering'} Now
+                </label>
+                <input
+                  id="entriesToCheckIn"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={entriesToCheckIn}
+                  onChange={(e) => setEntriesToCheckIn(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  disabled={scanning}
+                />
+              </div>
+
+              {entryType === 'exit' && (
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={markStudentExit}
+                    onChange={(e) => setMarkStudentExit(e.target.checked)}
+                    className="rounded border-gray-300 dark:border-gray-600"
+                    disabled={scanning}
+                  />
+                  Explicitly mark pass holder (student) as exited
+                </label>
+              )}
 
               {/* QR Code Input */}
               <div>
@@ -252,7 +291,7 @@ export default function QRScannerPage() {
                 ) : (
                   <>
                     <QrCode className="h-5 w-5" />
-                    Scan QR Code
+                    {entryType === 'exit' ? 'Scan For Exit' : 'Scan For Entry'}
                   </>
                 )}
               </button>
@@ -314,8 +353,23 @@ export default function QRScannerPage() {
                               {scan.registration?.user?.name || 'Unknown User'}
                             </p>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {scan.entryType === 'entry' ? 'Entered' : 'Exited'} at {formatTime(scan.scannedAt)}
+                              {scan.entryType === 'exit' ? 'Checked out' : 'Checked in'} {scan.entryCount || 1} attendee(s) at {formatTime(scan.scannedAt)}
                             </p>
+                            {scan.registration?.totalAllowedEntries !== undefined && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 space-y-1">
+                                <p className="inline-flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  Capacity: {scan.registration.totalAllowedEntries}
+                                  {' | '}Entries: {scan.registration.checkedInCount ?? 0}
+                                  {' | '}Exits: {scan.registration.checkedOutCount ?? 0}
+                                </p>
+                                <p>
+                                  Inside: {scan.registration.currentlyInside ?? 0}
+                                  {' | '}Available Entry Slots: {scan.registration.availableEntrySlots ?? scan.registration.remainingEntries ?? 0}
+                                  {' | '}Student: {scan.registration.studentInside ? 'Inside' : 'Outside'}
+                                </p>
+                              </div>
+                            )}
                             {scan.gateLocation && (
                               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                                 <MapPin className="inline h-3 w-3 mr-1" />
@@ -350,7 +404,9 @@ export default function QRScannerPage() {
               <ul className="list-disc list-inside space-y-1 text-blue-800 dark:text-blue-200">
                 <li>The QR input field auto-focuses for quick scanning</li>
                 <li>Use a barcode scanner for faster processing</li>
-                <li>Invalid or duplicate scans will be logged as failed</li>
+                <li>Select Entry or Exit, then set how many attendees are moving</li>
+                <li>Entry is blocked when current inside reaches pass capacity</li>
+                <li>Exit frees up slots, allowing re-entry under the same pass</li>
                 <li>Recent scans show the last 10 scan attempts</li>
               </ul>
             </div>

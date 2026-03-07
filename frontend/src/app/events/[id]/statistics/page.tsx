@@ -106,6 +106,14 @@ export default function EventStatisticsPage() {
         eventService.getEvent(eventId),
         eventService.getStatistics(eventId),
       ]);
+
+      // ── Security: block users who cannot manage this event ──
+      if (!(eventData as any).canManage) {
+        toast({ type: 'error', message: 'You do not have permission to view statistics for this event' });
+        router.replace('/events');
+        return;
+      }
+
       setEvent(eventData);
       setStatistics(statsData);
     } catch (error: any) {

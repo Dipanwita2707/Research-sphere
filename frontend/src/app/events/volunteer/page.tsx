@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Shield,
   Calendar,
@@ -19,8 +20,6 @@ import {
   Tag,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
-import { useToast } from '@/shared/ui-components/Toast';
-import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
@@ -69,7 +68,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
 };
 
 export default function VolunteerDashboardPage() {
-  const { toast } = useToast();
+  const router = useRouter();
   const [assignments, setAssignments] = useState<VolunteerAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -80,8 +79,13 @@ export default function VolunteerDashboardPage() {
       try {
         const data = await eventService.getMyVolunteerAssignments();
         setAssignments(data);
+        // Access guard: if user has no volunteer assignments, send them back
+        if (!data || data.length === 0) {
+          router.replace('/events');
+        }
       } catch (error: any) {
-        toast({ type: 'error', message: getErrorMessage(error) });
+        // 403 or any error → not a volunteer, redirect
+        router.replace('/events');
       } finally {
         setLoading(false);
       }

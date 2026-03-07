@@ -57,6 +57,14 @@ interface EntryLog {
   scannedBy?: { uid: string; email?: string } | null;
 }
 
+interface FormField {
+  fieldId: string;
+  label: string;
+  fieldType: string;
+  value?: string | null;
+  fileUrl?: string | null;
+}
+
 interface CouponDetail {
   id: string;
   code?: string;
@@ -64,6 +72,15 @@ interface CouponDetail {
   discountValue?: number;
   isActive?: boolean;
   usedAt?: string;
+}
+
+interface GuestPass {
+  id: string;
+  guestName: string;
+  guestEmail: string;
+  mobileNumber: string;
+  relationship: string;
+  createdAt: string;
 }
 
 interface RegistrationDetail {
@@ -78,10 +95,18 @@ interface RegistrationDetail {
   discountAmount?: number | null;
   originalAmount?: number | null;
   formData?: Record<string, any> | null;
+  formFields?: FormField[];
   qrCode?: string;
   isTeamLeader?: boolean;
   hasEntered: boolean;
   enteredAt?: string;
+  guests?: GuestPass[];
+  extraPassSummary?: {
+    extraPassCount: number;
+    totalAllowedEntries: number;
+    checkedInCount: number;
+    remainingEntries: number;
+  };
   registeredAt: string;
   updatedAt: string;
   user_login?: any;
@@ -272,95 +297,150 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                       <span className="text-xs text-gray-400">Not entered yet</span>
                     )}
                   </InfoRow>
+                  <InfoRow label="Total People" value={String(data.extraPassSummary?.totalAllowedEntries ?? 1)} />
+                  <InfoRow label="Checked In" value={String(data.extraPassSummary?.checkedInCount ?? 0)} />
+                  <InfoRow label="Remaining" value={String(data.extraPassSummary?.remainingEntries ?? 1)} />
                 </div>
               </Section>
 
+              {data.guests && data.guests.length > 0 && (
+                <Section icon={Users} title="Extra Pass Guests">
+                  <div className="space-y-2">
+                    {data.guests.map((guest) => (
+                      <div key={guest.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{guest.guestName}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">{guest.guestEmail} • {guest.mobileNumber}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Relationship: {guest.relationship}</p>
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
               {/* ── 3. Payment Details ─────────────────── */}
               <Section icon={CreditCard} title="Payment Details">
-                {data.payments.length === 0 ? (
-                  <p className="text-sm text-gray-400">No payment records</p>
-                ) : (
-                  <div className="space-y-4">
-                    {/* Payment summary */}
+                <div className="space-y-4">
+
+                  {/* Always show fee summary if any payment data exists */}
+                  <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3.5">
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                       <InfoRow label="Original Fee" value={data.originalAmount != null ? `₹${data.originalAmount.toLocaleString('en-IN')}` : '—'} />
-                      <InfoRow label="Discount" value={data.discountAmount ? `−₹${data.discountAmount.toLocaleString('en-IN')}` : '—'} />
+                      <InfoRow label="Discount Applied" value={data.discountAmount ? `−₹${data.discountAmount.toLocaleString('en-IN')}` : 'None'} />
                       <InfoRow label="Amount Paid" value={data.amountPaid != null ? `₹${data.amountPaid.toLocaleString('en-IN')}` : '—'} />
-                    </div>
-
-                    {/* Individual payment records */}
-                    <div className="border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
-                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Transaction Records</p>
-                      {data.payments.map((p, idx) => (
-                        <div key={p.id} className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3.5 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <StatusBadge value={p.status || 'unknown'} styles={PAYMENT_STATUS_STYLES} />
-                              <span className="text-xs text-gray-400">#{data.payments.length - idx}</span>
-                            </div>
-                            {p.amount != null && (
-                              <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                                ₹{(p.amount / 100).toLocaleString('en-IN')}
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-                            {p.razorpayPaymentId && (
-                              <CopyableField label="Payment ID" value={p.razorpayPaymentId} fieldKey={`pay-${p.id}`} copiedField={copiedField} onCopy={copyToClipboard} />
-                            )}
-                            {p.razorpayOrderId && (
-                              <CopyableField label="Order ID" value={p.razorpayOrderId} fieldKey={`ord-${p.id}`} copiedField={copiedField} onCopy={copyToClipboard} />
-                            )}
-                            {p.receipt && <InfoRow label="Receipt" value={p.receipt} mono small />}
-                            {p.paidAt && <InfoRow label="Paid At" value={formatDate(p.paidAt, true)} small />}
-                            {p.failedAt && <InfoRow label="Failed At" value={formatDate(p.failedAt, true)} small />}
-                            {p.refundedAt && <InfoRow label="Refunded At" value={formatDate(p.refundedAt, true)} small />}
-                            {p.paymentFor && <InfoRow label="Payment For" value={p.paymentFor} capitalize small />}
-                            {p.webhookVerified != null && (
-                              <InfoRow label="Webhook Verified" small>
-                                {p.webhookVerified ? (
-                                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600"><Shield className="w-3 h-3" /> Yes</span>
-                                ) : (
-                                  <span className="text-xs text-gray-400">No</span>
-                                )}
-                              </InfoRow>
-                            )}
-                            {p.attempts != null && p.attempts > 0 && <InfoRow label="Attempts" value={String(p.attempts)} small />}
-                          </div>
-                          {p.metadata && Object.keys(p.metadata).length > 0 && (
-                            <div className="pt-1.5 border-t border-gray-200 dark:border-gray-600">
-                              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Metadata</p>
-                              <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded p-2 max-h-20 overflow-y-auto">
-                                {Object.entries(p.metadata).map(([k, v]) => (
-                                  <div key={k}><span className="text-gray-400">{k}:</span> {String(v)}</div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                      <InfoRow label="Payment Status">
+                        <StatusBadge value={data.paymentStatus || 'N/A'} styles={PAYMENT_STATUS_STYLES} />
+                      </InfoRow>
+                      {data.couponId && !data.couponDetails && (
+                        <InfoRow label="Coupon ID" value={data.couponId} mono small />
+                      )}
+                      {data.couponDetails && data.couponDetails.code && (
+                        <InfoRow label="Coupon Used">
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400">
+                            <Tag className="w-3 h-3" /> {data.couponDetails.code}
+                          </span>
+                        </InfoRow>
+                      )}
                     </div>
                   </div>
-                )}
+
+                  {/* Razorpay transaction records */}
+                  {data.payments.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Razorpay Transaction Records</p>
+                        {data.payments.map((p, idx) => (
+                          <div key={p.id} className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3.5 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <StatusBadge value={p.status || 'unknown'} styles={PAYMENT_STATUS_STYLES} />
+                                <span className="text-xs text-gray-400">#{data.payments.length - idx}</span>
+                              </div>
+                              {p.amount != null && (
+                                <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                                  ₹{(p.amount / 100).toLocaleString('en-IN')}
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                              {p.razorpayPaymentId && (
+                                <CopyableField label="Payment ID" value={p.razorpayPaymentId} fieldKey={`pay-${p.id}`} copiedField={copiedField} onCopy={copyToClipboard} />
+                              )}
+                              {p.razorpayOrderId && (
+                                <CopyableField label="Order ID" value={p.razorpayOrderId} fieldKey={`ord-${p.id}`} copiedField={copiedField} onCopy={copyToClipboard} />
+                              )}
+                              {p.receipt && <InfoRow label="Receipt" value={p.receipt} mono small />}
+                              {p.paidAt && <InfoRow label="Paid At" value={formatDate(p.paidAt, true)} small />}
+                              {p.failedAt && <InfoRow label="Failed At" value={formatDate(p.failedAt, true)} small />}
+                              {p.refundedAt && <InfoRow label="Refunded At" value={formatDate(p.refundedAt, true)} small />}
+                              {p.paymentFor && <InfoRow label="Payment For" value={p.paymentFor} capitalize small />}
+                              {p.webhookVerified != null && (
+                                <InfoRow label="Webhook Verified" small>
+                                  {p.webhookVerified
+                                    ? <span className="inline-flex items-center gap-1 text-xs text-emerald-600"><Shield className="w-3 h-3" /> Yes</span>
+                                    : <span className="text-xs text-gray-400">No</span>
+                                  }
+                                </InfoRow>
+                              )}
+                              {p.attempts != null && p.attempts > 0 && <InfoRow label="Attempts" value={String(p.attempts)} small />}
+                            </div>
+                            {p.metadata && Object.keys(p.metadata).length > 0 && (
+                              <div className="pt-1.5 border-t border-gray-200 dark:border-gray-600">
+                                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Metadata</p>
+                                <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded p-2 max-h-20 overflow-y-auto">
+                                  {Object.entries(p.metadata).map(([k, v]) => (
+                                    <div key={k}><span className="text-gray-400">{k}:</span> {String(v)}</div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
               </Section>
 
               {/* ── 4. Coupon Info ─────────────────────── */}
               {data.couponDetails && (
-                <Section icon={Tag} title="Coupon">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                    {data.couponDetails.code && <InfoRow label="Code" value={data.couponDetails.code} mono />}
-                    {data.couponDetails.discountType && (
+                <Section icon={Tag} title="Coupon Applied">
+                  <div className="bg-violet-50 dark:bg-violet-900/10 border border-violet-100 dark:border-violet-800/30 rounded-lg p-3.5">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                      {data.couponDetails.code && <InfoRow label="Coupon Code" value={data.couponDetails.code} mono />}
+                      {data.couponDetails.discountType && (
+                        <InfoRow
+                          label="Discount Type"
+                          value={data.couponDetails.discountType === 'percentage' ? 'Percentage (%)' : 'Fixed Amount (₹)'}
+                        />
+                      )}
+                      {data.couponDetails.discountValue != null && (
+                        <InfoRow
+                          label="Discount Value"
+                          value={
+                            data.couponDetails.discountType === 'percentage'
+                              ? `${data.couponDetails.discountValue}% off`
+                              : `₹${data.couponDetails.discountValue.toLocaleString('en-IN')} off`
+                          }
+                        />
+                      )}
                       <InfoRow
-                        label="Discount"
-                        value={
-                          data.couponDetails.discountType === 'percentage'
-                            ? `${data.couponDetails.discountValue}%`
-                            : `₹${data.couponDetails.discountValue?.toLocaleString('en-IN')}`
-                        }
+                        label="Discount Applied"
+                        value={data.discountAmount ? `−₹${data.discountAmount.toLocaleString('en-IN')}` : '—'}
                       />
-                    )}
-                    <InfoRow label="Applied Discount" value={data.discountAmount ? `₹${data.discountAmount.toLocaleString('en-IN')}` : '—'} />
-                    {data.couponDetails.usedAt && <InfoRow label="Used At" value={formatDate(data.couponDetails.usedAt, true)} />}
+                      <InfoRow
+                        label="Original Fee"
+                        value={data.originalAmount != null ? `₹${data.originalAmount.toLocaleString('en-IN')}` : '—'}
+                      />
+                      <InfoRow
+                        label="Paid After Discount"
+                        value={data.amountPaid != null ? `₹${data.amountPaid.toLocaleString('en-IN')}` : '—'}
+                      />
+                      {data.couponDetails.usedAt && <InfoRow label="Used At" value={formatDate(data.couponDetails.usedAt, true)} />}
+                      {data.couponDetails.isActive != null && (
+                        <InfoRow label="Coupon Active" value={data.couponDetails.isActive ? 'Yes' : 'No'} />
+                      )}
+                    </div>
                   </div>
                 </Section>
               )}
@@ -433,12 +513,37 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                 </Section>
               )}
 
-              {/* ── 7. Form Data (custom fields) ──────── */}
-              {data.formData && Object.keys(data.formData).length > 0 && (
-                <Section icon={FileText} title="Form Responses">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+              {/* ── 7. Form Field Responses (structured) ── */}
+              {data.formFields && data.formFields.length > 0 && (
+                <Section icon={FileText} title="Event Form Responses">
+                  <div className="space-y-2">
+                    {data.formFields.map((f) => (
+                      <div key={f.fieldId} className="bg-gray-50 dark:bg-gray-700/30 rounded-lg px-4 py-3">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{f.label}</p>
+                        {f.fileUrl ? (
+                          <a href={f.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 dark:text-blue-400 underline break-all">
+                            View Uploaded File
+                          </a>
+                        ) : (
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200 break-words whitespace-pre-wrap">
+                            {f.value || '—'}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
+              {/* ── 8. formData JSON fallback (if no structured fields) ── */}
+              {(!data.formFields || data.formFields.length === 0) && data.formData && Object.keys(data.formData).length > 0 && (
+                <Section icon={FileText} title="Event Form Responses">
+                  <div className="space-y-2">
                     {Object.entries(data.formData).map(([key, val]) => (
-                      <InfoRow key={key} label={key} value={String(val ?? '—')} />
+                      <div key={key} className="bg-gray-50 dark:bg-gray-700/30 rounded-lg px-4 py-3">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{key}</p>
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-200 break-words whitespace-pre-wrap">{String(val ?? '—')}</p>
+                      </div>
                     ))}
                   </div>
                 </Section>

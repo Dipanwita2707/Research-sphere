@@ -21,6 +21,8 @@ export interface EventVisibility {
   allowedProgramIds: string[];
   allowedBatchYears: number[];
   allowedSectionIds: string[];
+  allowExtraPasses: boolean;
+  maxExtraPassesPerUser: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +36,8 @@ export interface EventVisibilityUpdate {
   allowedProgramIds?: string[];
   allowedBatchYears?: number[];
   allowedSectionIds?: string[];
+  allowExtraPasses?: boolean;
+  maxExtraPassesPerUser?: number;
 }
 
 export interface SchoolItem {

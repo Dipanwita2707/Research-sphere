@@ -130,17 +130,17 @@ export default function CopyDetailPage() {
     <div className="max-w-4xl mx-auto px-4 py-6">
       <Link
         href="/noting"
-        className="inline-flex items-center gap-2 text-sm text-sgt-600 hover:text-sgt-700 dark:text-sgt-400 dark:hover:text-sgt-300 mb-6"
+        className="inline-flex items-center gap-2 text-sm text-[#6497b1] hover:text-[#005b96] dark:text-[#b3cde0] dark:hover:text-[#6497b1] mb-6 transition-all duration-200"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Copies
       </Link>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 shadow-[0_2px_8px_rgba(100,151,177,0.1)] overflow-hidden">
         {/* Header */}
-        <div className="px-4 sm:px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="px-4 sm:px-6 py-4 border-b border-[#b3cde0]/30 dark:border-gray-700">
           <div className="flex items-center flex-wrap gap-2 mb-1">
-            <span className="font-mono text-sm font-semibold text-sgt-600 dark:text-sgt-400">
+            <span className="font-mono text-sm font-semibold text-[#005b96] dark:text-[#b3cde0]">
               {displayNote?.notingId || 'N/A'}
             </span>
             <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase border ${statusColor}`}>
@@ -153,7 +153,7 @@ export default function CopyDetailPage() {
               </span>
             )}
           </div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-white capitalize">
+          <h1 className="text-lg font-bold text-[#011f4b] dark:text-white capitalize">
             {displayNote?.category} / {displayNote?.subcategory}
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -183,8 +183,8 @@ export default function CopyDetailPage() {
 
         {/* Timeline / Replies */}
         {allReplies.length > 0 && (
-          <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Replies &amp; Updates</h4>
+          <div className="px-4 sm:px-6 py-4 border-t border-[#b3cde0]/30 dark:border-gray-700">
+            <h4 className="text-xs font-semibold text-[#6497b1] uppercase tracking-wider mb-3">Replies &amp; Updates</h4>
             <div className="space-y-3">
               {allReplies.map((r: any) => {
                 const isOwnReply = r.repliedBy?.id === user?.id;
@@ -241,9 +241,9 @@ export default function CopyDetailPage() {
         )}
 
         {/* Instructions / Escalation Context — shown after replies so context is near the reply box */}
-        <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-3 sm:p-4">
-            <h4 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider mb-2">
+        <div className="px-4 sm:px-6 py-4 border-t border-[#b3cde0]/30 dark:border-gray-700">
+          <div className="bg-[#b3cde0]/10 dark:bg-indigo-900/20 border border-[#b3cde0]/40 dark:border-indigo-800 rounded-xl p-3 sm:p-4">
+            <h4 className="text-xs font-semibold text-[#005b96] dark:text-indigo-400 uppercase tracking-wider mb-2">
               Instructions from Sender
             </h4>
             {(() => {
@@ -353,15 +353,15 @@ export default function CopyDetailPage() {
 
         {/* Reply Section — one reply per level; after replying, wait for creator's action */}
         {copy.status === 'replied' && (copy as any).assignedToId === user?.id && (
-          <div className="px-4 sm:px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10">
+          <div className="px-4 sm:px-6 py-3 border-t border-[#b3cde0]/30 dark:border-gray-700 bg-amber-50/50 dark:bg-amber-900/10">
             <p className="text-sm text-amber-700 dark:text-amber-300">
               You have replied. The noting creator will review and take action (complete or forward). The reply form will open again when a new copy is assigned to you.
             </p>
           </div>
         )}
         {canReply && (
-          <div className="px-4 sm:px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/20">
-            <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-3">
+          <div className="px-4 sm:px-6 py-4 border-t border-[#b3cde0]/30 dark:border-gray-700 bg-[#f8fafc] dark:bg-gray-900/20">
+            <h4 className="text-xs font-semibold text-[#03396c] dark:text-gray-400 uppercase tracking-wider mb-3">
               Your Reply
             </h4>
             <div className="space-y-3">
@@ -369,7 +369,7 @@ export default function CopyDetailPage() {
                 value={replyRemarks}
                 onChange={(e) => setReplyRemarks(e.target.value)}
                 rows={3}
-                className={`w-full px-3 py-2 text-sm border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none ${!replyRemarks.trim() ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
+                className={`w-full px-3 py-2 text-sm border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-2 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${!replyRemarks.trim() ? 'border-red-300 dark:border-red-600' : 'border-[#b3cde0]/50 dark:border-gray-600'
                   }`}
                 placeholder="Your reply / status update (mandatory)..."
               />
@@ -393,7 +393,7 @@ export default function CopyDetailPage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
-                <label className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer flex items-center gap-1.5">
+                <label className="px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl text-[#03396c] dark:text-gray-400 hover:bg-[#f8fafc] dark:hover:bg-gray-700 cursor-pointer flex items-center gap-1.5 transition-all duration-200">
                   {replyUploadLoading ? (
                     <Skeleton className="w-4 h-4 rounded-sm" />
                   ) : (
@@ -411,7 +411,7 @@ export default function CopyDetailPage() {
                 <button
                   onClick={doReplyCopy}
                   disabled={replyLoading || !replyRemarks.trim()}
-                  className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium flex items-center gap-1.5"
+                  className="px-4 py-2 text-sm bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-medium flex items-center gap-1.5 transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
                 >
                   {replyLoading ? (
                     <Skeleton className="w-4 h-4 rounded-sm" />

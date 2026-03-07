@@ -99,6 +99,25 @@ const STATUS_ICONS: Record<string, React.ElementType> = {
   reverted: RotateCcw,
 };
 
+function getModulePermissionKey(note?: Note | null): string | null {
+  if (!note?.subcategory) return null;
+
+  const permissionMap: Record<string, string> = {
+    dsw_club_creation: 'dsw_approve_noting',
+    dsw_club_change: 'dsw_approve_noting',
+    events: 'event_approve',
+    curriculum: 'curriculum_approve',
+    exam: 'exam_approve',
+    infrastructure: 'infrastructure_approve',
+    accounts_purchase: 'accounts_purchase_approve',
+    student_related: 'student_related_approve',
+    miscellaneous: 'noting_approve',
+    non_academic_resources: 'non_academic_resources_approve',
+  };
+
+  return permissionMap[note.subcategory] || 'noting_approve';
+}
+
 export default function NoteDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -183,6 +202,19 @@ export default function NoteDetailPage() {
   const currentUserId: string | null = user?.id ?? null;
   const isCurrentHolder =
     note?.currentHolderId && typeof window !== "undefined";
+  const currentUserRole =
+    typeof user?.role === 'string' ? user.role.toLowerCase() : user?.role?.name?.toLowerCase();
+  const isPrivilegedApprover =
+    currentUserRole === 'admin' ||
+    currentUserRole === 'superadmin' ||
+    currentUserRole === 'dean' ||
+    user?.roleCode === 'DEAN';
+  const modulePermissionKey = getModulePermissionKey(note);
+  const hasSubcategoryApproval =
+    isPrivilegedApprover ||
+    (modulePermissionKey
+      ? Boolean((notingPerms as Record<string, boolean | undefined> | undefined)?.[modulePermissionKey])
+      : false);
 
   // canAct: user must be the current holder of a pending note AND permissions must be loaded
   const canAct =
@@ -191,12 +223,12 @@ export default function NoteDetailPage() {
     !permsLoading;
 
   // Per-button permission gates (all still require canAct — permissions alone are not enough)
-  const showApproveBtn = canAct && (notingPerms?.canApprove ?? false);
-  const showRejectBtn = canAct && (notingPerms?.canReject ?? false);
-  const showRevertBtn = canAct && (notingPerms?.canRevert ?? false);
-  const showForwardBtn = canAct && (notingPerms?.canForward ?? false);
-  const showRecommendBtn = canAct && (notingPerms?.canRecommend ?? false);
-  const showNotRecommendBtn = canAct && (notingPerms?.canNotRecommend ?? false);
+  const showApproveBtn = canAct && hasSubcategoryApproval && (notingPerms?.canApprove ?? false);
+  const showRejectBtn = canAct && hasSubcategoryApproval && (notingPerms?.canReject ?? false);
+  const showRevertBtn = canAct && hasSubcategoryApproval && (notingPerms?.canRevert ?? false);
+  const showForwardBtn = canAct && hasSubcategoryApproval && (notingPerms?.canForward ?? false);
+  const showRecommendBtn = canAct && hasSubcategoryApproval && (notingPerms?.canRecommend ?? false);
+  const showNotRecommendBtn = canAct && hasSubcategoryApproval && (notingPerms?.canNotRecommend ?? false);
 
   // The whole Actions section is visible only if the user has at least one action available
   const showActionsSection =
@@ -440,7 +472,7 @@ export default function NoteDetailPage() {
 
   if (loading || !note) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
         <PageSkeleton message="Loading note..." />
       </div>
     );
@@ -458,13 +490,13 @@ export default function NoteDetailPage() {
   const StatusIcon = STATUS_ICONS[note.status] || Clock;
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-4 sm:py-6 px-4 sm:px-6">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-4 sm:py-6 px-4 sm:px-6">
       <div className="max-w-5xl mx-auto">
         {/* Navigation Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <Link
             href="/noting"
-            className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-[#6497b1] dark:text-gray-400 hover:text-[#005b96] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Noting
@@ -473,7 +505,7 @@ export default function NoteDetailPage() {
             <div className="flex items-center gap-2">
               <Link
                 href={`/noting/new?draft=${id}`}
-                className="inline-flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md bg-sgt-600 text-white text-xs font-medium hover:bg-sgt-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-xl bg-[#005b96] text-white text-xs font-medium hover:bg-[#03396c] transition-all duration-200"
               >
                 <Pencil className="w-3.5 h-3.5" />
                 Edit
@@ -495,7 +527,7 @@ export default function NoteDetailPage() {
                       });
                   }
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-md border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-all duration-200"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
@@ -523,13 +555,13 @@ export default function NoteDetailPage() {
         )}
 
         {/* ===== A4 Document Sheet ===== */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 shadow-[0_2px_8px_rgba(100,151,177,0.1)] overflow-hidden">
           {/* Document Header */}
-          <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5">
+          <div className="border-b border-[#b3cde0]/30 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
-                  <span className="px-2 py-0.5 rounded bg-sgt-50 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 text-xs font-mono font-semibold border border-sgt-100 dark:border-sgt-800/50">
+                  <span className="px-2 py-0.5 rounded-lg bg-[#b3cde0]/20 dark:bg-[#011f4b]/30 text-[#005b96] dark:text-[#b3cde0] text-xs font-mono font-semibold border border-[#b3cde0]/40 dark:border-[#011f4b]/50">
                     {note.notingId}
                   </span>
                   <span
@@ -541,7 +573,7 @@ export default function NoteDetailPage() {
                       : note.status.toUpperCase()}
                   </span>
                 </div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white capitalize">
+                <h1 className="text-xl font-bold text-[#011f4b] dark:text-white capitalize">
                   {note.category}{" "}
                   <span className="text-gray-300 dark:text-gray-600 mx-1 font-light">
                     /
@@ -552,8 +584,8 @@ export default function NoteDetailPage() {
 
               {/* Current Holder Badge */}
               {note.currentHolder && (
-                <div className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-gray-50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-700 shrink-0">
-                  <div className="w-7 h-7 rounded-full bg-sgt-100 dark:bg-sgt-900/50 flex items-center justify-center text-sgt-700 dark:text-sgt-400 font-bold text-[10px] uppercase">
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#b3cde0]/10 dark:bg-gray-900/30 border border-[#b3cde0]/30 dark:border-gray-700 shrink-0">
+                  <div className="w-7 h-7 rounded-full bg-[#b3cde0]/30 dark:bg-[#011f4b]/50 flex items-center justify-center text-[#005b96] dark:text-[#6497b1] font-bold text-[10px] uppercase">
                     {getDisplayName(note.currentHolder).substring(0, 2)}
                   </div>
                   <div>
@@ -578,7 +610,7 @@ export default function NoteDetailPage() {
                 Description
               </h3>
               <div
-                className="noting-rich-content bg-gray-50 dark:bg-gray-900/20 px-4 py-3 rounded-md border border-gray-100 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 [&>ol]:!list-decimal [&>ol]:!ml-6 [&>ol]:!pl-4 [&>ul]:!list-disc [&>ul]:!ml-6 [&>ul]:!pl-4 [&_ol]:!list-decimal [&_ol]:!ml-6 [&_ol]:!pl-4 [&_ul]:!list-disc [&_ul]:!ml-6 [&_ul]:!pl-4 [&_li]:!mb-1 [&_p]:!mb-2 [&_p]:!block [&_h1]:!text-2xl [&_h1]:!font-bold [&_h1]:!my-3 [&_h2]:!text-xl [&_h2]:!font-semibold [&_h2]:!my-2 [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!my-2 [&_blockquote]:!border-l-4 [&_blockquote]:!border-sgt-500 [&_blockquote]:!pl-4 [&_blockquote]:!italic [&_blockquote]:!my-2"
+                className="noting-rich-content bg-[#f8fafc] dark:bg-gray-900/20 px-4 py-3 rounded-xl border border-[#b3cde0]/30 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 [&>ol]:!list-decimal [&>ol]:!ml-6 [&>ol]:!pl-4 [&>ul]:!list-disc [&>ul]:!ml-6 [&>ul]:!pl-4 [&_ol]:!list-decimal [&_ol]:!ml-6 [&_ol]:!pl-4 [&_ul]:!list-disc [&_ul]:!ml-6 [&_ul]:!pl-4 [&_li]:!mb-1 [&_p]:!mb-2 [&_p]:!block [&_h1]:!text-2xl [&_h1]:!font-bold [&_h1]:!my-3 [&_h2]:!text-xl [&_h2]:!font-semibold [&_h2]:!my-2 [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!my-2 [&_blockquote]:!border-l-4 [&_blockquote]:!border-[#005b96] [&_blockquote]:!pl-4 [&_blockquote]:!italic [&_blockquote]:!my-2"
                 dangerouslySetInnerHTML={{ __html: note.description || "" }}
               />
             </section>
@@ -592,8 +624,8 @@ export default function NoteDetailPage() {
                 <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
                   Requirements / Points
                 </h3>
-                <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 p-4">
-                  <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 divide-y divide-gray-200 dark:divide-gray-700">
+                <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 bg-[#f8fafc] dark:bg-gray-900/20 p-4">
+                  <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 divide-y divide-[#b3cde0]/20 dark:divide-gray-700">
                     {note.points.map((pt, i) => (
                       <li key={pt.id || i} className="leading-relaxed py-2.5 first:pt-0 last:pb-0">
                         {pt.content}
@@ -623,7 +655,7 @@ export default function NoteDetailPage() {
                     return (
                       <div
                         key={att.id}
-                        className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 hover:border-sgt-200 dark:hover:border-sgt-800 transition-colors"
+                        className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 hover:border-[#6497b1] dark:hover:border-[#03396c] transition-all duration-200"
                       >
                         <div className="flex items-start gap-2.5">
                           <div className="w-7 h-7 rounded bg-gray-50 dark:bg-gray-900/30 flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
@@ -668,7 +700,7 @@ export default function NoteDetailPage() {
                                   }
                                 }}
                                 disabled={isViewing}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-sgt-600 transition-colors"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6497b1] hover:text-[#005b96] transition-all duration-200"
                               >
                                 {isViewing ? (
                                   <LoadingSpinner
@@ -703,7 +735,7 @@ export default function NoteDetailPage() {
                                   }
                                 }}
                                 disabled={isDownloading}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 hover:text-sgt-600 transition-colors"
+                                className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6497b1] hover:text-[#005b96] transition-all duration-200"
                               >
                                 {isDownloading ? (
                                   <LoadingSpinner
@@ -730,8 +762,8 @@ export default function NoteDetailPage() {
               <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
                 Details
               </h3>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
+              <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#b3cde0]/20 dark:bg-gray-700">
                   <div className="bg-white dark:bg-gray-800 p-3">
                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
                       Approval Period
@@ -796,9 +828,9 @@ export default function NoteDetailPage() {
               <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
                 Originator
               </h3>
-              <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md border border-gray-100 dark:border-gray-700 p-3">
+              <div className="bg-[#f8fafc] dark:bg-gray-900/20 rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 p-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-sgt-100 dark:bg-sgt-900/30 flex items-center justify-center text-sgt-700 dark:text-sgt-300 font-bold text-sm">
+                  <div className="w-9 h-9 rounded-full bg-[#b3cde0]/30 dark:bg-[#011f4b]/30 flex items-center justify-center text-[#005b96] dark:text-[#b3cde0] font-bold text-sm">
                     {getDisplayName(note.createdBy).charAt(0)}
                   </div>
                   <div>
@@ -833,7 +865,7 @@ export default function NoteDetailPage() {
             {note.history && note.history.length > 0 && (
               <section>
                 <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span className="inline-block w-8 h-px bg-gradient-to-r from-sgt-500 to-transparent" />
+                  <span className="inline-block w-8 h-px bg-gradient-to-r from-[#005b96] to-transparent" />
                   Approval Trail
                   <span className="text-[10px] font-normal text-gray-300 dark:text-gray-600 ml-1">
                     ({note.history.length} {note.history.length === 1 ? "entry" : "entries"})
@@ -850,10 +882,10 @@ export default function NoteDetailPage() {
 
                     if (action.includes("submit")) {
                       Icon = Send;
-                      iconColor = "bg-gradient-to-br from-sgt-500 to-sgt-700";
-                      glowColor = "shadow-sgt-500/40";
-                      lineColor = "#3b82f6";
-                      badgeBg = "bg-sgt-50 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300 ring-1 ring-sgt-200 dark:ring-sgt-700/50";
+                      iconColor = "bg-gradient-to-br from-[#005b96] to-[#011f4b]";
+                      glowColor = "shadow-[#005b96]/40";
+                      lineColor = "#005b96";
+                      badgeBg = "bg-[#b3cde0]/20 text-[#005b96] dark:bg-[#005b96]/10 dark:text-[#b3cde0] ring-1 ring-[#b3cde0]/40 dark:ring-[#005b96]/50";
                     } else if (action.includes("approve")) {
                       Icon = CheckCircle;
                       iconColor = "bg-gradient-to-br from-emerald-400 to-emerald-600";
@@ -904,10 +936,10 @@ export default function NoteDetailPage() {
                       badgeBg = "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-orange-200 dark:ring-orange-700/50";
                     } else if (action.includes("forward")) {
                       Icon = ArrowRight;
-                      iconColor = "bg-gradient-to-br from-sgt-400 to-sgt-600";
-                      glowColor = "shadow-sgt-500/40";
-                      lineColor = "#3b82f6";
-                      badgeBg = "bg-sgt-50 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300 ring-1 ring-sgt-200 dark:ring-sgt-700/50";
+                      iconColor = "bg-gradient-to-br from-[#6497b1] to-[#005b96]";
+                      glowColor = "shadow-[#005b96]/40";
+                      lineColor = "#005b96";
+                      badgeBg = "bg-[#b3cde0]/20 text-[#005b96] dark:bg-[#005b96]/10 dark:text-[#b3cde0] ring-1 ring-[#b3cde0]/40 dark:ring-[#005b96]/50";
                     }
 
                     const isLast = idx === note.history!.length - 1;
@@ -1002,7 +1034,7 @@ export default function NoteDetailPage() {
                               {/* Assignment */}
                               {h.nextHolder && (
                                 <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
-                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-sgt-50 dark:bg-sgt-900/20 text-sgt-600 dark:text-sgt-400">
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#b3cde0]/20 dark:bg-[#005b96]/10 text-[#005b96] dark:text-[#b3cde0]">
                                     <CornerDownLeft className="w-3 h-3" />
                                     <span className="text-[11px] font-semibold">
                                       Assigned: {getDisplayName(h.nextHolder)}
@@ -1027,7 +1059,7 @@ export default function NoteDetailPage() {
 
             {/* ===== Inline Actions ===== */}
             {showActionsSection && (
-              <section className="pt-5 mt-2 border-t border-gray-200 dark:border-gray-700">
+              <section className="pt-5 mt-2 border-t border-[#b3cde0]/30 dark:border-gray-700">
                 <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
                   Actions
                 </h3>
@@ -1036,7 +1068,7 @@ export default function NoteDetailPage() {
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
                     rows={2}
-                    className={`w-full px-3 py-2 text-sm border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none ${!remarks.trim() ? "border-red-300 dark:border-red-600" : "border-gray-200 dark:border-gray-600"}`}
+                    className={`w-full px-3 py-2 text-sm border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${!remarks.trim() ? "border-red-300 dark:border-red-600" : "border-[#b3cde0]/50 dark:border-gray-600"}`}
                     placeholder="Remarks (mandatory for ALL actions)..."
                   />
                   {!remarks.trim() && (
@@ -1048,7 +1080,7 @@ export default function NoteDetailPage() {
 
                   {/* Forward Panel */}
                   {actionType === "forward" && (
-                    <div className="rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 p-3 space-y-2.5">
+                    <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-600 bg-[#f8fafc] dark:bg-gray-700/30 p-3 space-y-2.5">
                       {/* Radio Options */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-5">
                         <label className="flex items-center gap-1.5 cursor-pointer">
@@ -1062,7 +1094,7 @@ export default function NoteDetailPage() {
                               setSelectedUser(null);
                               setSearchQuery("");
                             }}
-                            className="w-3.5 h-3.5 text-sgt-600 accent-sgt-600"
+                            className="w-3.5 h-3.5 text-[#005b96] accent-[#005b96]"
                           />
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             Auto (to manager)
@@ -1078,7 +1110,7 @@ export default function NoteDetailPage() {
                               setForwardUserId("");
                               setSelectedUser(null);
                             }}
-                            className="w-3.5 h-3.5 text-sgt-600 accent-sgt-600"
+                            className="w-3.5 h-3.5 text-[#005b96] accent-[#005b96]"
                           />
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             Manual (search faculty)
@@ -1128,7 +1160,7 @@ export default function NoteDetailPage() {
                               !remarks.trim() ||
                               !managerInfo
                             }
-                            className="w-full px-3 py-1.5 text-xs bg-sgt-600 text-white rounded hover:bg-sgt-700 disabled:opacity-50 font-medium inline-flex items-center justify-center gap-1"
+                            className="w-full px-3 py-1.5 text-xs bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-medium inline-flex items-center justify-center gap-1 transition-all duration-200"
                           >
                             {autoForwardLoading ? (
                               <LoadingSpinner size="sm" className="w-3 h-3" />
@@ -1181,7 +1213,7 @@ export default function NoteDetailPage() {
                                   setSelectedUser(null);
                                 }}
                                 placeholder="Type UID, name or emp ID..."
-                                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none"
+                                className="w-full pl-8 pr-3 py-1.5 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200"
                                 autoFocus
                               />
                               {searchLoading && (
@@ -1253,7 +1285,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2.5 text-sm bg-emerald-600 text-white rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                       >
                         {actionLoading && actionType === null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
@@ -1271,7 +1303,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                       >
                         {actionLoading && actionType === null ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
@@ -1289,7 +1321,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2.5 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-orange-600 text-white rounded-xl hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                         title="Send back to creator for modifications"
                       >
                         {actionLoading && actionType === null ? (
@@ -1308,7 +1340,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                         title="Recommend and forward to next authority"
                       >
                         {actionLoading && actionType === null ? (
@@ -1327,7 +1359,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           actionType === "forward"
                         }
-                        className="px-4 py-2.5 text-sm bg-rose-600 text-white rounded-md hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-rose-600 text-white rounded-xl hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 font-medium transition-all duration-200"
                         title="Not recommend — reject with recommendation label"
                       >
                         {actionLoading && actionType === null ? (
@@ -1347,9 +1379,9 @@ export default function NoteDetailPage() {
                           )
                         }
                         disabled={actionLoading}
-                        className={`px-4 py-2.5 text-sm border rounded-md flex items-center gap-1.5 font-medium transition-colors disabled:opacity-50 ${actionType === "forward"
-                            ? "bg-sgt-50 dark:bg-sgt-900/20 border-sgt-300 text-sgt-700 dark:text-sgt-300"
-                            : "border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+                        className={`px-4 py-2.5 text-sm border rounded-xl flex items-center gap-1.5 font-medium transition-all duration-200 disabled:opacity-50 ${actionType === "forward"
+                            ? "bg-[#b3cde0]/20 dark:bg-[#005b96]/10 border-[#6497b1] text-[#005b96] dark:text-[#b3cde0]"
+                            : "border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#f8fafc] dark:hover:bg-gray-700 text-[#03396c] dark:text-gray-300"
                           }`}
                         title="Forward note"
                       >
@@ -1367,7 +1399,7 @@ export default function NoteDetailPage() {
                           !remarks.trim() ||
                           !forwardUserId.trim()
                         }
-                        className="px-4 py-2.5 text-sm bg-sgt-600 text-white rounded-md hover:bg-sgt-700 disabled:opacity-50 font-medium transition-colors"
+                        className="px-4 py-2.5 text-sm bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-medium transition-all duration-200"
                       >
                         {actionLoading ? (
                           <LoadingSpinner size="sm" className="w-3.5 h-3.5" />

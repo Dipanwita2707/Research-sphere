@@ -8,6 +8,7 @@
  */
 
 const prisma = require("../../../shared/config/database");
+const cache = require("../../../shared/config/redis");
 const {
   ValidationError,
   ForbiddenError,
@@ -51,6 +52,8 @@ const submitEventFeedback = async (eventId, { points, shortDescription }) => {
         : null,
     },
   });
+  // Bust the cached summary so the next GET reflects the new feedback
+  await cache.del(`event:feedback:summary:${eventId}`).catch(() => {});
   return feedback;
 };
 
@@ -77,13 +80,13 @@ const getEventFeedbackFormInfo = async (eventId) => {
  * @returns {{ feedback: Array, pagination: Object, summary: Object }}
  */
 const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
-  const event = await getEventLean(prisma, eventId);
-  if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can view feedback");
-  }
+  const summaryKey = `event:feedback:summary:${eventId}`;
 
-  // Fetch paginated items, count, and average in parallel (single pass each)
-  const [items, total, avgResult] = await Promise.all([
+  // Run auth-check, paginated items, count, and cache lookup all in parallel.
+  // Previously getEventLean was awaited alone before the other 3 queries started
+  // — that was one full DB round-trip of pure dead time.
+  const [event, items, total, cachedSummary] = await Promise.all([
+    getEventLean(prisma, eventId),
     prisma.eventFeedback.findMany({
       where: { eventId },
       orderBy: { createdAt: "desc" },
@@ -91,8 +94,21 @@ const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
       take: limit,
     }),
     prisma.eventFeedback.count({ where: { eventId } }),
-    // Compute average rating across all feedback (handles variable-length points arrays)
-    prisma.$queryRaw`
+    cache.get(summaryKey).catch(() => null),
+  ]);
+
+  if (event.createdById !== userId) {
+    throw new ForbiddenError("Only the event creator can view feedback");
+  }
+
+  let overallAvg;
+  if (cachedSummary !== null && cachedSummary !== undefined) {
+    // Cache hit — skip the expensive full-table JSONB AVG scan entirely
+    overallAvg = cachedSummary.overallAvg;
+  } else {
+    // Cache miss — run the heavy query and cache the result for 60 s.
+    // Invalidated immediately when new feedback is submitted.
+    const avgResult = await prisma.$queryRaw`
       SELECT COALESCE(
         AVG(
           (SELECT AVG(val::float)
@@ -101,17 +117,17 @@ const getEventFeedback = async (eventId, userId, { page = 1, limit = 20 }) => {
       )::float AS "overallAvg"
       FROM "event_feedback"
       WHERE "eventId" = ${eventId}
-    `,
-  ]);
-
-  const overallAvg = avgResult[0]?.overallAvg ?? 0;
+    `;
+    overallAvg = Number((avgResult[0]?.overallAvg ?? 0).toFixed(2));
+    cache.set(summaryKey, { overallAvg }, 60).catch(() => {});
+  }
 
   return {
     feedback: items,
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     summary: {
       totalFeedback: total,
-      overallAvg: Number(overallAvg.toFixed(2)),
+      overallAvg,
     },
   };
 };
