@@ -48,6 +48,8 @@ interface Pass {
   checkOutDate?: string;
   hostelName?: string;
   roomNumber?: string;
+  verificationCode?: string;
+  checkoutVerificationCode?: string;
   hostelBooking?: {
     totalPrice?: number;
     roomNumber?: string;
@@ -368,7 +370,7 @@ function AllPassesPageContent() {
           console.log('[REFUND CALC] Applied slab:', appliedSlab, '(' + refundPercent + '% refund)');
           
           // Calculate refund amounts - convert to number to ensure .toFixed() works
-          const originalAmount = parseFloat(pass.hostelBooking.totalPrice) || 0;
+          const originalAmount = pass.hostelBooking.totalPrice || 0;
           const cancellationFeePercent = 100 - refundPercent;
           const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
           const refundAmount = originalAmount - cancellationFeeAmount;

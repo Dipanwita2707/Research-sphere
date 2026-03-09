@@ -344,9 +344,9 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-ev border border-[#b3cde0] overflow-hidden">
       {/* ── Step Header ── */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+      <div className="bg-gradient-to-br from-[#011f4b] to-[#005b96] px-6 py-4">
         {/* Draft auto-saved badge */}
         <div className="flex justify-end mb-2">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-white text-[11px] font-medium">
@@ -364,7 +364,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 <div className="flex flex-col items-center min-w-[72px]">
                   <div
                     className={`w-10 h-10 rounded-full border-2 flex items-center justify-center
-                    ${done ? "bg-green-500 border-green-500" : active ? "bg-white border-white text-blue-600" : "bg-blue-500 border-blue-400 opacity-50 text-white"}`}
+                    ${done ? "bg-green-500 border-green-500" : active ? "bg-white border-white text-ev-700" : "bg-[#03396c] border-[#6497b1] opacity-60 text-white"}`}
                   >
                     {done ? (
                       <Check className="w-5 h-5 text-white" />
@@ -380,7 +380,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 </div>
                 {step.num < 3 && (
                   <div
-                    className={`w-14 h-0.5 mx-1 mb-4 ${done ? "bg-green-400" : "bg-blue-400 opacity-30"}`}
+                    className={`w-14 h-0.5 mx-1 mb-4 ${done ? "bg-green-400" : "bg-[#6497b1] opacity-30"}`}
                   />
                 )}
               </div>
@@ -396,7 +396,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
           <>
             {/* Club Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Club Name <span className="text-red-500">*</span>
                 <span className="text-xs font-normal text-gray-400 ml-2">
                   (letters, numbers, spaces, punctuation only)
@@ -408,7 +408,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 value={value.clubName || ""}
                 onChange={(e) => set("clubName", sanitizeText(e.target.value))}
                 disabled={disabled}
-                className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.clubName ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                className={`ev-input ${errors.clubName ? "border-red-400" : "border-[#b3cde0]"}`}
                 placeholder="Enter club name (unique, max 100 chars)"
               />
               <div className="flex justify-between items-start mt-0.5">
@@ -421,12 +421,12 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Club Category <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">
+                  <label className="block text-xs text-ev-400 mb-1">
                     Main Category
                   </label>
                   <select
@@ -436,7 +436,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                       set("clubCategoryId", "");
                     }}
                     disabled={disabled}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500"
+                    className="ev-input"
                   >
                     <option value="">Select main category…</option>
                     {mainCategories.map((c) => (
@@ -449,14 +449,14 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 </div>
                 {selectedMainCategory && (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">
+                    <label className="block text-xs text-ev-400 mb-1">
                       Specific Type <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={value.clubCategoryId || ""}
                       onChange={(e) => set("clubCategoryId", e.target.value)}
                       disabled={disabled}
-                      className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 ${errors.clubCategoryId ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                      className={`ev-input ${errors.clubCategoryId ? "border-red-400" : "border-[#b3cde0]"}`}
                     >
                       <option value="">Select specific type…</option>
                       {subCategories.map((c) => (
@@ -474,7 +474,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
             {/* Purpose */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Purpose / Objective <span className="text-red-500">*</span>
                 <span className="text-xs font-normal text-gray-400 ml-2">
                   (50–2000 chars)
@@ -486,7 +486,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 disabled={disabled}
                 maxLength={2000}
                 rows={4}
-                className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 resize-y ${errors.purpose ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                className={`ev-input resize-y ${errors.purpose ? "border-red-400" : "border-[#b3cde0]"}`}
                 placeholder="Describe the club's purpose and objectives (minimum 50 characters)…"
               />
               <div className="flex justify-between items-start mt-0.5">
@@ -501,7 +501,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
             {/* Academic Session */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Academic Session <span className="text-red-500">*</span>
                 <span className="text-xs font-normal text-gray-400 ml-2">
                   (YYYY-YY or YYYY-YYYY)
@@ -515,7 +515,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   set("academicSession", sanitizeSession(e.target.value))
                 }
                 disabled={disabled}
-                className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 ${errors.academicSession ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                className={`ev-input ${errors.academicSession ? "border-red-400" : "border-[#b3cde0]"}`}
                 placeholder="e.g. 2025-26"
               />
               <FieldError msg={errors.academicSession} />
@@ -523,7 +523,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
             {/* Target Group */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Target Student Group <span className="text-red-500">*</span>
                 <span className="text-xs font-normal text-gray-400 ml-2">
                   (select one or more)
@@ -537,7 +537,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   return (
                     <label
                       key={opt.value}
-                      className={`cursor-pointer border-2 rounded-lg p-2 text-center text-sm select-none transition-colors ${checked ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" : "border-gray-300 dark:border-gray-600 hover:border-blue-300"}`}
+                      className={`cursor-pointer border-2 rounded-lg p-2 text-center text-sm select-none transition-colors ${checked ? "border-ev-700 bg-ev-50 text-ev-700" : "border-[#b3cde0] hover:border-[#6497b1]"}`}
                     >
                       <input
                         type="checkbox"
@@ -562,7 +562,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
             {/* Activity Types */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Expected Activity Types <span className="text-red-500">*</span>
                 <span className="text-xs font-normal text-gray-400 ml-2">
                   (select one or more)
@@ -576,11 +576,11 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   return (
                     <label
                       key={a}
-                      className={`flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer text-sm select-none transition-colors ${checked ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-300 dark:border-gray-600 hover:border-blue-300"}`}
+                      className={`flex items-center gap-1.5 p-2 border rounded-lg cursor-pointer text-sm select-none transition-colors ${checked ? "border-ev-700 bg-ev-50" : "border-[#b3cde0] hover:border-[#6497b1]"}`}
                     >
                       <input
                         type="checkbox"
-                        className="w-3.5 h-3.5 rounded accent-blue-600"
+                        className="w-3.5 h-3.5 rounded accent-[#005b96]"
                         checked={checked}
                         disabled={disabled}
                         onChange={() =>
@@ -605,26 +605,26 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
           <>
             {/* Chairperson – auto-assigned read-only */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Club Chairperson{" "}
                 <span className="text-xs font-normal text-gray-400">
                   (you — auto-assigned as the club head)
                 </span>
               </label>
-              <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-700 dark:text-blue-300 font-bold text-sm flex-shrink-0">
+              <div className="flex items-center gap-3 px-4 py-3 bg-ev-50 border border-[#b3cde0] rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-ev-50 border border-[#b3cde0] flex items-center justify-center text-ev-700 font-bold text-sm flex-shrink-0">
                   {currentUser?.name?.charAt(0)?.toUpperCase() || "?"}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  <p className="text-sm font-medium text-ev-900 truncate">
                     {currentUser?.name || "Loading…"}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-ev-400">
                     {currentUser?.uid || currentUser?.id || ""} · Club
                     Chairperson
                   </p>
                 </div>
-                <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium flex-shrink-0">
+                <span className="text-xs bg-ev-50 text-ev-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0 border border-[#b3cde0]">
                   Chairperson
                 </span>
               </div>
@@ -657,7 +657,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
             {/* Initial Members */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-ev-800 mb-1">
                 Initial Club Members <span className="text-red-500">*</span>
                 <span className="text-xs font-normal text-gray-400 ml-2">
                   ({(value.initialMembers || []).length}/50 added)
@@ -670,7 +670,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   {(value.initialMembers || []).map((id, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 rounded-full text-xs text-blue-800 dark:text-blue-200"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-ev-50 border border-[#b3cde0] rounded-full text-xs text-ev-700"
                     >
                       {id}
                       <button
@@ -684,7 +684,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                             ),
                           )
                         }
-                        className="text-blue-500 hover:text-red-500 leading-none"
+                        className="text-ev-400 hover:text-red-500 leading-none"
                       >
                         &times;
                       </button>
@@ -703,7 +703,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                       setMemberQuery(sanitizeText(e.target.value))
                     }
                     disabled={disabled}
-                    className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 ${errors.initialMembers ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                    className={`ev-input ${errors.initialMembers ? "border-red-400" : "border-[#b3cde0]"}`}
                     placeholder="Search students to add as members…"
                   />
                   {memberLoading && (
@@ -742,9 +742,9 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                                 setMemberResults([]);
                               }
                             }}
-                            className={`w-full text-left px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 last:border-0 ${already ? "opacity-40 cursor-not-allowed bg-gray-50 dark:bg-gray-700/40" : "hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+                            className={`w-full text-left px-4 py-2.5 border-b border-[#b3cde0]/40 last:border-0 ${already ? "opacity-40 cursor-not-allowed bg-ev-50" : "hover:bg-ev-50"}`}
                           >
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            <p className="text-sm font-medium text-ev-900">
                               {s.name}{" "}
                               {already && (
                                 <span className="text-xs text-gray-400">
@@ -752,7 +752,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                                 </span>
                               )}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-ev-400">
                               {s.uid} · {s.department}
                             </p>
                           </button>
@@ -769,20 +769,20 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Meeting Frequency */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-ev-800 mb-1">
                   Meeting Frequency <span className="text-red-500">*</span>
                 </label>
                 <div className="space-y-1.5">
                   {MEETING_FREQUENCIES.map((f) => (
                     <label
                       key={f.value}
-                      className={`flex items-center gap-2.5 px-3 py-2 border-2 rounded-lg cursor-pointer text-sm select-none transition-colors ${value.meetingFrequency === f.value ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" : "border-gray-200 dark:border-gray-600 hover:border-blue-300"}`}
+                      className={`flex items-center gap-2.5 px-3 py-2 border-2 rounded-lg cursor-pointer text-sm select-none transition-colors ${value.meetingFrequency === f.value ? "border-ev-700 bg-ev-50" : "border-[#b3cde0] hover:border-[#6497b1]"}`}
                     >
                       <input
                         type="radio"
                         name="freq"
                         value={f.value}
-                        className="accent-blue-600"
+                        className="accent-[#005b96]"
                         disabled={disabled}
                         checked={value.meetingFrequency === f.value}
                         onChange={() =>
@@ -802,7 +802,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
               {/* Numeric fields */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-ev-800 mb-1">
                     Estimated Annual Activities{" "}
                     <span className="text-red-500">*</span>
                     <span className="text-xs font-normal text-gray-400 ml-1">
@@ -825,14 +825,14 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                       set("estimatedAnnualActivityCount", n);
                     }}
                     disabled={disabled}
-                    className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 ${errors.estimatedAnnualActivityCount ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                    className={`ev-input ${errors.estimatedAnnualActivityCount ? "border-red-400" : "border-[#b3cde0]"}`}
                     placeholder="e.g. 12"
                   />
                   <FieldError msg={errors.estimatedAnnualActivityCount} />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-ev-800 mb-1">
                     Expected Student Strength
                     <span className="text-xs font-normal text-gray-400 ml-1">
                       (optional, numbers only)
@@ -854,7 +854,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                       set("expectedStudentStrength", n);
                     }}
                     disabled={disabled}
-                    className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 ${errors.expectedStudentStrength ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                    className={`ev-input ${errors.expectedStudentStrength ? "border-red-400" : "border-[#b3cde0]"}`}
                     placeholder="Approximate members"
                   />
                   <FieldError msg={errors.expectedStudentStrength} />
@@ -869,9 +869,9 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
           <>
             {/* Declarations */}
             <div
-              className={`rounded-lg border p-4 space-y-4 ${errors.codeOfConductAccepted || errors.antiDiscriminationAccepted ? "border-red-300 bg-red-50 dark:bg-red-900/10" : "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20"}`}
+              className={`rounded-lg border p-4 space-y-4 ${errors.codeOfConductAccepted || errors.antiDiscriminationAccepted ? "border-red-300 bg-red-50 dark:bg-red-900/10" : "border-[#b3cde0] bg-ev-50"}`}
             >
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+              <h4 className="text-sm font-semibold text-ev-900">
                 Required Declarations
               </h4>
 
@@ -883,13 +883,13 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   onChange={(e) =>
                     set("codeOfConductAccepted", e.target.checked)
                   }
-                  className="mt-0.5 w-4 h-4 accent-blue-600"
+                  className="mt-0.5 w-4 h-4 accent-[#005b96]"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  <p className="text-sm font-medium text-ev-900">
                     Code of Conduct <span className="text-red-500">*</span>
                   </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                  <p className="text-xs text-ev-400 mt-0.5">
                     I declare that all club activities will adhere to the
                     university&apos;s code of conduct and disciplinary
                     guidelines.
@@ -905,14 +905,14 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   onChange={(e) =>
                     set("antiDiscriminationAccepted", e.target.checked)
                   }
-                  className="mt-0.5 w-4 h-4 accent-blue-600"
+                  className="mt-0.5 w-4 h-4 accent-[#005b96]"
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  <p className="text-sm font-medium text-ev-900">
                     Anti-Discrimination Declaration{" "}
                     <span className="text-red-500">*</span>
                   </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                  <p className="text-xs text-ev-400 mt-0.5">
                     I declare this club will not discriminate based on race,
                     religion, gender, caste, or any other protected
                     characteristic.
@@ -930,13 +930,13 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
             </div>
 
             {/* Optional */}
-            <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-4">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="border border-[#b3cde0] rounded-lg p-4 space-y-4">
+              <h4 className="text-sm font-semibold text-ev-900">
                 Optional Information
               </h4>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-ev-800 mb-1">
                   Proposed Club Email
                   <span className="text-gray-400 font-normal ml-1">
                     (valid email format only)
@@ -950,14 +950,14 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                   }
                   disabled={disabled}
                   maxLength={100}
-                  className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 ${errors.proposedEmail ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+                  className={`ev-input text-sm ${errors.proposedEmail ? "border-red-400" : "border-[#b3cde0]"}`}
                   placeholder="club@sgtuniversity.org"
                 />
                 <FieldError msg={errors.proposedEmail} />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-xs font-medium text-ev-800 mb-1">
                   Social Media Handles
                   <span className="text-gray-400 font-normal ml-1">
                     (handles / URLs only)
@@ -979,7 +979,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                         })
                       }
                       disabled={disabled}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm focus:ring-2 focus:ring-blue-500"
+                      className="ev-input text-sm"
                       placeholder={p.charAt(0).toUpperCase() + p.slice(1)}
                     />
                   ))}
@@ -987,8 +987,8 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
               </div>
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg px-4 py-2.5">
-              <p className="text-xs text-blue-800 dark:text-blue-200">
+            <div className="bg-ev-50 border border-[#b3cde0] rounded-lg px-4 py-2.5">
+              <p className="text-xs text-ev-800">
                 <strong>Note:</strong> Club Name, Category, Purpose and Academic
                 Session are <strong>immutable after approval</strong>. Changes
                 require a new noting request.
@@ -999,23 +999,23 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
       </div>
 
       {/* ── Navigation ── */}
-      <div className="border-t border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between">
+      <div className="border-t border-[#b3cde0] px-6 py-3 flex items-center justify-between">
         <button
           type="button"
           onClick={handlePrev}
           disabled={currentStep === 1 || disabled}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm text-ev-700 hover:bg-ev-50 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-4 h-4" /> Previous
         </button>
 
-        <span className="text-xs text-gray-500">Step {currentStep} of 3</span>
+        <span className="text-xs text-ev-400">Step {currentStep} of 3</span>
 
         <button
           type="button"
           onClick={handleNext}
           disabled={currentStep === 3 || disabled}
-          className="flex items-center gap-1.5 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-4 py-2 text-sm bg-ev-700 text-white rounded-lg hover:bg-ev-800 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Next <ChevronRight className="w-4 h-4" />
         </button>
@@ -1028,7 +1028,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
 function Dropdown({ children }: { children: React.ReactNode }) {
   return (
-    <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+    <div className="absolute z-20 w-full mt-1 bg-white border border-[#b3cde0] rounded-lg shadow-ev max-h-52 overflow-y-auto">
       {children}
     </div>
   );
@@ -1067,19 +1067,19 @@ function SearchField({
 }: SearchFieldProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+      <label className="block text-sm font-medium text-ev-800 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
 
       {selectedId ? (
         <div
-          className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${error ? "border-red-300" : "border-green-300 dark:border-green-700"} bg-green-50 dark:bg-green-900/20`}
+          className={`flex items-center justify-between px-3 py-2.5 rounded-lg border ${error ? "border-red-300" : "border-[#b3cde0]"} bg-ev-50`}
         >
           <div>
-            <p className="text-sm font-medium text-gray-900 dark:text-white">
+            <p className="text-sm font-medium text-ev-900">
               {selectedId}
             </p>
-            <p className="text-xs text-gray-500">{selectedLabel}</p>
+            <p className="text-xs text-ev-400">{selectedLabel}</p>
           </div>
           <button
             type="button"
@@ -1097,7 +1097,7 @@ function SearchField({
             value={query}
             onChange={(e) => onQueryChange(sanitizeText(e.target.value))}
             disabled={disabled}
-            className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 pr-10 ${error ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
+            className={`ev-input pr-10 ${error ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
             placeholder={placeholder}
           />
           {loading && (
@@ -1117,12 +1117,12 @@ function SearchField({
                   type="button"
                   onClick={() => onSelect(p)}
                   disabled={disabled}
-                  className="w-full text-left px-4 py-2.5 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="w-full text-left px-4 py-2.5 border-b border-[#b3cde0]/40 last:border-0 hover:bg-ev-50"
                 >
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  <p className="text-sm font-medium text-ev-900">
                     {p.name}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-ev-400">
                     {p.uid} · {p.department} · {p.designation}
                   </p>
                 </button>

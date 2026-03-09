@@ -51,6 +51,15 @@ export interface RegistrationRow {
   enteredAt?: string;
   registeredAt: string;
   updatedAt: string;
+  /** Extra pass guests linked to this registration */
+  guests?: Array<{
+    id: string;
+    guestName: string;
+    guestEmail: string;
+    mobileNumber: string;
+    relationship: string;
+    createdAt: string;
+  }>;
   /** Team info (populated when event is team-based) */
   team?: {
     id: string;

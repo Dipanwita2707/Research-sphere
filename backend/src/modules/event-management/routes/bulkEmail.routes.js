@@ -38,4 +38,10 @@ router.get('/:id/emails/analytics', validateEventId, eventManagePerm, bulkEmailC
 // Cancel a scheduled email
 router.delete('/:id/emails/scheduled/:logId', validateEventId, eventManagePerm, bulkEmailController.cancelScheduledEmail);
 
+// Get full body + metadata for a single email log (lazy-loaded by UI when user expands/previews)
+router.get('/:id/emails/:logId', validateEventId, eventManagePerm, bulkEmailController.getEmailLogDetail);
+
+// Get paginated per-recipient delivery & open details for a single campaign
+router.get('/:id/emails/:logId/recipients', validateEventId, eventManagePerm, bulkEmailController.getEmailLogRecipients);
+
 module.exports = router;

@@ -10,6 +10,7 @@ import api from '@/shared/api/api';
 import Link from 'next/link';
 import logger from '@/shared/utils/logger';
 import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
+import { useMyClubs } from '@/features/dsw/hooks';
 
 interface DepartmentPermission {
   category: string;
@@ -102,7 +103,15 @@ export default function NavigationHeader() {
   // This shares the same query cache as page-level useNotingPermissions() calls,
   // so navigating between pages no longer fires a duplicate permissions request.
   const { data: notingPermsData } = useNotingPermissions({ enabled: !!isStudent });
+  const { data: myClubsData } = useMyClubs();
   const hasNotingAccess = !!(notingPermsData?.noting_create);
+  const isClubChairpersonFromNoting = !!(notingPermsData?.isClubChairperson);
+  const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
+    club => club.chairpersonId === user.id && club.status === 'active'
+  ));
+  const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
+  const canBrowseEvents = true;
+  const [hasVolunteerAssignments, setHasVolunteerAssignments] = useState(false);
 
   // Gate Entry Access Control based on designation
   const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
@@ -139,6 +148,7 @@ export default function NavigationHeader() {
     };
     defer(() => fetchUnreadCount());
     defer(() => fetchUserPermissions());
+    defer(() => fetchVolunteerFlag());
     // Noting access for students now handled by useNotingPermissions hook above
   }, [user]);
 
@@ -159,6 +169,18 @@ export default function NavigationHeader() {
       }
     } catch (error) {
       logger.error('Error fetching permissions:', error);
+    }
+  };
+
+  const fetchVolunteerFlag = async () => {
+    try {
+      const res = await api.get('/events/volunteers/my');
+      const assignments = res.data?.data;
+      if (Array.isArray(assignments) && assignments.length > 0) {
+        setHasVolunteerAssignments(true);
+      }
+    } catch (error) {
+      logger.error('Error fetching volunteer flag:', error);
     }
   };
 
@@ -431,8 +453,8 @@ export default function NavigationHeader() {
     description: 'Student admissions portal',
   });
 
-  // Add Noting approval - For Faculty, Staff, Admin, and students with noting access (e.g. club chairpersons)
-  if (!isStudent || hasNotingAccess) {
+  // Add Noting approval - For Faculty, Staff, Admin only (blocked for all students)
+  if (!isStudent) {
     navigationSubItems.push({
       name: '📋 Noting & Approval',
       href: '/noting',
@@ -441,17 +463,24 @@ export default function NavigationHeader() {
   }
 
   // Add Event Management
+  const canCreateEvent = isFaculty || isClubChairperson;
+  const eventChildren: SubMenuItem[] = [
+    ...(canBrowseEvents ? [{ name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' }] : []),
+    { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
+    { name: '� My Certificates', href: '/events/my-certificates', description: 'View and download your event certificates' },
+    { name: '�🏪 Stall Application', href: '/events/stall-opportunities', description: 'Apply for stalls at events with stall opportunities' },
+    { name: '📱 Event Feedback Scanner', href: '/event-feedback-scanner', description: 'Scan QR to open event feedback form' },
+  ];
+  if (canCreateEvent) {
+    eventChildren.splice(1, 0, { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' });
+  }
+  if (hasVolunteerAssignments) {
+    eventChildren.push({ name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' });
+  }
   navigationSubItems.push({
     name: '📅 Event Management',
     description: 'Discover, organize, and attend university events',
-    children: [
-      { name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' },
-      { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' },
-      { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
-      { name: '🏪 Stall Application', href: '/events/stall-opportunities', description: 'Apply for stalls at events with stall opportunities' },
-      { name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' },
-      { name: '📱 Event Feedback Scanner', href: '/event-feedback-scanner', description: 'Scan QR to open event feedback form' },
-    ],
+    children: eventChildren,
   });
 
   // Add RFID

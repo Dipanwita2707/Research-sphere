@@ -11,6 +11,27 @@ const crypto = require('crypto');
 const { applyCouponInTransaction } = require('./coupon.service');
 const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../constants/event.constants');
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_REGEX = /^[0-9]{10}$/;
+
+const buildExtraPassSummary = (registration) => {
+  const totalAllowedEntries = registration?.totalAllowedEntries ?? 1;
+  const checkedInCount = registration?.checkedInCount ?? 0;
+  const checkedOutCount = registration?.checkedOutCount ?? 0;
+  const currentlyInside = Math.max(0, checkedInCount - checkedOutCount);
+  return {
+    extraPassCount: registration?.extraPassCount ?? 0,
+    totalAllowedEntries,
+    checkedInCount,
+    checkedOutCount,
+    currentlyInside,
+    availableEntrySlots: Math.max(0, totalAllowedEntries - currentlyInside),
+    // Keep legacy alias for older clients.
+    remainingEntries: Math.max(0, totalAllowedEntries - currentlyInside),
+    studentInside: registration?.studentInsideAssumed ?? currentlyInside > 0,
+  };
+};
+
 /**
  * Get registration form for an event (includes custom fields and user profile data)
  */
@@ -74,6 +95,8 @@ const getRegistrationForm = async (eventId, userId) => {
       requireFormSubmission: event.requireFormSubmission,
       paymentType: event.paymentType,
       registrationFee: event.registrationFee,
+      allowExtraPasses: event.allowExtraPasses,
+      maxExtraPassesPerUser: event.maxExtraPassesPerUser,
     },
     customFields: event.EventCustomField.map(field => ({
       id: field.id,
@@ -147,7 +170,6 @@ const getUserProfileData = async (userId) => {
           lastName: true,
           displayName: true,
           empId: true,
-          address: true,
           primaryDepartment: {
             select: {
               departmentName: true,
@@ -199,7 +221,7 @@ const getUserProfileData = async (userId) => {
       : profile?.primarySchool?.facultyName || null,
     passOutYear,
     institute: 'SGT University', // Can be made dynamic
-    location: profile?.address || '',
+    location: isStudent ? profile?.address || '' : '',
   };
 };
 
@@ -375,6 +397,11 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
           discountAmount: discountAmount ?? undefined,
           originalAmount: originalAmount ?? undefined,
           amountPaid: event.paymentType === 'paid' ? finalAmount : null,
+          extraPassCount: existingRegistration.extraPassCount ?? 0,
+          totalAllowedEntries: existingRegistration.totalAllowedEntries ?? 1,
+          checkedInCount: existingRegistration.checkedInCount ?? 0,
+          checkedOutCount: existingRegistration.checkedOutCount ?? 0,
+          studentInsideAssumed: existingRegistration.studentInsideAssumed ?? false,
           updatedAt: new Date(),
         },
       });
@@ -397,6 +424,11 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
           discountAmount: discountAmount ?? undefined,
           originalAmount: originalAmount ?? undefined,
           amountPaid: event.paymentType === 'paid' ? finalAmount : null,
+          extraPassCount: 0,
+          totalAllowedEntries: 1,
+          checkedInCount: 0,
+          checkedOutCount: 0,
+          studentInsideAssumed: false,
           updatedAt: new Date(),
         },
       });
@@ -480,6 +512,137 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
       discountType: couponPreview.discountType,
       discountValue: couponPreview.discountValue,
     } : null,
+  };
+};
+
+/**
+ * Create an extra pass (guest) under current user's registration
+ */
+const createExtraPass = async (eventId, userId, guestData) => {
+  const event = await resolveEvent(eventId, {
+    select: {
+      id: true,
+      allowExtraPasses: true,
+      maxExtraPassesPerUser: true,
+      status: true,
+    },
+  });
+
+  if (!event.allowExtraPasses) {
+    throw new ValidationError('Extra passes are not enabled for this event');
+  }
+
+  const registration = await prisma.eventRegistration.findFirst({
+    where: {
+      eventId: event.id,
+      userId,
+      status: {
+        in: [
+          REGISTRATION_STATUS.PENDING,
+          REGISTRATION_STATUS.CONFIRMED,
+          REGISTRATION_STATUS.INCOMPLETE_TEAM,
+        ],
+      },
+    },
+  });
+
+  if (!registration) {
+    throw new ValidationError('You must register for this event before adding extra passes');
+  }
+
+  const guestName = String(guestData?.guestName || '').trim();
+  const guestEmail = String(guestData?.guestEmail || '').trim().toLowerCase();
+  const mobileNumber = String(guestData?.mobileNumber || '').trim();
+  const relationship = String(guestData?.relationship || '').trim();
+
+  if (!guestName || !guestEmail || !mobileNumber || !relationship) {
+    throw new ValidationError('guestName, guestEmail, mobileNumber, and relationship are required');
+  }
+  if (!EMAIL_REGEX.test(guestEmail)) {
+    throw new ValidationError('Guest email is invalid');
+  }
+  if (!MOBILE_REGEX.test(mobileNumber)) {
+    throw new ValidationError('Mobile number must be a valid 10-digit number');
+  }
+
+  const maxExtra = event.maxExtraPassesPerUser ?? 0;
+  if (registration.extraPassCount >= maxExtra) {
+    throw new ValidationError(`Extra pass limit reached. Maximum allowed: ${maxExtra}`);
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const nextExtraPassCount = registration.extraPassCount + 1;
+    const updatedRegistration = await tx.eventRegistration.update({
+      where: { id: registration.id },
+      data: {
+        extraPassCount: { increment: 1 },
+        totalAllowedEntries: 1 + nextExtraPassCount,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        registrationId: true,
+        extraPassCount: true,
+        totalAllowedEntries: true,
+        checkedInCount: true,
+        checkedOutCount: true,
+        studentInsideAssumed: true,
+      },
+    });
+
+    const extraPass = await tx.eventExtraPass.create({
+      data: {
+        id: crypto.randomUUID(),
+        eventId: event.id,
+        registrationId: registration.id,
+        createdById: userId,
+        guestName,
+        guestEmail,
+        mobileNumber,
+        relationship,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      extraPass,
+      registration: updatedRegistration,
+    };
+  });
+
+  return {
+    extraPass: result.extraPass,
+    summary: buildExtraPassSummary(result.registration),
+  };
+};
+
+/**
+ * Get current user's extra passes for an event
+ */
+const getMyExtraPasses = async (eventId, userId) => {
+  const event = await resolveEvent(eventId, {
+    select: { id: true, allowExtraPasses: true, maxExtraPassesPerUser: true },
+  });
+
+  const registration = await prisma.eventRegistration.findFirst({
+    where: { eventId: event.id, userId },
+    include: {
+      EventExtraPass: {
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
+
+  if (!registration) {
+    throw new NotFoundError('Registration not found for this event');
+  }
+
+  return {
+    allowExtraPasses: event.allowExtraPasses,
+    maxExtraPassesPerUser: event.maxExtraPassesPerUser,
+    registrationId: registration.registrationId,
+    guests: registration.EventExtraPass,
+    summary: buildExtraPassSummary(registration),
   };
 };
 
@@ -590,6 +753,8 @@ module.exports = {
   getRegistrationForm,
   getUserProfileData,
   submitRegistrationForm,
+  createExtraPass,
+  getMyExtraPasses,
   getRegistrationDashboard,
   REGISTRATION_STATUS,
   PAYMENT_STATUS,

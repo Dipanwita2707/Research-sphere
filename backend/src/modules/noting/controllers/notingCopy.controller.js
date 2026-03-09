@@ -21,6 +21,7 @@ const {
 } = require("../../../shared/utils/AppError");
 
 const { invalidateNoteCaches } = require("../services/noting.service");
+const notingNotification = require("../services/notingNotification.service");
 
 const { createCursorPaginationMeta } = require("../utils/pagination");
 
@@ -155,6 +156,8 @@ const sendCopy = asyncHandler(async (req, res) => {
   });
 
   await invalidateNoteCaches(id);
+  // Trigger notifications: each copy recipient is informed they have been assigned a copy
+  notingNotification.notifyCopySent(copies, note);
   return ApiResponse.success(
     res,
     copies,
@@ -220,6 +223,8 @@ const replyCopy = asyncHandler(async (req, res) => {
   ]);
 
   await invalidateNoteCaches(copy.note.id);
+  // Trigger notification: the copy sender is informed a reply was submitted
+  notingNotification.notifyCopyReply(copy);
   return ApiResponse.success(res, reply, "Reply submitted successfully");
 });
 
@@ -517,6 +522,8 @@ const forwardCopy = asyncHandler(async (req, res) => {
   }
 
   await invalidateNoteCaches(copy.noteId);
+  // Trigger notifications: each manager in the escalation chain is notified
+  notingNotification.notifyCopyEscalated(allBosses, copy);
   return ApiResponse.success(res, updatedCopy, message);
 });
 
@@ -703,6 +710,9 @@ const getMyCopies = asyncHandler(async (req, res) => {
   const cursorParam = req.query.cursor || null;  // cursor-based pagination
   const usePagination = !isNaN(rawPage) && !isNaN(rawLimit);
   const useCursorPag = !!cursorParam;
+  // Paginated /my-copies is used by the dashboard list and does not need full
+  // thread hydration. Keep full thread only for non-paginated detail workflows.
+  const includeThreadData = !usePagination && !useCursorPag;
   const page = usePagination ? Math.max(1, rawPage) : null;
   const limit = usePagination || useCursorPag
     ? Math.min(100, Math.max(1, rawLimit || 20))
@@ -763,15 +773,21 @@ const getMyCopies = asyncHandler(async (req, res) => {
             approvalPeriod: true,
             createdAt: true,
             createdById: true,
-            points: { select: { id: true, content: true, sortOrder: true } },
-            attachments: {
-              select: {
-                id: true,
-                filePath: true,
-                fileName: true,
-                fileDescription: true,
-              },
-            },
+            ...(includeThreadData
+              ? {
+                points: {
+                  select: { id: true, content: true, sortOrder: true },
+                },
+                attachments: {
+                  select: {
+                    id: true,
+                    filePath: true,
+                    fileName: true,
+                    fileDescription: true,
+                  },
+                },
+              }
+              : {}),
             createdBy: {
               select: {
                 uid: true,
@@ -782,17 +798,21 @@ const getMyCopies = asyncHandler(async (req, res) => {
         },
         sentBy: { select: userDisplaySelect },
         rootCopy: { select: { assignedToId: true } },
-        replies: {
-          select: {
-            id: true,
-            copyId: true,
-            remarks: true,
-            attachments: true,
-            createdAt: true,
-            repliedBy: { select: userDisplaySelect },
-          },
-          orderBy: { createdAt: "asc" },
-        },
+        ...(includeThreadData
+          ? {
+            replies: {
+              select: {
+                id: true,
+                copyId: true,
+                remarks: true,
+                attachments: true,
+                createdAt: true,
+                repliedBy: { select: userDisplaySelect },
+              },
+              orderBy: { createdAt: "asc" },
+            },
+          }
+          : {}),
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -834,8 +854,23 @@ const getMyCopies = asyncHandler(async (req, res) => {
   }
   let dedupedCopies = Array.from(byChain.values());
 
-  // For each copy, fetch replies from ALL copies of the same note (boss + our other copies)
-  // so assignee sees full thread even when we deduped to one card per noting
+  // For dashboard list mode, we intentionally skip heavy full-thread hydration.
+  // Copy detail page can still request non-paginated data and get full thread.
+  if (!includeThreadData) {
+    const responseData = {
+      copies: dedupedCopies,
+      myManagerId: managerId,
+      ...(paginationMeta ? { pagination: paginationMeta } : {}),
+    };
+    await cache.set(copiesCacheKey, responseData, 60);
+    return ApiResponse.success(
+      res,
+      responseData,
+      "My copies fetched successfully",
+    );
+  }
+
+  // For non-paginated detail mode, include full reply/thread context.
   const noteIds = [...new Set(dedupedCopies.map((c) => c.noteId))];
 
   // ── OPTIMISED FETCH STRATEGY (v2) ───────────────────────────────────────

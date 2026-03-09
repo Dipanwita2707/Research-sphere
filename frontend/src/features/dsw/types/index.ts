@@ -40,6 +40,7 @@ export type ClubChangeType =
   | "other";
 
 export type ClubChangeRequestStatus = "pending" | "approved" | "rejected";
+export type ClubMemberApplicationStatus = "pending" | "approved" | "rejected";
 
 // User Role
 export type UserRole =
@@ -186,6 +187,26 @@ export interface ClubChangeRequest {
   requestedBy?: UserReference;
   approvedBy?: UserReference | null;
   rejectedBy?: UserReference | null;
+}
+
+export interface ClubMemberApplication {
+  id: string;
+  clubId: string;
+  applicantId: string;
+  applicantName: string;
+  email: string | null;
+  mobileNumber: string | null;
+  program: string | null;
+  course: string | null;
+  status: ClubMemberApplicationStatus;
+  reviewNote: string | null;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  club?: Pick<Club, "id" | "clubId" | "name" | "status">;
+  applicant?: UserReference;
+  reviewedBy?: UserReference | null;
 }
 
 // Audit Log

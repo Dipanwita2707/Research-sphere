@@ -122,7 +122,7 @@ function ApprovalChain({ req }: { req: ClubCreationRequest }) {
             {step}
           </span>
           {i < APPROVAL_STEPS.length - 1 && (
-            <ArrowRight className="w-3 h-3 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+            <ArrowRight className="w-3 h-3 text-ev-200 flex-shrink-0" />
           )}
         </React.Fragment>
       ))}
@@ -145,14 +145,14 @@ function PendingRequestCard({
   });
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-amber-200 dark:border-amber-800/60 shadow-sm p-5 flex flex-col gap-3">
+    <div className="bg-white rounded-xl border border-amber-200 shadow-ev p-5 flex flex-col gap-3">
       {/* Header row */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+          <h3 className="text-base font-semibold text-ev-900 truncate">
             {req.clubName ?? "Unnamed Club"}
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <p className="text-xs text-ev-400 mt-0.5">
             {req.categoryName ?? "Unknown Category"}{" "}
             {req.clubAcademicSession ? `· ${req.clubAcademicSession}` : ""}
           </p>
@@ -162,52 +162,39 @@ function PendingRequestCard({
 
       {/* Purpose */}
       {req.clubPurpose && (
-        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-          {req.clubPurpose}
-        </p>
+        <p className="text-sm text-ev-400 line-clamp-2">{req.clubPurpose}</p>
       )}
 
       {/* Approval chain */}
       <ApprovalChain req={req} />
 
       {/* Footer meta */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-        {/* Noting ID */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#edf4f8]">
+        <div className="flex items-center gap-1.5 text-xs text-ev-400">
           <FileText className="w-3.5 h-3.5 flex-shrink-0" />
           <span className="font-mono">{req.notingId}</span>
         </div>
-
-        {/* Submitted date */}
-        <span className="text-xs text-gray-400 dark:text-gray-500">
-          Submitted {submittedAt}
-        </span>
+        <span className="text-xs text-ev-400">Submitted {submittedAt}</span>
       </div>
 
       {/* Current holder */}
       {req.currentHolder && (
-        <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 -mt-1">
+        <div className="flex items-center gap-1.5 text-xs text-ev-400 -mt-1">
           <UserCheck className="w-3.5 h-3.5 flex-shrink-0" />
           <span>
             Currently with{" "}
-            <span className="font-medium text-gray-700 dark:text-gray-300">
-              {req.currentHolder.name}
-            </span>
+            <span className="font-medium text-ev-800">{req.currentHolder.name}</span>
           </span>
         </div>
       )}
 
       {/* Last action */}
       {req.lastAction && (
-        <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-          <span className="font-medium text-gray-600 dark:text-gray-300">
-            Last action:
-          </span>{" "}
+        <div className="bg-ev-50 rounded-lg px-3 py-2 text-xs text-ev-400">
+          <span className="font-medium text-ev-800">Last action:</span>{" "}
           {req.lastAction.action}
           {req.lastAction.remarks && (
-            <span className="ml-1 text-gray-400">
-              — {req.lastAction.remarks}
-            </span>
+            <span className="ml-1 text-ev-400">— {req.lastAction.remarks}</span>
           )}
         </div>
       )}
@@ -292,10 +279,8 @@ export default function MyClubsPage() {
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-            My Clubs
-          </h1>
-          <p className="mt-1 text-gray-500 dark:text-gray-400 text-sm">
+          <h1 className="text-2xl sm:text-3xl font-bold text-ev-900">My Clubs</h1>
+          <p className="mt-1 text-ev-400 text-sm">
             {!hasAnything
               ? "You have no clubs or pending requests yet."
               : `${clubs.length} club${clubs.length !== 1 ? "s" : ""} · ${activeRequests.length} pending request${activeRequests.length !== 1 ? "s" : ""}`}
@@ -303,18 +288,15 @@ export default function MyClubsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => {
-              refetchClubs();
-              refetchRequests();
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            onClick={() => { refetchClubs(); refetchRequests(); }}
+            className="ev-btn-outline"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
           </button>
           <button
             onClick={() => router.push("/dsw/create-club")}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+            className="ev-btn"
           >
             <Plus className="w-4 h-4" />
             New Club Request
@@ -324,43 +306,27 @@ export default function MyClubsPage() {
 
       {/* ── Error Banners ── */}
       {(clubsErrorMsg || requestsErrorMsg) && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 space-y-1">
-          {clubsErrorMsg && (
-            <p className="text-sm text-red-800 dark:text-red-200">
-              Clubs: {clubsErrorMsg}
-            </p>
-          )}
-          {requestsErrorMsg && (
-            <p className="text-sm text-red-800 dark:text-red-200">
-              Requests: {requestsErrorMsg}
-            </p>
-          )}
+        <div className="rounded-lg bg-red-50 border border-red-200 p-4 space-y-1">
+          {clubsErrorMsg && <p className="text-sm text-red-700">Clubs: {clubsErrorMsg}</p>}
+          {requestsErrorMsg && <p className="text-sm text-red-700">Requests: {requestsErrorMsg}</p>}
         </div>
       )}
 
       {/* ── Empty state ── */}
       {!hasAnything && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
-          <Award className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            Nothing here yet
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
+        <div className="ev-card p-12 text-center">
+          <Award className="w-14 h-14 text-ev-200 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-ev-900 mb-2">Nothing here yet</h3>
+          <p className="text-ev-400 text-sm mb-6 max-w-sm mx-auto">
             You haven&apos;t joined any clubs and have no pending club creation
             requests. Browse existing clubs or start a new one.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => router.push("/dsw/clubs")}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
+            <button onClick={() => router.push("/dsw/clubs")} className="ev-btn-outline">
               <Users className="w-4 h-4" />
               Browse All Clubs
             </button>
-            <button
-              onClick={() => router.push("/dsw/create-club")}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
+            <button onClick={() => router.push("/dsw/create-club")} className="ev-btn">
               <Plus className="w-4 h-4" />
               Create Club Request
             </button>
@@ -374,11 +340,11 @@ export default function MyClubsPage() {
           <div className="flex items-center gap-3 mb-4">
             <div className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-amber-500" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-base font-semibold text-ev-900">
                 Pending Club Requests
               </h2>
             </div>
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-bold">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold">
               {pendingRequests.length}
             </span>
           </div>
@@ -406,12 +372,12 @@ export default function MyClubsPage() {
         <section>
           <div className="flex items-center gap-3 mb-4">
             <div className="flex items-center gap-2">
-              <Crown className="w-5 h-5 text-blue-500" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <Crown className="w-5 h-5 text-ev-700" />
+              <h2 className="text-base font-semibold text-ev-900">
                 My Active Clubs
               </h2>
             </div>
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs font-bold">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-ev-50 text-ev-700 text-xs font-bold">
               {clubs.length}
             </span>
           </div>
@@ -420,16 +386,16 @@ export default function MyClubsPage() {
             {clubs.map((club) => (
               <div
                 key={club.id}
-                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
+                className="ev-card ev-card-hover p-5 cursor-pointer"
                 onClick={() => router.push(`/dsw/clubs/${club.id}`)}
               >
                 {/* Club card header */}
                 <div className="flex items-start justify-between mb-3 gap-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                    <h3 className="text-base font-semibold text-ev-900 truncate">
                       {club.name}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <p className="text-xs text-ev-400 mt-0.5">
                       {club.clubId}
                     </p>
                   </div>
@@ -437,22 +403,22 @@ export default function MyClubsPage() {
                 </div>
 
                 {/* Purpose */}
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+                <p className="text-sm text-ev-400 mb-4 line-clamp-2">
                   {club.purpose}
                 </p>
 
                 {/* Meta rows */}
                 <div className="space-y-1.5 text-sm">
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-ev-400">
                     <Users className="w-4 h-4 flex-shrink-0" />
                     <span>{club._count?.members ?? 0} members</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-ev-400">
                     <Calendar className="w-4 h-4 flex-shrink-0" />
                     <span>Session {club.academicSession}</span>
                   </div>
                   {club.facultyFacilitator && (
-                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 text-ev-400">
                       <UserCheck className="w-4 h-4 flex-shrink-0" />
                       <span className="truncate">
                         {club.facultyFacilitator.employeeDetails?.firstName}{" "}
@@ -470,11 +436,11 @@ export default function MyClubsPage() {
       {/* ── Browse hint when only active requests exist ── */}
       {activeRequests.length > 0 && clubs.length === 0 && (
         <div className="text-center py-4">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-ev-400">
             Want to join an existing club while you wait?{" "}
             <button
               onClick={() => router.push("/dsw/clubs")}
-              className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+              className="text-ev-700 hover:underline font-medium"
             >
               Browse all clubs →
             </button>
@@ -487,12 +453,12 @@ export default function MyClubsPage() {
         <section>
           <div className="flex items-center gap-3 mb-4">
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-gray-400" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <CheckCircle className="w-5 h-5 text-ev-400" />
+              <h2 className="text-base font-semibold text-ev-900">
                 Completed Requests
               </h2>
             </div>
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-ev-50 text-ev-700 text-xs font-bold">
               {resolvedRequests.length}
             </span>
           </div>
@@ -501,21 +467,21 @@ export default function MyClubsPage() {
             {resolvedRequests.map((req) => (
               <div
                 key={req.id}
-                className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm p-5 flex flex-col gap-3 opacity-80 ${
+                className={`bg-white rounded-xl border shadow-ev p-5 flex flex-col gap-3 opacity-80 ${
                   req.status === "approved"
-                    ? "border-green-200 dark:border-green-800/60"
+                    ? "border-green-200"
                     : req.status === "rejected"
-                      ? "border-red-200 dark:border-red-800/60"
-                      : "border-gray-200 dark:border-gray-700"
+                      ? "border-red-200"
+                      : "border-[#b3cde0]"
                 }`}
               >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                    <h3 className="text-sm font-semibold text-ev-900 truncate">
                       {req.clubName ?? "Unnamed Club"}
                     </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    <p className="text-xs text-ev-400 mt-0.5">
                       {req.categoryName ?? "Unknown Category"}
                       {req.clubAcademicSession
                         ? ` · ${req.clubAcademicSession}`
@@ -529,12 +495,12 @@ export default function MyClubsPage() {
                 <ApprovalChain req={req} />
 
                 {/* Footer */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#edf4f8]">
+                  <div className="flex items-center gap-1.5 text-xs text-ev-400">
                     <FileText className="w-3.5 h-3.5 flex-shrink-0" />
                     <span className="font-mono">{req.notingId}</span>
                   </div>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                  <span className="text-xs text-ev-400">
                     {new Date(req.createdAt).toLocaleDateString("en-IN", {
                       day: "numeric",
                       month: "short",
@@ -545,13 +511,13 @@ export default function MyClubsPage() {
 
                 {/* Last action remark */}
                 {req.lastAction && (
-                  <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="font-medium text-gray-600 dark:text-gray-300">
+                  <div className="bg-ev-50 rounded-lg px-3 py-2 text-xs text-ev-400">
+                    <span className="font-medium text-ev-800">
                       Last action:
                     </span>{" "}
                     {req.lastAction.action}
                     {req.lastAction.remarks && (
-                      <span className="ml-1 text-gray-400">
+                      <span className="ml-1 text-ev-400">
                         — {req.lastAction.remarks}
                       </span>
                     )}

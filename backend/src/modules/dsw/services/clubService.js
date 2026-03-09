@@ -7,6 +7,7 @@ const prisma = require("../../../shared/config/database");
 const {
   ClubStatus,
   ClubLifecycleState,
+  ClubMemberApplicationStatus,
   IMMUTABLE_CLUB_FIELDS,
   ErrorMessages,
   SuccessMessages,
@@ -494,10 +495,46 @@ async function createClubFromNoting(noteId, userId) {
  * @returns {Promise<Object>} Club details
  */
 async function getClubById(clubId, user = null) {
+  // Keep this first query lean; fetch members/count in parallel to avoid one heavy join query.
   const club = await prisma.club.findUnique({
     where: { id: clubId },
-    include: {
-      category: true,
+    select: {
+      id: true,
+      clubId: true,
+      name: true,
+      categoryId: true,
+      purpose: true,
+      academicSession: true,
+      facultyFacilitatorId: true,
+      chairpersonId: true,
+      targetStudentGroup: true,
+      expectedActivityTypes: true,
+      codeOfConductAccepted: true,
+      antiDiscriminationAccepted: true,
+      meetingFrequency: true,
+      estimatedAnnualActivityCount: true,
+      proposedEmail: true,
+      socialMediaHandles: true,
+      expectedStudentStrength: true,
+      status: true,
+      lifecycleState: true,
+      notingId: true,
+      creatorId: true,
+      approvedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      metadata: true,
+      category: {
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          isActive: true,
+          sortOrder: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      },
       facultyFacilitator: {
         select: {
           id: true,
@@ -526,46 +563,59 @@ async function getClubById(clubId, user = null) {
           },
         },
       },
-      members: {
-        where: {
-          isActive: true,
-        },
-        take: 10,
-        include: {
-          student: {
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              studentLogin: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                },
-              },
-            },
-          },
-        },
-        orderBy: {
-          joinedAt: "asc",
-        },
-      },
-      _count: {
-        select: {
-          members: {
-            where: {
-              isActive: true,
-            },
-          },
-        },
-      },
     },
   });
 
   if (!club) {
     throw new Error(ErrorMessages.CLUB_NOT_FOUND);
   }
+
+  const [members, activeMembersCount] = await Promise.all([
+    prisma.clubMember.findMany({
+      where: {
+        clubId,
+        isActive: true,
+      },
+      take: 10,
+      orderBy: {
+        joinedAt: "asc",
+      },
+      select: {
+        id: true,
+        clubId: true,
+        studentId: true,
+        joinedAt: true,
+        isActive: true,
+        addedById: true,
+        removedAt: true,
+        removedById: true,
+        metadata: true,
+        student: {
+          select: {
+            id: true,
+            uid: true,
+            email: true,
+            studentLogin: {
+              select: {
+                firstName: true,
+                lastName: true,
+                displayName: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.clubMember.count({
+      where: {
+        clubId,
+        isActive: true,
+      },
+    }),
+  ]);
+
+  club.members = members;
+  club._count = { members: activeMembersCount };
 
   // Lift metadata.role onto each member so callers read member.role directly
   if (club.members) {
@@ -693,6 +743,262 @@ async function getClubs(filters = {}, user = null) {
       totalPages: Math.ceil(total / limit),
     },
   };
+}
+
+function buildApplicantSnapshot(user) {
+  const student = user?.studentLogin;
+  const fullName =
+    student?.displayName ||
+    `${student?.firstName ?? ""} ${student?.lastName ?? ""}`.trim() ||
+    user?.uid ||
+    "Student";
+
+  return {
+    applicantName: fullName,
+    email: user?.email || null,
+    mobileNumber: student?.phone || user?.phone || null,
+    program: student?.program?.programName || null,
+    course: student?.registrationNo || student?.studentId || null,
+  };
+}
+
+async function createClubApplication(clubId, applicantId) {
+  const [club, applicant, activeMember, existingApplication] = await Promise.all([
+    prisma.club.findUnique({
+      where: { id: clubId },
+      select: { id: true, status: true },
+    }),
+    prisma.userLogin.findUnique({
+      where: { id: applicantId },
+      select: {
+        id: true,
+        uid: true,
+        email: true,
+        phone: true,
+        role: true,
+        studentLogin: {
+          select: {
+            firstName: true,
+            lastName: true,
+            displayName: true,
+            registrationNo: true,
+            studentId: true,
+            phone: true,
+            program: {
+              select: {
+                programName: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.clubMember.findFirst({
+      where: {
+        clubId,
+        studentId: applicantId,
+        isActive: true,
+      },
+      select: { id: true },
+    }),
+    prisma.clubMemberApplication.findFirst({
+      where: { clubId, applicantId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, status: true },
+    }),
+  ]);
+
+  if (!club) throw new Error(ErrorMessages.CLUB_NOT_FOUND);
+  if (club.status !== ClubStatus.ACTIVE) throw new Error(ErrorMessages.CLUB_NOT_ACTIVE);
+  if (!applicant || applicant.role !== "student") throw new Error(ErrorMessages.INVALID_MEMBER);
+  if (activeMember) throw new Error(ErrorMessages.DUPLICATE_MEMBER);
+
+  if (
+    existingApplication &&
+    [ClubMemberApplicationStatus.PENDING, ClubMemberApplicationStatus.APPROVED].includes(existingApplication.status)
+  ) {
+    throw new Error(ErrorMessages.DUPLICATE_APPLICATION);
+  }
+
+  const snapshot = buildApplicantSnapshot(applicant);
+
+  let application;
+  if (existingApplication && existingApplication.status === ClubMemberApplicationStatus.REJECTED) {
+    application = await prisma.clubMemberApplication.update({
+      where: { id: existingApplication.id },
+      data: {
+        ...snapshot,
+        status: ClubMemberApplicationStatus.PENDING,
+        reviewNote: null,
+        reviewedById: null,
+        reviewedAt: null,
+      },
+    });
+  } else {
+    application = await prisma.clubMemberApplication.create({
+      data: {
+        clubId,
+        applicantId,
+        ...snapshot,
+        status: ClubMemberApplicationStatus.PENDING,
+      },
+    });
+  }
+
+  await createAuditLog({
+    clubId,
+    action: AuditActions.CLUB_APPLICATION_SUBMITTED,
+    performedById: applicantId,
+    changes: {
+      applicationId: application.id,
+      applicantId,
+    },
+    source: "dsw_ui",
+  });
+
+  return application;
+}
+
+async function getClubApplications(clubId) {
+  const club = await prisma.club.findUnique({
+    where: { id: clubId },
+    select: { id: true },
+  });
+  if (!club) throw new Error(ErrorMessages.CLUB_NOT_FOUND);
+
+  return prisma.clubMemberApplication.findMany({
+    where: { clubId },
+    include: {
+      applicant: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+        },
+      },
+      reviewedBy: {
+        select: {
+          id: true,
+          uid: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+async function getMyClubApplications(applicantId) {
+  return prisma.clubMemberApplication.findMany({
+    where: { applicantId },
+    include: {
+      club: {
+        select: {
+          id: true,
+          clubId: true,
+          name: true,
+          status: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+async function reviewClubApplication(clubId, applicationId, reviewerId, decision, reviewNote = "", req = {}) {
+  const application = await prisma.clubMemberApplication.findFirst({
+    where: { id: applicationId, clubId },
+    include: {
+      club: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      applicant: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (!application) throw new Error(ErrorMessages.CLUB_APPLICATION_NOT_FOUND);
+  if (application.status !== ClubMemberApplicationStatus.PENDING) {
+    throw new Error(ErrorMessages.CLUB_APPLICATION_ALREADY_REVIEWED);
+  }
+  if (application.club.status !== ClubStatus.ACTIVE) throw new Error(ErrorMessages.CLUB_NOT_ACTIVE);
+
+  const targetStatus = decision === "approved"
+    ? ClubMemberApplicationStatus.APPROVED
+    : ClubMemberApplicationStatus.REJECTED;
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedApplication = await tx.clubMemberApplication.update({
+      where: { id: application.id },
+      data: {
+        status: targetStatus,
+        reviewedById: reviewerId,
+        reviewedAt: new Date(),
+        reviewNote: reviewNote?.trim() || null,
+      },
+    });
+
+    let member = null;
+    if (targetStatus === ClubMemberApplicationStatus.APPROVED) {
+      const existingMembership = await tx.clubMember.findUnique({
+        where: {
+          clubId_studentId: {
+            clubId,
+            studentId: application.applicant.id,
+          },
+        },
+      });
+
+      if (existingMembership && !existingMembership.isActive) {
+        member = await tx.clubMember.update({
+          where: { id: existingMembership.id },
+          data: {
+            isActive: true,
+            joinedAt: new Date(),
+            addedById: reviewerId,
+            removedAt: null,
+            removedById: null,
+            metadata: { ...(existingMembership.metadata ?? {}), role: "volunteer" },
+          },
+        });
+      } else if (!existingMembership) {
+        member = await tx.clubMember.create({
+          data: {
+            clubId,
+            studentId: application.applicant.id,
+            addedById: reviewerId,
+            metadata: { role: "volunteer" },
+          },
+        });
+      }
+    }
+
+    return { updatedApplication, member };
+  });
+
+  await createAuditLog({
+    clubId,
+    action:
+      targetStatus === ClubMemberApplicationStatus.APPROVED
+        ? AuditActions.CLUB_APPLICATION_APPROVED
+        : AuditActions.CLUB_APPLICATION_REJECTED,
+    performedById: reviewerId,
+    changes: {
+      applicationId: application.id,
+      status: targetStatus,
+    },
+    source: "dsw_ui",
+    ipAddress: req.ip,
+    userAgent: req.get?.("user-agent"),
+  });
+
+  return result;
 }
 
 /**
@@ -1173,6 +1479,10 @@ module.exports = {
   createClubFromNoting,
   getClubById,
   getClubs,
+  createClubApplication,
+  getClubApplications,
+  getMyClubApplications,
+  reviewClubApplication,
   addMember,
   removeMember,
   updateMemberRole,

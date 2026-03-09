@@ -84,7 +84,7 @@ export default function StallOpportunitiesPage() {
       pending: { label: 'Under Review', icon: Clock3, color: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
       approved: { label: 'Accepted', icon: CheckCircle, color: 'text-green-700 bg-green-50 border-green-200' },
       rejected: { label: 'Rejected', icon: XCircle, color: 'text-red-700 bg-red-50 border-red-200' },
-      withdrawn: { label: 'Withdrawn', icon: AlertCircle, color: 'text-gray-600 bg-gray-50 border-gray-200' },
+      withdrawn: { label: 'Withdrawn', icon: AlertCircle, color: 'text-gray-600 bg-gray-50 border-[#b3cde0]' },
     };
 
     const s = config[status as keyof typeof config] || config.pending;
@@ -100,24 +100,24 @@ export default function StallOpportunitiesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center p-6">
         <CardSkeleton className="w-full max-w-sm" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4 sm:px-6">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-8 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <div className="p-2 bg-sgt-100 dark:bg-sgt-900/30 rounded-lg">
-                <Store className="w-6 h-6 text-sgt-600" />
+              <div className="p-2 bg-ev-100 dark:bg-ev-900/30 rounded-lg">
+                <Store className="w-6 h-6 text-ev-700" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Stall Opportunities</h1>
+              <h1 className="text-2xl font-bold text-ev-900 dark:text-white">Stall Opportunities</h1>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 max-w-2xl">
               Discover events, apply for stalls, and manage your applications. showcase your business to the community.
@@ -132,19 +132,19 @@ export default function StallOpportunitiesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search events..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 outline-none transition-shadow"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-[#b3cde0] dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-ev-900 dark:text-white focus:ring-2 focus:ring-ev-700 outline-none transition-shadow"
             />
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-gray-200 dark:border-gray-700 pb-1">
+        <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-[#b3cde0] dark:border-gray-700 pb-1">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${activeTab === tab.id
-                ? 'border-sgt-600 text-sgt-600 bg-sgt-50/50 dark:bg-sgt-900/10'
+                ? 'border-ev-700 text-ev-700 bg-ev-50/50 dark:bg-ev-900/10'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
             >
@@ -155,11 +155,11 @@ export default function StallOpportunitiesPage() {
 
         {/* Empty State */}
         {filtered.length === 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center shadow-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 p-12 text-center shadow-ev">
             <div className="bg-gray-50 dark:bg-gray-700/50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <Filter className="w-8 h-8 text-gray-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No events found</h3>
+            <h3 className="text-lg font-semibold text-ev-900 dark:text-white mb-1">No events found</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {search
                 ? `No results for "${search}" in ${activeTab} tab`
@@ -168,7 +168,7 @@ export default function StallOpportunitiesPage() {
             {activeTab !== 'all' && (
               <button
                 onClick={() => setActiveTab('all')}
-                className="mt-4 text-sm text-sgt-600 hover:text-sgt-700 font-medium"
+                className="mt-4 text-sm text-ev-700 hover:text-ev-800 font-medium"
               >
                 View all events
               </button>
@@ -192,19 +192,19 @@ export default function StallOpportunitiesPage() {
             return (
               <div
                 key={o.id}
-                className="group bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col"
+                className="group bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col"
               >
                 {/* Card Header / Status */}
                 <div className="p-5 pb-3">
                   <div className="flex justify-between items-start gap-2 mb-2">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${o.status === 'published' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${o.status === 'published' ? 'bg-ev-100 text-ev-800' : 'bg-gray-100 text-gray-600'
                       }`}>
                       {o.status}
                     </span>
                     {getStatusBadge(o)}
                   </div>
 
-                  <h3 className="font-bold text-lg text-gray-900 dark:text-white leading-snug group-hover:text-sgt-600 transition-colors line-clamp-2 mb-2">
+                  <h3 className="font-bold text-lg text-ev-900 dark:text-white leading-snug group-hover:text-ev-700 transition-colors line-clamp-2 mb-2">
                     {o.name}
                   </h3>
 
@@ -235,7 +235,7 @@ export default function StallOpportunitiesPage() {
                   {/* Fee */}
                   <div className="flex flex-col">
                     <span className="text-xs text-gray-400 uppercase font-semibold">Stall Fee</span>
-                    <span className={`font-medium ${!o.stallFee ? 'text-green-600' : 'text-gray-900 dark:text-white'}`}>
+                    <span className={`font-medium ${!o.stallFee ? 'text-green-600' : 'text-ev-900 dark:text-white'}`}>
                       {!o.stallFee ? 'Free' : `₹${o.stallFee}`}
                     </span>
                   </div>
@@ -243,7 +243,7 @@ export default function StallOpportunitiesPage() {
                   {/* Slots */}
                   <div className="flex flex-col">
                     <span className="text-xs text-gray-400 uppercase font-semibold">Availability</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-ev-900 dark:text-white">
                       {o.stallsRemaining != null && o.stallsRemaining > 0
                         ? `${o.stallsRemaining} spots left`
                         : 'Filling fast'}
@@ -263,7 +263,7 @@ export default function StallOpportunitiesPage() {
                 <div className="mt-auto p-4 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-between gap-3">
                   <Link
                     href={`/events/${o.eventId}`}
-                    className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-medium transition-colors"
+                    className="text-sm text-gray-600 hover:text-ev-900 dark:text-gray-400 dark:hover:text-white font-medium transition-colors"
                   >
                     View Details
                   </Link>
@@ -271,7 +271,7 @@ export default function StallOpportunitiesPage() {
                   {canApply ? (
                     <Link
                       href={`/events/${o.eventId}/apply-stall`}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-sgt-600 text-white text-sm font-semibold rounded-lg hover:bg-sgt-700 shadow-sm hover:shadow transition-all"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-ev-700 text-white text-sm font-semibold rounded-lg hover:bg-ev-800 shadow-ev hover:shadow transition-all"
                     >
                       Apply Now
                       <ChevronRight className="w-4 h-4" />
@@ -281,7 +281,7 @@ export default function StallOpportunitiesPage() {
                       href={`/events/${o.eventId}/apply-stall`}
                       className={`inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg border transition-all ${isRejected
                         ? 'border-red-200 text-red-700 bg-white hover:bg-red-50'
-                        : 'border-gray-200 text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'
+                        : 'border-[#b3cde0] text-gray-700 bg-white hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200'
                         }`}
                     >
                       {isRejected ? 'View Application' : 'Track Status'}

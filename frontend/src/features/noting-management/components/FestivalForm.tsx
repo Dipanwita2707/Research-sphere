@@ -270,6 +270,7 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
               <label className={labelCls}>Start Date & Time <span className="text-red-500">*</span></label>
               <DateTimePicker
                 disabled={disabled}
+                format="DD/MM/YYYY hh:mm A"
                 value={data.startDate ? dayjs(data.startDate) : null}
                 minDateTime={dayjs(TODAY)}
                 onChange={(val) => updateMeta('startDate', val ? val.toISOString() : '')}
@@ -295,6 +296,7 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
               <label className={labelCls}>End Date & Time <span className="text-red-500">*</span></label>
               <DateTimePicker
                 disabled={disabled}
+                format="DD/MM/YYYY hh:mm A"
                 value={data.endDate ? dayjs(data.endDate) : null}
                 minDateTime={data.startDate ? dayjs(data.startDate) : dayjs(TODAY)}
                 onChange={(val) => updateMeta('endDate', val ? val.toISOString() : '')}

@@ -1,5 +1,5 @@
 /**
- * Seed script: register specific emails to event EVT-2026-0004 with pending status
+ * Seed script: register specific emails to event EVT-2026-0002 with confirmed status
  * Run from backend dir:  node seed-event-registrations.js
  */
 
@@ -9,14 +9,14 @@ const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
-const TARGET_EVENT_ID = 'EVT-2026-0004';
+const TARGET_EVENT_ID = 'EVT-2026-0002';
 
 const EMAILS = [
   'adityarajsingham@gmail.com',
   'sourav092002@gmail.com',
   'dipanwitakundu2707@gmail.com',
   'cryptoa878@gmail.com',
-  'tiwarisatywam4685@gmail.com',
+  'tiwarisatyam4685@gmail.com',
 ];
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -98,14 +98,15 @@ async function main() {
     const registrationId = await nextRegistrationId(event.id);
     const qrCode = makeQrCode(event.id, user.id);
 
-    // 5. Insert registration
+    // 5. Insert registration with confirmed status and payment success
     const reg = await prisma.eventRegistration.create({
       data: {
         id: registrationId,
         registrationId,
         eventId: event.id,
         userId: user.id,
-        status: 'pending',
+        status: 'confirmed',
+        paymentStatus: 'completed',
         qrCode,
         registeredAt: new Date(),
         updatedAt: new Date(),

@@ -36,7 +36,7 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
             <div className="space-y-4">
               {/* Festival Meta Card */}
               {note.festivalMeta && (
-                <div className="rounded-md border border-purple-200 dark:border-purple-800 overflow-hidden">
+                <div className="rounded-xl border border-purple-200 dark:border-purple-800 overflow-hidden">
                   <div className="bg-purple-50 dark:bg-purple-900/20 px-3 py-2 border-b border-purple-100 dark:border-purple-800">
                     <p className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
                       🎪 Festival Information
@@ -153,10 +153,10 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                         return (
                           <div
                             key={idx}
-                            className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden"
+                            className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 overflow-hidden"
                           >
                             {/* Sub-event header */}
-                            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center gap-2 px-3 py-2 bg-[#f8fafc] dark:bg-gray-700/50 border-b border-[#b3cde0]/30 dark:border-gray-700">
                               <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
                                 #{idx + 1}
                               </span>
@@ -172,7 +172,7 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                               </span>
                             </div>
                             {/* Sub-event body */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#b3cde0]/20 dark:bg-gray-700">
                               {v.eventType && (
                                 <div className="bg-white dark:bg-gray-800 p-3">
                                   <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">
@@ -411,7 +411,7 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                             {/* Stall config for stall-type sub-events */}
                             {se.eventType === "stall" &&
                               se.stallConfig && (
-                                <div className="border-t border-gray-200 dark:border-gray-700 bg-amber-50/30 dark:bg-amber-900/10 p-3">
+                                <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 bg-amber-50/30 dark:bg-amber-900/10 p-3">
                                   <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">
                                     Stall Configuration
                                   </p>
@@ -460,7 +460,7 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
             </div>
           ) : (
             /* ── VENUE / STALL ── */
-            <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 overflow-hidden">
               {!note.eventName &&
               !note.eventType &&
               !note.eventStartDate ? (
@@ -468,7 +468,7 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
                   Event details not provided.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-100 dark:bg-gray-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#b3cde0]/20 dark:bg-gray-700">
                   {note.eventName && (
                     <div className="bg-white dark:bg-gray-800 p-3">
                       <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">
@@ -718,7 +718,7 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
 
               {/* Stall Config (for stall events) */}
               {note.notingEventType === "stall" && note.stallConfig && (
-                <div className="border-t border-gray-200 dark:border-gray-700 bg-amber-50/30 dark:bg-amber-900/10 p-3">
+                <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 bg-amber-50/30 dark:bg-amber-900/10 p-3">
                   <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider mb-2">
                     🪄 Stall Configuration
                   </p>

@@ -24,8 +24,8 @@ import type {
 import { ALL_ROLES, ROLE_LABELS } from '../types/eventSettings.types';
 
 // ── Design System ────────────────────────────────────────────────
-const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
-const CARD_HEADER = 'px-5 py-3.5 border-b border-gray-100 dark:border-gray-700';
+const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-[#b3cde0] dark:border-ev-700 shadow-ev';
+const CARD_HEADER = 'px-5 py-3.5 border-b border-[#b3cde0]/30 dark:border-gray-700';
 const TOGGLE_ON = 'bg-emerald-500';
 const TOGGLE_OFF = 'bg-gray-300 dark:bg-gray-600';
 
@@ -52,7 +52,7 @@ const ToggleSwitch = memo(({
       type="button"
       onClick={onToggle}
       disabled={disabled}
-      className={`relative inline-flex items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sgt-500 ${dims} ${enabled ? TOGGLE_ON : TOGGLE_OFF} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative inline-flex items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-ev-700 ${dims} ${enabled ? TOGGLE_ON : TOGGLE_OFF} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span className={`inline-block ${dot} rounded-full bg-white shadow transform transition-transform duration-200 ${translate}`} />
     </button>
@@ -89,15 +89,15 @@ const RoleChip = memo(({
       disabled={disabled}
       className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 text-sm font-medium transition-all duration-200
         ${selected
-          ? 'bg-sgt-50 dark:bg-sgt-900/30 border-sgt-500 text-sgt-700 dark:text-sgt-300 shadow-sm'
-          : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'
+          ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200 shadow-ev'
+          : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`
       }
     >
       <Icon className="w-4 h-4" />
       {ROLE_LABELS[role]}
-      {selected && <Check className="w-3.5 h-3.5 text-sgt-600 dark:text-sgt-400" />}
+      {selected && <Check className="w-3.5 h-3.5 text-ev-700 dark:text-ev-400" />}
     </button>
   );
 });
@@ -120,7 +120,7 @@ const CollapsibleSection = memo(({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+    <div className="border border-[#b3cde0] dark:border-gray-700 rounded-lg overflow-hidden">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -130,7 +130,7 @@ const CollapsibleSection = memo(({
           <Icon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{title}</span>
           {badge !== undefined && (
-            <span className="text-xs px-2 py-0.5 rounded-full bg-sgt-100 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 font-medium">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-ev-50 dark:bg-ev-900/30 text-ev-800 dark:text-ev-200 font-medium">
               {badge}
             </span>
           )}
@@ -172,7 +172,7 @@ const CheckboxList = memo(({
             key={item.id}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors
               ${isSelected
-                ? 'bg-sgt-50 dark:bg-sgt-900/20'
+                ? 'bg-ev-50 dark:bg-ev-900/20'
                 : 'hover:bg-gray-50 dark:hover:bg-gray-700/30'
               }`}
           >
@@ -180,7 +180,7 @@ const CheckboxList = memo(({
               type="checkbox"
               checked={isSelected}
               onChange={() => onToggle(item.id)}
-              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-sgt-600 focus:ring-sgt-500"
+              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-ev-700 focus:ring-ev-700"
             />
             <div className="flex-1 min-w-0">
               <span className="text-sm text-gray-700 dark:text-gray-300 truncate block">
@@ -223,8 +223,8 @@ const BatchYearSelector = memo(({
             onClick={() => onToggle(year)}
             className={`px-3 py-1.5 text-sm rounded-lg border-2 font-medium transition-all
               ${isSelected
-                ? 'bg-sgt-50 dark:bg-sgt-900/30 border-sgt-500 text-sgt-700 dark:text-sgt-300'
-                : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300'
+                ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
+                : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300'
               }`}
           >
             {year}
@@ -256,6 +256,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
   const [localPrograms, setLocalPrograms] = useState<string[] | null>(null);
   const [localBatchYears, setLocalBatchYears] = useState<number[] | null>(null);
   const [localSections, setLocalSections] = useState<string[] | null>(null);
+  const [localAllowExtraPasses, setLocalAllowExtraPasses] = useState<boolean | null>(null);
+  const [localMaxExtraPassesPerUser, setLocalMaxExtraPassesPerUser] = useState<number | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   // Effective values (local overrides server)
@@ -266,6 +268,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
   const selectedPrograms = localPrograms ?? settings?.allowedProgramIds ?? [];
   const selectedBatchYears = localBatchYears ?? settings?.allowedBatchYears ?? [];
   const selectedSections = localSections ?? settings?.allowedSectionIds ?? [];
+  const allowExtraPasses = localAllowExtraPasses ?? settings?.allowExtraPasses ?? false;
+  const maxExtraPassesPerUser = localMaxExtraPassesPerUser ?? settings?.maxExtraPassesPerUser ?? 0;
 
   const isStudentEnabled = roles.includes('student');
 
@@ -355,6 +359,26 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
     }
   }, [toggleMutation, onToast]);
 
+  const handleToggleExtraPasses = useCallback(() => {
+    setLocalAllowExtraPasses((prev) => {
+      const current = prev ?? settings?.allowExtraPasses ?? false;
+      return !current;
+    });
+    if (!allowExtraPasses) {
+      setLocalMaxExtraPassesPerUser((prev) => prev ?? Math.max(1, settings?.maxExtraPassesPerUser ?? 1));
+    } else {
+      setLocalMaxExtraPassesPerUser(0);
+    }
+    markChanged();
+  }, [allowExtraPasses, settings?.allowExtraPasses, settings?.maxExtraPassesPerUser, markChanged]);
+
+  const handleMaxExtraPassesChange = useCallback((value: string) => {
+    const numeric = Number(value);
+    if (Number.isNaN(numeric)) return;
+    setLocalMaxExtraPassesPerUser(Math.max(0, Math.min(20, Math.floor(numeric))));
+    markChanged();
+  }, [markChanged]);
+
   const handleSave = useCallback(async () => {
     const payload: EventVisibilityUpdate = {
       visibleToRoles: roles,
@@ -364,6 +388,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
       allowedProgramIds: selectedPrograms,
       allowedBatchYears: selectedBatchYears,
       allowedSectionIds: selectedSections,
+      allowExtraPasses,
+      maxExtraPassesPerUser: allowExtraPasses ? Math.max(1, maxExtraPassesPerUser) : 0,
     };
 
     try {
@@ -377,13 +403,16 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
       setLocalPrograms(null);
       setLocalBatchYears(null);
       setLocalSections(null);
+      setLocalAllowExtraPasses(null);
+      setLocalMaxExtraPassesPerUser(null);
       onToast({ type: 'success', message: 'Event settings saved successfully' });
     } catch (err: any) {
       onToast({ type: 'error', message: err?.response?.data?.message || 'Failed to save event settings' });
     }
   }, [
     roles, filterType, selectedSchools, selectedDepts, selectedPrograms,
-    selectedBatchYears, selectedSections, updateMutation, onToast,
+    selectedBatchYears, selectedSections, allowExtraPasses, maxExtraPassesPerUser,
+    updateMutation, onToast,
   ]);
 
   const handleReset = useCallback(() => {
@@ -394,6 +423,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
     setLocalPrograms(null);
     setLocalBatchYears(null);
     setLocalSections(null);
+    setLocalAllowExtraPasses(null);
+    setLocalMaxExtraPassesPerUser(null);
     setHasChanges(false);
   }, []);
 
@@ -401,7 +432,7 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
   if (settingsLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 animate-spin text-sgt-600" />
+        <Loader2 className="w-6 h-6 animate-spin text-ev-700" />
         <span className="ml-3 text-sm text-gray-500">Loading event settings...</span>
       </div>
     );
@@ -432,7 +463,7 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
               <Power className={`w-6 h-6 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`} />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-lg font-semibold text-ev-900 dark:text-white">
                 Registration Status
               </h3>
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -448,7 +479,7 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
               )}
               {/* Manual override indicator */}
               {manuallyOverridden && (
-                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-ev-100 text-ev-800 dark:bg-ev-900/30 dark:text-ev-400">
                   Admin override active
                 </span>
               )}
@@ -481,12 +512,53 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
         )}
       </div>
 
+      <div className={CARD}>
+        <div className={CARD_HEADER}>
+          <div className="flex items-center gap-2.5">
+            <Users className="w-5 h-5 text-ev-700 dark:text-ev-400" />
+            <h3 className="text-base font-semibold text-ev-900 dark:text-white">
+              Extra Pass Settings
+            </h3>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            Control whether registered users can add guests and how many guests are allowed per registration.
+          </p>
+        </div>
+        <div className="p-5 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-ev-900 dark:text-white">Allow Extra Passes</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Users can add guest details under the same QR code.</p>
+            </div>
+            <ToggleSwitch enabled={allowExtraPasses} onToggle={handleToggleExtraPasses} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Maximum Extra Passes Per User
+            </label>
+            <input
+              type="number"
+              min={allowExtraPasses ? 1 : 0}
+              max={20}
+              value={allowExtraPasses ? Math.max(1, maxExtraPassesPerUser) : 0}
+              onChange={(e) => handleMaxExtraPassesChange(e.target.value)}
+              disabled={!allowExtraPasses}
+              className="w-full max-w-xs px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-ev-900 dark:text-gray-100 disabled:opacity-60"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Example: If set to 3, each registration can add up to 3 guest passes.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* ── Visibility Configuration ──────────────────────────────── */}
       <div className={CARD}>
         <div className={CARD_HEADER}>
           <div className="flex items-center gap-2.5">
-            <Eye className="w-5 h-5 text-sgt-600 dark:text-sgt-400" />
-            <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+            <Eye className="w-5 h-5 text-ev-700 dark:text-ev-400" />
+            <h3 className="text-base font-semibold text-ev-900 dark:text-white">
               Audience Visibility
             </h3>
           </div>
@@ -520,8 +592,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
         <div className={CARD}>
           <div className={CARD_HEADER}>
             <div className="flex items-center gap-2.5">
-              <GraduationCap className="w-5 h-5 text-sgt-600 dark:text-sgt-400" />
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+              <GraduationCap className="w-5 h-5 text-ev-700 dark:text-ev-400" />
+              <h3 className="text-base font-semibold text-ev-900 dark:text-white">
                 Student Visibility Configuration
               </h3>
             </div>
@@ -537,8 +609,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
                 onClick={() => handleFilterTypeChange('all')}
                 className={`flex-1 px-4 py-3 rounded-lg border-2 text-sm font-medium text-center transition-all
                   ${filterType === 'all'
-                    ? 'bg-sgt-50 dark:bg-sgt-900/30 border-sgt-500 text-sgt-700 dark:text-sgt-300'
-                    : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                    ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
+                    : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-500 hover:border-gray-300'
                   }`}
               >
                 <Users className="w-4 h-4 mx-auto mb-1" />
@@ -549,8 +621,8 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
                 onClick={() => handleFilterTypeChange('custom')}
                 className={`flex-1 px-4 py-3 rounded-lg border-2 text-sm font-medium text-center transition-all
                   ${filterType === 'custom'
-                    ? 'bg-sgt-50 dark:bg-sgt-900/30 border-sgt-500 text-sgt-700 dark:text-sgt-300'
-                    : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                    ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
+                    : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-500 hover:border-gray-300'
                   }`}
               >
                 <Settings className="w-4 h-4 mx-auto mb-1" />
@@ -570,7 +642,7 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
               <div className="space-y-3">
                 {hierarchyLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin text-sgt-600" />
+                    <Loader2 className="w-5 h-5 animate-spin text-ev-700" />
                     <span className="ml-2 text-sm text-gray-500">Loading hierarchy...</span>
                   </div>
                 ) : (
@@ -676,7 +748,7 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
       {/* ── Save / Reset Bar ──────────────────────────────────────── */}
       {hasChanges && (
         <div className="sticky bottom-4 z-10">
-          <div className="flex items-center justify-between px-5 py-3 bg-sgt-600 rounded-lg shadow-lg">
+          <div className="flex items-center justify-between px-5 py-3 bg-ev-700 rounded-lg shadow-lg">
             <div className="flex items-center gap-2 text-white">
               <AlertTriangle className="w-4 h-4" />
               <span className="text-sm font-medium">You have unsaved changes</span>
@@ -693,7 +765,7 @@ const EventSettings: React.FC<EventSettingsProps> = ({ eventId, onToast }) => {
                 type="button"
                 onClick={handleSave}
                 disabled={updateMutation.isPending}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-white text-sgt-700 text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-5 py-2 bg-white text-ev-800 text-sm font-semibold rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
               >
                 {updateMutation.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

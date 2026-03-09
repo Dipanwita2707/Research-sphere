@@ -59,6 +59,12 @@ const ClubChangeRequestStatus = {
   REJECTED: "rejected",
 };
 
+const ClubMemberApplicationStatus = {
+  PENDING: "pending",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+};
+
 // Immutable Fields - Cannot be changed after approval without Noting
 const IMMUTABLE_CLUB_FIELDS = [
   "name",
@@ -161,6 +167,9 @@ const AuditActions = {
   CLUB_ARCHIVED: "club_archived",
   MEMBER_ADDED: "member_added",
   MEMBER_REMOVED: "member_removed",
+  CLUB_APPLICATION_SUBMITTED: "club_application_submitted",
+  CLUB_APPLICATION_APPROVED: "club_application_approved",
+  CLUB_APPLICATION_REJECTED: "club_application_rejected",
   CHANGE_REQUESTED: "change_requested",
   CHANGE_APPROVED: "change_approved",
   CHANGE_REJECTED: "change_rejected",
@@ -190,6 +199,9 @@ const ErrorMessages = {
   INVALID_FACILITATOR: "Faculty facilitator must be a faculty member",
   INVALID_CHAIRPERSON: "Chairperson must be a student",
   INVALID_MEMBER: "Club members must be students",
+  DUPLICATE_APPLICATION: "You already have an active application for this club",
+  CLUB_APPLICATION_NOT_FOUND: "Club application not found",
+  CLUB_APPLICATION_ALREADY_REVIEWED: "This club application has already been reviewed",
 };
 
 // Success Messages
@@ -199,6 +211,8 @@ const SuccessMessages = {
   CLUB_APPROVED: "Club approved and activated successfully",
   MEMBER_ADDED: "Member added successfully",
   MEMBER_REMOVED: "Member removed successfully",
+  CLUB_APPLICATION_SUBMITTED: "Club application submitted successfully",
+  CLUB_APPLICATION_REVIEWED: "Club application reviewed successfully",
   CHANGE_REQUEST_SUBMITTED: "Change request submitted successfully",
   CHANGE_REQUEST_APPROVED: "Change request approved successfully",
   CHANGE_REQUEST_REJECTED: "Change request rejected successfully",
@@ -211,6 +225,7 @@ module.exports = {
   ClubMeetingFrequency,
   ClubChangeType,
   ClubChangeRequestStatus,
+  ClubMemberApplicationStatus,
   IMMUTABLE_CLUB_FIELDS,
   EDITABLE_CLUB_FIELDS,
   ClubActivityTypes,

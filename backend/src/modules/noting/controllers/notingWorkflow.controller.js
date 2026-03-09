@@ -23,6 +23,7 @@ const {
 
 const approvalFlowService = require("../services/approvalFlow.service");
 const { invalidateNoteCaches } = require("../services/noting.service");
+const notingNotification = require("../services/notingNotification.service");
 
 // Cross-module services (used only by approve for auto-creating events/clubs)
 const eventService = require("../../event-management/services/event.service");
@@ -165,6 +166,13 @@ const approve = asyncHandler(async (req, res) => {
   // Invalidate all noting caches for affected users
   await invalidateNoteCaches(id);
 
+  // Trigger notification: the creator is informed their note was approved
+  notingNotification.notifyApproved(updated, {
+    eventId:  eventId  || undefined,
+    eventIds: eventIds || undefined,
+    clubId:   clubId   || undefined,
+  });
+
   return ApiResponse.success(
     res,
     {
@@ -222,6 +230,8 @@ const reject = asyncHandler(async (req, res) => {
   ]);
 
   await invalidateNoteCaches(id);
+  // Trigger notification: the creator is informed their note was rejected
+  notingNotification.notifyRejected(note, String(remarks).trim());
   return ApiResponse.success(res, null, "Note rejected successfully");
 });
 
@@ -268,7 +278,8 @@ const revert = asyncHandler(async (req, res) => {
   ]);
 
   await invalidateNoteCaches(id);
-
+  // Trigger notification: the creator is informed their note was returned for changes
+  notingNotification.notifyReverted(note, String(remarks).trim());
   return ApiResponse.success(
     res,
     null,
@@ -377,6 +388,8 @@ const forward = asyncHandler(async (req, res) => {
   ]);
 
   await invalidateNoteCaches(id);
+  // Trigger notification: the new holder is informed the note was forwarded to them
+  notingNotification.notifyForwarded(updated, updated.currentHolderId, remarks);
   return ApiResponse.success(res, updated, "Note forwarded successfully");
 });
 
@@ -452,6 +465,8 @@ const autoForward = asyncHandler(async (req, res) => {
   const managerName =
     manager.employeeDetails?.displayName || manager.uid || manager.email;
   await invalidateNoteCaches(id);
+  // Trigger notification: the manager is informed the note was auto-forwarded to them
+  notingNotification.notifyForwarded(updated, manager.id, remarks);
   return ApiResponse.success(
     res,
     updated,
@@ -519,6 +534,8 @@ async function _handleRecommendation(req, res, { action, remarksLabel, successMs
   ]);
 
   await invalidateNoteCaches(id);
+  // Trigger notifications: next holder (note now in their queue) + creator FYI
+  notingNotification.notifyRecommendation(updated, action, remarks.trim());
   return ApiResponse.success(res, updated, successMsg);
 }
 

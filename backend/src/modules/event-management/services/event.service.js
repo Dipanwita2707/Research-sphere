@@ -1191,12 +1191,48 @@ const registerForEvent = async (eventId, userId) => {
  */
 const getUserRegistrations = async (userId, filters, pagination) => {
   const { page = 1, limit = 20 } = pagination;
-  const { status } = filters;
+  const { status, search } = filters;
+  const searchTerm = typeof search === 'string' ? search.trim() : '';
 
   const where = { userId };
 
   if (status) {
     where.status = status;
+  }
+
+  if (searchTerm) {
+    where.OR = [
+      {
+        registrationId: {
+          contains: searchTerm,
+          mode: 'insensitive',
+        },
+      },
+      {
+        Event: {
+          name: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+      },
+      {
+        Event: {
+          eventId: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+      },
+      {
+        Event: {
+          venue: {
+            contains: searchTerm,
+            mode: 'insensitive',
+          },
+        },
+      },
+    ];
   }
 
   const [registrations, total] = await Promise.all([
@@ -1213,6 +1249,8 @@ const getUserRegistrations = async (userId, filters, pagination) => {
             endDate: true,
             venue: true,
             status: true,
+            allowExtraPasses: true,
+            maxExtraPassesPerUser: true,
           },
         },
       },
@@ -1225,8 +1263,55 @@ const getUserRegistrations = async (userId, filters, pagination) => {
     prisma.eventRegistration.count({ where }),
   ]);
 
+  const registrationIds = registrations.map((r) => r.id);
+  const guestRows = registrationIds.length
+    ? await prisma.eventExtraPass.findMany({
+      where: { registrationId: { in: registrationIds } },
+      select: {
+        id: true,
+        registrationId: true,
+        guestName: true,
+        guestEmail: true,
+        mobileNumber: true,
+        relationship: true,
+        createdAt: true,
+      },
+      orderBy: [{ registrationId: "asc" }, { createdAt: "asc" }],
+    })
+    : [];
+
+  const guestsByRegistrationId = new Map();
+  for (const guest of guestRows) {
+    if (!guestsByRegistrationId.has(guest.registrationId)) {
+      guestsByRegistrationId.set(guest.registrationId, []);
+    }
+    guestsByRegistrationId.get(guest.registrationId).push(guest);
+  }
+
+  const mappedRegistrations = registrations.map((registration) => {
+    const guests = guestsByRegistrationId.get(registration.id) || [];
+    const totalAllowedEntries = registration.totalAllowedEntries ?? 1;
+    const checkedInCount = registration.checkedInCount ?? 0;
+    const checkedOutCount = registration.checkedOutCount ?? 0;
+    const currentlyInside = Math.max(0, checkedInCount - checkedOutCount);
+    return {
+      ...registration,
+      guests,
+      extraPassSummary: {
+        extraPassCount: registration.extraPassCount ?? 0,
+        totalAllowedEntries,
+        checkedInCount,
+        checkedOutCount,
+        currentlyInside,
+        availableEntrySlots: Math.max(0, totalAllowedEntries - currentlyInside),
+        remainingEntries: Math.max(0, totalAllowedEntries - currentlyInside),
+        studentInside: registration.studentInsideAssumed ?? currentlyInside > 0,
+      },
+    };
+  });
+
   return {
-    registrations,
+    registrations: mappedRegistrations,
     pagination: {
       page,
       limit,
@@ -1266,8 +1351,16 @@ const getEventStatistics = async (eventId, userId) => {
         (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "hasEntered" = true) as attended,
         (SELECT COALESCE(SUM("amountPaid"), 0)::float FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "paymentStatus" = 'completed') as revenue,
         (SELECT COUNT(*)::int FROM "EventVolunteer" WHERE "eventId" = ${eventId}) as "volunteerCount",
-        (SELECT COUNT(*)::int FROM "EventEntry" WHERE "eventId" = ${eventId} AND "entryType" = 'entry') as "totalEntries",
-        (SELECT COUNT(*)::int FROM "EventEntry" WHERE "eventId" = ${eventId} AND "entryType" = 'exit') as "totalExits"
+        (
+          SELECT COALESCE(SUM("entryCount"), 0)::int
+          FROM "EventEntry"
+          WHERE "eventId" = ${eventId} AND "entryType" = 'entry'
+        ) as "totalEntries",
+        (
+          SELECT COALESCE(SUM("entryCount"), 0)::int
+          FROM "EventEntry"
+          WHERE "eventId" = ${eventId} AND "entryType" = 'exit'
+        ) as "totalExits"
     `,
     // Date grouping via SQL (replaces full table scan findMany)
     prisma.$queryRaw`

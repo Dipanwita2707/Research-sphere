@@ -66,7 +66,7 @@ const convertRupeesToPaise = (rupees) => Math.round(rupees * 100);
  *
  * @returns {{ order, payment, key }} — Razorpay order details + public key
  */
-const createIndividualPaymentOrder = async (eventId, userId) => {
+const createIndividualPaymentOrder = async (eventId, userId, couponCode = undefined) => {
   // ── Resolve event (accept eventId or uuid) ─────────────────────────────
   const event = await resolveEvent(eventId);
   if (event.paymentType !== 'paid') throw new ValidationError('This event does not require payment');
@@ -75,7 +75,7 @@ const createIndividualPaymentOrder = async (eventId, userId) => {
   }
 
   // ── Parallelize registration + existing payment check ──────────────────
-  const [registration, existingPayment] = await Promise.all([
+  const [registrationRecord, existingPayment] = await Promise.all([
     prisma.eventRegistration.findFirst({
       where: { eventId: event.id, userId },
     }),
@@ -88,6 +88,8 @@ const createIndividualPaymentOrder = async (eventId, userId) => {
       orderBy: { createdAt: 'desc' },
     }),
   ]);
+
+  let registration = registrationRecord;
 
   if (!registration) throw new NotFoundError('Registration not found. Please register first.');
 
@@ -102,25 +104,110 @@ const createIndividualPaymentOrder = async (eventId, userId) => {
     throw new ValidationError('Payment has already been completed for this registration');
   }
 
-  // ── Idempotency: check for existing created order ──────────────────────
-  if (existingPayment && existingPayment.registrationId === registration.id) {
-    return {
-      order: {
-        id: existingPayment.razorpayOrderId,
-        amount: convertRupeesToPaise(existingPayment.amount),
-        currency: existingPayment.currency,
+  const baseAmount = event.registrationFee;
+  const normalizedCouponCode = typeof couponCode === 'string'
+    ? couponCode.trim().toUpperCase()
+    : couponCode;
+  const shouldSyncCouponState = couponCode !== undefined;
+
+  let amount = (registration.amountPaid !== null && registration.amountPaid !== undefined)
+    ? registration.amountPaid
+    : baseAmount;
+  let couponMeta = null;
+
+  if (normalizedCouponCode) {
+    const couponResult = await validateCoupon(event.id, normalizedCouponCode, userId, baseAmount);
+    amount = couponResult.finalAmount;
+    couponMeta = {
+      couponId: couponResult.couponId,
+      code: couponResult.code,
+      discountAmount: couponResult.discountAmount,
+      originalAmount: couponResult.originalAmount,
+      finalAmount: couponResult.finalAmount,
+    };
+  } else if (shouldSyncCouponState) {
+    amount = baseAmount;
+  }
+
+  if (
+    !shouldSyncCouponState &&
+    registration.couponId &&
+    amount > 0 &&
+    amount < 1 &&
+    registration.originalAmount &&
+    registration.originalAmount > 1
+  ) {
+    amount = 1;
+    await prisma.eventRegistration.update({
+      where: { id: registration.id },
+      data: {
+        discountAmount: Math.round((registration.originalAmount - 1) * 100) / 100,
+        amountPaid: 1,
+        updatedAt: new Date(),
       },
-      payment: existingPayment,
-      key: process.env.RAZORPAY_KEY_ID,
-      registrationId: registration.id,
+    });
+    registration = {
+      ...registration,
+      discountAmount: Math.round((registration.originalAmount - 1) * 100) / 100,
+      amountPaid: 1,
     };
   }
 
-  // ── Create Razorpay order ──────────────────────────────────────────────
-  // Use discounted amountPaid if a coupon was applied, otherwise fall back to event fee
-  const amount = (registration.amountPaid !== null && registration.amountPaid !== undefined && registration.amountPaid > 0)
-    ? registration.amountPaid
-    : event.registrationFee;
+  if (shouldSyncCouponState) {
+    registration = await prisma.$transaction(async (tx) => {
+      const updatedRegistration = await tx.eventRegistration.update({
+        where: { id: registration.id },
+        data: {
+          status: amount === 0 ? REGISTRATION_STATUS.CONFIRMED : REGISTRATION_STATUS.PENDING,
+          paymentStatus: amount === 0 ? PAYMENT_STATUS.COMPLETED : PAYMENT_STATUS.PENDING,
+          couponId: couponMeta?.couponId ?? null,
+          discountAmount: couponMeta?.discountAmount ?? null,
+          originalAmount: couponMeta?.originalAmount ?? null,
+          amountPaid: amount,
+          updatedAt: new Date(),
+        },
+      });
+
+      if (couponMeta && amount === 0) {
+        await applyCouponInTransaction(tx, couponMeta.couponId, registration.id, userId, baseAmount);
+      }
+
+      return updatedRegistration;
+    });
+  }
+
+  if (existingPayment && existingPayment.registrationId === registration.id) {
+    if (Math.abs(existingPayment.amount - amount) < 0.01 && amount > 0) {
+      return {
+        order: {
+          id: existingPayment.razorpayOrderId,
+          amount: convertRupeesToPaise(existingPayment.amount),
+          currency: existingPayment.currency,
+        },
+        payment: existingPayment,
+        key: process.env.RAZORPAY_KEY_ID,
+        registrationId: registration.id,
+      };
+    }
+
+    await prisma.payment.update({
+      where: { id: existingPayment.id },
+      data: {
+        status: 'failed',
+        failedAt: new Date(),
+      },
+    });
+  }
+
+  if (amount === 0) {
+    return {
+      couponFullyFree: true,
+      message: couponMeta
+        ? 'Registration confirmed — coupon covered the full amount.'
+        : 'Registration already confirmed — no payment required.',
+      registrationId: registration.id,
+    };
+  }
 
   if (amount < 1) {
     throw new ValidationError(`Payment amount ₹${amount.toFixed(2)} is below Razorpay's minimum of ₹1. Please contact the event organiser.`);
@@ -160,6 +247,8 @@ const createIndividualPaymentOrder = async (eventId, userId) => {
       metadata: {
         eventName: event.name,
         eventId: event.eventId,
+        couponCode: couponMeta?.code || null,
+        discountAmount: couponMeta?.discountAmount || null,
       },
     },
   });
@@ -290,9 +379,6 @@ const createTeamPaymentOrder = async (eventId, teamId, userId, couponCode = null
   if (couponCode) {
     const couponResult = await validateCoupon(event.id, couponCode, userId, baseFee);
     teamFee = couponResult.finalAmount;
-    if (teamFee > 0 && teamFee < 1) {
-      throw new ValidationError(`Coupon brings the amount to ₹${teamFee.toFixed(2)}, below Razorpay's minimum of ₹1. Please use a different coupon.`);
-    }
     couponMeta = {
       couponId: couponResult.couponId,
       code: couponResult.code,
@@ -561,19 +647,27 @@ const verifyTeamPayment = async (eventId, teamId, userId, body) => {
 
     // 3. Confirm all team member registrations
     const memberUserIds = team.EventTeamMember.map((m) => m.userId);
+    const memberRegistrationUpdate = {
+      status: 'confirmed',
+      paymentStatus: 'completed',
+      paymentId: razorpay_payment_id,
+      amountPaid: payment.amount / memberUserIds.length,
+      updatedAt: new Date(),
+    };
+
+    if (payment.metadata?.coupon) {
+      memberRegistrationUpdate.couponId = payment.metadata.coupon.couponId;
+      memberRegistrationUpdate.discountAmount = payment.metadata.coupon.discountAmount;
+      memberRegistrationUpdate.originalAmount = payment.metadata.coupon.originalAmount;
+    }
+
     await tx.eventRegistration.updateMany({
       where: {
         teamId: team.id,
         userId: { in: memberUserIds },
         status: { in: ['incomplete_team', 'pending', 'draft'] },
       },
-      data: {
-        status: 'confirmed',
-        paymentStatus: 'completed',
-        paymentId: razorpay_payment_id,
-        amountPaid: payment.amount / memberUserIds.length, // Per-member share
-        updatedAt: new Date(),
-      },
+      data: memberRegistrationUpdate,
     });
 
     // 4. Finalize coupon usage now that payment is actually confirmed
@@ -699,18 +793,26 @@ const handleWebhook = async (rawBody, signature) => {
             });
 
             const memberUserIds = team.EventTeamMember.map((m) => m.userId);
+            const memberRegistrationUpdate = {
+              status: 'confirmed',
+              paymentStatus: 'completed',
+              paymentId: paymentEntity.id,
+              amountPaid: payment.amount / memberUserIds.length,
+              updatedAt: new Date(),
+            };
+
+            if (payment.metadata?.coupon) {
+              memberRegistrationUpdate.couponId = payment.metadata.coupon.couponId;
+              memberRegistrationUpdate.discountAmount = payment.metadata.coupon.discountAmount;
+              memberRegistrationUpdate.originalAmount = payment.metadata.coupon.originalAmount;
+            }
+
             await tx.eventRegistration.updateMany({
               where: {
                 teamId: team.id,
                 userId: { in: memberUserIds },
               },
-              data: {
-                status: 'confirmed',
-                paymentStatus: 'completed',
-                paymentId: paymentEntity.id,
-                amountPaid: payment.amount / memberUserIds.length,
-                updatedAt: new Date(),
-              },
+              data: memberRegistrationUpdate,
             });
 
             // Finalize coupon usage on confirmed team payment

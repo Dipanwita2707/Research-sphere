@@ -60,7 +60,7 @@ export default function StallFeedbackPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
         <div className="animate-pulse text-gray-500">Loading...</div>
       </div>
     );
@@ -68,16 +68,16 @@ export default function StallFeedbackPage() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8 text-center">
           <Store className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Stall Not Found</h2>
+          <h2 className="text-xl font-bold text-ev-900 dark:text-white mb-2">Stall Not Found</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             This stall may have been removed or this QR code is no longer active.
           </p>
           <Link
             href="/events"
-            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-sgt-600 dark:text-sgt-400 hover:underline"
+            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-ev-700 dark:text-ev-400 hover:underline"
           >
             <ArrowLeft className="w-4 h-4" />
             Browse Events
@@ -89,12 +89,12 @@ export default function StallFeedbackPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8 text-center">
           <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-emerald-500" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-xl font-bold text-ev-900 dark:text-white mb-2">
             Thank You!
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-2">
@@ -105,7 +105,7 @@ export default function StallFeedbackPage() {
           </p>
           <Link
             href="/events"
-            className="inline-flex items-center gap-2 px-6 py-3 min-h-[48px] bg-sgt-600 hover:bg-sgt-700 text-white rounded-lg font-semibold transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 min-h-[48px] bg-ev-700 hover:bg-ev-800 text-white rounded-lg font-semibold transition-colors"
           >
             Browse Events
           </Link>
@@ -122,21 +122,21 @@ export default function StallFeedbackPage() {
     activeRating <= 9 ? 'Great' : 'Excellent';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 sm:py-8 px-4">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-6 sm:py-8 px-4">
       <div className="max-w-md mx-auto">
         {/* Header Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="bg-gradient-to-r from-sgt-600 to-sgt-700 p-4 sm:p-5 text-white">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
+          <div className="bg-gradient-to-r from-ev-700 to-ev-800 p-4 sm:p-5 text-white">
             <div className="flex items-center gap-3 mb-1">
               <div className="p-2 bg-white/20 rounded-lg flex-shrink-0">
                 <Store className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <p className="text-sgt-200 text-xs font-medium uppercase tracking-wide">Stall Feedback</p>
+                <p className="text-ev-200 text-xs font-medium uppercase tracking-wide">Stall Feedback</p>
                 <h1 className="text-lg font-bold truncate">{info?.stallName}</h1>
               </div>
             </div>
-            <p className="text-sgt-100 text-sm">{info?.eventName}</p>
+            <p className="text-ev-100 text-sm">{info?.eventName}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-6">
@@ -157,8 +157,8 @@ export default function StallFeedbackPage() {
                       onClick={() => setRating(val)}
                       className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-150 ${
                         filled
-                          ? 'bg-sgt-600 text-white shadow-md scale-105'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-sgt-50 dark:hover:bg-sgt-900/20'
+                          ? 'bg-ev-700 text-white shadow-md scale-105'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-ev-50 dark:hover:bg-ev-900/20'
                       }`}
                     >
                       {val}
@@ -170,7 +170,7 @@ export default function StallFeedbackPage() {
                 activeRating === 0 ? 'text-gray-400 dark:text-gray-500' :
                 activeRating <= 3 ? 'text-red-500' :
                 activeRating <= 5 ? 'text-amber-500' :
-                activeRating <= 7 ? 'text-blue-500' :
+                activeRating <= 7 ? 'text-ev-700' :
                 'text-emerald-500'
               }`}>
                 {activeRating > 0 && <span className="mr-1">{activeRating}/10</span>}
@@ -181,7 +181,7 @@ export default function StallFeedbackPage() {
             {/* Optional text feedback */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-sgt-500" />
+                <MessageSquare className="w-4 h-4 text-ev-700" />
                 Write additional feedback (optional)
               </label>
               <textarea
@@ -190,7 +190,7 @@ export default function StallFeedbackPage() {
                 placeholder="Share any specific thoughts about your experience at this stall..."
                 rows={3}
                 maxLength={2000}
-                className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-sgt-500 focus:border-transparent resize-none text-sm"
+                className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-ev-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-ev-700 focus:border-transparent resize-none text-sm"
               />
               <p className="text-xs text-gray-400 mt-1 text-right">{shortDescription.length}/2000</p>
             </div>
@@ -198,7 +198,7 @@ export default function StallFeedbackPage() {
             <button
               type="submit"
               disabled={submitting || rating < 1}
-              className="w-full py-3 min-h-[48px] bg-sgt-600 hover:bg-sgt-700 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full py-3 min-h-[48px] bg-ev-700 hover:bg-ev-800 text-white rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>

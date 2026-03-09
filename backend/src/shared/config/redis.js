@@ -359,6 +359,26 @@ const getStats = async () => {
   }
 };
 
+/**
+ * Return the raw ioredis connection options for libraries like BullMQ
+ * that need their own connection instance.
+ * Returns null if Redis is unavailable.
+ */
+const getConnectionOpts = () => {
+  if (!isConnected || !redis) return null;
+  // Return the options that can be used to create a new ioredis instance
+  if (process.env.REDIS_URL) {
+    return { url: process.env.REDIS_URL };
+  }
+  return {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT) || 6379,
+    password: process.env.REDIS_PASSWORD || undefined,
+    username: process.env.REDIS_USERNAME || undefined,
+    db: parseInt(process.env.REDIS_DB) || 0,
+  };
+};
+
 module.exports = {
   initRedis,
   get,
@@ -370,6 +390,7 @@ module.exports = {
   invalidateUser,
   invalidateLists,
   getStats,
+  getConnectionOpts,
   CACHE_TTL,
   CACHE_KEYS,
   isConnected: () => isConnected

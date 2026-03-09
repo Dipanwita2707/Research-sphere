@@ -9,6 +9,7 @@ const ApiResponse = require('../../../shared/utils/ApiResponse');
 const prisma = require('../../../shared/config/database');
 const bulkEmailService = require('../services/bulkEmail.service');
 const emailCreditService = require('../services/emailCredit.service');
+const emailQueue = require('../../../jobs/emailQueue');
 
 /**
  * POST /api/v1/events/:id/emails/send
@@ -105,23 +106,35 @@ const sendBulkEmail = asyncHandler(async (req, res) => {
 
   // Fallback: look up names via StudentDetails.email (covers users whose
   // userLoginId is not set in StudentDetails) and EmployeeDetails (same).
-  let fallbackNames = {};
-  if (unresolvedEmails.length > 0) {
-    const [sdRows, edRows] = await Promise.all([
-      prisma.studentDetails.findMany({
-        where: { email: { in: unresolvedEmails } },
-        select: { email: true, firstName: true, lastName: true, displayName: true },
-      }),
-      prisma.employeeDetails.findMany({
-        where: { email: { in: unresolvedEmails } },
-        select: { email: true, firstName: true, lastName: true, displayName: true },
-      }),
-    ]);
-    for (const row of [...sdRows, ...edRows]) {
-      if (row.email && !fallbackNames[row.email]) {
-        fallbackNames[row.email] =
-          row.displayName || `${row.firstName || ''} ${row.lastName || ''}`.trim();
-      }
+  // Run in parallel with credit check since name resolution doesn't change count.
+  const recipientCount = prelimRecipients.length;
+  if (recipientCount === 0) {
+    return res.status(404).json({ success: false, message: 'No recipients found matching the selected filter.' });
+  }
+
+  const namePromise = unresolvedEmails.length > 0
+    ? Promise.all([
+        prisma.studentDetails.findMany({
+          where: { email: { in: unresolvedEmails } },
+          select: { email: true, firstName: true, lastName: true, displayName: true },
+        }),
+        prisma.employeeDetails.findMany({
+          where: { email: { in: unresolvedEmails } },
+          select: { email: true, firstName: true, lastName: true, displayName: true },
+        }),
+      ])
+    : Promise.resolve([[], []]);
+
+  const [creditCheck, [sdRows, edRows]] = await Promise.all([
+    emailCreditService.checkAvailable(event.id, recipientCount),
+    namePromise,
+  ]);
+
+  const fallbackNames = {};
+  for (const row of [...sdRows, ...edRows]) {
+    if (row.email && !fallbackNames[row.email]) {
+      fallbackNames[row.email] =
+        row.displayName || `${row.firstName || ''} ${row.lastName || ''}`.trim();
     }
   }
 
@@ -139,17 +152,12 @@ const sendBulkEmail = asyncHandler(async (req, res) => {
     })
     .filter(Boolean);
 
-  if (recipients.length === 0) {
-    return res.status(404).json({ success: false, message: 'No recipients found matching the selected filter.' });
-  }
-
   // ── Credit check ────────────────────────────────────────────
-  const creditCheck = await emailCreditService.checkAvailable(event.id, recipients.length);
   if (!creditCheck.ok) {
     return res.status(402).json({
       success: false,
-      message: `Insufficient email credits. You need ${recipients.length} credit(s) but only ${creditCheck.available} available. Credits reset automatically as new registrations occur (1 reg = 3 credits).`,
-      credits: { ...creditCheck, required: recipients.length },
+      message: `Insufficient email credits. You need ${recipientCount} credit(s) but only ${creditCheck.available} available. Credits reset automatically as new registrations occur (1 reg = 3 credits).`,
+      credits: { ...creditCheck, required: recipientCount },
     });
   }
 
@@ -198,57 +206,81 @@ const sendBulkEmail = asyncHandler(async (req, res) => {
       recipientCount: recipients.length,
       sentCount: 0,
       failedCount: 0,
-      status: 'sent',
+      status: 'queued',
       replyTo: replyTo || null,
       recipientEmails: recipients,
       errors: [],
     },
   });
 
-  // ── Create per-recipient logs & build tracking map ──────────
-  // Use createMany for batch insert instead of N individual creates
+  // ── Try background queue (fast path) ────────────────────────
+  // Skip recipientLog creation here — the worker handles it.
+  if (emailQueue.isAvailable()) {
+    const job = await emailQueue.enqueue({
+      emailLogId: emailLog.id,
+      eventId: event.id,
+      eventName: event.name,
+      subject,
+      body,
+      recipients,
+      replyTo: replyTo || undefined,
+    });
+
+    if (job) {
+      // Queued successfully → return 202 immediately
+      return res.status(202).json({
+        success: true,
+        message: `Email queued for ${recipients.length} recipient(s). Sending in background.`,
+        data: {
+          queued: true,
+          logId: emailLog.id,
+          recipientCount: recipients.length,
+          jobId: job.id,
+        },
+      });
+    }
+    // enqueue failed — fall through to sync
+  }
+
+  // ── Sync fallback (Redis unavailable or enqueue failed) ─────
+  console.log(`[BulkEmail] Sync fallback for emailLog ${emailLog.id}`);
+
+  // Create per-recipient logs & build tracking map (sync path only)
   await prisma.emailRecipientLog.createMany({
     data: recipients.map((r) => ({
       emailLogId: emailLog.id,
       email: r.email,
       name: r.name || '',
-      status: 'sent',
+      status: 'queued',
     })),
   });
 
-  // Fetch all created recipient logs to build tracking map
   const recipientLogs = await prisma.emailRecipientLog.findMany({
     where: { emailLogId: emailLog.id },
     select: { id: true, email: true },
   });
 
-  // Map email→recipientLogId for tracking pixel injection
   const recipientTrackingIds = {};
   for (const rl of recipientLogs) {
     recipientTrackingIds[rl.email] = rl.id;
   }
 
-  // Build tracking base URL.
-  // BACKEND_PUBLIC_URL env var is required. Falling back to the incoming
-  // Host header is a security risk (Host header injection), so we use a
-  // hardcoded default instead.
+  // Update status to 'sending'
+  await prisma.eventEmailLog.update({
+    where: { id: emailLog.id },
+    data: { status: 'sending' },
+  });
+
   let trackingBaseUrl;
   if (process.env.BACKEND_PUBLIC_URL) {
-    // Strip any trailing slash then append the API prefix
     trackingBaseUrl = `${process.env.BACKEND_PUBLIC_URL.replace(/\/$/, '')}/api/v1/events`;
   } else {
-    // Safe fallback — never use req.get('host') as it can be spoofed
     console.warn('[EmailTrack] BACKEND_PUBLIC_URL is not set. Tracking pixels will use a localhost fallback.');
     trackingBaseUrl = `https://localhost:${process.env.PORT || 5000}/api/v1/events`;
   }
-  console.log(`[EmailTrack] pixel base URL: ${trackingBaseUrl}`);
 
-  // ── Deduct credits upfront (before sending) ─────────────────
-  // Credits for ALL recipients are reserved now. Any that fail to
-  // deliver will be automatically refunded after the batch completes.
   await emailCreditService.deductCredits(event.id, recipients.length, emailLog.id);
 
-  // ── Send ────────────────────────────────────────────────────
   const result = await bulkEmailService.sendBulk({
     eventName: event.name,
     subject,
@@ -259,7 +291,6 @@ const sendBulkEmail = asyncHandler(async (req, res) => {
     recipientTrackingIds,
   });
 
-  // ── Update email log with results ───────────────────────────
   try {
     await prisma.eventEmailLog.update({
       where: { id: emailLog.id },
@@ -268,47 +299,28 @@ const sendBulkEmail = asyncHandler(async (req, res) => {
         failedCount: result.failed,
         status: result.failed === 0 ? 'sent' : result.sent === 0 ? 'failed' : 'partial',
         errors: result.errors || [],
+        sentAt: new Date(),
       },
     });
 
-    // ── Refund credits for failed deliveries ────────────────────
-    // Credits were pre-deducted for all recipients; refund those that
-    // failed so the organiser is only charged for successful sends.
     if (result.failed > 0) {
       emailCreditService.refundCredits(event.id, result.failed, emailLog.id).catch((err) =>
         console.error('[EmailCredit] Failed to refund credits for failures:', err.message)
       );
     }
 
-    // Mark failed recipients
     if (result.failedEmails && result.failedEmails.length > 0) {
       await prisma.emailRecipientLog.updateMany({
-        where: {
-          emailLogId: emailLog.id,
-          email: { in: result.failedEmails },
-        },
-        data: {
-          status: 'failed',
-          failureReason: 'SendGrid API error – batch failed',
-          failedAt: new Date(),
-        },
+        where: { emailLogId: emailLog.id, email: { in: result.failedEmails } },
+        data: { status: 'failed', failureReason: 'SendGrid API error – batch failed', failedAt: new Date() },
       });
     }
 
-    // Mark successful recipients as delivered
-    const successEmails = recipients
-      .map((r) => r.email)
-      .filter((e) => !result.failedEmails?.includes(e));
+    const successEmails = recipients.map((r) => r.email).filter((e) => !result.failedEmails?.includes(e));
     if (successEmails.length > 0) {
       await prisma.emailRecipientLog.updateMany({
-        where: {
-          emailLogId: emailLog.id,
-          email: { in: successEmails },
-        },
-        data: {
-          status: 'delivered',
-          deliveredAt: new Date(),
-        },
+        where: { emailLogId: emailLog.id, email: { in: successEmails } },
+        data: { status: 'delivered', deliveredAt: new Date() },
       });
     }
   } catch (logErr) {
@@ -331,22 +343,25 @@ const sendBulkEmail = asyncHandler(async (req, res) => {
 const getRecipientsCount = asyncHandler(async (req, res) => {
   const { id: eventId } = req.params;
 
-  const event = await prisma.event.findUnique({
-    where: { eventId },
-    select: { id: true },
-  });
+  // Single query: resolve eventId → UUID and count per-status in one round trip.
+  // COUNT(er.id) returns 0 (not null) via LEFT JOIN when no registrations exist.
+  // If the event row doesn't exist the WHERE clause yields no rows → 404.
+  const rows = await prisma.$queryRaw`
+    SELECT
+      COUNT(er.id)::int                                                        AS "all",
+      COALESCE(SUM(CASE WHEN er.status = 'confirmed'  THEN 1 END), 0)::int    AS confirmed,
+      COALESCE(SUM(CASE WHEN er.status = 'pending'    THEN 1 END), 0)::int    AS pending,
+      COALESCE(SUM(CASE WHEN er.status = 'cancelled'  THEN 1 END), 0)::int    AS cancelled
+    FROM "Event" e
+    LEFT JOIN "EventRegistration" er ON er."eventId" = e.id
+    WHERE e."eventId" = ${eventId}
+  `;
 
-  if (!event) {
+  if (!rows.length) {
     return res.status(404).json({ success: false, message: 'Event not found.' });
   }
 
-  const [all, confirmed, pending, cancelled] = await Promise.all([
-    prisma.eventRegistration.count({ where: { eventId: event.id } }),
-    prisma.eventRegistration.count({ where: { eventId: event.id, status: 'confirmed' } }),
-    prisma.eventRegistration.count({ where: { eventId: event.id, status: 'pending' } }),
-    prisma.eventRegistration.count({ where: { eventId: event.id, status: 'cancelled' } }),
-  ]);
-
+  const { all, confirmed, pending, cancelled } = rows[0];
   return ApiResponse.success(res, { all, confirmed, pending, cancelled });
 });
 
@@ -377,7 +392,23 @@ const getEmailHistory = asyncHandler(async (req, res) => {
       orderBy: { sentAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
-      include: {
+      // ── `body` deliberately excluded — it's large HTML not needed for the list.
+      //    Fetch it separately via GET /emails/:logId when the user wants to preview or resend.
+      // ── `recipients` deliberately excluded — see batch GROUP BY aggregation below.
+      //    Previously `include: { recipients: [...] }` loaded every recipient row (potentially
+      //    thousands per campaign) into memory just to .filter() count them in JS.
+      select: {
+        id: true,
+        subject: true,
+        filter: true,
+        recipientCount: true,
+        sentCount: true,
+        failedCount: true,
+        status: true,
+        replyTo: true,
+        errors: true,
+        sentAt: true,
+        scheduledAt: true,
         sentBy: {
           select: {
             uid: true,
@@ -386,25 +417,38 @@ const getEmailHistory = asyncHandler(async (req, res) => {
             employeeDetails: { select: { displayName: true, firstName: true, lastName: true } },
           },
         },
-        recipients: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            status: true,
-            failureReason: true,
-            openCount: true,
-            firstOpenedAt: true,
-            lastOpenedAt: true,
-            deliveredAt: true,
-            failedAt: true,
-          },
-        },
       },
     }),
   ]);
 
-  // Format sentBy name & aggregate stats
+  // ── Batch aggregate per-campaign recipient stats ───────────────────────────
+  // A single GROUP BY over the fetched log IDs replaces the old approach of
+  // loading every recipient row and counting in JS (O(N*M) → O(pages)).
+  const logIds = logs.map((l) => l.id);
+  const recipientStats = {};
+  if (logIds.length > 0) {
+    const rows = await prisma.$queryRaw`
+      SELECT
+        "emailLogId",
+        COUNT(*) FILTER (WHERE status = 'delivered')                        AS "deliveredCount",
+        COUNT(*) FILTER (WHERE "openCount" > 0)                             AS "openedCount",
+        COUNT(*) FILTER (WHERE status = 'bounced')                          AS "bouncedCount",
+        COUNT(*) FILTER (WHERE status = 'delivered' AND "openCount" = 0)    AS "notOpenedCount"
+      FROM "EmailRecipientLog"
+      WHERE "emailLogId" = ANY(${logIds}::uuid[])
+      GROUP BY "emailLogId"
+    `;
+    for (const row of rows) {
+      recipientStats[row.emailLogId] = {
+        deliveredCount: Number(row.deliveredCount),
+        openedCount: Number(row.openedCount),
+        bouncedCount: Number(row.bouncedCount),
+        notOpenedCount: Number(row.notOpenedCount),
+      };
+    }
+  }
+
+  // Format sentBy name & merge aggregated stats
   const formatted = logs.map((log) => {
     const u = log.sentBy;
     let sentByName = u?.uid || 'Unknown';
@@ -414,18 +458,12 @@ const getEmailHistory = asyncHandler(async (req, res) => {
       sentByName = u.employeeDetails.displayName || `${u.employeeDetails.firstName || ''} ${u.employeeDetails.lastName || ''}`.trim();
     }
 
-    // Aggregate recipient stats
-    const recipients = log.recipients || [];
-    const deliveredCount = recipients.filter((r) => r.status === 'delivered').length;
-    const failedRecipients = recipients.filter((r) => r.status === 'failed');
-    const bouncedCount = recipients.filter((r) => r.status === 'bounced').length;
-    const openedCount = recipients.filter((r) => r.openCount > 0).length;
-    const notOpenedCount = recipients.filter((r) => r.openCount === 0 && r.status === 'delivered').length;
+    const stats = recipientStats[log.id] || { deliveredCount: 0, openedCount: 0, bouncedCount: 0, notOpenedCount: 0 };
 
     return {
       id: log.id,
       subject: log.subject,
-      body: log.body,
+      body: null, // Not loaded in list — fetch GET /emails/:logId for full body
       filter: log.filter,
       recipientCount: log.recipientCount,
       sentCount: log.sentCount,
@@ -434,26 +472,17 @@ const getEmailHistory = asyncHandler(async (req, res) => {
       replyTo: log.replyTo,
       errors: log.errors,
       sentAt: log.sentAt,
+      scheduledAt: log.scheduledAt,
       sentByName,
       sentByEmail: u?.email || null,
-      // New aggregated stats
-      deliveredCount,
-      bouncedCount,
-      openedCount,
-      notOpenedCount,
-      // Per-recipient details
-      recipientDetails: recipients.map((r) => ({
-        id: r.id,
-        email: r.email,
-        name: r.name,
-        status: r.status,
-        failureReason: r.failureReason,
-        openCount: r.openCount,
-        firstOpenedAt: r.firstOpenedAt,
-        lastOpenedAt: r.lastOpenedAt,
-        deliveredAt: r.deliveredAt,
-        failedAt: r.failedAt,
-      })),
+      // Aggregated stats (from batch GROUP BY — no per-row data loaded)
+      deliveredCount: stats.deliveredCount,
+      bouncedCount: stats.bouncedCount,
+      openedCount: stats.openedCount,
+      notOpenedCount: stats.notOpenedCount,
+      // Per-recipient details are not loaded in the list for performance.
+      // Load them via GET /events/:id/emails/:logId/recipients when needed.
+      recipientDetails: [],
     };
   });
 
@@ -518,15 +547,35 @@ const trackEmailOpen = async (req, res) => {
 const getEmailCredits = asyncHandler(async (req, res) => {
   const { id: eventId } = req.params;
 
+  // Single round trip: fetch event + credit record + registration count together.
+  // Prisma batches the relation + _count in one database call.
   const event = await prisma.event.findUnique({
     where: { eventId },
-    select: { id: true },
+    select: {
+      id: true,
+      EventEmailCredit: { select: { usedCredits: true, totalCredits: true } },
+      _count: { select: { EventRegistration: true } },
+    },
   });
   if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });
 
-  const credits = await emailCreditService.getCredits(event.id);
+  const total     = event._count.EventRegistration * emailCreditService.CREDITS_PER_REGISTRATION;
+  const used      = event.EventEmailCredit?.usedCredits ?? 0;
+  const available = Math.max(0, total - used);
+
+  // Keep persisted totalCredits column in sync (background, non-blocking).
+  if ((event.EventEmailCredit?.totalCredits ?? -1) !== total) {
+    prisma.eventEmailCredit.upsert({
+      where:  { eventId: event.id },
+      create: { eventId: event.id, totalCredits: total, usedCredits: 0 },
+      update: { totalCredits: total },
+    }).catch(() => {});
+  }
+
   return ApiResponse.success(res, {
-    ...credits,
+    total,
+    used,
+    available,
     creditsPerRegistration: emailCreditService.CREDITS_PER_REGISTRATION,
   });
 });
@@ -615,4 +664,85 @@ const cancelScheduledEmail = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, { cancelled: true }, 'Scheduled email cancelled.');
 });
 
-module.exports = { sendBulkEmail, getRecipientsCount, getEmailHistory, getEmailAnalytics, getEmailCredits, trackEmailOpen, cancelScheduledEmail };
+/**
+ * GET /api/v1/events/:id/emails/:logId
+ *
+ * Returns the full body + metadata for a single email log entry.
+ * Not included in the history list to avoid loading large HTML for every row.
+ */
+const getEmailLogDetail = asyncHandler(async (req, res) => {
+  const { id: eventId, logId } = req.params;
+
+  const event = await prisma.event.findUnique({ where: { eventId }, select: { id: true } });
+  if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });
+
+  const log = await prisma.eventEmailLog.findFirst({
+    where: { id: logId, eventId: event.id },
+    select: {
+      id: true,
+      subject: true,
+      body: true,
+      filter: true,
+      recipientCount: true,
+      sentCount: true,
+      failedCount: true,
+      status: true,
+      replyTo: true,
+      errors: true,
+      sentAt: true,
+      scheduledAt: true,
+      registrationIds: true,
+    },
+  });
+  if (!log) return res.status(404).json({ success: false, message: 'Email log not found.' });
+
+  return ApiResponse.success(res, log);
+});
+
+/**
+ * GET /api/v1/events/:id/emails/:logId/recipients
+ *
+ * Returns paginated per-recipient delivery & open details for one campaign.
+ * Separated from the history list to avoid loading thousands of rows upfront.
+ */
+const getEmailLogRecipients = asyncHandler(async (req, res) => {
+  const { id: eventId, logId } = req.params;
+  const page  = parseInt(req.query.page)  || 1;
+  const limit = parseInt(req.query.limit) || 50;
+
+  const event = await prisma.event.findUnique({ where: { eventId }, select: { id: true } });
+  if (!event) return res.status(404).json({ success: false, message: 'Event not found.' });
+
+  // Verify the log belongs to this event
+  const logExists = await prisma.eventEmailLog.count({ where: { id: logId, eventId: event.id } });
+  if (!logExists) return res.status(404).json({ success: false, message: 'Email log not found.' });
+
+  const [total, recipients] = await Promise.all([
+    prisma.emailRecipientLog.count({ where: { emailLogId: logId } }),
+    prisma.emailRecipientLog.findMany({
+      where: { emailLogId: logId },
+      orderBy: { createdAt: 'asc' },
+      skip: (page - 1) * limit,
+      take: limit,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        status: true,
+        failureReason: true,
+        openCount: true,
+        firstOpenedAt: true,
+        lastOpenedAt: true,
+        deliveredAt: true,
+        failedAt: true,
+      },
+    }),
+  ]);
+
+  return ApiResponse.success(res, {
+    recipients,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  });
+});
+
+module.exports = { sendBulkEmail, getRecipientsCount, getEmailHistory, getEmailAnalytics, getEmailCredits, trackEmailOpen, cancelScheduledEmail, getEmailLogDetail, getEmailLogRecipients };

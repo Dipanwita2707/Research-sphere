@@ -24,11 +24,13 @@ export const EVENT_QUERY_KEYS = {
 export function useEvents(
   filters: EventFilters = {},
   page = 1,
-  limit = 20
+  limit = 20,
+  enabled = true,
 ) {
   return useQuery({
     queryKey: EVENT_QUERY_KEYS.list(filters, page, limit),
     queryFn: () => eventService.getEvents(filters, page, limit),
+    enabled,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 }
