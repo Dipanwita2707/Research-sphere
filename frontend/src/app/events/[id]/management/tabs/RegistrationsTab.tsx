@@ -261,7 +261,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
     <div className="flex items-center gap-2 flex-wrap">
       <button
         onClick={handleExportCSV}
-        className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors"
+        className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-white bg-ev-700 rounded-lg hover:bg-ev-800 transition-colors"
       >
         <Download className="w-4 h-4" />
         <span className="hidden sm:inline">Export CSV</span>
@@ -306,11 +306,11 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
       <div
         key={reg.id}
         onClick={() => setDetailRegId(reg.id)}
-        className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 cursor-pointer ${!isLast ? 'border-b border-gray-100 dark:border-gray-700' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isSelected ? 'bg-sgt-50 dark:bg-sgt-900/20' : ''}`}
+        className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3 cursor-pointer ${!isLast ? 'border-b border-gray-100 dark:border-gray-700' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isSelected ? 'bg-ev-50 dark:bg-ev-900/20' : ''}`}
       >
         <input
           type="checkbox"
-          className="w-4 h-4 rounded border-gray-300 text-sgt-600 focus:ring-sgt-500 cursor-pointer flex-shrink-0"
+          className="w-4 h-4 rounded border-gray-300 text-ev-700 focus:ring-ev-700 cursor-pointer flex-shrink-0"
           checked={isSelected}
           onChange={() => toggleRegSelection(reg.id)}
           onClick={(e) => e.stopPropagation()}
@@ -363,7 +363,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             value={regFilters.search || ''}
             onChange={(e) => setRegFilters(prev => ({ ...prev, search: e.target.value || undefined, page: 1 }))}
             placeholder="Search by name, email, UID, reg ID, team, or transaction ID..."
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-ev-700 focus:border-ev-700 transition-all"
           />
         </div>
         {/* View Mode Toggle */}
@@ -372,7 +372,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             type="button"
             onClick={() => setRegViewMode('table')}
             title="Table view"
-            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium transition-all ${regViewMode === 'table' ? 'bg-sgt-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium transition-all ${regViewMode === 'table' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <LayoutList className="w-4 h-4" />
             <span className="hidden sm:inline">Table</span>
@@ -381,7 +381,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             type="button"
             onClick={() => setRegViewMode('teams')}
             title="Team groups view"
-            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode === 'teams' ? 'bg-sgt-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode === 'teams' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <LayoutGrid className="w-4 h-4" />
             <span className="hidden sm:inline">Teams</span>
@@ -390,7 +390,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             type="button"
             onClick={() => setRegViewMode('guests')}
             title="Guest passes view"
-            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode === 'guests' ? 'bg-sgt-500 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            className={`px-3.5 py-2.5 flex items-center gap-1.5 text-sm font-medium border-l border-gray-300 dark:border-gray-600 transition-all ${regViewMode === 'guests' ? 'bg-ev-700 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
           >
             <Users className="w-4 h-4" />
             <span className="hidden sm:inline">Guests</span>
@@ -401,7 +401,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
           onClick={() => setShowFilters(!showFilters)}
           className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
             showFilters
-              ? 'bg-sgt-50 dark:bg-sgt-900/30 border-sgt-500 text-sgt-700 dark:text-sgt-300'
+              ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
               : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:border-gray-400'
           }`}
         >
@@ -421,7 +421,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             if (regFilters.paymentStatus && regFilters.paymentStatus !== 'all') cnt++;
             if (regFilters.teamSearch) cnt++;
             return cnt > 0 ? (
-              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sgt-500 text-white text-[10px] font-bold">{cnt}</span>
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-ev-700 text-white text-[10px] font-bold">{cnt}</span>
             ) : null;
           })()}
         </button>
@@ -459,7 +459,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
             value={regFilters.teamSearch || ''}
             onChange={(e) => setRegFilters(prev => ({ ...prev, teamSearch: e.target.value || undefined, page: 1 }))}
             placeholder="Filter by team name..."
-            className="pl-3 pr-8 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 transition-all w-44"
+            className="pl-3 pr-8 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-ev-700 focus:border-ev-700 transition-all w-44"
           />
           {regFilters.teamSearch && (
             <button
@@ -475,16 +475,16 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
 
       {/* Selected participants bar */}
       {selectedRegIds.size > 0 && (
-        <div className="flex items-center justify-between px-4 py-2.5 bg-sgt-50 dark:bg-sgt-900/30 border border-sgt-200 dark:border-sgt-700 rounded-lg">
-          <div className="flex items-center gap-2 text-sm font-medium text-sgt-700 dark:text-sgt-300">
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sgt-500 text-white text-xs font-bold">{selectedRegIds.size}</span>
+        <div className="flex items-center justify-between px-4 py-2.5 bg-ev-50 dark:bg-ev-900/30 border border-sgt-200 dark:border-ev-800 rounded-lg">
+          <div className="flex items-center gap-2 text-sm font-medium text-ev-800 dark:text-ev-200">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-ev-700 text-white text-xs font-bold">{selectedRegIds.size}</span>
             participant{selectedRegIds.size !== 1 ? 's' : ''} selected
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowEmailSlider(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-sgt-600 text-white rounded-md hover:bg-sgt-700 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-ev-700 text-white rounded-md hover:bg-ev-800 transition-colors"
             >
               <Mail className="w-3.5 h-3.5" />
               Email selected
@@ -545,7 +545,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
 
             return (
               <div className="space-y-4">
-                {regLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-sgt-500" /></div>}
+                {regLoading && <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-ev-700" /></div>}
                 {teamEntries.map(([teamId, members], idx) => {
                   const color = teamColorMap.get(teamId)!;
                   const teamInfo = members[0]?.team;
@@ -618,7 +618,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                   Registrations {regPagination ? `(${regPagination.total})` : ''}
                 </h3>
-                {regLoading && <Loader2 className="w-4 h-4 animate-spin text-sgt-600" />}
+                {regLoading && <Loader2 className="w-4 h-4 animate-spin text-ev-700" />}
               </div>
               <div className="overflow-x-auto -mx-1">
                 <table className="w-full min-w-[900px]">
@@ -627,7 +627,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                       <th className="w-10 px-4 py-3">
                         <input
                           type="checkbox"
-                          className="w-4 h-4 rounded border-gray-300 text-sgt-600 focus:ring-sgt-500 cursor-pointer"
+                          className="w-4 h-4 rounded border-gray-300 text-ev-700 focus:ring-ev-700 cursor-pointer"
                           checked={regData.length > 0 && selectedRegIds.size === regData.length}
                           ref={(el) => { if (el) el.indeterminate = selectedRegIds.size > 0 && selectedRegIds.size < regData.length; }}
                           onChange={toggleSelectAll}
@@ -647,9 +647,9 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {regData.length > 0 ? (
                       regData.map((reg) => (
-                        <tr key={reg.id} onClick={() => setDetailRegId(reg.id)} className={`group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer ${selectedRegIds.has(reg.id) ? 'bg-sgt-50 dark:bg-sgt-900/20' : ''}`}>
+                        <tr key={reg.id} onClick={() => setDetailRegId(reg.id)} className={`group hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer ${selectedRegIds.has(reg.id) ? 'bg-ev-50 dark:bg-ev-900/20' : ''}`}>
                           <td className="w-10 px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-sgt-600 focus:ring-sgt-500 cursor-pointer" checked={selectedRegIds.has(reg.id)} onChange={() => toggleRegSelection(reg.id)} />
+                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-ev-700 focus:ring-ev-700 cursor-pointer" checked={selectedRegIds.has(reg.id)} onChange={() => toggleRegSelection(reg.id)} />
                           </td>
                           <td className="px-4 py-3.5">
                             <div>
@@ -699,7 +699,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                             {reg.hasEntered ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <XCircle className="w-5 h-5 text-gray-400" />}
                           </td>
                           <td className="w-10 px-2 py-3.5">
-                            <Eye className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-sgt-500 transition-colors" />
+                            <Eye className="w-4 h-4 text-gray-300 dark:text-gray-600 group-hover:text-ev-700 transition-colors" />
                           </td>
                         </tr>
                       ))
@@ -727,7 +727,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                       else if (regPagination.page >= regPagination.totalPages - 2) { pageNum = regPagination.totalPages - 4 + i; }
                       else { pageNum = regPagination.page - 2 + i; }
                       return (
-                        <button key={pageNum} type="button" onClick={() => handleRegPageChange(pageNum)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${regPagination.page === pageNum ? 'bg-sgt-500 text-white' : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>{pageNum}</button>
+                        <button key={pageNum} type="button" onClick={() => handleRegPageChange(pageNum)} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${regPagination.page === pageNum ? 'bg-ev-700 text-white' : 'border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>{pageNum}</button>
                       );
                     })}
                     <button type="button" disabled={regPagination.page >= regPagination.totalPages} onClick={() => handleRegPageChange(regPagination.page + 1)} className="px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all">Next</button>
@@ -744,7 +744,7 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
                 <h3 className="text-base font-semibold text-gray-900 dark:text-white">
                   Guest Passes ({guestRows.length})
                 </h3>
-                {regLoading && <Loader2 className="w-4 h-4 animate-spin text-sgt-600" />}
+                {regLoading && <Loader2 className="w-4 h-4 animate-spin text-ev-700" />}
               </div>
               <div className="overflow-x-auto -mx-1">
                 <table className="w-full min-w-[980px]">

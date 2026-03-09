@@ -63,7 +63,7 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
         <div className="flex items-center justify-between gap-4 mb-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-sgt-500" />
+              <MessageSquare className="w-5 h-5 text-ev-700" />
               Event Feedback
             </h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -72,7 +72,7 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
           </div>
           <button
             onClick={handleShowFeedbackQR}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-ev-700 rounded-lg hover:bg-ev-800 transition-colors"
           >
             <QrCode className="w-4 h-4" />
             Show Feedback QR
@@ -81,8 +81,8 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
 
         {feedbackSummary && (
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-4 rounded-lg bg-sgt-50 dark:bg-sgt-900/20">
-              <p className="text-2xl font-bold text-sgt-600 dark:text-sgt-400">{feedbackSummary.totalFeedback}</p>
+            <div className="p-4 rounded-lg bg-ev-50 dark:bg-ev-900/20">
+              <p className="text-2xl font-bold text-ev-700 dark:text-ev-400">{feedbackSummary.totalFeedback}</p>
               <p className="text-sm text-gray-500 dark:text-gray-400">Total Responses</p>
             </div>
             <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
@@ -94,7 +94,7 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
 
         {feedbackLoading ? (
           <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-sgt-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-ev-700" />
           </div>
         ) : feedbackList.length === 0 ? (
           <div className="text-center py-12 text-gray-500 dark:text-gray-400">
@@ -109,7 +109,7 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
                   <span className="text-xs text-gray-500 dark:text-gray-400">
                     {new Date(fb.createdAt).toLocaleString()}
                   </span>
-                  <span className="text-sm font-semibold text-sgt-600 dark:text-sgt-400">
+                  <span className="text-sm font-semibold text-ev-700 dark:text-ev-400">
                     Avg: {(fb.points.reduce((a, b) => a + b, 0) / 10).toFixed(1)}/10
                   </span>
                 </div>
@@ -117,7 +117,7 @@ export default function FeedbackTab({ eventId }: FeedbackTabProps) {
                   {fb.points.map((p, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center justify-center w-7 h-7 rounded bg-sgt-100 dark:bg-sgt-900/30 text-xs font-medium text-sgt-700 dark:text-sgt-300"
+                      className="inline-flex items-center justify-center w-7 h-7 rounded bg-ev-50 dark:bg-ev-900/30 text-xs font-medium text-ev-800 dark:text-ev-200"
                     >
                       {p}
                     </span>

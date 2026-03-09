@@ -21,6 +21,7 @@ const { ValidationError } = require("../../../shared/utils/AppError");
 const { generateNotingId } = require("../services/notingId.service");
 const approvalFlowService = require("../services/approvalFlow.service");
 const { invalidateNoteCaches } = require("../services/noting.service");
+const notingNotification = require("../services/notingNotification.service");
 
 const { NOTE_STATUS, NOTE_ACTIONS } = require("../constants/noting.constants");
 const {
@@ -402,6 +403,11 @@ const create = asyncHandler(async (req, res) => {
   // Invalidate all noting caches since a new note was created
   await invalidateNoteCaches(finalNote.id);
 
+  // Trigger notification: the assigned approver is informed the note is pending review
+  if (submit && finalNote.currentHolderId) {
+    notingNotification.notifyAssigned(finalNote, finalNote.currentHolderId);
+  }
+
   return ApiResponse.created(
     res,
     finalNote,
@@ -426,6 +432,9 @@ const updateDraft = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
   const {
+    // Allow category/subcategory changes on a draft
+    category,
+    subcategory,
     description,
     approvalPeriod,
     recurringFrequency,
@@ -477,6 +486,13 @@ const updateDraft = asyncHandler(async (req, res) => {
   // Verify creator can still edit (no approver actions yet)
   await verifyCanEditNote(note, userId);
 
+  // If category/subcategory are being changed, validate the new pair
+  if (category !== undefined || subcategory !== undefined) {
+    const newCategory = category !== undefined ? category : note.category;
+    const newSubcategory = subcategory !== undefined ? subcategory : note.subcategory;
+    validateCategory(newCategory, newSubcategory);
+  }
+
   // Validate description if provided
   let descriptionValue;
   if (description !== undefined) {
@@ -513,6 +529,42 @@ const updateDraft = asyncHandler(async (req, res) => {
 
   // Prepare update data
   const updateData = {};
+
+  // Persist category / subcategory changes
+  if (category !== undefined) updateData.category = category;
+  if (subcategory !== undefined) {
+    updateData.subcategory = subcategory;
+    // When the user switches away from an events subcategory, clear all event
+    // fields so the submit validator no longer requires notingEventType.
+    const isNowEvent = (subcategory || '').toLowerCase().includes('events');
+    if (!isNowEvent) {
+      updateData.notingEventType = null;
+      updateData.eventName = null;
+      updateData.eventType = null;
+      updateData.eventStartDate = null;
+      updateData.eventEndDate = null;
+      updateData.eventPaymentType = null;
+      updateData.eventParticipationType = null;
+      updateData.eventRegistrationFeeIndividual = null;
+      updateData.eventRegistrationFeeTeam = null;
+      updateData.eventApproxCapacity = null;
+      updateData.eventDutyLeaveAvailable = null;
+      updateData.eventDutyLeaveEligibility = null;
+      updateData.eventDutyLeaveRoleType = null;
+      updateData.eventHasSponsorship = null;
+      updateData.eventSponsors = null;
+      updateData.eventHasResources = null;
+      updateData.eventResources = null;
+      updateData.eventCertification = null;
+      updateData.eventCapacityFixed = null;
+      updateData.eventPrizesAwards = null;
+      updateData.stallConfig = null;
+      updateData.festivalMeta = null;
+      updateData.subEvents = null;
+      updateData.eventClubId = null;
+    }
+  }
+
   if (descriptionValue !== undefined) updateData.description = descriptionValue;
   if (approvalPeriod !== undefined)
     updateData.approvalPeriod = approvalPeriod || "one_time";
@@ -833,6 +885,11 @@ const submitDraft = asyncHandler(async (req, res) => {
   });
 
   await invalidateNoteCaches(id);
+
+  // Trigger notification: the assigned approver is informed the note is pending review
+  if (updated.currentHolderId) {
+    notingNotification.notifyAssigned(updated, updated.currentHolderId);
+  }
 
   return ApiResponse.success(
     res,

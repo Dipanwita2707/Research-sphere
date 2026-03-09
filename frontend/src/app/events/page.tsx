@@ -70,8 +70,8 @@ export default function EventsPage() {
   const isClubChairperson = !!(isStudent && user?.id && myClubsData?.data?.some(
     club => club.chairpersonId === user.id && club.status === 'active'
   ));
-  const canBrowseEvents = !isStudent || isClubChairperson;
-  const isAccessCheckLoading = isStudent && !isClubChairperson && isMyClubsLoading;
+  const canBrowseEvents = true;
+  const isAccessCheckLoading = false;
 
   /** Prefetch event detail on card hover so navigation is instant */
   const handlePrefetch = useCallback(
@@ -170,7 +170,7 @@ export default function EventsPage() {
 
   if (isAccessCheckLoading || !canBrowseEvents) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           <PageHeaderSkeleton />
           <div className="mt-6">
@@ -182,26 +182,26 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="ev-page">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">Browse Events</h1>
-          <p className="text-gray-600 dark:text-gray-400">Discover and join university events - workshops, seminars, competitions, and more</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-ev-900 mb-2">Browse Events</h1>
+          <p className="text-ev-400">Discover and join university events - workshops, seminars, competitions, and more</p>
         </div>
 
         {/* Info Banner */}
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 ev-card border-ev-200">
           <div className="flex items-start gap-2 sm:gap-3">
-            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 text-ev-700 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-1">
+              <p className="text-sm font-medium text-ev-900 mb-1">
                 📝 Want to organize an event?
               </p>
-              <p className="text-xs text-blue-700 dark:text-blue-400">
-                Create a <Link href="/noting/new" className="underline font-semibold">noting request</Link> with event details. Once approved, your event will appear in <Link href="/events/my-events" className="underline font-semibold">My Created Events</Link> as a draft. Add venue and registration details, then publish to make it live!
+              <p className="text-xs text-ev-800">
+                Create a <Link href="/noting/new" className="underline font-semibold text-ev-700">noting request</Link> with event details. Once approved, your event will appear in <Link href="/events/my-events" className="underline font-semibold text-ev-700">My Created Events</Link> as a draft. Add venue and registration details, then publish to make it live!
               </p>
             </div>
           </div>
@@ -211,13 +211,13 @@ export default function EventsPage() {
         <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
           <form onSubmit={handleSearch} className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-ev-400" />
               <input
                 type="text"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search events..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                className="ev-input pl-10"
               />
             </div>
           </form>
@@ -225,18 +225,18 @@ export default function EventsPage() {
           <div className="flex gap-2 flex-shrink-0">
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
+              className="ev-btn-outline flex items-center gap-2"
             >
-              <Filter className="h-5 w-5" />
+              <Filter className="h-4 w-4" />
               Filters
             </button>
             
             {(filters.status || filters.eventType || filters.search) && (
               <button
                 onClick={resetFilters}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center gap-2"
+                className="ev-btn-outline flex items-center gap-2"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
                 Clear
               </button>
             )}
@@ -245,10 +245,10 @@ export default function EventsPage() {
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="mb-6 p-4 ev-card">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="ev-label">
                   Status
                 </label>
                 <select
@@ -257,7 +257,7 @@ export default function EventsPage() {
                     setFilters((prev) => ({ ...prev, status: (e.target.value || undefined) as EventFilters['status'] }));
                     setPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                  className="ev-input"
                 >
                   <option value="">All</option>
                   <option value="published">Published (Upcoming)</option>
@@ -267,7 +267,7 @@ export default function EventsPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="ev-label">
                   Event Type
                 </label>
                 <select
@@ -276,7 +276,7 @@ export default function EventsPage() {
                     setFilters((prev) => ({ ...prev, eventType: (e.target.value || undefined) as EventFilters['eventType'] }));
                     setPage(1);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800"
+                  className="ev-input"
                 >
                   <option value="">All Types</option>
                   {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
@@ -294,7 +294,7 @@ export default function EventsPage() {
             <button
               type="button"
               onClick={toggleAll}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 border border-purple-200 dark:border-purple-800 rounded-lg transition-colors"
+              className="ev-btn-outline text-xs !py-1.5 !px-3"
             >
               {allExpanded ? (
                 <><ChevronDown className="h-3.5 w-3.5" /> Collapse All</>
@@ -311,15 +311,15 @@ export default function EventsPage() {
             <CardSkeleton className="w-full max-w-sm" />
           </div>
         ) : events.length === 0 ? (
-          <div className="text-center py-12">
-            <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No events found</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+          <div className="ev-empty py-12">
+            <CalendarIcon className="h-12 w-12 text-ev-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-ev-900 mb-2">No events found</h3>
+            <p className="text-ev-400 mb-4">
               No events match your search criteria. Try adjusting your filters.
             </p>
             <button
               onClick={resetFilters}
-              className="text-blue-600 dark:text-blue-400 hover:underline text-sm font-medium"
+              className="text-ev-700 hover:underline text-sm font-semibold"
             >
               Clear all filters
             </button>
@@ -351,32 +351,32 @@ export default function EventsPage() {
                     flushStandalone();
                     const isExpanded = expandedFestivals.has(item.festivalNotingId);
                     elements.push(
-                      <div key={`festival-${item.festivalNotingId}`} className="rounded-xl border-[1.5px] border-purple-200 dark:border-purple-800 bg-white dark:bg-gray-800 overflow-hidden shadow-sgt">
+                      <div key={`festival-${item.festivalNotingId}`} className="ev-card overflow-hidden">
                         {/* Festival Header */}
                         <button
                           type="button"
                           onClick={() => toggleFestival(item.festivalNotingId)}
-                          className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 hover:from-purple-100 hover:to-indigo-100 dark:hover:from-purple-900/30 dark:hover:to-indigo-900/30 transition-colors text-left"
+                          className="w-full flex items-center gap-3 px-5 py-4 bg-ev-50 hover:bg-[#e2ecf3] transition-colors text-left"
                         >
                           {isExpanded
-                            ? <ChevronDown className="h-5 w-5 text-purple-500 shrink-0" />
-                            : <ChevronRight className="h-5 w-5 text-purple-500 shrink-0" />}
-                          <Sparkles className="h-5 w-5 text-purple-500 shrink-0" />
+                            ? <ChevronDown className="h-5 w-5 text-ev-700 shrink-0" />
+                            : <ChevronRight className="h-5 w-5 text-ev-700 shrink-0" />}
+                          <Sparkles className="h-5 w-5 text-ev-700 shrink-0" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">
+                              <h3 className="text-base font-bold text-ev-900 truncate">
                                 🎪 {item.meta.name}
                               </h3>
-                              <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 uppercase tracking-wider">
+                              <span className="ev-badge bg-ev-50 text-ev-800 text-[10px] uppercase tracking-wider">
                                 Festival
                               </span>
                             </div>
-                            <div className="flex items-center gap-4 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-4 mt-1 text-xs text-ev-400">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3.5 w-3.5" />
                                 {formatDate(item.meta.startDate)} – {formatDate(item.meta.endDate)}
                               </span>
-                              <span className="font-medium text-purple-600 dark:text-purple-400">
+                              <span className="font-medium text-ev-700">
                                 {item.events.length} event{item.events.length !== 1 ? 's' : ''}
                               </span>
                             </div>
@@ -385,7 +385,7 @@ export default function EventsPage() {
 
                         {/* Sub-events grid — collapsible */}
                         {isExpanded && (
-                          <div className="border-t border-purple-100 dark:border-purple-900 p-4">
+                          <div className="border-t border-ev-200 p-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                               {item.events.map((event) => (
                                 <BrowseEventCard key={event.id} event={event} formatDate={formatDate} isEventUpcoming={isEventUpcoming} isEventOngoing={isEventOngoing} handlePrefetch={handlePrefetch} />
@@ -404,23 +404,23 @@ export default function EventsPage() {
 
             {/* Pagination */}
             {pagination.totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2">
+              <div className="flex justify-center items-center gap-3">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="ev-btn-outline min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 
-                <span className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="text-sm font-medium text-ev-800">
                   Page {pagination.page} of {pagination.totalPages}
                 </span>
                 
                 <button
                   onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={page === pagination.totalPages}
-                  className="px-4 py-2 min-h-[44px] border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="ev-btn-outline min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -451,7 +451,7 @@ function BrowseEventCard({
     <Link
       href={`/events/${event.id}`}
       onMouseEnter={() => handlePrefetch(event.id)}
-      className="block bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200"
+      className="block ev-card ev-card-hover"
     >
       <div className="p-4 sm:p-5 pt-4">
         {/* Status Badge */}
@@ -472,17 +472,17 @@ function BrowseEventCard({
         </div>
 
         {/* Event Name */}
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2 line-clamp-2">
+        <h3 className="text-lg font-semibold text-ev-900 mb-2 line-clamp-2">
           {event.name}
         </h3>
 
         {/* Event Type */}
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <p className="text-sm text-ev-400 mb-4">
           {EVENT_TYPE_LABELS[event.eventType]}
         </p>
 
         {/* Date */}
-        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
+        <div className="flex items-center gap-2 text-sm text-ev-800 mb-2">
           <Calendar className="h-4 w-4" />
           <span>{formatDate(event.startDate)}</span>
           {event.startDate !== event.endDate && (
@@ -495,14 +495,14 @@ function BrowseEventCard({
 
         {/* Venue */}
         {event.venue && (
-          <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-2">
+          <div className="flex items-center gap-2 text-sm text-ev-800 mb-2">
             <MapPin className="h-4 w-4" />
             <span className="line-clamp-1">{event.venue}</span>
           </div>
         )}
 
         {/* Registrations */}
-        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 mb-4">
+        <div className="flex items-center gap-2 text-sm text-ev-800 mb-4">
           <Users className="h-4 w-4" />
           <span>
             {event.currentRegistrations}
@@ -515,12 +515,12 @@ function BrowseEventCard({
           <span className={`px-2 py-1 text-xs font-medium rounded-full ${
             event.paymentType === 'free'
               ? 'bg-green-100 text-green-800'
-              : 'bg-blue-100 text-blue-800'
+              : 'bg-ev-100 text-ev-800'
           }`}>
             {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
           </span>
           
-          <Eye className="h-4 w-4 text-gray-400" />
+          <Eye className="h-4 w-4 text-ev-400" />
         </div>
       </div>
     </Link>

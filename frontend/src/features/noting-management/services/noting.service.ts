@@ -146,6 +146,8 @@ export const notingService = {
   updateDraft: (
     id: string,
     payload: {
+      category?: string;
+      subcategory?: string;
       description?: string;
       approvalPeriod?: string;
       recurringFrequency?: string | null;

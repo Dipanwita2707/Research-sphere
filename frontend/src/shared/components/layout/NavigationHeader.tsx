@@ -97,7 +97,7 @@ export default function NavigationHeader() {
     club => club.chairpersonId === user.id && club.status === 'active'
   ));
   const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
-  const canBrowseEvents = !isStudent || isClubChairperson;
+  const canBrowseEvents = true;
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');

@@ -70,6 +70,9 @@ interface CouponDetail {
   code?: string;
   discountType?: string;
   discountValue?: number;
+  discountAmount?: number;
+  originalAmount?: number;
+  finalAmount?: number;
   isActive?: boolean;
   usedAt?: string;
 }
@@ -134,7 +137,7 @@ interface RegistrationDetailModalProps {
 // ── Helpers ──────────────────────────────────────────────────────
 const PAYMENT_STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   captured: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-700 dark:text-emerald-400' },
-  authorized: { bg: 'bg-blue-50 dark:bg-blue-900/20', text: 'text-blue-700 dark:text-blue-400' },
+  authorized: { bg: 'bg-ev-50 dark:bg-ev-900/20', text: 'text-ev-800 dark:text-ev-400' },
   created: { bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-400' },
   failed: { bg: 'bg-red-50 dark:bg-red-900/20', text: 'text-red-700 dark:text-red-400' },
   refunded: { bg: 'bg-violet-50 dark:bg-violet-900/20', text: 'text-violet-700 dark:text-violet-400' },
@@ -209,7 +212,10 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
   const user = data?.user_login;
   const userName = data ? getRegistrationDisplayName(data as any) : '';
   const userIdentifier = data ? getRegistrationIdentifier(data as any) : '';
-  const successfulPayment = data?.payments?.find(p => p.status === 'captured' || p.status === 'authorized');
+  const effectiveOriginalAmount = data?.originalAmount ?? data?.couponDetails?.originalAmount ?? null;
+  const effectiveDiscountAmount = data?.discountAmount ?? data?.couponDetails?.discountAmount ?? null;
+  const effectiveAmountPaid = data?.amountPaid ?? data?.couponDetails?.finalAmount ?? null;
+  const couponCode = data?.couponDetails?.code;
 
   return (
     <div
@@ -217,11 +223,11 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
       onClick={handleBackdropClick}
       className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
     >
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-2xl flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom-4 duration-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-[#b3cde0] dark:border-gray-700 w-full max-w-2xl flex flex-col max-h-[90vh] animate-in fade-in slide-in-from-bottom-4 duration-200">
         {/* ── Header ──────────────────────────────────── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800 rounded-t-xl">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#b3cde0] dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800 rounded-t-xl">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">Registration Details</h2>
+            <h2 className="text-lg font-bold text-ev-900 dark:text-white">Registration Details</h2>
             {data && (
               <p className="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">{data.registrationId}</p>
             )}
@@ -238,7 +244,7 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
           {loading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-sgt-600 mr-2" />
+              <Loader2 className="w-6 h-6 animate-spin text-ev-700 mr-2" />
               <span className="text-gray-500">Loading details...</span>
             </div>
           )}
@@ -307,8 +313,8 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                 <Section icon={Users} title="Extra Pass Guests">
                   <div className="space-y-2">
                     {data.guests.map((guest) => (
-                      <div key={guest.id} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{guest.guestName}</p>
+                      <div key={guest.id} className="rounded-lg border border-[#b3cde0] dark:border-gray-700 p-3">
+                        <p className="text-sm font-semibold text-ev-900 dark:text-gray-100">{guest.guestName}</p>
                         <p className="text-xs text-gray-600 dark:text-gray-400">{guest.guestEmail} • {guest.mobileNumber}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Relationship: {guest.relationship}</p>
                       </div>
@@ -324,19 +330,19 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                   {/* Always show fee summary if any payment data exists */}
                   <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3.5">
                     <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-                      <InfoRow label="Original Fee" value={data.originalAmount != null ? `₹${data.originalAmount.toLocaleString('en-IN')}` : '—'} />
-                      <InfoRow label="Discount Applied" value={data.discountAmount ? `−₹${data.discountAmount.toLocaleString('en-IN')}` : 'None'} />
-                      <InfoRow label="Amount Paid" value={data.amountPaid != null ? `₹${data.amountPaid.toLocaleString('en-IN')}` : '—'} />
+                      <InfoRow label="Original Fee" value={effectiveOriginalAmount != null ? `₹${effectiveOriginalAmount.toLocaleString('en-IN')}` : '—'} />
+                      <InfoRow label="Discount Applied" value={effectiveDiscountAmount != null ? `−₹${effectiveDiscountAmount.toLocaleString('en-IN')}` : 'None'} />
+                      <InfoRow label="Amount Paid" value={effectiveAmountPaid != null ? `₹${effectiveAmountPaid.toLocaleString('en-IN')}` : '—'} />
                       <InfoRow label="Payment Status">
                         <StatusBadge value={data.paymentStatus || 'N/A'} styles={PAYMENT_STATUS_STYLES} />
                       </InfoRow>
                       {data.couponId && !data.couponDetails && (
                         <InfoRow label="Coupon ID" value={data.couponId} mono small />
                       )}
-                      {data.couponDetails && data.couponDetails.code && (
+                      {couponCode && (
                         <InfoRow label="Coupon Used">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold text-violet-600 dark:text-violet-400">
-                            <Tag className="w-3 h-3" /> {data.couponDetails.code}
+                            <Tag className="w-3 h-3" /> {couponCode}
                           </span>
                         </InfoRow>
                       )}
@@ -346,7 +352,7 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                   {/* Razorpay transaction records */}
                   {data.payments.length > 0 && (
                     <div className="space-y-3">
-                      <div className="border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
+                      <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 pt-3 space-y-3">
                         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Razorpay Transaction Records</p>
                         {data.payments.map((p, idx) => (
                           <div key={p.id} className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3.5 space-y-2">
@@ -357,7 +363,7 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                               </div>
                               {p.amount != null && (
                                 <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                                  ₹{(p.amount / 100).toLocaleString('en-IN')}
+                                  ₹{p.amount.toLocaleString('en-IN')}
                                 </span>
                               )}
                             </div>
@@ -384,7 +390,7 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                               {p.attempts != null && p.attempts > 0 && <InfoRow label="Attempts" value={String(p.attempts)} small />}
                             </div>
                             {p.metadata && Object.keys(p.metadata).length > 0 && (
-                              <div className="pt-1.5 border-t border-gray-200 dark:border-gray-600">
+                              <div className="pt-1.5 border-t border-[#b3cde0] dark:border-gray-600">
                                 <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Metadata</p>
                                 <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded p-2 max-h-20 overflow-y-auto">
                                   {Object.entries(p.metadata).map(([k, v]) => (
@@ -426,15 +432,15 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                       )}
                       <InfoRow
                         label="Discount Applied"
-                        value={data.discountAmount ? `−₹${data.discountAmount.toLocaleString('en-IN')}` : '—'}
+                        value={effectiveDiscountAmount != null ? `−₹${effectiveDiscountAmount.toLocaleString('en-IN')}` : '—'}
                       />
                       <InfoRow
                         label="Original Fee"
-                        value={data.originalAmount != null ? `₹${data.originalAmount.toLocaleString('en-IN')}` : '—'}
+                        value={effectiveOriginalAmount != null ? `₹${effectiveOriginalAmount.toLocaleString('en-IN')}` : '—'}
                       />
                       <InfoRow
                         label="Paid After Discount"
-                        value={data.amountPaid != null ? `₹${data.amountPaid.toLocaleString('en-IN')}` : '—'}
+                        value={effectiveAmountPaid != null ? `₹${effectiveAmountPaid.toLocaleString('en-IN')}` : '—'}
                       />
                       {data.couponDetails.usedAt && <InfoRow label="Used At" value={formatDate(data.couponDetails.usedAt, true)} />}
                       {data.couponDetails.isActive != null && (
@@ -463,7 +469,7 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                     </InfoRow>
                   </div>
                   {data.team.members && data.team.members.length > 0 && (
-                    <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+                    <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 pt-3">
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Members ({data.team.members.length})</p>
                       <div className="space-y-1.5">
                         {data.team.members.map(m => (
@@ -521,7 +527,7 @@ export default function RegistrationDetailModal({ eventId, registrationId, onClo
                       <div key={f.fieldId} className="bg-gray-50 dark:bg-gray-700/30 rounded-lg px-4 py-3">
                         <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{f.label}</p>
                         {f.fileUrl ? (
-                          <a href={f.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 dark:text-blue-400 underline break-all">
+                          <a href={f.fileUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-ev-700 dark:text-ev-400 underline break-all">
                             View Uploaded File
                           </a>
                         ) : (
@@ -564,8 +570,8 @@ function Section({ icon: Icon, title, children }: { icon: React.ComponentType<an
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-4 h-4 text-sgt-600 dark:text-sgt-400" />
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white">{title}</h3>
+        <Icon className="w-4 h-4 text-ev-700 dark:text-ev-400" />
+        <h3 className="text-sm font-bold text-ev-900 dark:text-white">{title}</h3>
       </div>
       {children}
     </div>

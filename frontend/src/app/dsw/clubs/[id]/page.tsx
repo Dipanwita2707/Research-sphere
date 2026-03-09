@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useMemo, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -100,12 +100,12 @@ function RoleBadge({ role }: { role: ClubMemberRole }) {
 // ─── MemberCard ───────────────────────────────────────────────────────────────
 
 const AVATAR_GRADIENTS = [
-  "from-sgt-600 to-sgt-700",
-  "from-sgt-500 to-sgt-700",
-  "from-sgt-400 to-sgt-600",
-  "from-sgt-700 to-sgt-900",
-  "from-sgt-300 to-sgt-600",
-  "from-sgt-600 to-sgt-800",
+  "from-[#03396c] to-[#011f4b]",
+  "from-[#005b96] to-[#03396c]",
+  "from-[#6497b1] to-[#005b96]",
+  "from-[#011f4b] to-[#03396c]",
+  "from-[#b3cde0] to-[#6497b1]",
+  "from-[#005b96] to-[#011f4b]",
 ];
 
 function avatarGradient(name: string): string {
@@ -129,7 +129,7 @@ function MemberCard({
   const name = getMemberName(member);
 
   return (
-    <div className="group flex items-start gap-3 p-3.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 hover:shadow-md transition-all duration-200">
+    <div className="group flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#b3cde0] hover:border-[#6497b1] hover:shadow-ev transition-all duration-200">
       {/* Avatar */}
       <div
         className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatarGradient(name)} flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm`}
@@ -139,10 +139,10 @@ function MemberCard({
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate leading-tight">
+        <p className="text-sm font-semibold text-ev-900 truncate leading-tight">
           {name}
         </p>
-        <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
+        <p className="text-xs text-ev-400 truncate mt-0.5">
           {member.student?.email || member.student?.uid || "—"}
         </p>
         <div className="mt-1.5">
@@ -156,7 +156,7 @@ function MemberCard({
           {onEdit && (
             <button
               onClick={() => onEdit(member)}
-              className="p-1.5 rounded-lg text-gray-300 hover:text-sgt-500 hover:bg-sgt-50 dark:hover:bg-sgt-900/20 transition-all"
+              className="p-1.5 rounded-lg text-ev-400 hover:text-ev-700 hover:bg-ev-50 transition-all"
               title="Edit role"
               type="button"
             >
@@ -213,12 +213,12 @@ function TeamSection({
           {emoji}
         </span>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">
+          <h3 className="text-sm font-bold text-ev-900">
             {title}
           </h3>
-          <p className="text-xs text-gray-500 dark:text-gray-400">{subtitle}</p>
+          <p className="text-xs text-ev-400">{subtitle}</p>
         </div>
-        <span className="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+        <span className="flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-ev-50 text-ev-700">
           {members.length}
         </span>
       </div>
@@ -250,15 +250,15 @@ function InfoChip({
   value: string;
 }) {
   return (
-    <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
-      <span className="text-gray-400 dark:text-gray-500 flex-shrink-0">
+    <div className="flex items-center gap-3 p-3.5 rounded-xl bg-ev-50 border border-[#b3cde0]">
+      <span className="text-ev-400 flex-shrink-0">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-wide font-medium text-gray-400 dark:text-gray-500">
+        <p className="text-[11px] uppercase tracking-wide font-medium text-ev-400">
           {label}
         </p>
-        <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">
+        <p className="text-sm font-semibold text-ev-900 truncate">
           {value}
         </p>
       </div>
@@ -313,22 +313,20 @@ function EditMemberModal({
     >
       <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-sgt-50/40 dark:bg-sgt-900/20">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#b3cde0] bg-ev-50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sgt-100 dark:bg-sgt-800/40 flex items-center justify-center">
-              <Pencil className="w-4 h-4 text-sgt-600 dark:text-sgt-300" />
+            <div className="w-8 h-8 rounded-lg bg-ev-50 border border-[#b3cde0] flex items-center justify-center">
+              <Pencil className="w-4 h-4 text-ev-700" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">
-                Edit Member Role
-              </h2>
-              <p className="text-xs text-gray-400">{name}</p>
+              <h2 className="text-base font-bold text-ev-900">Edit Member Role</h2>
+              <p className="text-xs text-ev-400">{name}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             type="button"
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="ev-btn-ghost"
           >
             <X className="w-4 h-4" />
           </button>
@@ -337,7 +335,7 @@ function EditMemberModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           {/* Role Selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-ev-800 mb-2">
               Select New Role
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -388,7 +386,7 @@ function EditMemberModal({
 
           {/* Error */}
           {errorMsg && (
-            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg border border-red-100 dark:border-red-800/30">
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
               {errorMsg}
             </p>
           )}
@@ -398,14 +396,14 @@ function EditMemberModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="flex-1 ev-btn-outline"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={updateRole.isPending || selectedRole === currentRole}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-sgt-600 hover:bg-sgt-700 disabled:opacity-60 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              className="flex-1 ev-btn disabled:opacity-60"
             >
               {updateRole.isPending ? (
                 <>
@@ -477,21 +475,19 @@ function AddMemberModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800 bg-sgt-50/40 dark:bg-sgt-900/20">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-ev-lg border border-[#b3cde0] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#b3cde0] bg-ev-50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sgt-100 dark:bg-sgt-800/40 flex items-center justify-center">
-              <Users className="w-4 h-4 text-sgt-600 dark:text-sgt-300" />
+            <div className="w-8 h-8 rounded-lg bg-ev-50 border border-[#b3cde0] flex items-center justify-center">
+              <Users className="w-4 h-4 text-ev-700" />
             </div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">
-              Add Member
-            </h2>
+            <h2 className="text-base font-bold text-ev-900">Add Member</h2>
           </div>
           <button
             onClick={onClose}
             type="button"
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="ev-btn-ghost"
           >
             <X className="w-4 h-4" />
           </button>
@@ -502,28 +498,28 @@ function AddMemberModal({
           <div>
             <label
               htmlFor="studentIdInput"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5"
+              className="block text-sm font-medium text-ev-800 mb-1.5"
             >
               Student ID / Email
             </label>
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ev-400" />
               <input
                 id="studentIdInput"
                 type="text"
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
                 placeholder="e.g. S2024001 or student@sgt.ac.in"
-                className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sgt-500 focus:border-transparent transition"
+                className="ev-input pl-9"
               />
             </div>
           </div>
 
-          {/* Role Selector */}
+          {/* Assign Role */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-ev-800 mb-2">
               Assign Role
-              <span className="ml-2 text-xs font-normal text-gray-400">
+              <span className="ml-2 text-xs font-normal text-ev-400">
                 (default: 🙋 Volunteer)
               </span>
             </label>
@@ -539,7 +535,7 @@ function AddMemberModal({
                     className={`flex items-center gap-2 p-2.5 rounded-xl border text-left text-xs font-medium transition-all ${
                       isSelected
                         ? `${cfg.className} border-current shadow-sm`
-                        : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800"
+                        : "border-[#b3cde0] text-ev-800 hover:border-[#6497b1] bg-white"
                     }`}
                   >
                     <span
@@ -573,9 +569,9 @@ function AddMemberModal({
             </div>
           </div>
 
-          {/* Error */}
+          {/* Error add member */}
           {errorMsg && (
-            <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg border border-red-100 dark:border-red-800/30">
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
               {errorMsg}
             </p>
           )}
@@ -585,14 +581,14 @@ function AddMemberModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              className="flex-1 ev-btn-outline"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={addMember.isPending}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-sgt-600 hover:bg-sgt-700 disabled:opacity-60 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              className="flex-1 ev-btn disabled:opacity-60"
             >
               {addMember.isPending ? (
                 <>
@@ -791,18 +787,18 @@ export default function ClubDetailsPage() {
       <div className="max-w-4xl mx-auto">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
+          className="flex items-center gap-2 text-sm text-ev-400 hover:text-ev-900 mb-6 transition-colors"
           type="button"
         >
           <ArrowLeft className="w-4 h-4" />
           Back
         </button>
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
+        <div className="ev-card p-12 text-center">
           <div className="text-6xl mb-4">⚠️</div>
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+          <h3 className="text-lg font-bold text-ev-900 mb-2">
             {errorMessage || "Club Not Found"}
           </h3>
-          <p className="text-gray-500 dark:text-gray-400 text-sm">
+          <p className="text-ev-400 text-sm">
             The club you&apos;re looking for doesn&apos;t exist or you
             don&apos;t have permission to view it.
           </p>
@@ -893,13 +889,13 @@ export default function ClubDetailsPage() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={(e) => e.target === e.currentTarget && setShowApplyModal(false)}
         >
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+          <div className="ev-modal w-full max-w-lg p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Apply to {club.name}</h3>
+              <h3 className="text-base font-bold text-ev-900">Apply to {club.name}</h3>
               <button
                 type="button"
                 onClick={() => setShowApplyModal(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="ev-btn-ghost"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -917,14 +913,14 @@ export default function ClubDetailsPage() {
             </div>
 
             {applyError && (
-              <p className="text-sm text-red-600 dark:text-red-400">{applyError}</p>
+              <p className="text-sm text-red-600">{applyError}</p>
             )}
 
             <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setShowApplyModal(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium"
+                className="ev-btn-outline"
               >
                 Cancel
               </button>
@@ -932,7 +928,7 @@ export default function ClubDetailsPage() {
                 type="button"
                 onClick={handleApplyToClub}
                 disabled={applyToClub.isPending}
-                className="px-4 py-2 rounded-lg bg-sgt-600 hover:bg-sgt-700 text-white text-sm font-semibold disabled:opacity-60"
+                className="ev-btn disabled:opacity-60"
               >
                 {applyToClub.isPending ? "Applying..." : "Apply"}
               </button>
@@ -949,16 +945,16 @@ export default function ClubDetailsPage() {
             e.target === e.currentTarget && setConfirmDelete(null)
           }
         >
-          <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 space-y-4">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-ev border border-[#b3cde0] p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
                 <Trash2 className="w-5 h-5 text-red-500" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                <h3 className="text-base font-bold text-ev-900">
                   Remove Member
                 </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-ev-400">
                   Remove{" "}
                   <span className="font-semibold">
                     {confirmDelete.memberName}
@@ -971,7 +967,7 @@ export default function ClubDetailsPage() {
               <button
                 type="button"
                 onClick={() => setConfirmDelete(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                className="flex-1 ev-btn-outline"
               >
                 Cancel
               </button>
@@ -1000,14 +996,14 @@ export default function ClubDetailsPage() {
         <button
           onClick={() => router.back()}
           type="button"
-          className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+          className="flex items-center gap-1.5 text-sm text-ev-400 hover:text-ev-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Clubs
         </button>
 
         {/* ── Hero Header ────────────────────────────────────────────────────── */}
-        <div className="relative overflow-hidden rounded-2xl bg-sgt-gradient text-white shadow-sgt-lg">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#011f4b] to-[#005b96] text-white shadow-ev-lg">
           {/* Decorative blobs */}
           <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
           <div className="absolute -bottom-12 -left-8 w-40 h-40 rounded-full bg-white/5 pointer-events-none" />
@@ -1124,7 +1120,7 @@ export default function ClubDetailsPage() {
         </div>
 
         {/* ── Tabs ───────────────────────────────────────────────────────────── */}
-        <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-x-auto">
+        <div className="flex gap-1 p-1 bg-ev-50 border border-[#b3cde0] rounded-xl overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.key}
@@ -1132,8 +1128,8 @@ export default function ClubDetailsPage() {
               onClick={() => setActiveTab(tab.key)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                 activeTab === tab.key
-                  ? "bg-white dark:bg-gray-700 text-sgt-600 dark:text-sgt-300 shadow-sm"
-                  : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  ? "bg-white text-ev-700 shadow-ev"
+                  : "text-ev-400 hover:text-ev-700 hover:bg-white/70"
               }`}
             >
               {tab.icon}
@@ -1148,10 +1144,10 @@ export default function ClubDetailsPage() {
         {activeTab === "overview" && (
           <div className="space-y-5">
             {/* Purpose */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white mb-3">
-                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-sgt-50 dark:bg-sgt-900/20">
-                  <FileText className="w-3.5 h-3.5 text-sgt-600" />
+            <div className="ev-card p-5">
+              <h2 className="flex items-center gap-2 text-base font-bold text-ev-900 mb-3">
+                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-ev-50">
+                  <FileText className="w-3.5 h-3.5 text-ev-700" />
                 </span>
                 Purpose
               </h2>
@@ -1163,7 +1159,7 @@ export default function ClubDetailsPage() {
             {/* Faculty + Chairperson side by side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Faculty Facilitator */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+              <div className="ev-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-900/20">
                     <UserCheck className="w-4 h-4 text-amber-500" />
@@ -1172,7 +1168,7 @@ export default function ClubDetailsPage() {
                     <h2 className="text-sm font-bold text-gray-900 dark:text-white">
                       Faculty Facilitator
                     </h2>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-ev-400">
                       Club mentor &amp; advisor
                     </p>
                   </div>
@@ -1191,14 +1187,14 @@ export default function ClubDetailsPage() {
                       {club.facultyFacilitator?.email && (
                         <a
                           href={`mailto:${club.facultyFacilitator.email}`}
-                          className="flex items-center gap-1 text-xs text-sgt-500 hover:underline mt-0.5 truncate"
+                          className="flex items-center gap-1 text-xs text-ev-600 hover:underline mt-0.5 truncate"
                         >
                           <Mail className="w-3 h-3 flex-shrink-0" />
                           {club.facultyFacilitator.email}
                         </a>
                       )}
                       {club.facultyFacilitator?.uid && (
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-ev-400 mt-0.5">
                           UID: {club.facultyFacilitator.uid}
                         </p>
                       )}
@@ -1210,7 +1206,7 @@ export default function ClubDetailsPage() {
               </div>
 
               {/* Chairperson */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
+              <div className="ev-card p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-900/20">
                     <Crown className="w-4 h-4 text-purple-500" />
@@ -1219,7 +1215,7 @@ export default function ClubDetailsPage() {
                     <h2 className="text-sm font-bold text-gray-900 dark:text-white">
                       Chairperson
                     </h2>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-ev-400">
                       Student head of the club
                     </p>
                   </div>
@@ -1238,14 +1234,14 @@ export default function ClubDetailsPage() {
                       {club.chairperson.email && (
                         <a
                           href={`mailto:${club.chairperson.email}`}
-                          className="flex items-center gap-1 text-xs text-sgt-500 hover:underline mt-0.5 truncate"
+                          className="flex items-center gap-1 text-xs text-ev-600 hover:underline mt-0.5 truncate"
                         >
                           <Mail className="w-3 h-3 flex-shrink-0" />
                           {club.chairperson.email}
                         </a>
                       )}
                       {club.chairperson.uid && (
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-ev-400 mt-0.5">
                           UID: {club.chairperson.uid}
                         </p>
                       )}
@@ -1259,10 +1255,10 @@ export default function ClubDetailsPage() {
 
             {/* Activity Types */}
             {club.expectedActivityTypes?.length > 0 && (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-                <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white mb-4">
-                  <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-green-50 dark:bg-green-900/20">
-                    <Activity className="w-3.5 h-3.5 text-green-500" />
+              <div className="ev-card p-5">
+                <h2 className="flex items-center gap-2 text-base font-bold text-ev-900 mb-4">
+                  <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-ev-50">
+                    <Activity className="w-3.5 h-3.5 text-ev-700" />
                   </span>
                   Expected Activity Types
                 </h2>
@@ -1270,7 +1266,7 @@ export default function ClubDetailsPage() {
                   {club.expectedActivityTypes.map((act) => (
                     <span
                       key={act}
-                      className="px-3 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg text-xs font-semibold border border-green-100 dark:border-green-800/30"
+                      className="px-3 py-1.5 bg-ev-50 text-ev-700 rounded-lg text-xs font-semibold border border-[#b3cde0]"
                     >
                       {act}
                     </span>
@@ -1280,10 +1276,10 @@ export default function ClubDetailsPage() {
             )}
 
             {/* Timeline */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white mb-4">
-                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                  <Calendar className="w-3.5 h-3.5 text-blue-500" />
+            <div className="ev-card p-5">
+              <h2 className="flex items-center gap-2 text-base font-bold text-ev-900 mb-4">
+                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-ev-50">
+                  <Calendar className="w-3.5 h-3.5 text-ev-700" />
                 </span>
                 Timeline
               </h2>
@@ -1314,13 +1310,13 @@ export default function ClubDetailsPage() {
         {/* TEAM TAB                                                            */}
         {/* ════════════════════════════════════════════════════════════════════ */}
         {activeTab === "team" && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 sm:p-6 shadow-sm space-y-8">
+          <div className="ev-card p-5 sm:p-6 space-y-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-white">
+                <h2 className="text-base font-bold text-ev-900">
                   Club Team
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className="text-xs text-ev-400 mt-0.5">
                   {activeMembers.length} active{" "}
                   {activeMembers.length === 1 ? "member" : "members"}
                 </p>
@@ -1332,7 +1328,7 @@ export default function ClubDetailsPage() {
                     setDefaultRole("volunteer");
                     setShowAddMember(true);
                   }}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-sgt-600 hover:bg-sgt-700 text-white text-sm font-bold transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-ev-700 hover:bg-ev-800 text-white text-sm font-bold transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   Add Member
@@ -1341,28 +1337,28 @@ export default function ClubDetailsPage() {
             </div>
 
             {activeMembers.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-12 text-ev-400">
                 <div className="text-5xl mb-3">👥</div>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">
                   No members yet
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-ev-400 mt-1">
                   Members will appear here once added to the club.
                 </p>
               </div>
             ) : (
               <div className="space-y-8">
                 {/* Role Filter */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-100 dark:border-gray-700">
+                <div className="p-4 bg-ev-50 rounded-xl border border-[#b3cde0]">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    <p className="text-xs font-bold text-ev-400 uppercase tracking-wide">
                       Filter by Role
                     </p>
                     {roleFilter && (
                       <button
                         type="button"
                         onClick={() => setRoleFilter(null)}
-                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                        className="flex items-center gap-1 text-xs text-ev-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                       >
                         <X className="w-3 h-3" />
                         Clear
@@ -1407,7 +1403,7 @@ export default function ClubDetailsPage() {
                     title="Leadership Team"
                     subtitle="Heads responsible for specific domains"
                     emoji="🏆"
-                    accentBorderClass="border-sgt-200 dark:border-sgt-700"
+                    accentBorderClass="border-[#b3cde0]"
                     members={filteredLeadership}
                     canManage={canManage}
                     onRemove={handleRemove}
@@ -1420,7 +1416,7 @@ export default function ClubDetailsPage() {
                     title="Core & Coordination"
                     subtitle="Active contributors and domain coordinators"
                     emoji="⚙️"
-                    accentBorderClass="border-sgt-300 dark:border-sgt-600"
+                    accentBorderClass="border-[#b3cde0]"
                     members={filteredSupport}
                     canManage={canManage}
                     onRemove={handleRemove}
@@ -1433,7 +1429,7 @@ export default function ClubDetailsPage() {
                     title="Volunteers"
                     subtitle="Event helpers and junior contributors"
                     emoji="🙋"
-                    accentBorderClass="border-gray-200 dark:border-gray-600"
+                    accentBorderClass="border-[#b3cde0]/40"
                     members={filteredVolunteers}
                     canManage={canManage}
                     onRemove={handleRemove}
@@ -1450,7 +1446,7 @@ export default function ClubDetailsPage() {
                       <div className="text-4xl mb-2">
                         {CLUB_MEMBER_ROLES[roleFilter].emoji}
                       </div>
-                      <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">
+                      <p className="text-sm font-semibold text-ev-400">
                         No{" "}
                         <span className="font-bold">
                           {CLUB_MEMBER_ROLES[roleFilter].label}
@@ -1460,7 +1456,7 @@ export default function ClubDetailsPage() {
                       <button
                         type="button"
                         onClick={() => setRoleFilter(null)}
-                        className="mt-2 text-xs text-sgt-500 hover:underline"
+                        className="mt-2 text-xs text-ev-600 hover:underline"
                       >
                         Clear filter
                       </button>
@@ -1477,10 +1473,10 @@ export default function ClubDetailsPage() {
         {activeTab === "details" && (
           <div className="space-y-5">
             {/* Governance */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white mb-4">
-                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-sgt-50 dark:bg-sgt-900/20">
-                  <Shield className="w-3.5 h-3.5 text-sgt-600" />
+            <div className="ev-card p-5">
+              <h2 className="flex items-center gap-2 text-base font-bold text-ev-900 mb-4">
+                <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-ev-50">
+                  <Shield className="w-3.5 h-3.5 text-ev-700" />
                 </span>
                 Governance &amp; Operations
               </h2>
@@ -1514,10 +1510,10 @@ export default function ClubDetailsPage() {
             {(club.proposedEmail ||
               (club.socialMediaHandles &&
                 Object.keys(club.socialMediaHandles).length > 0)) && (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-                <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white mb-4">
-                  <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-sgt-50 dark:bg-sgt-900/20">
-                    <Mail className="w-3.5 h-3.5 text-sgt-500" />
+              <div className="ev-card p-5">
+                <h2 className="flex items-center gap-2 text-base font-bold text-ev-900 mb-4">
+                  <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-ev-50">
+                    <Mail className="w-3.5 h-3.5 text-ev-600" />
                   </span>
                   Contact &amp; Social
                 </h2>
@@ -1527,7 +1523,7 @@ export default function ClubDetailsPage() {
                       <Mail className="w-4 h-4 text-gray-400" />
                       <a
                         href={`mailto:${club.proposedEmail}`}
-                        className="text-sm text-sgt-500 hover:underline"
+                        className="text-sm text-ev-600 hover:underline"
                       >
                         {club.proposedEmail}
                       </a>
@@ -1551,8 +1547,8 @@ export default function ClubDetailsPage() {
             )}
 
             {/* Compliance */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm">
-              <h2 className="flex items-center gap-2 text-base font-bold text-gray-900 dark:text-white mb-4">
+            <div className="ev-card p-5">
+              <h2 className="flex items-center gap-2 text-base font-bold text-ev-900 mb-4">
                 <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
                   <Star className="w-3.5 h-3.5 text-emerald-500" />
                 </span>
@@ -1588,16 +1584,16 @@ export default function ClubDetailsPage() {
         {/* APPLICATIONS TAB                                                    */}
         {/* ════════════════════════════════════════════════════════════════════ */}
         {activeTab === "applications" && canManage && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="ev-card p-5 sm:p-6 space-y-4">
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">Club Application Requests</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              <h2 className="text-base font-bold text-ev-900">Club Application Requests</h2>
+              <p className="text-xs text-ev-400 mt-0.5">
                 Review and accept or reject student join requests.
               </p>
             </div>
 
             {clubApplications.length === 0 ? (
-              <div className="text-center py-12">
+              <div className="text-center py-12 text-ev-400">
                 <div className="text-5xl mb-3">📭</div>
                 <p className="text-gray-500 dark:text-gray-400 font-medium">No application requests yet</p>
               </div>
@@ -1605,7 +1601,7 @@ export default function ClubDetailsPage() {
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="text-left text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+                    <tr className="text-left text-ev-400 border-b border-[#b3cde0]">
                       <th className="py-2 pr-3">Student</th>
                       <th className="py-2 pr-3">Email</th>
                       <th className="py-2 pr-3">Mobile</th>
@@ -1621,12 +1617,12 @@ export default function ClubDetailsPage() {
                       const rejectId = `${app.id}:rejected`;
                       const isPending = app.status === "pending";
                       return (
-                        <tr key={app.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                          <td className="py-3 pr-3 font-medium text-gray-900 dark:text-gray-100">{app.applicantName}</td>
-                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{app.email || "-"}</td>
-                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{app.mobileNumber || "-"}</td>
-                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{[app.program, app.course].filter(Boolean).join(" / ") || "-"}</td>
-                          <td className="py-3 pr-3 text-gray-600 dark:text-gray-300">{new Date(app.createdAt).toLocaleDateString()}</td>
+                        <tr key={app.id} className="border-b border-[#b3cde0]/40">
+                          <td className="py-3 pr-3 font-medium text-ev-900">{app.applicantName}</td>
+                          <td className="py-3 pr-3 text-ev-700">{app.email || "-"}</td>
+                          <td className="py-3 pr-3 text-ev-700">{app.mobileNumber || "-"}</td>
+                          <td className="py-3 pr-3 text-ev-700">{[app.program, app.course].filter(Boolean).join(" / ") || "-"}</td>
+                          <td className="py-3 pr-3 text-ev-700">{new Date(app.createdAt).toLocaleDateString()}</td>
                           <td className="py-3 pr-3">
                             <span className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
                               app.status === "approved"
@@ -1659,7 +1655,7 @@ export default function ClubDetailsPage() {
                                 </button>
                               </div>
                             ) : (
-                              <p className="text-right text-xs text-gray-400">Reviewed</p>
+                              <p className="text-right text-xs text-ev-400">Reviewed</p>
                             )}
                           </td>
                         </tr>
@@ -1686,7 +1682,7 @@ export default function ClubDetailsPage() {
                   </span>
                   Club Events
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 ml-9">
+                <p className="text-xs text-ev-400 mt-0.5 ml-9">
                   All events organised by {club.name}
                 </p>
               </div>
@@ -1703,12 +1699,12 @@ export default function ClubDetailsPage() {
                 <p className="text-sm text-red-600 dark:text-red-400">Failed to load events: {(eventsError as Error)?.message}</p>
               </div>
             ) : clubEvents.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 p-14 text-center shadow-sm">
-                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 mx-auto mb-4">
-                  <CalendarDays className="w-8 h-8 text-blue-400" />
+              <div className="bg-white rounded-2xl border border-dashed border-[#b3cde0] p-14 text-center shadow-ev">
+                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-ev-50 mx-auto mb-4">
+                  <CalendarDays className="w-8 h-8 text-ev-400" />
                 </div>
-                <h3 className="text-base font-bold text-gray-700 dark:text-white mb-1">No events yet</h3>
-                <p className="text-sm text-gray-400 dark:text-gray-500 max-w-xs mx-auto">
+                <h3 className="text-base font-bold text-ev-900 mb-1">No events yet</h3>
+                <p className="text-sm text-ev-400 max-w-xs mx-auto">
                   Events created from notings linked to this club will appear here.
                 </p>
               </div>
@@ -1733,14 +1729,14 @@ export default function ClubDetailsPage() {
                     <div
                       key={event.id}
                       onClick={() => router.push(eventTargetPath)}
-                      className="group flex items-center gap-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md transition-all"
+                      className="group flex items-center gap-4 bg-white border border-[#b3cde0] rounded-xl p-4 cursor-pointer hover:border-[#6497b1] hover:shadow-ev transition-all"
                     >
                       {/* Date badge */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex flex-col items-center justify-center">
-                        <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-ev-50 flex flex-col items-center justify-center">
+                        <span className="text-xs font-bold text-ev-700 uppercase">
                           {new Date(event.startDate).toLocaleString("default", { month: "short" })}
                         </span>
-                        <span className="text-sm font-black text-blue-700 dark:text-blue-300 leading-none">
+                        <span className="text-sm font-black text-ev-800 leading-none">
                           {new Date(event.startDate).getDate()}
                         </span>
                       </div>
@@ -1774,7 +1770,7 @@ export default function ClubDetailsPage() {
                       </div>
 
                       {/* Arrow */}
-                      <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors flex-shrink-0" />
+                      <ExternalLink className="w-4 h-4 text-ev-300 group-hover:text-ev-700 transition-colors flex-shrink-0" />
                     </div>
                   );
                 })}
@@ -1790,11 +1786,11 @@ export default function ClubDetailsPage() {
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-ev-400 mb-1">{label}</label>
       <input
         value={value || "-"}
         readOnly
-        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm"
+        className="w-full px-3 py-2 rounded-lg border border-[#b3cde0] bg-ev-50 text-sm text-ev-800"
       />
     </div>
   );

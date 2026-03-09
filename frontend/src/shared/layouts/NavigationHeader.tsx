@@ -110,7 +110,7 @@ export default function NavigationHeader() {
     club => club.chairpersonId === user.id && club.status === 'active'
   ));
   const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
-  const canBrowseEvents = !isStudent || isClubChairperson;
+  const canBrowseEvents = true;
   const [hasVolunteerAssignments, setHasVolunteerAssignments] = useState(false);
 
   // Gate Entry Access Control based on designation
@@ -453,8 +453,8 @@ export default function NavigationHeader() {
     description: 'Student admissions portal',
   });
 
-  // Add Noting approval - For Faculty, Staff, Admin, and students with noting access (e.g. club chairpersons)
-  if (!isStudent || hasNotingAccess) {
+  // Add Noting approval - For Faculty, Staff, Admin only (blocked for all students)
+  if (!isStudent) {
     navigationSubItems.push({
       name: '📋 Noting & Approval',
       href: '/noting',

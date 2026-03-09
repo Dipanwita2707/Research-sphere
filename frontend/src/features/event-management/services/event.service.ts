@@ -929,8 +929,9 @@ export const eventService = {
    * Create a Razorpay order for individual event registration.
    * Backend calculates the amount — never trust frontend values.
    */
-  async createIndividualPaymentOrder(eventId: string) {
-    const response = await api.post(`${BASE_URL}/${eventId}/payments/individual/create-order`);
+  async createIndividualPaymentOrder(eventId: string, couponCode?: string | null) {
+    const payload = couponCode === undefined ? {} : { couponCode };
+    const response = await api.post(`${BASE_URL}/${eventId}/payments/individual/create-order`, payload);
     return response.data.data;
   },
 

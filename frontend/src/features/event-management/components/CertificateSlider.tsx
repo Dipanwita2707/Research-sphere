@@ -689,22 +689,22 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               </div>
               <div className="px-6 py-4">
                 <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  <strong className="text-gray-900 dark:text-white">{duplicateWarning.duplicateCount}</strong> of{' '}
-                  <strong className="text-gray-900 dark:text-white">{duplicateWarning.totalRecipients}</strong> recipient{duplicateWarning.totalRecipients !== 1 ? 's' : ''} have already been sent a certificate for this event.
+                  <strong className="text-ev-900 dark:text-white">{duplicateWarning.duplicateCount}</strong> of{' '}
+                  <strong className="text-ev-900 dark:text-white">{duplicateWarning.totalRecipients}</strong> recipient{duplicateWarning.totalRecipients !== 1 ? 's' : ''} have already been sent a certificate for this event.
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">Choose how you&apos;d like to proceed:</p>
                 <div className="space-y-2.5">
                   <button
                     onClick={() => handleDuplicateAction('skip')}
                     disabled={duplicateWarning.newRecipients === 0}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-ev-200 dark:border-ev-800 bg-ev-50 dark:bg-ev-900/20 hover:bg-ev-100 dark:hover:bg-ev-900/30 transition-colors text-left disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-lg flex items-center justify-center shrink-0">
-                      <UserCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <div className="w-8 h-8 bg-ev-100 dark:bg-ev-900/40 rounded-lg flex items-center justify-center shrink-0">
+                      <UserCheck className="w-4 h-4 text-ev-700 dark:text-ev-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Skip Already Sent</p>
-                      <p className="text-xs text-blue-600 dark:text-blue-400">
+                      <p className="text-sm font-semibold text-ev-800 dark:text-ev-200">Skip Already Sent</p>
+                      <p className="text-xs text-ev-700 dark:text-ev-400">
                         Send only to {duplicateWarning.newRecipients} new recipient{duplicateWarning.newRecipients !== 1 ? 's' : ''}
                       </p>
                     </div>
@@ -725,7 +725,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   </button>
                 </div>
               </div>
-              <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <div className="px-6 py-3 border-t border-[#b3cde0] dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <button
                   onClick={() => setDuplicateWarning({ show: false, duplicateCount: 0, totalRecipients: 0, newRecipients: 0 })}
                   className="w-full py-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
@@ -737,14 +737,14 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
           </div>
         )}
         {/* ── Header ──────────────────────────────────────── */}
-        <div className="border-b border-gray-200 dark:border-gray-700/60 bg-white dark:bg-gray-900">
+        <div className="border-b border-[#b3cde0] dark:border-gray-700/60 bg-white dark:bg-gray-900">
           <div className="flex items-center justify-between px-5 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-sm">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-ev">
                 <Award className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-white leading-none">Certificate</h2>
+                <h2 className="text-base font-bold text-ev-900 dark:text-white leading-none">Certificate</h2>
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate max-w-[180px]">{eventName}</p>
               </div>
             </div>
@@ -818,7 +818,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                         }}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                           isActive
-                            ? 'bg-amber-500 text-white shadow-sm'
+                            ? 'bg-amber-500 text-white shadow-ev'
                             : isPast
                             ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                             : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
@@ -844,7 +844,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   </div>
 
                   {/* Template grid */}
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4">
+                  <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Choose Certificate Template</h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {/* Customise (no image) option */}
@@ -878,7 +878,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                             className={`group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border-2 transition-all min-h-[120px] ${
                               selectedTemplate?.id === tmpl.id
                                 ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 ring-2 ring-amber-500/30'
-                                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-amber-300'
+                                : 'border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-amber-300'
                             }`}
                           >
                             {tmpl.templateUrl ? (
@@ -888,8 +888,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                                 className="w-full h-16 object-cover rounded-lg"
                               />
                             ) : (
-                              <div className="w-full h-16 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 flex items-center justify-center">
-                                <Award className="w-6 h-6 text-blue-400" />
+                              <div className="w-full h-16 rounded-lg bg-gradient-to-br from-ev-100 to-ev-200 dark:from-ev-900/30 dark:to-ev-900/30 flex items-center justify-center">
+                                <Award className="w-6 h-6 text-ev-400" />
                               </div>
                             )}
                             <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400 truncate w-full text-center">{tmpl.name}</span>
@@ -918,7 +918,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   </div>
 
                   {/* Upload custom template */}
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4">
+                  <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4">
                     <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Certificate Template<span className="text-red-500">*</span>
                     </h4>
@@ -949,7 +949,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                     <button
                       type="button"
                       onClick={() => setStep('configure')}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors shadow-sm"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors shadow-ev"
                     >
                       Save & Next
                       <ChevronRight className="w-4 h-4" />
@@ -962,7 +962,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               {step === 'configure' && (
                 <div className="space-y-4">
                   {/* Toolbar */}
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-3 flex flex-wrap items-center gap-2">
+                  <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 p-3 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={addTextField}
@@ -975,7 +975,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                     <button
                       type="button"
                       onClick={() => imageInputRef.current?.click()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ev-700 hover:bg-ev-800 text-white text-xs font-semibold transition-colors"
                     >
                       <ImagePlus className="w-3.5 h-3.5" /> Add Image
                     </button>
@@ -1008,7 +1008,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                         Placeholder <ChevronDown className="w-3 h-3" />
                       </button>
                       {showPlaceholderDropdown && (
-                        <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-64">
+                        <div className="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 border border-[#b3cde0] dark:border-gray-700 rounded-lg shadow-lg z-30 py-1 w-64">
                           {PLACEHOLDERS.map((p) => (
                             <button
                               key={p.value}
@@ -1029,7 +1029,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   {/* Canvas — template image with draggable text overlays */}
                   <div
                     ref={canvasRef}
-                    className="relative rounded-xl overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 select-none"
+                    className="relative rounded-xl overflow-hidden border-2 border-[#b3cde0] dark:border-gray-700 bg-gray-100 dark:bg-gray-900 select-none"
                     style={{ aspectRatio: '1.414 / 1' }}
                     onClick={() => setActiveFieldId(null)}
                   >
@@ -1037,7 +1037,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                     {selectedTemplate?.templateUrl ? (
                       <img src={selectedTemplate.templateUrl} alt="Template" className="absolute inset-0 w-full h-full object-cover pointer-events-none" draggable={false} />
                     ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950 dark:to-indigo-950" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-ev-50 to-ev-50 dark:from-ev-900 dark:to-ev-900" />
                     )}
 
                     {/* Draggable text fields */}
@@ -1086,7 +1086,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                       return (
                         <div
                           key={imgf.id}
-                          className={`absolute cursor-move transition-shadow ${isActive ? 'ring-2 ring-indigo-500 ring-offset-1 z-20' : 'hover:ring-1 hover:ring-indigo-300 z-10'}`}
+                          className={`absolute cursor-move transition-shadow ${isActive ? 'ring-2 ring-ev-700 ring-offset-1 z-20' : 'hover:ring-1 hover:ring-ev-400 z-10'}`}
                           style={{
                             left: `${imgf.x}%`,
                             top: `${imgf.y}%`,
@@ -1102,7 +1102,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           )}
                           {isActive && (
                             <div className="absolute -top-1 -left-1 w-3 h-3 flex items-center justify-center">
-                              <Move className="w-3 h-3 text-indigo-500 drop-shadow" />
+                              <Move className="w-3 h-3 text-ev-700 drop-shadow" />
                             </div>
                           )}
                         </div>
@@ -1133,7 +1133,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           value={af.text}
                           onChange={(e) => updateField(af.id, { text: e.target.value })}
                           rows={3}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all resize-none"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-ev-900 dark:text-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all resize-none"
                           placeholder="Enter text…"
                         />
 
@@ -1148,7 +1148,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                               max={60}
                               value={af.fontSize}
                               onChange={(e) => updateField(af.id, { fontSize: Math.max(8, Math.min(60, Number(e.target.value))) })}
-                              className="w-14 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white text-center outline-none"
+                              className="w-14 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-ev-900 dark:text-white text-center outline-none"
                             />
                           </div>
 
@@ -1201,14 +1201,14 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                     const af = imageFields.find((f) => f.id === activeFieldId);
                     if (!af) return null;
                     return (
-                      <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/40 bg-indigo-50/50 dark:bg-indigo-900/10 p-4 space-y-3">
+                      <div className="rounded-xl border border-ev-200 dark:border-ev-800/40 bg-ev-50/50 dark:bg-ev-900/10 p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" /> Edit Image</h4>
+                          <h4 className="text-xs font-semibold text-ev-800 dark:text-ev-400 flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" /> Edit Image</h4>
                           <div className="flex items-center gap-2">
                             <button type="button" onClick={() => removeImageField(af.id)} className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1 transition-colors">
                               <Trash2 className="w-3 h-3" /> Remove
                             </button>
-                            <button type="button" onClick={() => setActiveFieldId(null)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors">
+                            <button type="button" onClick={() => setActiveFieldId(null)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-ev-700 hover:bg-ev-800 text-white text-xs font-semibold transition-colors">
                               <Check className="w-3 h-3" /> Done
                             </button>
                           </div>
@@ -1216,7 +1216,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
 
                         {/* Preview */}
                         {af.url && (
-                          <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2 flex items-center justify-center">
+                          <div className="rounded-lg overflow-hidden border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800 p-2 flex items-center justify-center">
                             <img src={af.url} alt="Preview" className="max-h-20 object-contain" />
                           </div>
                         )}
@@ -1231,7 +1231,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                               max={80}
                               value={af.width}
                               onChange={(e) => updateImageField(af.id, { width: Math.max(5, Math.min(80, Number(e.target.value))) })}
-                              className="w-16 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-900 dark:text-white text-center outline-none"
+                              className="w-16 px-2 py-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-ev-900 dark:text-white text-center outline-none"
                             />
                           </div>
                           <input
@@ -1240,7 +1240,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                             max={80}
                             value={af.width}
                             onChange={(e) => updateImageField(af.id, { width: Number(e.target.value) })}
-                            className="flex-1 accent-indigo-500"
+                            className="flex-1 accent-ev-700"
                           />
                         </div>
 
@@ -1250,7 +1250,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   })()}
 
                   {/* Fields list */}
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-3">
+                  <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 p-3">
                     <h4 className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Text Fields ({textFields.length})</h4>
                     <div className="space-y-1">
                       {textFields.map((f) => (
@@ -1277,7 +1277,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                               key={f.id}
                               type="button"
                               onClick={() => { setActiveFieldId(f.id); setActiveFieldType('image'); }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-colors ${activeFieldId === f.id ? 'bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
+                              className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center gap-2 transition-colors ${activeFieldId === f.id ? 'bg-ev-100 dark:bg-ev-900/20 text-ev-800 dark:text-ev-400' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'}`}
                             >
                               <ImageIcon className="w-3 h-3 shrink-0 opacity-60" />
                               <span className="truncate flex-1">Image</span>
@@ -1290,8 +1290,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   </div>
 
                   {/* Send Test Certificate */}
-                  <div className="rounded-xl border border-blue-200 dark:border-blue-800/40 bg-blue-50/50 dark:bg-blue-900/10 p-4 space-y-2">
-                    <h4 className="text-xs font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
+                  <div className="rounded-xl border border-ev-200 dark:border-ev-800/40 bg-ev-50/50 dark:bg-ev-900/10 p-4 space-y-2">
+                    <h4 className="text-xs font-semibold text-ev-800 dark:text-ev-400 flex items-center gap-1.5">
                       <Send className="w-3.5 h-3.5" /> Send Test Certificate
                     </h4>
                     <p className="text-[10px] text-gray-500 dark:text-gray-400">Preview how the certificate looks by sending a test to any email.</p>
@@ -1301,13 +1301,13 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                         value={testEmail}
                         onChange={(e) => setTestEmail(e.target.value)}
                         placeholder="test@example.com"
-                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-ev-900 dark:text-white focus:ring-2 focus:ring-ev-700 focus:border-ev-700 outline-none transition-all"
                       />
                       <button
                         type="button"
                         onClick={handleSendTest}
                         disabled={sendingTest || !testEmail}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-ev-700 hover:bg-ev-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold transition-colors"
                       >
                         {sendingTest ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                         {sendingTest ? 'Sending…' : 'Send Test'}
@@ -1328,7 +1328,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                     <button
                       type="button"
                       onClick={() => setStep('recipients')}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-sm transition-colors shadow-ev"
                     >
                       Save & Next
                       <ChevronRight className="w-4 h-4" />
@@ -1341,8 +1341,8 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
               {step === 'recipients' && (
                 <div className="space-y-4">
                   {/* Recipient count */}
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/60">
+                  <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#b3cde0]/30 dark:border-gray-700/60">
                       <div className="flex items-center gap-2.5">
                         <div className="flex -space-x-1.5">
                           {[['bg-amber-500', 'A'], ['bg-orange-500', 'B'], ['bg-yellow-500', 'C']].map(([bg, ltr], i) => (
@@ -1350,7 +1350,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                           ))}
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+                          <p className="text-sm font-bold text-ev-900 dark:text-white leading-none">
                             {countsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : recipientCount}
                             {!countsLoading && <span className="font-normal text-gray-500 dark:text-gray-400"> recipient{recipientCount !== 1 ? 's' : ''}</span>}
                           </p>
@@ -1393,30 +1393,30 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   </div>
 
                   {/* Summary card */}
-                  <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4">
+                  <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 p-4">
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">Certificate Summary</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Template</span>
-                        <span className="font-medium text-gray-900 dark:text-white">{selectedTemplate?.name || '—'}</span>
+                        <span className="font-medium text-ev-900 dark:text-white">{selectedTemplate?.name || '—'}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Text Fields</span>
-                        <span className="font-medium text-gray-900 dark:text-white">{textFields.length}</span>
+                        <span className="font-medium text-ev-900 dark:text-white">{textFields.length}</span>
                       </div>
                       {imageFields.length > 0 && (
                         <div className="flex items-center justify-between">
                           <span className="text-gray-500 dark:text-gray-400">Image Overlays</span>
-                          <span className="font-medium text-gray-900 dark:text-white">{imageFields.length}</span>
+                          <span className="font-medium text-ev-900 dark:text-white">{imageFields.length}</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Recipients</span>
-                        <span className="font-medium text-gray-900 dark:text-white">{recipientCount}</span>
+                        <span className="font-medium text-ev-900 dark:text-white">{recipientCount}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-gray-500 dark:text-gray-400">Filter</span>
-                        <span className="font-medium text-gray-900 dark:text-white capitalize">{filter}</span>
+                        <span className="font-medium text-ev-900 dark:text-white capitalize">{filter}</span>
                       </div>
                     </div>
                   </div>
@@ -1444,7 +1444,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                       type="button"
                       onClick={handleSend}
                       disabled={sending || recipientCount === 0}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors shadow-sm"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors shadow-ev"
                     >
                       {sending ? (
                         <>
@@ -1482,12 +1482,12 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                   {historyLogs.map((log) => (
                     <div
                       key={log.id}
-                      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden"
+                      className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden"
                     >
                       <div className="p-4">
                         <div className="flex items-start justify-between mb-2.5">
                           <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-bold text-gray-900 dark:text-white truncate">{log.title}</h4>
+                            <h4 className="text-sm font-bold text-ev-900 dark:text-white truncate">{log.title}</h4>
                             <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">
                               by {log.sentByName} · {new Date(log.sentAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                             </p>
@@ -1499,7 +1499,7 @@ export default function CertificateSlider({ open, onClose, eventId, eventName, s
                                 : log.status === 'partial'
                                 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
                                 : log.status === 'processing'
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                                ? 'bg-ev-100 text-ev-800 dark:bg-ev-900/30 dark:text-ev-400'
                                 : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                             }`}
                           >

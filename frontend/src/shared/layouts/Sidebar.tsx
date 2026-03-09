@@ -110,7 +110,7 @@ const getNavItems = (
   const isStaff = userRole === 'staff' || userType === 'staff';
   const isAdmin = userRole === 'admin' || userType === 'admin';
   const canCreateEvent = isFaculty || extraFlags?.isChairperson;
-  const canBrowseEvents = !isStudent || extraFlags?.isChairperson;
+  const canBrowseEvents = true;
   const hasVolunteerAssignments = extraFlags?.hasVolunteerAssignments ?? false;
   
   logger.debug('getNavItems - role:', userRole, 'type:', userType, 'isAdmin:', isAdmin);

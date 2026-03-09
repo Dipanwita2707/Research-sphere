@@ -211,7 +211,7 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <Store className="w-4 h-4 text-sgt-500" />
+              <Store className="w-4 h-4 text-ev-700" />
               <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Student Stall Applications Portal</h4>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -233,7 +233,7 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
               onClick={handleToggleStallApplications}
               disabled={stallToggleLoading}
               title={event.stallConfig?.enableStudentApplied ? 'Click to close applications' : 'Click to open applications'}
-              className={`relative inline-flex h-7 w-14 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-sgt-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed ${event.stallConfig?.enableStudentApplied
+              className={`relative inline-flex h-7 w-14 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-ev-700 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed ${event.stallConfig?.enableStudentApplied
                 ? 'bg-emerald-500 hover:bg-emerald-600'
                 : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500'
               }`}
@@ -249,13 +249,13 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
       </div>
 
       {stallsLoading ? (
-        <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-sgt-600" /></div>
+        <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-ev-700" /></div>
       ) : (
         <>
           {/* Summary Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Total Applications', value: stallApplications.length, color: 'text-sgt-600', bg: 'bg-sgt-50 dark:bg-sgt-900/20' },
+              { label: 'Total Applications', value: stallApplications.length, color: 'text-ev-700', bg: 'bg-ev-50 dark:bg-ev-900/20' },
               { label: 'Pending', value: stallApplications.filter((a) => a.status === 'pending').length, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
               { label: 'Approved', value: stallApplications.filter((a) => a.status === 'approved').length, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
               { label: 'Active Stalls', value: stalls.filter((s) => s.isActive).length, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20' },
@@ -271,14 +271,14 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
           <div className={`${CARD} overflow-hidden`}>
             <div className={`${CARD_HEADER} flex items-center justify-between flex-wrap gap-2`}>
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Store className="w-4 h-4 text-sgt-500" />
+                <Store className="w-4 h-4 text-ev-700" />
                 Stall Applications
               </h3>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowCreateStallModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-sgt-600 hover:bg-sgt-700 rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-ev-700 hover:bg-ev-800 rounded-lg transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   Create Stall
@@ -326,7 +326,7 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                       <div className="flex gap-2 shrink-0">
                         <button
                           onClick={() => openStallAppDetails(app)}
-                          className="p-1.5 text-gray-500 hover:text-sgt-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
+                          className="p-1.5 text-gray-500 hover:text-ev-700 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
                           title="View Details"
                         >
                           <Eye className="w-4 h-4" />
@@ -386,7 +386,7 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSelectedStall(stall)}
-                        className="p-1.5 text-gray-500 hover:text-sgt-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
+                        className="p-1.5 text-gray-500 hover:text-ev-700 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
                         title="View Details"
                       >
                         <Eye className="w-4 h-4" />
@@ -401,7 +401,7 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                       {stall.source === 'creator' && (
                         <button
                           onClick={() => setSelectedStallForEdit(stall)}
-                          className="p-1.5 text-gray-500 hover:text-sgt-600 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
+                          className="p-1.5 text-gray-500 hover:text-ev-700 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md transition-colors"
                           title="Edit"
                         >
                           <Pencil className="w-4 h-4" />
@@ -568,7 +568,7 @@ export default function StallsTab({ eventId, event, onEventChange }: StallsTabPr
                   <div className="flex flex-wrap gap-2">
                     {selectedStallApp.documentUrls.map((url, i) => (
                       <a key={i} href={url} target="_blank" rel="noreferrer"
-                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm text-sgt-600 dark:text-sgt-400"
+                        className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm text-ev-700 dark:text-ev-400"
                       >
                         <FileText className="w-4 h-4" />
                         <span>Document {i + 1}</span>

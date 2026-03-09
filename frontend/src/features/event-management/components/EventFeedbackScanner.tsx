@@ -146,20 +146,20 @@ export default function EventFeedbackScanner() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
         <Link
           href="/events"
-          className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 dark:hover:text-sgt-400 mb-6"
+          className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-ev-700 dark:hover:text-ev-400 mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Events
         </Link>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <QrCode className="w-6 h-6 text-sgt-500" />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
+          <div className="p-6 border-b border-[#b3cde0] dark:border-gray-700">
+            <h1 className="text-xl font-bold text-ev-900 dark:text-white flex items-center gap-2">
+              <QrCode className="w-6 h-6 text-ev-700" />
               Feedback QR Scanner
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -169,7 +169,7 @@ export default function EventFeedbackScanner() {
             {/* Type legend */}
             <div className="flex items-center gap-4 mt-3">
               <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                <QrCode className="w-3.5 h-3.5 text-sgt-500" />
+                <QrCode className="w-3.5 h-3.5 text-ev-700" />
                 Event feedback
               </div>
               <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -186,7 +186,7 @@ export default function EventFeedbackScanner() {
                 type="button"
                 onClick={switchToCameraMode}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md transition-colors ${
-                  scanMode === 'camera' ? 'bg-white dark:bg-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  scanMode === 'camera' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 <Camera className="w-4 h-4" />
@@ -196,7 +196,7 @@ export default function EventFeedbackScanner() {
                 type="button"
                 onClick={switchToInputMode}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md transition-colors ${
-                  scanMode === 'input' ? 'bg-white dark:bg-gray-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  scanMode === 'input' ? 'bg-white dark:bg-gray-600 shadow-ev' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
                 Paste URL
@@ -204,7 +204,7 @@ export default function EventFeedbackScanner() {
             </div>
 
             {scanMode === 'camera' ? (
-              <div className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+              <div className="rounded-lg overflow-hidden border border-[#b3cde0] dark:border-gray-600">
                 <div id="event-feedback-qr-reader" className="w-full" />
               </div>
             ) : (
@@ -218,7 +218,7 @@ export default function EventFeedbackScanner() {
                     value={manualInput}
                     onChange={(e) => { setManualInput(e.target.value); setLastError(null); }}
                     placeholder="Paste event or stall feedback URL"
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-ev-900 dark:text-white focus:ring-2 focus:ring-ev-700"
                   />
                   {lastError && (
                     <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
@@ -228,7 +228,7 @@ export default function EventFeedbackScanner() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-sgt-600 hover:bg-sgt-700 text-white py-3 rounded-lg font-semibold transition-colors"
+                  className="w-full bg-ev-700 hover:bg-ev-800 text-white py-3 rounded-lg font-semibold transition-colors"
                 >
                   Open Feedback Form
                 </button>

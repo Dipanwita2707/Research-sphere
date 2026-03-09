@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -189,10 +189,10 @@ export default function EventManagementPage() {
   // ── Loading & Error States ─────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="ev-page flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-sgt-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400 font-medium">Loading event management...</p>
+          <Loader2 className="w-12 h-12 animate-spin text-ev-700 mx-auto mb-4" />
+          <p className="text-ev-400 dark:text-gray-400 font-medium">Loading event management...</p>
         </div>
       </div>
     );
@@ -200,14 +200,14 @@ export default function EventManagementPage() {
 
   if (!event || !statistics) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="ev-page flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Data Not Available</h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-6">Unable to load event management data</p>
+          <h2 className="text-2xl font-bold text-ev-900 dark:text-white mb-2">Data Not Available</h2>
+          <p className="text-ev-400 dark:text-gray-400 mb-6">Unable to load event management data</p>
           <Link
             href="/events/my-events"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-sgt-600 text-white rounded-lg hover:bg-sgt-700 transition-colors"
+            className="ev-btn inline-flex items-center gap-2 px-6 py-3 rounded-lg"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to My Events
@@ -221,7 +221,7 @@ export default function EventManagementPage() {
   const statusBadge = () => {
     const map: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-      published: 'bg-sgt-50 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300',
+      published: 'bg-ev-50 text-ev-800 dark:bg-ev-900/30 dark:text-ev-200',
       ongoing: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
       completed: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
       cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -265,26 +265,26 @@ export default function EventManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="ev-page">
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-800 border-b border-[#b3cde0] dark:border-gray-700 sticky top-0 z-10 shadow-ev">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link
                 href={`/events/${eventId}`}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sgt-600 dark:text-sgt-400"
+                className="p-2 rounded-lg hover:bg-ev-50 dark:hover:bg-gray-700 transition-colors text-ev-700 dark:text-ev-400"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h1 className="text-xl font-bold text-ev-900 dark:text-white">
                     Event Management
                   </h1>
                   {statusBadge()}
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 max-w-md truncate">
+                <p className="text-sm text-ev-400 dark:text-gray-400 mt-0.5 max-w-md truncate">
                   {event.name}
                 </p>
               </div>
@@ -292,7 +292,7 @@ export default function EventManagementPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handleShowFeedbackQR}
-                className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-ev-800 dark:text-gray-300 bg-ev-50 dark:bg-gray-700 rounded-lg hover:bg-ev-200/50 dark:hover:bg-gray-600 transition-colors"
                 title="Feedback QR Code"
               >
                 <QrCode className="w-4 h-4" />
@@ -301,7 +301,7 @@ export default function EventManagementPage() {
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-3 py-2 min-h-[40px] text-sm font-medium text-ev-800 dark:text-gray-300 bg-ev-50 dark:bg-gray-700 rounded-lg hover:bg-ev-200/50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh
@@ -319,8 +319,8 @@ export default function EventManagementPage() {
                   router.replace(`/events/${eventId}/management?tab=${tab.id}`, { scroll: false });
                 }}
                 className={`flex items-center gap-2 px-4 py-2.5 font-medium text-sm rounded-lg transition-all whitespace-nowrap ${activeTab === tab.id
-                  ? 'bg-sgt-600 text-white shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-ev-700 text-white shadow-ev'
+                  : 'text-ev-400 dark:text-gray-400 hover:bg-ev-50 dark:hover:bg-gray-700'
                   }`}
               >
                 <tab.icon className="w-4 h-4" />
@@ -401,15 +401,15 @@ export default function EventManagementPage() {
 
       {/* Feedback QR Modal */}
       {showFeedbackQR && feedbackQRUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setShowFeedbackQR(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 max-w-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="ev-overlay" onClick={() => setShowFeedbackQR(false)}>
+          <div className="ev-modal p-6 max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Feedback QR Code</h3>
-              <button onClick={() => setShowFeedbackQR(false)} className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
-                <X className="w-5 h-5 text-gray-500" />
+              <h3 className="text-lg font-semibold text-ev-900 dark:text-white">Feedback QR Code</h3>
+              <button onClick={() => setShowFeedbackQR(false)} className="p-1 rounded-full hover:bg-ev-50 dark:hover:bg-gray-700">
+                <X className="w-5 h-5 text-ev-400" />
               </button>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Scan to give event feedback (10 points + short description)</p>
+            <p className="text-sm text-ev-400 dark:text-gray-400 mb-4">Scan to give event feedback (10 points + short description)</p>
             <div className="flex justify-center p-4 bg-white rounded-lg">
               <img src={feedbackQRUrl} alt="Feedback QR" className="w-64 h-64" />
             </div>

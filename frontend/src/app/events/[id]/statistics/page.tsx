@@ -65,9 +65,9 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 
 // ── Design System Constants ──────────────────────────────────────
-const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
-const CARD_HEADER = 'px-5 py-3.5 border-b border-gray-100 dark:border-gray-700';
-const METRIC_CARD = `${CARD} p-5 hover:shadow-sgt-lg hover:-translate-y-0.5 transition-all duration-200`;
+const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-[#b3cde0] dark:border-ev-700 shadow-ev';
+const CARD_HEADER = 'px-5 py-3.5 border-b border-[#b3cde0]/30 dark:border-gray-700';
+const METRIC_CARD = `${CARD} p-5 hover:shadow-ev-lg hover:-translate-y-0.5 transition-all duration-200`;
 
 const STATUS_COLORS = {
   confirmed: { bg: 'bg-emerald-50 dark:bg-emerald-900/20', text: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500', chart: '#10b981' },
@@ -274,7 +274,7 @@ export default function EventStatisticsPage() {
   // ── Loading & Error States ─────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <CardSkeleton className="w-full max-w-sm mx-auto mb-4" />
           <p className="text-gray-600 dark:text-gray-400 font-medium">Loading statistics dashboard...</p>
@@ -285,14 +285,14 @@ export default function EventStatisticsPage() {
 
   if (!event || !statistics) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Data Not Available</h2>
+          <h2 className="text-2xl font-bold text-ev-900 dark:text-white mb-2">Data Not Available</h2>
           <p className="text-gray-500 dark:text-gray-400 mb-6">Unable to load event statistics</p>
           <Link
             href="/events/my-events"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-sgt-600 text-white rounded-lg hover:bg-sgt-700 transition-colors"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-ev-700 text-white rounded-lg hover:bg-ev-800 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to My Events
@@ -306,7 +306,7 @@ export default function EventStatisticsPage() {
   const statusBadge = () => {
     const map: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-      published: 'bg-sgt-50 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300',
+      published: 'bg-ev-50 text-ev-800 dark:bg-ev-900/30 dark:text-ev-200',
       ongoing: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
       completed: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
       cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -346,28 +346,28 @@ export default function EventStatisticsPage() {
           </span>
         )}
       </div>
-      <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{value}</h3>
+      <h3 className="text-2xl font-bold text-ev-900 dark:text-white">{value}</h3>
       <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{label}</p>
       {subtitle && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5">{subtitle}</p>}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-[#f8fafc] dark:from-gray-900 dark:to-gray-800">
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-800 border-b border-[#b3cde0] dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link
                 href={`/events/${eventId}`}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sgt-600 dark:text-sgt-400"
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-ev-700 dark:text-ev-400"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h1 className="text-xl font-bold text-ev-900 dark:text-white">
                     Statistics Dashboard
                   </h1>
                   {statusBadge()}
@@ -387,12 +387,12 @@ export default function EventStatisticsPage() {
                 Refresh
               </button>
               <div className="relative group">
-                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors">
+                <button className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-ev-700 rounded-lg hover:bg-ev-800 transition-colors">
                   <Download className="w-4 h-4" />
                   Export
                   <ChevronDown className="w-3 h-3" />
                 </button>
-                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
+                <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-[#b3cde0] dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20">
                   <button
                     onClick={handleExportCSV}
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-t-lg"
@@ -420,7 +420,7 @@ export default function EventStatisticsPage() {
                 onClick={() => setActiveTab(tab)}
                 className={`px-4 py-2 text-sm font-medium rounded-t-lg border-b-2 transition-colors capitalize ${
                   activeTab === tab
-                    ? 'border-sgt-500 text-sgt-600 dark:text-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/20'
+                    ? 'border-ev-700 text-ev-700 dark:text-ev-400 bg-ev-50/50 dark:bg-ev-900/20'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
               >
@@ -441,7 +441,7 @@ export default function EventStatisticsPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <MetricCard
                 icon={Users}
-                iconBg="bg-sgt-50 text-sgt-600 dark:bg-sgt-900/30 dark:text-sgt-400"
+                iconBg="bg-ev-50 text-ev-700 dark:bg-ev-900/30 dark:text-ev-400"
                 label="Total Registrations"
                 value={statistics.totalRegistrations}
                 subtitle={capacityUsage ? `${capacityUsage}% of capacity` : undefined}
@@ -486,12 +486,12 @@ export default function EventStatisticsPage() {
                 {event.paymentType === 'paid' && (
                   <div className={METRIC_CARD}>
                     <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-xl bg-gradient-to-br from-sgt-500 to-sgt-700 text-white">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-ev-700 to-ev-800 text-white">
                         <IndianRupee className="w-6 h-6" />
                       </div>
                       <div className="flex-1">
                         <p className="text-sm text-gray-500 dark:text-gray-400">Total Revenue</p>
-                        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                        <p className="text-3xl font-bold text-ev-900 dark:text-white">
                           ₹{statistics.totalRevenue?.toLocaleString('en-IN') || 0}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
@@ -509,12 +509,12 @@ export default function EventStatisticsPage() {
                       </div>
                       <div className="flex-1">
                         <p className="text-sm text-gray-500 dark:text-gray-400">Capacity</p>
-                        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                        <p className="text-3xl font-bold text-ev-900 dark:text-white">
                           {statistics.totalRegistrations} / {event.maxCapacity}
                         </p>
                         <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-sgt-400 to-sgt-600 transition-all duration-500"
+                            className="h-full rounded-full bg-gradient-to-r from-ev-400 to-ev-800 transition-all duration-500"
                             style={{ width: `${Math.min(Number(capacityUsage || 0), 100)}%` }}
                           />
                         </div>
@@ -533,8 +533,8 @@ export default function EventStatisticsPage() {
               {/* Registration Trend */}
               <div className={`${CARD} lg:col-span-2 overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-ev-700" />
                     Registration Trend
                   </h3>
                 </div>
@@ -582,8 +582,8 @@ export default function EventStatisticsPage() {
               {/* Status Breakdown Pie */}
               <div className={`${CARD} overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <PieChart className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <PieChart className="w-4 h-4 text-ev-700" />
                     Status Breakdown
                   </h3>
                 </div>
@@ -640,8 +640,8 @@ export default function EventStatisticsPage() {
               {/* Attendance Ring */}
               <div className={`${CARD} overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-ev-700" />
                     Attendance Rate
                   </h3>
                 </div>
@@ -667,7 +667,7 @@ export default function EventStatisticsPage() {
                       </defs>
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-3xl font-bold text-gray-900 dark:text-white">{attendanceRate}%</span>
+                      <span className="text-3xl font-bold text-ev-900 dark:text-white">{attendanceRate}%</span>
                       <span className="text-[10px] text-gray-400 uppercase tracking-wide">Attended</span>
                     </div>
                   </div>
@@ -680,8 +680,8 @@ export default function EventStatisticsPage() {
               {/* Entry/Exit Card */}
               <div className={`${CARD} overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-ev-700" />
                     Entry &amp; Exit
                   </h3>
                 </div>
@@ -697,9 +697,9 @@ export default function EventStatisticsPage() {
                       <p className="text-xl font-bold text-red-600 dark:text-red-400">{statistics.totalExits}</p>
                       <p className="text-[10px] text-gray-500 uppercase">Exits</p>
                     </div>
-                    <div className="p-3 bg-sgt-50 dark:bg-sgt-900/20 rounded-lg">
-                      <Eye className="w-5 h-5 text-sgt-600 dark:text-sgt-400 mx-auto mb-1" />
-                      <p className="text-xl font-bold text-sgt-600 dark:text-sgt-400">{statistics.currentlyInside}</p>
+                    <div className="p-3 bg-ev-50 dark:bg-ev-900/20 rounded-lg">
+                      <Eye className="w-5 h-5 text-ev-700 dark:text-ev-400 mx-auto mb-1" />
+                      <p className="text-xl font-bold text-ev-700 dark:text-ev-400">{statistics.currentlyInside}</p>
                       <p className="text-[10px] text-gray-500 uppercase">Inside</p>
                     </div>
                   </div>
@@ -721,14 +721,14 @@ export default function EventStatisticsPage() {
               {/* Conversion Funnel */}
               <div className={`${CARD} overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Percent className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-ev-700" />
                     Conversion Funnel
                   </h3>
                 </div>
                 <div className="p-6 space-y-3">
                   {[
-                    { label: 'Registered', value: statistics.totalRegistrations, pct: 100, color: 'bg-sgt-500' },
+                    { label: 'Registered', value: statistics.totalRegistrations, pct: 100, color: 'bg-ev-700' },
                     { label: 'Confirmed', value: statistics.confirmedRegistrations, pct: statistics.totalRegistrations > 0 ? (statistics.confirmedRegistrations / statistics.totalRegistrations) * 100 : 0, color: 'bg-emerald-500' },
                     { label: 'Attended', value: statistics.totalAttended, pct: statistics.totalRegistrations > 0 ? (statistics.totalAttended / statistics.totalRegistrations) * 100 : 0, color: 'bg-purple-500' },
                   ].map((step) => (
@@ -742,7 +742,7 @@ export default function EventStatisticsPage() {
                       </div>
                     </div>
                   ))}
-                  <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                  <div className="pt-3 border-t border-[#b3cde0]/30 dark:border-gray-700">
                     <p className="text-xs text-gray-400 text-center">
                       Overall Conversion: <span className="font-bold text-gray-700 dark:text-gray-300">
                         {statistics.totalRegistrations > 0 ? ((statistics.totalAttended / statistics.totalRegistrations) * 100).toFixed(1) : 0}%
@@ -756,14 +756,14 @@ export default function EventStatisticsPage() {
             {/* ── Quick Actions ─────────────────────────────────── */}
             <div className={`${CARD} overflow-hidden`}>
               <div className={CARD_HEADER}>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-sgt-500" />
+                <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-ev-700" />
                   Quick Actions
                 </h3>
               </div>
               <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
                 {[
-                  { label: 'View Event', icon: Eye, href: `/events/${eventId}`, color: 'text-sgt-600 dark:text-sgt-400' },
+                  { label: 'View Event', icon: Eye, href: `/events/${eventId}`, color: 'text-ev-700 dark:text-ev-400' },
                   { label: 'Manage', icon: Settings, href: `/events/${eventId}/manage`, color: 'text-indigo-600 dark:text-indigo-400' },
                   { label: 'Volunteers', icon: UserPlus, href: `/events/${eventId}/volunteers`, color: 'text-emerald-600 dark:text-emerald-400' },
                   { label: 'QR Scan', icon: QrCode, href: `/events/${eventId}/scan`, color: 'text-purple-600 dark:text-purple-400' },
@@ -784,20 +784,20 @@ export default function EventStatisticsPage() {
             {/* ── Event Info Summary ───────────────────────────── */}
             <div className={`${CARD} overflow-hidden`}>
               <div className={CARD_HEADER}>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-sgt-500" />
+                <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-ev-700" />
                   Event Information
                 </h3>
               </div>
               <div className="p-5">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-sgt-50 dark:bg-sgt-900/20 rounded-lg">
-                      <Calendar className="w-4 h-4 text-sgt-600 dark:text-sgt-400" />
+                    <div className="p-2 bg-ev-50 dark:bg-ev-900/20 rounded-lg">
+                      <Calendar className="w-4 h-4 text-ev-700 dark:text-ev-400" />
                     </div>
                     <div>
                       <p className="text-xs text-gray-400 uppercase font-medium">Event Period</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5">
+                      <p className="text-sm font-medium text-ev-900 dark:text-white mt-0.5">
                         {new Date(event.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
                       <p className="text-xs text-gray-500">
@@ -812,7 +812,7 @@ export default function EventStatisticsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 uppercase font-medium">Registration Window</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5">
+                        <p className="text-sm font-medium text-ev-900 dark:text-white mt-0.5">
                           {new Date(event.registrationStartDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                           {' – '}
                           {new Date(event.registrationEndDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -827,7 +827,7 @@ export default function EventStatisticsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 uppercase font-medium">Venue</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5">{event.venue}</p>
+                        <p className="text-sm font-medium text-ev-900 dark:text-white mt-0.5">{event.venue}</p>
                       </div>
                     </div>
                   )}
@@ -838,7 +838,7 @@ export default function EventStatisticsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-400 uppercase font-medium">Mode</p>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5 capitalize">{event.opportunityMode}</p>
+                        <p className="text-sm font-medium text-ev-900 dark:text-white mt-0.5 capitalize">{event.opportunityMode}</p>
                       </div>
                     </div>
                   )}
@@ -863,14 +863,14 @@ export default function EventStatisticsPage() {
                     placeholder="Search by name, UID, email, or registration ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-sgt-400 focus:border-transparent outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 border border-[#b3cde0] dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm text-ev-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-ev-400 focus:border-transparent outline-none"
                   />
                 </div>
                 <div className="flex gap-2">
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-sgt-400 focus:border-transparent outline-none"
+                    className="px-3 py-2.5 border border-[#b3cde0] dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-300 focus:ring-2 focus:ring-ev-400 focus:border-transparent outline-none"
                   >
                     <option value="all">All Status</option>
                     <option value="confirmed">Confirmed</option>
@@ -880,7 +880,7 @@ export default function EventStatisticsPage() {
                   </select>
                   <button
                     onClick={handleExportCSV}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-ev-700 text-white text-sm font-medium rounded-lg hover:bg-ev-800 transition-colors"
                   >
                     <FileSpreadsheet className="w-4 h-4" />
                     CSV
@@ -894,7 +894,7 @@ export default function EventStatisticsPage() {
                 {(searchQuery || statusFilter !== 'all') && (
                   <button
                     onClick={() => { setSearchQuery(''); setStatusFilter('all'); }}
-                    className="text-xs text-sgt-600 hover:text-sgt-700 font-medium"
+                    className="text-xs text-ev-700 hover:text-ev-800 font-medium"
                   >
                     Clear filters
                   </button>
@@ -916,8 +916,8 @@ export default function EventStatisticsPage() {
                   onClick={() => setStatusFilter(s.key)}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                     statusFilter === s.key
-                      ? 'bg-sgt-600 text-white shadow-sm'
-                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-sgt-300'
+                      ? 'bg-ev-700 text-white shadow-ev'
+                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-[#b3cde0] dark:border-gray-700 hover:border-[#b3cde0]'
                   }`}
                 >
                   {s.label}
@@ -933,7 +933,7 @@ export default function EventStatisticsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-700">
+                    <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-[#b3cde0]/30 dark:border-gray-700">
                       <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-5 py-3">Participant</th>
                       <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-5 py-3">Registration ID</th>
                       <th className="text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-5 py-3">Status</th>
@@ -959,11 +959,11 @@ export default function EventStatisticsPage() {
                           <tr key={reg.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
                             <td className="px-5 py-3.5">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-sgt-100 dark:bg-sgt-900/30 flex items-center justify-center text-sgt-600 dark:text-sgt-400 text-xs font-bold">
+                                <div className="w-8 h-8 rounded-full bg-ev-100 dark:bg-ev-900/30 flex items-center justify-center text-ev-700 dark:text-ev-400 text-xs font-bold">
                                   {reg.user?.name?.charAt(0)?.toUpperCase() || '?'}
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium text-gray-900 dark:text-white">{reg.user?.name || 'Unknown'}</p>
+                                  <p className="text-sm font-medium text-ev-900 dark:text-white">{reg.user?.name || 'Unknown'}</p>
                                   <p className="text-xs text-gray-400">{reg.user?.uid || reg.user?.email || ''}</p>
                                 </div>
                               </div>
@@ -1017,8 +1017,8 @@ export default function EventStatisticsPage() {
             {/* ── Daily Registrations Bar Chart ────────────────── */}
             <div className={`${CARD} overflow-hidden`}>
               <div className={CARD_HEADER}>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-sgt-500" />
+                <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-ev-700" />
                   Daily Registrations
                 </h3>
               </div>
@@ -1056,8 +1056,8 @@ export default function EventStatisticsPage() {
               {/* Registration Speed */}
               <div className={`${CARD} overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-ev-700" />
                     Registration Velocity
                   </h3>
                 </div>
@@ -1070,15 +1070,15 @@ export default function EventStatisticsPage() {
                       <>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500 dark:text-gray-400">Avg / Day</span>
-                          <span className="text-lg font-bold text-gray-900 dark:text-white">{avgPerDay}</span>
+                          <span className="text-lg font-bold text-ev-900 dark:text-white">{avgPerDay}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500 dark:text-gray-400">Peak Day</span>
-                          <span className="text-sm font-semibold text-sgt-600 dark:text-sgt-400">{peakDay.date} ({peakDay.daily})</span>
+                          <span className="text-sm font-semibold text-ev-700 dark:text-ev-400">{peakDay.date} ({peakDay.daily})</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-500 dark:text-gray-400">Total Days</span>
-                          <span className="text-lg font-bold text-gray-900 dark:text-white">{days}</span>
+                          <span className="text-lg font-bold text-ev-900 dark:text-white">{days}</span>
                         </div>
                       </>
                     );
@@ -1089,8 +1089,8 @@ export default function EventStatisticsPage() {
               {/* Status Health */}
               <div className={`${CARD} overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-ev-700" />
                     Registration Health
                   </h3>
                 </div>
@@ -1105,7 +1105,7 @@ export default function EventStatisticsPage() {
                       <span className={`text-lg font-bold ${metric.color}`}>{metric.value}%</span>
                     </div>
                   ))}
-                  <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
+                  <div className="pt-3 border-t border-[#b3cde0]/30 dark:border-gray-700">
                     <div className="flex items-center gap-2">
                       {confirmationRate >= 60 && attendanceRate >= 40 ? (
                         <>
@@ -1126,8 +1126,8 @@ export default function EventStatisticsPage() {
               {/* Event Score Card */}
               <div className={`${CARD} overflow-hidden`}>
                 <div className={CARD_HEADER}>
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Award className="w-4 h-4 text-sgt-500" />
+                  <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                    <Award className="w-4 h-4 text-ev-700" />
                     Event Score
                   </h3>
                 </div>
@@ -1144,14 +1144,14 @@ export default function EventStatisticsPage() {
                     if (statistics.cancelledRegistrations / Math.max(statistics.totalRegistrations, 1) < 0.2) score += 5;
                     score = Math.min(score, 100);
                     const grade = score >= 80 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : 'D';
-                    const gradeColor = score >= 80 ? 'text-emerald-500' : score >= 60 ? 'text-sgt-500' : score >= 40 ? 'text-amber-500' : 'text-red-500';
+                    const gradeColor = score >= 80 ? 'text-emerald-500' : score >= 60 ? 'text-ev-700' : score >= 40 ? 'text-amber-500' : 'text-red-500';
                     return (
                       <>
                         <div className={`text-5xl font-black ${gradeColor} mb-1`}>{grade}</div>
                         <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">{score}/100 points</div>
                         <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-700 ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-sgt-500' : score >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                            className={`h-full rounded-full transition-all duration-700 ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-ev-700' : score >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
                             style={{ width: `${score}%` }}
                           />
                         </div>
@@ -1168,8 +1168,8 @@ export default function EventStatisticsPage() {
             {/* ── Cumulative Growth Chart ──────────────────────── */}
             <div className={`${CARD} overflow-hidden`}>
               <div className={CARD_HEADER}>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-sgt-500" />
+                <h3 className="text-sm font-semibold text-ev-900 dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-ev-700" />
                   Cumulative Growth
                 </h3>
               </div>

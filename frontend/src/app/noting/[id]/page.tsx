@@ -34,6 +34,7 @@ import {
 import { notingService } from "@/features/noting-management/services/noting.service";
 import {
   useNote,
+  useDeleteDraft,
   useNotingPermissions,
   useMyManager,
   useSearchEmployees,
@@ -143,6 +144,9 @@ export default function NoteDetailPage() {
       if (status === 403) {
         toast({ type: 'error', message: 'You do not have access to this noting' });
         router.push('/noting');
+      } else if (status === 404) {
+        // Note was deleted or doesn't exist — go back to list silently
+        router.push('/noting');
       }
     }
   }, [noteError, router, toast]);
@@ -202,13 +206,11 @@ export default function NoteDetailPage() {
   const currentUserId: string | null = user?.id ?? null;
   const isCurrentHolder =
     note?.currentHolderId && typeof window !== "undefined";
-  const currentUserRole =
-    typeof user?.role === 'string' ? user.role.toLowerCase() : user?.role?.name?.toLowerCase();
+  const currentUserRole = user?.role?.name?.toLowerCase();
   const isPrivilegedApprover =
     currentUserRole === 'admin' ||
     currentUserRole === 'superadmin' ||
-    currentUserRole === 'dean' ||
-    user?.roleCode === 'DEAN';
+    currentUserRole === 'dean';
   const modulePermissionKey = getModulePermissionKey(note);
   const hasSubcategoryApproval =
     isPrivilegedApprover ||
@@ -253,6 +255,7 @@ export default function NoteDetailPage() {
   // Manager info now fetched by useMyManager hook above (enabled when forwardMode === 'auto')
 
   // ── Mutation hooks (replace manual notingService calls + manual re-fetch) ──
+  const deleteDraftMutation = useDeleteDraft();
   const approveMutation = useApproveNote();
   const rejectMutation = useRejectNote();
   const revertMutation = useRevertNote();
@@ -515,16 +518,15 @@ export default function NoteDetailPage() {
                   if (
                     window.confirm("Delete this note? This cannot be undone.")
                   ) {
-                    notingService
-                      .deleteDraft(note.id)
-                      .then(() => {
+                    deleteDraftMutation.mutate(note.id, {
+                      onSuccess: () => {
                         toast({ type: "success", message: "Note deleted" });
                         router.push("/noting");
-                      })
-                      .catch((err) => {
-                        const message = getErrorMessage(err);
-                        toast({ type: "error", message });
-                      });
+                      },
+                      onError: (err) => {
+                        toast({ type: "error", message: getErrorMessage(err) });
+                      },
+                    });
                   }
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-2.5 sm:py-1.5 min-h-[44px] sm:min-h-0 rounded-xl border border-red-200 text-red-600 text-xs font-medium hover:bg-red-50 transition-all duration-200"

@@ -81,7 +81,7 @@ export default function OverviewTab({
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <MetricCard
           icon={Users}
-          iconBg="bg-sgt-50 text-sgt-600 dark:bg-sgt-900/30 dark:text-sgt-400"
+          iconBg="bg-ev-50 text-ev-700 dark:bg-ev-900/30 dark:text-ev-400"
           label="Total Registrations"
           value={statistics.totalRegistrations}
           subtitle={capacityUsage ? `${capacityUsage}% of capacity` : undefined}
@@ -174,7 +174,7 @@ export default function OverviewTab({
         <div className={`${CARD} lg:col-span-2 overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-sgt-500" />
+              <TrendingUp className="w-4 h-4 text-ev-700" />
               Registration Trend
             </h3>
           </div>
@@ -223,7 +223,7 @@ export default function OverviewTab({
         <div className={`${CARD} overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <PieChart className="w-4 h-4 text-sgt-500" />
+              <PieChart className="w-4 h-4 text-ev-700" />
               Status Breakdown
             </h3>
           </div>
@@ -281,7 +281,7 @@ export default function OverviewTab({
         <div className={`${CARD} overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Activity className="w-4 h-4 text-sgt-500" />
+              <Activity className="w-4 h-4 text-ev-700" />
               Attendance Rate
             </h3>
           </div>
@@ -321,7 +321,7 @@ export default function OverviewTab({
         <div className={`${CARD} overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-sgt-500" />
+              <Zap className="w-4 h-4 text-ev-700" />
               Entry &amp; Exit
             </h3>
           </div>
@@ -337,9 +337,9 @@ export default function OverviewTab({
                 <p className="text-xl font-bold text-red-600 dark:text-red-400">{statistics.totalExits || 0}</p>
                 <p className="text-[10px] text-gray-500 uppercase">Exits</p>
               </div>
-              <div className="p-3 bg-sgt-50 dark:bg-sgt-900/20 rounded-lg">
-                <Eye className="w-5 h-5 text-sgt-600 dark:text-sgt-400 mx-auto mb-1" />
-                <p className="text-xl font-bold text-sgt-600 dark:text-sgt-400">{statistics.currentlyInside || 0}</p>
+              <div className="p-3 bg-ev-50 dark:bg-ev-900/20 rounded-lg">
+                <Eye className="w-5 h-5 text-ev-700 dark:text-ev-400 mx-auto mb-1" />
+                <p className="text-xl font-bold text-ev-700 dark:text-ev-400">{statistics.currentlyInside || 0}</p>
                 <p className="text-[10px] text-gray-500 uppercase">Inside</p>
               </div>
             </div>
@@ -380,13 +380,13 @@ export default function OverviewTab({
         <div className={`${CARD} overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Percent className="w-4 h-4 text-sgt-500" />
+              <Percent className="w-4 h-4 text-ev-700" />
               Conversion Funnel
             </h3>
           </div>
           <div className="p-6 space-y-3">
             {[
-              { label: 'Registered', value: statistics.totalRegistrations, pct: 100, color: 'bg-sgt-500' },
+              { label: 'Registered', value: statistics.totalRegistrations, pct: 100, color: 'bg-ev-700' },
               {
                 label: 'Confirmed',
                 value: statistics.confirmedRegistrations,

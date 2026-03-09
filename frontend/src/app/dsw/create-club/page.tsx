@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -148,22 +148,22 @@ export default function CreateClubPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6">
+    <div className="min-h-screen bg-[#f8fafc] p-4 sm:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            className="flex items-center gap-2 text-ev-400 hover:text-ev-900 transition-colors mb-4"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to DSW Dashboard
           </button>
 
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl sm:text-3xl font-bold text-ev-900">
             Create New Student Club
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
+          <p className="text-ev-600 mt-2">
             Complete the 3-step club creation form. Your request will go through
             the approval workflow:{" "}
             <strong>HOD → Dean → DSW → Higher Authority</strong>
@@ -188,7 +188,7 @@ export default function CreateClubPage() {
               </div>
             </div>
             <div className="px-6 py-5 space-y-4">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
+              <p className="text-sm text-ev-700">
                 You are currently the chairperson of{" "}
                 <strong className="text-gray-900 dark:text-white">
                   &quot;{existingChairClub?.name}&quot;
@@ -196,7 +196,7 @@ export default function CreateClubPage() {
                 . You cannot create or lead another club until you step down
                 from your current position.
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-ev-500">
                 You can still join other clubs as a <strong>member</strong>.
               </p>
               <div className="flex gap-3 pt-1">
@@ -226,7 +226,7 @@ export default function CreateClubPage() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
                   <div className="flex-1">
-                    <h3 className="font-semibold text-red-900 dark:text-red-200">
+                    <h3 className="font-semibold text-red-800">
                       Submission Error
                     </h3>
                     <p className="text-sm text-red-800 dark:text-red-300 whitespace-pre-line mt-1">
@@ -241,13 +241,13 @@ export default function CreateClubPage() {
             <ClubCreationForm disabled={isSubmitting} />
 
             {/* Submit Button */}
-            <div className="mt-6 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="mt-6 ev-card p-6">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  <h3 className="text-lg font-semibold text-ev-900">
                     Submit Club Creation Request
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-ev-600 mt-1">
                     Creates a noting that will be routed: HOD → Dean → DSW →
                     Higher Authority
                   </p>
@@ -256,7 +256,7 @@ export default function CreateClubPage() {
                 <button
                   onClick={handleSubmit}
                   disabled={isSubmitting}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 ev-btn disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <>
@@ -272,8 +272,8 @@ export default function CreateClubPage() {
                 </button>
               </div>
 
-              <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
+              <div className="mt-4 bg-ev-50 border border-[#b3cde0] rounded-lg p-4">
+                <p className="text-sm text-ev-800">
                   <strong>📋 Approval Workflow:</strong> Your request will be
                   sent to your HOD, then Dean, then DSW Team, and finally
                   Higher Authority for approval. You can track the progress in

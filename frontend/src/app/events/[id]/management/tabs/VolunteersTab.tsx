@@ -237,7 +237,7 @@ export default function VolunteersTab({
         <div className={`${CARD} overflow-hidden sticky top-24`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-sgt-500" />
+              <UserPlus className="w-4 h-4 text-ev-700" />
               Assign Volunteer
             </h3>
           </div>
@@ -248,8 +248,8 @@ export default function VolunteersTab({
                 {clubInfo ? 'Search any student' : 'Student'} <span className="text-red-500 normal-case">*</span>
               </label>
               {selectedUserId ? (
-                <div className="flex items-center gap-2 px-3 py-2 bg-sgt-50 dark:bg-sgt-900/20 border border-sgt-300 dark:border-sgt-700 rounded-lg">
-                  <div className="w-7 h-7 rounded-full bg-sgt-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                <div className="flex items-center gap-2 px-3 py-2 bg-ev-50 dark:bg-ev-900/20 border border-[#b3cde0] dark:border-ev-800 rounded-lg">
+                  <div className="w-7 h-7 rounded-full bg-ev-700 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                     {selectedUserName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()}
                   </div>
                   <span className="flex-1 text-sm font-medium text-gray-900 dark:text-white truncate">{selectedUserName}</span>
@@ -271,10 +271,10 @@ export default function VolunteersTab({
                         if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
                         searchDebounceRef.current = setTimeout(() => handleSearchUsers(val), 300);
                       }}
-                      className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+                      className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-ev-700 focus:border-ev-700 transition-all"
                       placeholder="Search by UID, name or email…"
                     />
-                    {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-sgt-500" />}
+                    {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-ev-700" />}
                   </div>
                   {searchResults.length > 0 && (
                     <div className="mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -312,7 +312,7 @@ export default function VolunteersTab({
                 type="text"
                 value={volunteerRole}
                 onChange={(e) => setVolunteerRole(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-ev-700 focus:border-ev-700 transition-all"
                 placeholder="e.g. Entry Manager, Support Staff"
               />
             </div>
@@ -328,19 +328,19 @@ export default function VolunteersTab({
                   type="text"
                   value={assignedGate}
                   onChange={(e) => setAssignedGate(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-ev-700 focus:border-ev-700 transition-all"
                   placeholder="e.g. Gate A, Main Entry"
                 />
               </div>
             </div>
 
             {/* QR Permission */}
-            <label className="flex items-center gap-3 px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-sgt-400 dark:hover:border-sgt-500 hover:bg-sgt-50/40 dark:hover:bg-sgt-900/10 transition-all">
+            <label className="flex items-center gap-3 px-3 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:border-ev-400 dark:hover:border-ev-700 hover:bg-ev-50/40 dark:hover:bg-ev-900/10 transition-all">
               <input
                 type="checkbox"
                 checked={canScanQr}
                 onChange={(e) => setCanScanQr(e.target.checked)}
-                className="w-4 h-4 text-sgt-600 focus:ring-sgt-500 rounded"
+                className="w-4 h-4 text-ev-700 focus:ring-ev-700 rounded"
               />
               <QrCode className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               <div>
@@ -353,7 +353,7 @@ export default function VolunteersTab({
             <button
               onClick={handleAssignVolunteer}
               disabled={assigning || !selectedUserId || !volunteerRole.trim()}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-sgt-600 hover:bg-sgt-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-ev-700 hover:bg-ev-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {assigning ? (
                 <><Loader2 className="w-4 h-4 animate-spin" />Assigning…</>
@@ -370,9 +370,9 @@ export default function VolunteersTab({
         <div className={CARD}>
           <div className={`${CARD_HEADER} flex items-center justify-between gap-3`}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Shield className="w-4 h-4 text-sgt-500" />
+              <Shield className="w-4 h-4 text-ev-700" />
               Volunteers
-              <span className="px-2 py-0.5 text-xs font-semibold bg-sgt-100 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 rounded-full">
+              <span className="px-2 py-0.5 text-xs font-semibold bg-ev-50 dark:bg-ev-900/30 text-ev-800 dark:text-ev-200 rounded-full">
                 {volunteers.length}
               </span>
             </h3>
@@ -410,7 +410,7 @@ export default function VolunteersTab({
                     <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
                       isManager
                         ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                        : 'bg-sgt-100 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300'
+                        : 'bg-ev-50 dark:bg-ev-900/30 text-ev-800 dark:text-ev-200'
                     }`}>
                       {initials}
                     </div>
@@ -421,7 +421,7 @@ export default function VolunteersTab({
                         <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${
                           isManager
                             ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                            : 'bg-sgt-100 text-sgt-700 dark:bg-sgt-900/30 dark:text-sgt-300'
+                            : 'bg-ev-50 text-ev-800 dark:bg-ev-900/30 dark:text-ev-200'
                         }`}>
                           {isManager ? '👑 Manager' : volunteer.role || 'Volunteer'}
                         </span>
@@ -456,7 +456,7 @@ export default function VolunteersTab({
                       <button
                         onClick={() => router.push(`/events/${eventId}/volunteers/${volunteer.id}`)}
                         title="View activity log"
-                        className="p-1.5 text-gray-400 hover:text-sgt-600 dark:hover:text-sgt-400 hover:bg-sgt-50 dark:hover:bg-sgt-900/20 rounded-lg transition-colors"
+                        className="p-1.5 text-gray-400 hover:text-ev-700 dark:hover:text-ev-400 hover:bg-ev-50 dark:hover:bg-ev-900/20 rounded-lg transition-colors"
                       >
                         <Eye className="w-4 h-4" />
                       </button>

@@ -73,11 +73,11 @@ export default function MyCertificatesPage() {
       {/* Page Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-gradient-to-br from-ev-700 to-ev-900 rounded-xl flex items-center justify-center">
             <Award className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Certificates</h1>
+            <h1 className="text-2xl font-bold text-ev-900 dark:text-white">My Certificates</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               All certificates you have received from events
             </p>
@@ -87,11 +87,11 @@ export default function MyCertificatesPage() {
 
       {/* Certificates List */}
       {certificates.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 p-12 text-center">
           <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No Certificates Yet</h3>
+          <h3 className="text-lg font-semibold text-ev-900 dark:text-white mb-1">No Certificates Yet</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             Certificates you receive from events will appear here.
           </p>
@@ -101,7 +101,7 @@ export default function MyCertificatesPage() {
           {certificates.map((cert) => (
             <div
               key={cert.id}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-md transition-shadow"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 p-5 hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 {/* Left: Info */}
@@ -110,7 +110,7 @@ export default function MyCertificatesPage() {
                     <Award className="w-6 h-6 text-white" />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
+                    <h3 className="text-base font-semibold text-ev-900 dark:text-white truncate">
                       {cert.certificateTitle}
                     </h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
@@ -121,7 +121,7 @@ export default function MyCertificatesPage() {
                         <Calendar className="w-3.5 h-3.5" />
                         {new Date(cert.issueDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}
                       </span>
-                      <span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full font-medium capitalize">
+                      <span className="px-2 py-0.5 bg-ev-50 dark:bg-ev-900/30 text-ev-700 dark:text-ev-400 rounded-full font-medium capitalize">
                         {cert.certificateType}
                       </span>
                     </div>
@@ -134,7 +134,7 @@ export default function MyCertificatesPage() {
                     <button
                       onClick={() => handleDownload(cert)}
                       disabled={downloading === cert.verificationCode}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-ev-700 hover:bg-ev-800 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
                     >
                       {downloading === cert.verificationCode ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -146,7 +146,7 @@ export default function MyCertificatesPage() {
                   )}
                   <button
                     onClick={() => handleVerify(cert)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-[#b3cde0] dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg transition-colors"
                   >
                     <ExternalLink className="w-4 h-4" />
                     Verify
@@ -162,7 +162,7 @@ export default function MyCertificatesPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[#b3cde0] dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Previous
               </button>
@@ -172,7 +172,7 @@ export default function MyCertificatesPage() {
               <button
                 onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 disabled={page >= pagination.totalPages}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 text-sm font-medium rounded-lg border border-[#b3cde0] dark:border-gray-700 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               >
                 Next
               </button>

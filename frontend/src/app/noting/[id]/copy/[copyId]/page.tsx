@@ -11,8 +11,13 @@ import {
   Paperclip,
   Upload,
   X,
-  User,
   ArrowRight,
+  Building2,
+  CheckCircle,
+  Clock,
+  Download,
+  Eye,
+  FileText,
   XCircle,
 } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
@@ -21,8 +26,35 @@ import { useNote, useMyCopies, useReplyCopy } from '@/features/noting-management
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
+import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 import { useAuthStore } from '@/shared/auth/authStore';
+import NoteEventDetails from '../../components/NoteEventDetails';
+
+function getDisplayName(
+  obj:
+    | {
+      uid?: string;
+      employeeDetails?: {
+        displayName?: string;
+        firstName?: string;
+        lastName?: string;
+      };
+      studentLogin?: { displayName?: string };
+    }
+    | null
+    | undefined,
+): string {
+  if (!obj) return '—';
+  if (obj.employeeDetails?.displayName) return obj.employeeDetails.displayName;
+  if (obj.employeeDetails?.firstName || obj.employeeDetails?.lastName) {
+    return [obj.employeeDetails?.firstName, obj.employeeDetails?.lastName]
+      .filter(Boolean)
+      .join(' ');
+  }
+  if (obj.studentLogin?.displayName) return obj.studentLogin.displayName;
+  return obj.uid ?? '—';
+}
 
 export default function CopyDetailPage() {
   const params = useParams();
@@ -59,6 +91,8 @@ export default function CopyDetailPage() {
   const [replyAttachments, setReplyAttachments] = useState<{ filePath: string; fileName: string }[]>([]);
   const [replyLoading, setReplyLoading] = useState(false);
   const [replyUploadLoading, setReplyUploadLoading] = useState(false);
+  const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
+  const [viewingPath, setViewingPath] = useState<string | null>(null);
 
   // One reply per level — reply form only when status is pending (not yet replied)
   const canReply =
@@ -114,7 +148,7 @@ export default function CopyDetailPage() {
     return <PageSkeleton />;
   }
 
-  const displayNote = copy.note || note;
+  const displayNote = note;
   const statusColor =
     copy.status === 'completed'
       ? 'text-emerald-600 bg-emerald-50 border-emerald-200'
@@ -166,20 +200,233 @@ export default function CopyDetailPage() {
           </p>
         </div>
 
-        {/* Note Description */}
-        {displayNote?.description && (
-          <div className="px-4 sm:px-6 py-4 space-y-4">
-            <div>
-              <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                Note Description
-              </h4>
+        <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-6">
+          {displayNote?.description && (
+            <section>
+              <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+                Description
+              </h3>
               <div
-                className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none"
+                className="noting-rich-content bg-[#f8fafc] dark:bg-gray-900/20 px-4 py-3 rounded-xl border border-[#b3cde0]/30 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 [&>ol]:!list-decimal [&>ol]:!ml-6 [&>ol]:!pl-4 [&>ul]:!list-disc [&>ul]:!ml-6 [&>ul]:!pl-4 [&_ol]:!list-decimal [&_ol]:!ml-6 [&_ol]:!pl-4 [&_ul]:!list-disc [&_ul]:!ml-6 [&_ul]:!pl-4 [&_li]:!mb-1 [&_p]:!mb-2 [&_p]:!block [&_h1]:!text-2xl [&_h1]:!font-bold [&_h1]:!my-3 [&_h2]:!text-xl [&_h2]:!font-semibold [&_h2]:!my-2 [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!my-2 [&_blockquote]:!border-l-4 [&_blockquote]:!border-[#005b96] [&_blockquote]:!pl-4 [&_blockquote]:!italic [&_blockquote]:!my-2"
                 dangerouslySetInnerHTML={{ __html: displayNote.description }}
               />
+            </section>
+          )}
+
+          <NoteEventDetails note={displayNote} />
+
+          {displayNote.points && displayNote.points.length > 0 && (
+            <section>
+              <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+                Requirements / Points
+              </h3>
+              <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 bg-[#f8fafc] dark:bg-gray-900/20 p-4">
+                <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 divide-y divide-[#b3cde0]/20 dark:divide-gray-700">
+                  {displayNote.points.map((point, index) => (
+                    <li key={point.id || index} className="leading-relaxed py-2.5 first:pt-0 last:pb-0">
+                      {point.content}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </section>
+          )}
+
+          {displayNote.attachments && displayNote.attachments.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-2">
+                <Paperclip className="w-3.5 h-3.5 text-gray-400" />
+                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                  Attachments
+                </h3>
+                <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  {displayNote.attachments.length}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {displayNote.attachments.map((attachment) => {
+                  const isDownloading = downloadingPath === attachment.filePath;
+                  const isViewing = viewingPath === attachment.filePath;
+
+                  return (
+                    <div
+                      key={attachment.id}
+                      className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 hover:border-[#6497b1] dark:hover:border-[#03396c] transition-all duration-200"
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded bg-gray-50 dark:bg-gray-900/30 flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
+                          <FileText className="w-3.5 h-3.5 text-gray-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {attachment.fileName}
+                          </p>
+                          {attachment.fileDescription && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                              {attachment.fileDescription}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setViewingPath(attachment.filePath);
+                                try {
+                                  const blobUrl = await notingService.viewAttachment(attachment.filePath);
+                                  const popup = window.open(blobUrl, '_blank', 'noopener');
+                                  if (popup) {
+                                    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+                                  }
+                                } catch {
+                                  toast({ type: 'error', message: 'Failed to open file' });
+                                } finally {
+                                  setViewingPath(null);
+                                }
+                              }}
+                              disabled={isViewing}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6497b1] hover:text-[#005b96] transition-all duration-200"
+                            >
+                              {isViewing ? (
+                                <LoadingSpinner size="sm" className="w-3 h-3" />
+                              ) : (
+                                <Eye className="w-3 h-3" />
+                              )}
+                              Preview
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                setDownloadingPath(attachment.filePath);
+                                try {
+                                  await notingService.downloadAttachment(attachment.filePath, attachment.fileName);
+                                  toast({ type: 'success', message: 'Download started' });
+                                } catch {
+                                  toast({ type: 'error', message: 'Failed to download file' });
+                                } finally {
+                                  setDownloadingPath(null);
+                                }
+                              }}
+                              disabled={isDownloading}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6497b1] hover:text-[#005b96] transition-all duration-200"
+                            >
+                              {isDownloading ? (
+                                <LoadingSpinner size="sm" className="w-3 h-3" />
+                              ) : (
+                                <Download className="w-3 h-3" />
+                              )}
+                              Download
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+              Details
+            </h3>
+            <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#b3cde0]/20 dark:bg-gray-700">
+                <div className="bg-white dark:bg-gray-800 p-3">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                    Approval Period
+                  </span>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5 capitalize">
+                    {displayNote.approvalPeriod ? displayNote.approvalPeriod.replace('_', ' ') : '—'}
+                  </p>
+                </div>
+                {displayNote.recurringFrequency && (
+                  <div className="bg-white dark:bg-gray-800 p-3">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                      Frequency
+                    </span>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5 capitalize">
+                      {displayNote.recurringFrequency}
+                    </p>
+                  </div>
+                )}
+                <div className="bg-white dark:bg-gray-800 p-3">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                    Amount Required
+                  </span>
+                  <p
+                    className={`text-sm font-medium mt-0.5 ${displayNote.amountRequired ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}
+                  >
+                    {displayNote.amountRequired
+                      ? `₹ ${Number(displayNote.amount || 0).toLocaleString()}`
+                      : '—'}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-3">
+                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                    Policy Compliance
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-sm font-medium mt-0.5 ${displayNote.policyCompliant === true
+                      ? 'text-emerald-700'
+                      : displayNote.policyCompliant === false
+                        ? 'text-red-700'
+                        : 'text-gray-400'}`}
+                  >
+                    {displayNote.policyCompliant === true ? (
+                      <>
+                        <CheckCircle className="w-3 h-3" /> Yes
+                      </>
+                    ) : displayNote.policyCompliant === false ? (
+                      <>
+                        <XCircle className="w-3 h-3" /> No
+                      </>
+                    ) : (
+                      'N/A'
+                    )}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          </section>
+
+          <section>
+            <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+              Originator
+            </h3>
+            <div className="bg-[#f8fafc] dark:bg-gray-900/20 rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-[#b3cde0]/30 dark:bg-[#011f4b]/30 flex items-center justify-center text-[#005b96] dark:text-[#b3cde0] font-bold text-sm">
+                  {getDisplayName(displayNote.createdBy).charAt(0)}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="font-semibold text-sm text-gray-900 dark:text-white">
+                      {getDisplayName(displayNote.createdBy)}
+                    </span>
+                    {displayNote.createdBy?.role && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                        {displayNote.createdBy.role}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap text-xs text-gray-500 dark:text-gray-400 gap-x-4">
+                    <span className="flex items-center gap-1">
+                      <Building2 className="w-3 h-3" />
+                      {displayNote.createdBy?.employeeDetails?.primaryDepartment?.departmentName ??
+                        displayNote.createdBy?.studentLogin?.program?.department?.departmentName ??
+                        '—'}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(displayNote.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
 
         {/* Timeline / Replies */}
         {allReplies.length > 0 && (

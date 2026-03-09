@@ -118,6 +118,7 @@ export function useNote(id: string) {
     queryFn: () => notingService.getById(id),
     enabled: !!id,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: false, // don't retry on 404/403 — stops re-fetching deleted notes
   });
 }
 

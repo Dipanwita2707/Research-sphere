@@ -158,20 +158,15 @@ export default function NewNotePage() {
   const { setForm, clearDraft, hydrateFromNote, setDraftId, getPayload, draftId } = useNotingDraftStore();
   const { user } = useAuthStore();
 
-  // ── Permission-aware student access check ─────────────────────────────────
-  // Chairpersons of active/approved clubs are allowed to create event notings.
-  // All other students are redirected.
-  // PERF FIX: Use TanStack Query hook instead of raw service call.
-  // This leverages the 5-min staleTime cache — navigating back and forth
-  // no longer fires a fresh /my-permissions request each time.
+  // ── Student access check — noting is blocked for ALL students ─────────────
   const isStudentUser = user && (user.role?.name === 'student' || user.userType === 'student');
-  const { data: notingPerms = null } = useNotingPermissions({ enabled: !!isStudentUser });
+  const { data: notingPerms = null } = useNotingPermissions();
   useEffect(() => {
-    if (isStudentUser && notingPerms && !notingPerms.noting_create) {
+    if (isStudentUser) {
       toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
       router.push('/dashboard');
     }
-  }, [isStudentUser, notingPerms, router, toast]);
+  }, [isStudentUser, router, toast]);
 
   const [config, setConfig] = useState<NoteConfig | null>(null);
   const [creatorInfo, setCreatorInfo] = useState<CreatorInfo | null>(null);
@@ -200,7 +195,8 @@ export default function NewNotePage() {
   const [submitting, setSubmitting] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [isRevertedNote, setIsRevertedNote] = useState(false);
-  const [isEditingExistingDraft, setIsEditingExistingDraft] = useState(!!draftIdFromUrl);
+  // Derived from URL — no useState needed; updates instantly when Next.js redirects
+  const isEditingExistingDraft = !!draftIdFromUrl;
 
   // Initialize with empty values for new notes, or from store if editing a draft
   const initial = draftIdFromUrl ? getInitialFromStore() : {
@@ -397,10 +393,18 @@ export default function NewNotePage() {
       return;
     }
 
+    // No ?draft= param — check if autosave already created a backend draft during
+    // a previous in-progress session. If so, redirect to it so data is restored.
+    const existingDraftId = useNotingDraftStore.getState().draftId;
+    if (existingDraftId) {
+      router.replace(`/noting/new?draft=${encodeURIComponent(existingDraftId)}`);
+      return; // init effect will re-run with the new draftIdFromUrl
+    }
+
+    // Genuinely new note — clear any stale local-storage state and start fresh
     clearDraft();
-    const freshState = useNotingDraftStore.getState();
-    setCategory(freshState.category);
-    setSubcategory(freshState.subcategory || (config.categories[0]?.subcategories?.[0]?.value ?? ''));
+    setCategory('academic');
+    setSubcategory(config.categories[0]?.subcategories?.[0]?.value ?? '');
     setDescription('');
     setApprovalPeriod('one_time');
     setRecurringFrequency('');
@@ -414,7 +418,7 @@ export default function NewNotePage() {
     setNotingIdPreview('');
     setNotingYearAndSequence(null);
     setDraftLoaded(true);
-  }, [config, draftLoaded, draftIdFromUrl, hydrateFromNote, setDraftId, toast, clearDraft]);
+  }, [config, draftLoaded, draftIdFromUrl, hydrateFromNote, setDraftId, toast, clearDraft, router]);
 
   useEffect(() => {
     if (!category || !subcategory) return;
@@ -443,10 +447,10 @@ export default function NewNotePage() {
     }
   }, [category, subcategory, draftIdFromUrl, notingIdPreview, notingYearAndSequence]);
 
-  useEffect(() => {
-    if (!config) return;
-    setSubcategory('');
-  }, [category, config]);
+  // NOTE: subcategory is cleared only on explicit user-driven category changes
+  // (inline in the radio onChange handlers below). The old useEffect approach
+  // also fired when loadDraftIntoForm() programmatically set category, which
+  // erased the subcategory that was just restored from the draft.
 
   useEffect(() => {
     if (!subcategory || !config) {
@@ -573,6 +577,8 @@ export default function NewNotePage() {
 
       if (draftId) {
         const updatePayload: any = {
+          category,
+          subcategory,
           description: payload.description,
           approvalPeriod: payload.approvalPeriod,
           policyCompliance: payload.policyCompliance,
@@ -930,6 +936,8 @@ export default function NewNotePage() {
 
     const payload = buildPayload();
     const updatePayload: any = {
+      category,
+      subcategory,
       description: payload.description,
       approvalPeriod: payload.approvalPeriod,
       policyCompliance: payload.policyCompliance,
@@ -1143,12 +1151,12 @@ export default function NewNotePage() {
                     <div className="space-y-2">
                       <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'academic' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                         }`}>
-                        <input type="radio" name="category" checked={category === 'academic'} onChange={() => !isChairperson && setCategory('academic')} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                        <input type="radio" name="category" checked={category === 'academic'} onChange={() => { if (!isChairperson && category !== 'academic') { setCategory('academic'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                         <span className="text-sm font-medium">Academic</span>
                       </label>
                       <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'administrative' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                         }`}>
-                        <input type="radio" name="category" checked={category === 'administrative'} onChange={() => !isChairperson && setCategory('administrative')} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                        <input type="radio" name="category" checked={category === 'administrative'} onChange={() => { if (!isChairperson && category !== 'administrative') { setCategory('administrative'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                         <span className="text-sm font-medium">Administrative</span>
                       </label>
                     </div>

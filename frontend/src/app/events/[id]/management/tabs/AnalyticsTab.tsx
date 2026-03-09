@@ -71,7 +71,7 @@ export default function AnalyticsTab({
       <div className={`${CARD} overflow-hidden`}>
         <div className={CARD_HEADER}>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-sgt-500" />
+            <BarChart3 className="w-4 h-4 text-ev-700" />
             Daily Registrations
           </h3>
         </div>
@@ -103,7 +103,7 @@ export default function AnalyticsTab({
         <div className={`${CARD} overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-sgt-500" />
+              <Zap className="w-4 h-4 text-ev-700" />
               Registration Velocity
             </h3>
           </div>
@@ -120,7 +120,7 @@ export default function AnalyticsTab({
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500 dark:text-gray-400">Peak Day</span>
-                    <span className="text-sm font-semibold text-sgt-600 dark:text-sgt-400">{peakDay.date} ({peakDay.daily})</span>
+                    <span className="text-sm font-semibold text-ev-700 dark:text-ev-400">{peakDay.date} ({peakDay.daily})</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500 dark:text-gray-400">Total Days</span>
@@ -136,7 +136,7 @@ export default function AnalyticsTab({
         <div className={`${CARD} overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Activity className="w-4 h-4 text-sgt-500" />
+              <Activity className="w-4 h-4 text-ev-700" />
               Registration Health
             </h3>
           </div>
@@ -177,7 +177,7 @@ export default function AnalyticsTab({
         <div className={`${CARD} overflow-hidden`}>
           <div className={CARD_HEADER}>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-sgt-500" />
+              <Award className="w-4 h-4 text-ev-700" />
               Event Score
             </h3>
           </div>
@@ -194,14 +194,14 @@ export default function AnalyticsTab({
               if (statistics.cancelledRegistrations / Math.max(statistics.totalRegistrations, 1) < 0.2) score += 5;
               score = Math.min(score, 100);
               const grade = score >= 80 ? 'A' : score >= 60 ? 'B' : score >= 40 ? 'C' : 'D';
-              const gradeColor = score >= 80 ? 'text-emerald-500' : score >= 60 ? 'text-sgt-500' : score >= 40 ? 'text-amber-500' : 'text-red-500';
+              const gradeColor = score >= 80 ? 'text-emerald-500' : score >= 60 ? 'text-ev-700' : score >= 40 ? 'text-amber-500' : 'text-red-500';
               return (
                 <>
                   <div className={`text-5xl font-black ${gradeColor} mb-1`}>{grade}</div>
                   <div className="text-sm text-gray-500 dark:text-gray-400 mb-4">{score}/100 points</div>
                   <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-700 ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-sgt-500' : score >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                      className={`h-full rounded-full transition-all duration-700 ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-ev-700' : score >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
                       style={{ width: `${score}%` }}
                     />
                   </div>
@@ -279,7 +279,7 @@ export default function AnalyticsTab({
       <div className={`${CARD} overflow-hidden`}>
         <div className={CARD_HEADER}>
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-sgt-500" />
+            <TrendingUp className="w-4 h-4 text-ev-700" />
             Cumulative Growth
           </h3>
         </div>

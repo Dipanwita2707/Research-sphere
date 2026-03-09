@@ -42,6 +42,7 @@ import type {
 } from "@/features/noting-management/types/noting.types";
 import { useToast } from "@/shared/ui-components/Toast";
 import { useAuthStore } from "@/shared/auth/authStore";
+import { useNotingDraftStore } from "@/features/noting-management/stores/notingDraftStore";
 
 import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { useDebounce } from "@/shared/hooks/useDebounce";
@@ -79,9 +80,10 @@ export default function NotingListPage() {
   const [, startTransition] = useTransition();
 
   // ── Student access check (computed early to disable queries) ──────────────
+  // Noting is blocked for ALL students, including club chairpersons
   const isStudent = !!user && (user.role?.name === "student" || user.userType === "student");
   const { data: notingPerms, isLoading: permsLoading } = useNotingPermissions();
-  const studentHasAccess = !isStudent || (notingPerms?.noting_create === true);
+  const studentHasAccess = !isStudent;
 
   // ── URL is the single source of truth ────────────────────────────────────
   // Read directly from searchParams — no useState mirrors, no sync useEffect.
@@ -270,18 +272,16 @@ export default function NotingListPage() {
     }
   }, [copiesError, toast]);
 
-  // Block students who are NOT club chairpersons from accessing noting system
-  // isStudent, notingPerms, permsLoading are defined at the top of the component
-
+  // Block ALL students from accessing noting system
   useEffect(() => {
-    if (isStudent && notingPerms && !notingPerms.noting_create) {
+    if (isStudent) {
       toast({
         type: "error",
         message: "Students are not allowed to access the noting system",
       });
       router.push("/dashboard");
     }
-  }, [isStudent, notingPerms, router, toast]);
+  }, [isStudent, router, toast]);
 
 
   const handleDeleteDraft = useCallback(
@@ -442,6 +442,7 @@ export default function NotingListPage() {
           {notingPerms?.noting_create && (
             <Link
               href="/noting/new"
+              onClick={() => useNotingDraftStore.getState().clearDraft()}
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)] hover:shadow-[0_4px_12px_rgba(0,91,150,0.35)] w-full sm:w-auto"
             >
               <Plus className="w-4 h-4 flex-shrink-0" />
@@ -853,6 +854,7 @@ export default function NotingListPage() {
               {filter === "mine" && (
                 <Link
                   href="/noting/new"
+                  onClick={() => useNotingDraftStore.getState().clearDraft()}
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
                 >
                   <Plus className="w-4 h-4" />

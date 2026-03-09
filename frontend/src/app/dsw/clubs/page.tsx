@@ -231,19 +231,15 @@ export default function AllClubsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-            All Clubs
-          </h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Showing {clubs.length} of {total} clubs
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-ev-900">All Clubs</h1>
+          <p className="mt-2 text-ev-400">Showing {clubs.length} of {total} clubs</p>
         </div>
 
         {isStudentUser && (
           <button
             type="button"
             onClick={() => setShowApplyModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-sgt-600 hover:bg-sgt-700 text-white rounded-lg font-semibold text-sm"
+            className="ev-btn w-full sm:w-auto"
           >
             <Send className="w-4 h-4" />
             Apply to Clubs
@@ -252,26 +248,26 @@ export default function AllClubsPage() {
       </div>
 
       {errorMessage && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-red-800 dark:text-red-200">{errorMessage}</p>
+        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+          <p className="text-red-700 text-sm">{errorMessage}</p>
         </div>
       )}
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
+      <div className="ev-card p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ev-400" />
             <input
               type="text"
               placeholder="Search clubs by name, purpose, or ID..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="ev-input pl-10"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <select
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="ev-input sm:w-44"
             onChange={(e) => handleStatusFilter(e.target.value)}
             value={filters.status || "all"}
           >
@@ -286,12 +282,10 @@ export default function AllClubsPage() {
 
       {/* Clubs Grid */}
       {clubs.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Clubs Found
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
+        <div className="ev-card p-12 text-center">
+          <Users className="w-14 h-14 text-ev-200 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-ev-900 mb-2">No Clubs Found</h3>
+          <p className="text-ev-400 text-sm">
             No clubs match your current filters. Try adjusting your search
             criteria.
           </p>
@@ -301,19 +295,19 @@ export default function AllClubsPage() {
           {clubs.map((club) => (
             <div
               key={club.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 sm:p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
+              className="ev-card ev-card-hover p-4 sm:p-6 cursor-pointer"
               onClick={() => router.push(`/dsw/clubs/${club.id}`)}
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  <h3 className="text-base font-semibold text-ev-900 mb-0.5">
                     {club.name}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-ev-400">
                     {club.clubId}
                   </p>
                   {applicationMap.get(club.id) && (
-                    <p className="mt-1 text-xs font-semibold text-sgt-600 dark:text-sgt-300">
+                    <p className="mt-1 text-xs font-semibold text-ev-700">
                       Application: {applicationMap.get(club.id)}
                     </p>
                   )}
@@ -321,21 +315,21 @@ export default function AllClubsPage() {
                 <ClubStatusBadge status={club.status} size="sm" />
               </div>
 
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+              <p className="text-sm text-ev-400 mb-4 line-clamp-2">
                 {club.purpose}
               </p>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <div className="space-y-1.5 text-sm">
+                <div className="flex items-center gap-2 text-ev-400">
                   <Users className="w-4 h-4" />
                   <span>{club._count?.members || 0} members</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-2 text-ev-400">
                   <Calendar className="w-4 h-4" />
                   <span>Session {club.academicSession}</span>
                 </div>
                 {club.facultyFacilitator && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-ev-400">
                     <UserCheck className="w-4 h-4" />
                     <span className="truncate">
                       {club.facultyFacilitator.employeeDetails?.firstName}{" "}
@@ -346,8 +340,8 @@ export default function AllClubsPage() {
               </div>
 
               {club.proposedEmail && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <div className="mt-4 pt-3 border-t border-[#b3cde0]/40">
+                  <div className="flex items-center gap-2 text-xs text-ev-400">
                     <Mail className="w-3 h-3" />
                     <span className="truncate">{club.proposedEmail}</span>
                   </div>
@@ -369,11 +363,11 @@ export default function AllClubsPage() {
               }))
             }
             disabled={filters.page === 1}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
+            className="ev-btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
           </button>
-          <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
+          <span className="px-4 py-2 text-ev-800 text-sm font-medium">
             Page {filters.page} of {Math.ceil(total / (filters.limit ?? 20))}
           </span>
           <button
@@ -389,7 +383,7 @@ export default function AllClubsPage() {
             disabled={
               (filters.page ?? 1) >= Math.ceil(total / (filters.limit ?? 20))
             }
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
+            className="ev-btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
@@ -406,27 +400,27 @@ export default function AllClubsPage() {
             }
           }}
         >
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+          <div className="ev-modal w-full max-w-lg p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Apply to Club</h3>
+              <h3 className="text-base font-bold text-ev-900">Apply to Club</h3>
               <button
                 type="button"
                 onClick={() => {
                   setShowApplyModal(false);
                   setApplyError(null);
                 }}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="ev-btn-ghost"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">Club Selection</label>
+              <label className="ev-label">Club Selection</label>
               <select
                 value={selectedClubId}
                 onChange={(e) => setSelectedClubId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                className="ev-input"
               >
                 <option value="">Select Club</option>
                 {clubs
@@ -452,7 +446,7 @@ export default function AllClubsPage() {
             </div>
 
             {applyError && (
-              <p className="text-sm text-red-600 dark:text-red-400">{applyError}</p>
+              <p className="text-sm text-red-600">{applyError}</p>
             )}
 
             <div className="flex justify-end gap-2 pt-2">
@@ -462,7 +456,7 @@ export default function AllClubsPage() {
                   setShowApplyModal(false);
                   setApplyError(null);
                 }}
-                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium"
+                className="ev-btn-outline"
               >
                 Cancel
               </button>
@@ -470,7 +464,7 @@ export default function AllClubsPage() {
                 type="button"
                 onClick={handleApply}
                 disabled={applyToClub.isPending}
-                className="px-4 py-2 rounded-lg bg-sgt-600 hover:bg-sgt-700 text-white text-sm font-semibold disabled:opacity-60"
+                className="ev-btn disabled:opacity-60"
               >
                 {applyToClub.isPending ? "Applying..." : "Apply"}
               </button>
@@ -485,11 +479,11 @@ export default function AllClubsPage() {
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-ev-400 mb-1">{label}</label>
       <input
         value={value || "-"}
         readOnly
-        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm"
+        className="w-full px-3 py-2 rounded-lg border border-[#b3cde0] bg-ev-50 text-sm text-ev-800"
       />
     </div>
   );

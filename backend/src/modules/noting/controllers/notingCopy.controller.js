@@ -21,6 +21,7 @@ const {
 } = require("../../../shared/utils/AppError");
 
 const { invalidateNoteCaches } = require("../services/noting.service");
+const notingNotification = require("../services/notingNotification.service");
 
 const { createCursorPaginationMeta } = require("../utils/pagination");
 
@@ -155,6 +156,8 @@ const sendCopy = asyncHandler(async (req, res) => {
   });
 
   await invalidateNoteCaches(id);
+  // Trigger notifications: each copy recipient is informed they have been assigned a copy
+  notingNotification.notifyCopySent(copies, note);
   return ApiResponse.success(
     res,
     copies,
@@ -220,6 +223,8 @@ const replyCopy = asyncHandler(async (req, res) => {
   ]);
 
   await invalidateNoteCaches(copy.note.id);
+  // Trigger notification: the copy sender is informed a reply was submitted
+  notingNotification.notifyCopyReply(copy);
   return ApiResponse.success(res, reply, "Reply submitted successfully");
 });
 
@@ -517,6 +522,8 @@ const forwardCopy = asyncHandler(async (req, res) => {
   }
 
   await invalidateNoteCaches(copy.noteId);
+  // Trigger notifications: each manager in the escalation chain is notified
+  notingNotification.notifyCopyEscalated(allBosses, copy);
   return ApiResponse.success(res, updatedCopy, message);
 });
 

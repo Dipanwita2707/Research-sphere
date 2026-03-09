@@ -664,22 +664,6 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, message: 'Registration not found' });
   }
 
-  // Fetch coupon usage if couponId is present
-  let couponDetails = null;
-  if (registration.couponId) {
-    const couponUsage = await prisma.couponUsage.findUnique({
-      where: { registrationId: registration.id },
-      include: {
-        coupon: {
-          select: { id: true, code: true, discountType: true, discountValue: true, isActive: true },
-        },
-      },
-    });
-    couponDetails = couponUsage
-      ? { ...couponUsage.coupon, usedAt: couponUsage.usedAt }
-      : { id: registration.couponId };
-  }
-
   // Flatten team members from EventRegistration
   const teamData = registration.EventTeam
     ? {
@@ -706,6 +690,41 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
     payments = teamPayments;
   }
 
+  // Fetch coupon usage if couponId is present; fall back to team payment metadata when needed.
+  let couponDetails = null;
+  if (registration.couponId) {
+    const couponUsage = await prisma.couponUsage.findUnique({
+      where: { registrationId: registration.id },
+      include: {
+        coupon: {
+          select: { id: true, code: true, discountType: true, discountValue: true, isActive: true },
+        },
+      },
+    });
+    couponDetails = couponUsage
+      ? {
+          ...couponUsage.coupon,
+          usedAt: couponUsage.usedAt,
+          discountAmount: couponUsage.discountAmount,
+          originalAmount: couponUsage.originalAmount,
+          finalAmount: couponUsage.finalAmount,
+        }
+      : { id: registration.couponId };
+  }
+
+  if (!couponDetails) {
+    const paymentCouponMeta = payments.find((payment) => payment?.metadata?.coupon)?.metadata?.coupon;
+    if (paymentCouponMeta) {
+      couponDetails = {
+        id: paymentCouponMeta.couponId,
+        code: paymentCouponMeta.code,
+        discountAmount: paymentCouponMeta.discountAmount,
+        originalAmount: paymentCouponMeta.originalAmount,
+        finalAmount: Math.max(0, (paymentCouponMeta.originalAmount || 0) - (paymentCouponMeta.discountAmount || 0)),
+      };
+    }
+  }
+
   // Map field responses to label+value pairs for easy display
   const formFields = (registration.EventFieldResponse || [])
     .sort((a, b) => (a.EventCustomField?.sortOrder ?? 0) - (b.EventCustomField?.sortOrder ?? 0))
@@ -719,6 +738,8 @@ const getRegistrationDetails = asyncHandler(async (req, res) => {
 
   return ApiResponse.success(res, {
     ...registration,
+    originalAmount: registration.originalAmount ?? couponDetails?.originalAmount ?? null,
+    discountAmount: registration.discountAmount ?? couponDetails?.discountAmount ?? null,
     guests: registration.EventExtraPass || [],
     extraPassSummary: {
       extraPassCount: registration.extraPassCount ?? 0,
