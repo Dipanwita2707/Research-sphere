@@ -27,7 +27,11 @@ import {
   Plus,
   List,
   UserPlus,
-  CheckSquare
+  CheckSquare,
+  Shield,
+  Store,
+  QrCode,
+  Award
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -95,11 +99,19 @@ const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => 
   return false;
 };
 
-const getNavItems = (userRole: string | undefined, userType: string | undefined, permissions: DepartmentPermission[]): NavItem[] => {
+const getNavItems = (
+  userRole: string | undefined,
+  userType: string | undefined,
+  permissions: DepartmentPermission[],
+  extraFlags?: { isChairperson?: boolean; hasVolunteerAssignments?: boolean }
+): NavItem[] => {
   const isStudent = userRole === 'student' || userType === 'student';
   const isFaculty = userRole === 'faculty' || userType === 'faculty';
   const isStaff = userRole === 'staff' || userType === 'staff';
   const isAdmin = userRole === 'admin' || userType === 'admin';
+  const canCreateEvent = isFaculty || extraFlags?.isChairperson;
+  const canBrowseEvents = true;
+  const hasVolunteerAssignments = extraFlags?.hasVolunteerAssignments ?? false;
   
   logger.debug('getNavItems - role:', userRole, 'type:', userType, 'isAdmin:', isAdmin);
   logger.debug('getNavItems - permissions:', permissions);
@@ -153,17 +165,29 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
     });
   }
   
-  // Event Management - Available for all authenticated users
+  // Event Management - Available for all authenticated users (some items restricted)
+  const eventSubItems: NavItem[] = [
+    ...(canBrowseEvents ? [{ name: 'Browse Events', href: '/events', icon: List }] : []),
+    { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
+    { name: 'My Certificates', href: '/events/my-certificates', icon: Award },
+    { name: 'Stall Application', href: '/events/stall-opportunities', icon: Store },
+    { name: 'Event Feedback Scanner', href: '/event-feedback-scanner', icon: QrCode },
+  ];
+  // My Created Events — only faculty and club chairpersons
+  if (canCreateEvent) {
+    eventSubItems.splice(1, 0, { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare });
+  }
+  // Volunteer — only users who are actually assigned as volunteers
+  if (hasVolunteerAssignments) {
+    eventSubItems.push({ name: 'Volunteer', href: '/events/volunteer', icon: Shield });
+  }
   items.push({
     name: 'Event Management',
-    href: '/events',
+    href: canBrowseEvents ? '/events' : '/events/registrations',
     icon: Calendar,
-    subItems: [
-      { name: 'Browse Events', href: '/events', icon: List },
-      { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
-      { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
-    ]
+    subItems: eventSubItems,
   });
+  
   
   // Common items
   items.push(
@@ -185,6 +209,7 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
         { name: 'Employees', href: '/admin/employees', icon: Users },
         { name: 'Students', href: '/admin/students', icon: GraduationCap },
         { name: 'Permissions', href: '/admin/permissions', icon: Settings },
+        { name: 'Reporting Structure', href: '/admin/reporting-structure', icon: Shield },
         { name: 'IPR School Assignment', href: '/admin/drd-school-assignment', icon: MapPin },
         { name: 'Research School Assignment', href: '/admin/research-school-assignment', icon: BookOpen },
         { name: 'Book School Assignment', href: '/admin/book-school-assignment', icon: BookOpen },
@@ -230,11 +255,16 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, and Event Management expanded by default
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, Event Management, and Ticket Management expanded by default
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
+  const [isChairperson, setIsChairperson] = useState(false);
+  const [hasVolunteerAssignments, setHasVolunteerAssignments] = useState(false);
 
   useEffect(() => {
-    if (user) fetchUserPermissions();
+    if (user) {
+      fetchUserPermissions();
+      fetchEventFlags();
+    }
   }, [user]);
 
   const fetchUserPermissions = async () => {
@@ -250,7 +280,32 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
     }
   };
 
-  const navItems = getNavItems(user?.role?.name, user?.userType, userPermissions);
+  const fetchEventFlags = async () => {
+    try {
+      // Check if student is a club chairperson
+      const isStudentUser = user?.role?.name === 'student' || user?.userType === 'student';
+      if (isStudentUser) {
+        const permsRes = await api.get('/noting/my-permissions');
+        if (permsRes.data?.data?.isClubChairperson) {
+          setIsChairperson(true);
+        }
+      }
+    } catch (error) {
+      logger.error('Error fetching noting permissions for sidebar:', error);
+    }
+    try {
+      // Check if user has any volunteer assignments
+      const volRes = await api.get('/events/volunteers/my');
+      const assignments = volRes.data?.data;
+      if (Array.isArray(assignments) && assignments.length > 0) {
+        setHasVolunteerAssignments(true);
+      }
+    } catch (error) {
+      logger.error('Error fetching volunteer assignments for sidebar:', error);
+    }
+  };
+
+  const navItems = getNavItems(user?.role?.name, user?.userType, userPermissions, { isChairperson, hasVolunteerAssignments });
   // No need to filter - getNavItems already handles role-based visibility
   const filteredNavItems = navItems;
 

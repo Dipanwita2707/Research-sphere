@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const config = require('../../../shared/config/app.config');
 const cache = require('../../../shared/config/redis');
+const { prewarmAuthCache } = require('../../../shared/utils/authCache');
 const { isValidEmail, sanitizeInput } = require('../../../shared/utils/validators');
 const { auditService, AuditActionType, AuditSeverity, AuditModule } = require('../../audit/services/audit.service');
 const { getClientIp } = require('../../../shared/middleware/audit.middleware');
@@ -50,7 +51,6 @@ exports.login = async (req, res) => {
             phoneNumber: true,
             email: true,
             primaryDepartmentId: true,
-            primarySchoolId: true,
             primaryCentralDeptId: true,
             primaryDepartment: {
               select: {
@@ -58,13 +58,6 @@ exports.login = async (req, res) => {
                 departmentName: true,
                 departmentCode: true,
                 facultyId: true,
-              }
-            },
-            primarySchool: {
-              select: {
-                id: true,
-                facultyName: true,
-                facultyCode: true,
               }
             },
             primaryCentralDept: {
@@ -114,21 +107,22 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Update last login
-    await prisma.userLogin.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() }
-    });
-
-    // OPTIMIZATION: Load permissions separately (lazy loading)
-    const departmentPermissions = await prisma.departmentPermission.findMany({
-      where: { userId: user.id, isActive: true },
-      select: {
-        departmentId: true,
-        permissions: true,
-        isPrimary: true
-      }
-    });
+    // PERF: Run lastLoginAt update + permissions query in parallel
+    // (previously sequential — saved ~1 round-trip to Neon)
+    const [, departmentPermissions] = await Promise.all([
+      prisma.userLogin.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      }),
+      prisma.departmentPermission.findMany({
+        where: { userId: user.id, isActive: true },
+        select: {
+          departmentId: true,
+          permissions: true,
+          isPrimary: true
+        }
+      }),
+    ]);
 
     // Prepare user details (match frontend User interface)
     const userDetails = {
@@ -230,19 +224,24 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user.id);
 
+    // Pre-warm auth cache so first request after login doesn't hit DB
+    prewarmAuthCache(user.id).catch(() => {});
+
     // Set cookie with appropriate sameSite setting for cross-origin
     // sameSite: 'none' REQUIRES secure: true for cross-origin cookies
+    const origin = req.headers.origin || '';
+    const isSecureOrigin = config.env === 'production' || origin.startsWith('https://');
     const cookieOptions = {
       expires: new Date(Date.now() + config.jwt.cookieExpire * 24 * 60 * 60 * 1000),
       httpOnly: true,
-      sameSite: config.env === 'production' ? 'none' : 'lax',
-      secure: config.env === 'production' ? true : false, // Must be true when sameSite is 'none'
+      sameSite: isSecureOrigin ? 'none' : 'lax',
+      secure: isSecureOrigin, // Must be true when sameSite is 'none'
     };
     
     res.cookie('token', token, cookieOptions);
 
-    // Audit log with full details
-    await auditService.log({
+    // PERF: Fire-and-forget audit log — don't block the response
+    auditService.log({
       actorId: user.id,
       action: 'User logged in successfully',
       actionType: AuditActionType.LOGIN,
@@ -260,7 +259,7 @@ exports.login = async (req, res) => {
         username: user.uid,
         role: user.role
       }
-    });
+    }).catch(e => console.warn('Audit log (login) failed:', e.message));
 
     res.status(200).json({
       success: true,
@@ -281,17 +280,19 @@ exports.login = async (req, res) => {
 exports.logout = async (req, res) => {
   try {
     // Clear cookie with same options as login
+    const origin = req.headers.origin || '';
+    const isSecureOrigin = config.env === 'production' || origin.startsWith('https://');
     const cookieOptions = {
       expires: new Date(Date.now() + 1000),
       httpOnly: true,
-      sameSite: config.env === 'production' ? 'none' : 'lax',
-      secure: config.env === 'production' ? true : false,
+      sameSite: isSecureOrigin ? 'none' : 'lax',
+      secure: isSecureOrigin,
     };
     
     res.cookie('token', 'none', cookieOptions);
 
-    // Audit log with full details
-    await auditService.log({
+    // PERF: Fire-and-forget audit log — don't block the response
+    auditService.log({
       actorId: req.user.id,
       action: 'User logged out',
       actionType: AuditActionType.LOGOUT,
@@ -305,7 +306,7 @@ exports.logout = async (req, res) => {
       requestPath: req.originalUrl || req.url,
       requestMethod: 'POST',
       responseStatus: 200
-    });
+    }).catch(e => console.warn('Audit log (logout) failed:', e.message));
 
     res.status(200).json({
       success: true,

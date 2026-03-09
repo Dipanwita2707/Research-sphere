@@ -12,8 +12,8 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200 flex flex-col overflow-x-hidden">
         <NavigationHeader />
-        <main className="pt-16 flex-1">
-          <div className="px-4 sm:px-6 py-4 sm:py-8 pb-0 max-w-[1920px] mx-auto">
+        <main className="pt-14 sm:pt-16 flex-1">
+          <div className="px-4 sm:px-6 pt-4 sm:pt-8 pb-0 max-w-[1920px] mx-auto">
             {children}
           </div>
         </main>

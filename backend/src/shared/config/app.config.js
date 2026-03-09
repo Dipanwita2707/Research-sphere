@@ -1,12 +1,17 @@
 require('dotenv').config();
 
+// Fail-fast: JWT_SECRET must be set in production
+if (!process.env.JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. Aborting.');
+}
+
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 5001,
   apiVersion: process.env.API_VERSION || 'v1',
   
   jwt: {
-    secret: process.env.JWT_SECRET,
+    secret: process.env.JWT_SECRET || 'dev-only-insecure-secret',
     expire: process.env.JWT_EXPIRE || '7d',
     cookieExpire: parseInt(process.env.JWT_COOKIE_EXPIRE) || 7,
   },
@@ -28,8 +33,8 @@ module.exports = {
   
   rateLimit: {
     // For 25k users: Increased limits for high traffic
-    windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
-    max: process.env.RATE_LIMIT_MAX_REQUESTS || 500, // Increased from 100
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW || '15', 10) * 60 * 1000,
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '500', 10),
   },
   
   database: {

@@ -36,3 +36,6 @@ export { default as IncentivePolicyManagement } from './IncentivePolicyManagemen
 
 // Dashboard Components
 export { default as UniversityAnalyticsDashboard } from './UniversityAnalyticsDashboard';
+
+// Reporting Structure Components
+export { default as ReportingStructureManagement } from './ReportingStructureManagement';

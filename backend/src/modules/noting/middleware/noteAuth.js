@@ -4,26 +4,17 @@
  */
 
 const prisma = require('../../../shared/config/database');
-const { ForbiddenError, UnauthorizedError } = require('../../../shared/utils/AppError');
+const { ForbiddenError } = require('../../../shared/utils/AppError');
 const { getNoteById, verifyCanActOnNote, verifyNotePending } = require('../utils/noteHelpers');
 const { noteForValidation } = require('../utils/selectFragments');
+const { getModulePermissionKey } = require('../services/approvalFlow.service');
+const { hasPermissionAsync } = require('../../../shared/config/permissions.config');
 
 /**
- * Middleware: Require authenticated user
- * Attaches user to request or throws error
+ * Middleware factory: enforce note holder status plus action + subcategory permission.
+ * Attaches note to req.note.
  */
-const requireAuth = (req, res, next) => {
-  if (!req.user || !req.user.id) {
-    throw new UnauthorizedError('Authentication required');
-  }
-  next();
-};
-
-/**
- * Middleware: Load note and verify user can act on it (approve/reject/forward)
- * Attaches note to req.note
- */
-const requireNoteApprover = async (req, res, next) => {
+const requireNoteApprover = (requiredActionKeys = [], actionLabel = 'perform this action') => async (req, res, next) => {
   const userId = req.user.id;
   const { id } = req.params;
 
@@ -33,31 +24,56 @@ const requireNoteApprover = async (req, res, next) => {
   // Verify note is pending
   verifyNotePending(note);
 
-  // Verify user can act
+  // Verify user can act (is currentHolder)
   await verifyCanActOnNote(note, userId);
 
-  // Attach note to request for use in controller
-  req.note = note;
-  next();
-};
+  // ── Subcategory permission check ──────────────────────────────────────
+  // Route-level middleware only checks if user has ANY approval action
+  // (noting_approve, noting_return, etc.). Here we enforce the user ALSO
+  // has the SPECIFIC subcategory permission (event_approve, curriculum_approve,
+  // etc.) — so someone with only "Approve Notings" action but NO subcategory
+  // permissions cannot approve/reject/forward any subcategory's notings.
+  //
+  // Admin / superadmin / dean bypass — they inherently own all subcategories.
+  const isPrivilegedRole =
+    req.user.role === 'admin' ||
+    req.user.role === 'superadmin' ||
+    req.user.role === 'dean' ||
+    req.user.roleCode === 'DEAN';
 
-/**
- * Middleware: Verify user is the creator of the note
- * Attaches note to req.note
- */
-const requireNoteCreator = async (req, res, next) => {
-  const userId = req.user.id;
-  const { id } = req.params;
+  if (!isPrivilegedRole) {
+    const actionKeys = Array.isArray(requiredActionKeys)
+      ? requiredActionKeys.filter(Boolean)
+      : [requiredActionKeys].filter(Boolean);
 
-  // Load note
-  const note = await getNoteById(id, { select: noteForValidation });
+    if (actionKeys.length > 0) {
+      const actionChecks = await Promise.all(
+        actionKeys.map((permissionKey) => hasPermissionAsync(req.user, permissionKey))
+      );
 
-  // Verify user is creator
-  if (note.createdById !== userId) {
-    throw new ForbiddenError('You can only perform this action on your own notes');
+      if (!actionChecks.some(Boolean)) {
+        throw new ForbiddenError(
+          `You do not have the required Approval Action permission to ${actionLabel}. ` +
+          `Required action: ${actionKeys.join(' OR ')}.`
+        );
+      }
+    }
+
+    const modulePermKey = getModulePermissionKey(note);
+    // Check ONLY the specific subcategory key — action permissions and
+    // subcategory approvals are independent and both are required.
+    const hasSubcatPerm = await hasPermissionAsync(req.user, modulePermKey);
+    if (!hasSubcatPerm) {
+      const subcatLabel = (note.subcategory || 'unknown').replace(/_/g, ' ');
+      throw new ForbiddenError(
+        `You do not have the Subcategory Approval permission for "${subcatLabel}" notings. ` +
+        `Required: ${modulePermKey}. ` +
+        `Please contact your administrator to assign the relevant Subcategory Approval.`
+      );
+    }
   }
 
-  // Attach note to request
+  // Attach note to request for use in controller
   req.note = note;
   next();
 };
@@ -89,8 +105,6 @@ const requireDraftNote = async (req, res, next) => {
 };
 
 module.exports = {
-  requireAuth,
   requireNoteApprover,
-  requireNoteCreator,
   requireDraftNote,
 };

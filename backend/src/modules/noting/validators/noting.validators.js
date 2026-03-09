@@ -43,17 +43,17 @@ const getValidSubcategories = (category) => {
 const createNoteValidation = [
   body('category')
     .notEmpty()
-    .withMessage('Category is required')
+    .withMessage('Please select a category for your note (e.g., Academic, Administrative)')
     .isIn(getValidCategories())
-    .withMessage(`Category must be one of: ${getValidCategories().join(', ')}`),
+    .withMessage(`Invalid category. Please choose from: ${getValidCategories().join(', ')}`),
 
   body('subcategory')
     .notEmpty()
-    .withMessage('Subcategory is required')
+    .withMessage('Please select a subcategory for your note')
     .custom((value, { req }) => {
       const validSubs = getValidSubcategories(req.body.category);
       if (validSubs.length && !validSubs.includes(value)) {
-        throw new Error(`Subcategory must be one of: ${validSubs.join(', ')}`);
+        throw new Error(`Invalid subcategory for this category. Available options: ${validSubs.join(', ')}`);
       }
       return true;
     }),
@@ -119,6 +119,16 @@ const updateDraftValidation = [
     .isUUID()
     .withMessage('Invalid note ID'),
 
+  body('category')
+    .optional()
+    .isString()
+    .withMessage('Category must be a string'),
+
+  body('subcategory')
+    .optional()
+    .isString()
+    .withMessage('Subcategory must be a string'),
+
   body('description')
     .optional()
     .isString()
@@ -173,13 +183,13 @@ const updateDraftValidation = [
 const noteIdValidation = [
   param('id')
     .isUUID()
-    .withMessage('Invalid note ID'),
+    .withMessage('Invalid note ID. The note you are trying to access may not exist or the link is incorrect.'),
 
   handleValidationErrors,
 ];
 
 /**
- * Validation rules for approve action
+ * Validation rules for approve action (remarks NOW mandatory)
  */
 const approveNoteValidation = [
   param('id')
@@ -187,7 +197,44 @@ const approveNoteValidation = [
     .withMessage('Invalid note ID'),
 
   body('remarks')
-    .optional()
+    .notEmpty()
+    .withMessage('Remarks are mandatory for approval. Please provide your observations or comments before approving.')
+    .isString()
+    .withMessage('Remarks must be a string')
+    .trim(),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validation rules for recommend action (remarks mandatory)
+ */
+const recommendNoteValidation = [
+  param('id')
+    .isUUID()
+    .withMessage('Invalid note ID'),
+
+  body('remarks')
+    .notEmpty()
+    .withMessage('Remarks are mandatory for recommendation. Please provide your reasoning before recommending.')
+    .isString()
+    .withMessage('Remarks must be a string')
+    .trim(),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validation rules for not-recommend action (remarks mandatory)
+ */
+const notRecommendNoteValidation = [
+  param('id')
+    .isUUID()
+    .withMessage('Invalid note ID'),
+
+  body('remarks')
+    .notEmpty()
+    .withMessage('Remarks are mandatory when not recommending. Please explain your reasoning.')
     .isString()
     .withMessage('Remarks must be a string')
     .trim(),
@@ -205,9 +252,9 @@ const rejectNoteValidation = [
 
   body('remarks')
     .notEmpty()
-    .withMessage('Remarks are required for rejection')
+    .withMessage('Rejection reason is required. Please explain why you are rejecting this note so the creator can understand what needs to be corrected.')
     .isString()
-    .withMessage('Remarks must be a string')
+    .withMessage('Remarks must be text')
     .trim(),
 
   handleValidationErrors,
@@ -223,9 +270,9 @@ const revertNoteValidation = [
 
   body('remarks')
     .notEmpty()
-    .withMessage('Remarks are required for reverting back to creator')
+    .withMessage('Please provide instructions to the creator explaining what changes are needed before they resubmit the note.')
     .isString()
-    .withMessage('Remarks must be a string')
+    .withMessage('Remarks must be text')
     .trim(),
 
   handleValidationErrors,
@@ -241,20 +288,20 @@ const forwardNoteValidation = [
 
   body('remarks')
     .notEmpty()
-    .withMessage('Remarks are required for forwarding')
+    .withMessage('Please add a note explaining why you are forwarding this request to the next person.')
     .isString()
-    .withMessage('Remarks must be a string')
+    .withMessage('Remarks must be text')
     .trim(),
 
   body('nextHolderId')
     .optional()
     .isUUID()
-    .withMessage('Next holder ID must be a valid UUID'),
+    .withMessage('Invalid user selected. Please choose a valid person to forward to.'),
 
   body('automated')
     .optional()
     .isBoolean()
-    .withMessage('Automated must be a boolean'),
+    .withMessage('Automated must be true or false'),
 
   handleValidationErrors,
 ];
@@ -309,6 +356,11 @@ const listNotesValidation = [
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100'),
 
+  query('includeCounts')
+    .optional()
+    .isIn(['true', 'false'])
+    .withMessage('includeCounts must be true or false'),
+
   handleValidationErrors,
 ];
 
@@ -342,15 +394,100 @@ const forwardOptionsValidation = [
   handleValidationErrors,
 ];
 
+/**
+ * Validation rules for sending copies after approval
+ */
+const sendCopyValidation = [
+  param('id')
+    .isUUID()
+    .withMessage('Invalid note ID'),
+
+  body('userIds')
+    .notEmpty()
+    .withMessage('Please select at least one user to send the copy to.')
+    .isArray({ min: 1 })
+    .withMessage('userIds must be a non-empty array'),
+
+  body('userIds.*')
+    .isUUID()
+    .withMessage('Each user ID must be a valid UUID'),
+
+  body('remarks')
+    .notEmpty()
+    .withMessage('Remarks are mandatory when sending copies. Please explain what work needs to be done.')
+    .isString()
+    .withMessage('Remarks must be a string')
+    .trim(),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validation rules for replying to a copy
+ */
+const replyCopyValidation = [
+  param('copyId')
+    .isUUID()
+    .withMessage('Invalid copy ID'),
+
+  body('remarks')
+    .notEmpty()
+    .withMessage('Remarks are mandatory when replying. Please provide your update.')
+    .isString()
+    .withMessage('Remarks must be a string')
+    .trim(),
+
+  body('attachments')
+    .optional()
+    .isArray()
+    .withMessage('Attachments must be an array'),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validation rules for forwarding (re-sending) a copy back to user (escalation)
+ */
+const forwardCopyValidation = [
+  param('copyId')
+    .isUUID()
+    .withMessage('Invalid copy ID'),
+
+  body('remarks')
+    .notEmpty()
+    .withMessage('Remarks are mandatory when forwarding a copy. Please explain why the work is not complete.')
+    .isString()
+    .withMessage('Remarks must be a string')
+    .trim(),
+
+  handleValidationErrors,
+];
+
+/**
+ * Validation for completing a copy (Creator marks work done)
+ */
+const completeCopyValidation = [
+  param('copyId')
+    .isUUID()
+    .withMessage('Invalid copy ID'),
+  handleValidationErrors,
+];
+
 module.exports = {
   createNoteValidation,
   updateDraftValidation,
   noteIdValidation,
   approveNoteValidation,
+  recommendNoteValidation,
+  notRecommendNoteValidation,
   rejectNoteValidation,
   revertNoteValidation,
   forwardNoteValidation,
   listNotesValidation,
   previewIdValidation,
   forwardOptionsValidation,
+  sendCopyValidation,
+  replyCopyValidation,
+  forwardCopyValidation,
+  completeCopyValidation,
 };

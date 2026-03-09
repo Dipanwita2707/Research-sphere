@@ -4,28 +4,33 @@
  */
 
 const Redis = require('ioredis');
+const log = require('../utils/logger');
 
-// Redis configuration - uses environment variables or defaults to localhost
-const redisConfig = {
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT) || 6379,
-  password: process.env.REDIS_PASSWORD || null,
-  username: process.env.REDIS_USERNAME || null,
-  db: parseInt(process.env.REDIS_DB) || 0,
-  maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 1000,
-  enableReadyCheck: true,
-  lazyConnect: false, // Connect immediately
-  connectTimeout: 10000, // 10 second timeout
-  commandTimeout: 5000, // 5 second command timeout
-  retryStrategy: (times) => {
-    // Stop retrying after 3 attempts
-    if (times > 3) {
-      return null;
+// Redis configuration - REDIS_URL takes precedence, else use individual vars
+const redisConfig = process.env.REDIS_URL
+  ? {
+      maxRetriesPerRequest: 3,
+      retryDelayOnFailover: 1000,
+      enableReadyCheck: true,
+      lazyConnect: false,
+      connectTimeout: 10000,
+      commandTimeout: 1000, // Reduced from 5000ms — cache should be fast or skip
+      retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
     }
-    return Math.min(times * 2000, 5000); // Max 5 second delay
-  }
-};
+  : {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: parseInt(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD || null,
+      username: process.env.REDIS_USERNAME || null,
+      db: parseInt(process.env.REDIS_DB) || 0,
+      maxRetriesPerRequest: 3,
+      retryDelayOnFailover: 1000,
+      enableReadyCheck: true,
+      lazyConnect: false,
+      connectTimeout: 10000,
+      commandTimeout: 1000, // Reduced from 5000ms — cache should be fast or skip
+      retryStrategy: (times) => (times > 3 ? null : Math.min(times * 2000, 5000)),
+    };
 
 // Create Redis instance
 let redis = null;
@@ -33,8 +38,23 @@ let isConnected = false;
 let connectionAttempted = false;
 
 // In-memory fallback cache when Redis is unavailable
+const MAX_MEMORY_CACHE_SIZE = 1000; // Prevent unbounded growth
 const memoryCache = new Map();
 const memoryCacheTTL = new Map();
+
+/** Evict oldest entries when memory cache exceeds limit */
+function _evictIfNeeded() {
+  if (memoryCache.size <= MAX_MEMORY_CACHE_SIZE) return;
+  // Delete the oldest 10% of entries (FIFO via Map insertion order)
+  const toDelete = Math.ceil(MAX_MEMORY_CACHE_SIZE * 0.1);
+  let count = 0;
+  for (const key of memoryCache.keys()) {
+    if (count >= toDelete) break;
+    memoryCache.delete(key);
+    memoryCacheTTL.delete(key);
+    count++;
+  }
+}
 
 /**
  * Initialize Redis connection
@@ -44,10 +64,12 @@ const initRedis = async () => {
   connectionAttempted = true;
 
   try {
-    redis = new Redis(redisConfig);
+    redis = process.env.REDIS_URL
+      ? new Redis(process.env.REDIS_URL, redisConfig)
+      : new Redis(redisConfig);
 
     redis.on('connect', () => {
-      console.log('[SUCCESS] Redis connected successfully');
+      log.ok('Redis connected successfully');
       isConnected = true;
     });
 
@@ -55,7 +77,7 @@ const initRedis = async () => {
     redis.on('error', (err) => {
       // Only log first few errors to reduce spam
       if (errorCount < 3) {
-        console.warn('⚠️ Redis connection error (using memory cache fallback):', err.message);
+        log.warn('Redis connection error (using memory cache fallback):', err.message);
         errorCount++;
       }
       isConnected = false;
@@ -63,7 +85,7 @@ const initRedis = async () => {
 
     redis.on('close', () => {
       if (errorCount < 3) {
-        console.warn('⚠️ Redis connection closed, using memory fallback');
+        log.warn('Redis connection closed, using memory fallback');
       }
       isConnected = false;
     });
@@ -77,7 +99,7 @@ const initRedis = async () => {
     ]);
     return redis;
   } catch (error) {
-    console.warn('⚠️ Redis not available, using in-memory cache fallback');
+    log.warn('Redis not available, using in-memory cache fallback');
     isConnected = false;
     return null;
   }
@@ -88,7 +110,7 @@ const initRedis = async () => {
  */
 const CACHE_TTL = {
   // Short-lived cache (1-5 minutes)
-  USER_SESSION: 300,        // 5 min
+  USER_SESSION: 1800,       // 30 min - reduce auth DB hits on every request
   DASHBOARD: 120,           // 2 min - Dashboard data
   PERMISSIONS: 300,         // 5 min
   
@@ -105,6 +127,11 @@ const CACHE_TTL = {
   PROGRAMS: 3600,           // 1 hour
   POLICIES: 1800,           // 30 min
   ANALYTICS: 600,           // 10 min
+  
+  // Event Management (short-lived — registration data changes frequently)
+  EVENT_DETAIL: 120,        // 2 min - event detail page
+  EVENT_STATS: 60,          // 1 min - statistics dashboard
+  EVENT_LIST: 60,           // 1 min - event listings
   
   // Static data (24 hours)
   ENUMS: 86400,             // 24 hours
@@ -128,6 +155,7 @@ const CACHE_KEYS = {
   ANALYTICS: 'analytics:',
   PERMISSION: 'perm:',
   LIST: 'list:',
+  EVENT: 'event:',
 };
 
 /**
@@ -149,7 +177,7 @@ const get = async (key) => {
     }
     return memoryCache.get(key) || null;
   } catch (error) {
-    console.error('Cache get error:', error.message);
+    log.error('Cache get error:', error.message);
     return null;
   }
 };
@@ -164,13 +192,14 @@ const set = async (key, value, ttlSeconds = 300) => {
     if (isConnected && redis) {
       await redis.setex(key, ttlSeconds, serialized);
     } else {
-      // Memory fallback
+      // Memory fallback with eviction
       memoryCache.set(key, value);
       memoryCacheTTL.set(key, Date.now() + (ttlSeconds * 1000));
+      _evictIfNeeded();
     }
     return true;
   } catch (error) {
-    console.error('Cache set error:', error.message);
+    log.error('Cache set error:', error.message);
     return false;
   }
 };
@@ -187,33 +216,40 @@ const del = async (key) => {
     memoryCacheTTL.delete(key);
     return true;
   } catch (error) {
-    console.error('Cache delete error:', error.message);
+    log.error('Cache delete error:', error.message);
     return false;
   }
 };
 
 /**
- * Delete all keys matching a pattern
+ * Delete all keys matching a pattern.
+ * Uses SCAN (non-blocking, cursor-based) instead of KEYS to avoid
+ * blocking Redis on large key-spaces.
  */
 const delPattern = async (pattern) => {
   try {
     if (isConnected && redis) {
-      const keys = await redis.keys(pattern);
-      if (keys.length > 0) {
-        await redis.del(...keys);
-      }
+      let cursor = '0';
+      do {
+        const [nextCursor, keys] = await redis.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+      } while (cursor !== '0');
     }
     
     // Memory fallback - delete matching keys
+    const plainPattern = pattern.replace(/\*/g, '');
     for (const key of memoryCache.keys()) {
-      if (key.includes(pattern.replace('*', ''))) {
+      if (key.includes(plainPattern)) {
         memoryCache.delete(key);
         memoryCacheTTL.delete(key);
       }
     }
     return true;
   } catch (error) {
-    console.error('Cache pattern delete error:', error.message);
+    log.error('Cache pattern delete error:', error.message);
     return false;
   }
 };
@@ -230,7 +266,7 @@ const flush = async () => {
     memoryCacheTTL.clear();
     return true;
   } catch (error) {
-    console.error('Cache flush error:', error.message);
+    log.error('Cache flush error:', error.message);
     return false;
   }
 };
@@ -259,7 +295,7 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
     
     return { data, fromCache: false };
   } catch (error) {
-    console.error('Cache getOrSet error:', error.message);
+    log.error('Cache getOrSet error:', error.message);
     // On error, try to fetch directly
     const data = await fetchFn();
     return { data, fromCache: false };
@@ -267,12 +303,23 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
 };
 
 /**
- * Invalidate user-related caches
+ * Invalidate user-related caches (auth session, dashboard, permissions, noting permissions)
+ *
+ * Cache key formats:
+ *   user:auth:<userId>        — session from protect middleware
+ *   dashboard:<userId>*       — dashboard data
+ *   perm:<userId>*            — generic permission cache
+ *   noting:perms:<userId>     — noting action-button permissions
  */
 const invalidateUser = async (userId) => {
-  await delPattern(`${CACHE_KEYS.USER}${userId}*`);
-  await delPattern(`${CACHE_KEYS.DASHBOARD}${userId}*`);
-  await delPattern(`${CACHE_KEYS.PERMISSION}${userId}*`);
+  // Direct key deletes for known key formats
+  await del(`${CACHE_KEYS.USER}auth:${userId}`);       // user:auth:<userId>
+  await del(`noting:perms:${userId}`);                   // noting:perms:<userId>
+  // Pattern deletes for variable-suffix keys
+  await delPattern(`${CACHE_KEYS.DASHBOARD}${userId}*`); // dashboard:<userId>*
+  await delPattern(`${CACHE_KEYS.PERMISSION}${userId}*`);// perm:<userId>*
+  // Wildcard fallback — catch any other user-prefixed keys
+  await delPattern(`${CACHE_KEYS.USER}*${userId}*`);     // user:*<userId>*
 };
 
 /**
@@ -312,6 +359,26 @@ const getStats = async () => {
   }
 };
 
+/**
+ * Return the raw ioredis connection options for libraries like BullMQ
+ * that need their own connection instance.
+ * Returns null if Redis is unavailable.
+ */
+const getConnectionOpts = () => {
+  if (!isConnected || !redis) return null;
+  // Return the options that can be used to create a new ioredis instance
+  if (process.env.REDIS_URL) {
+    return { url: process.env.REDIS_URL };
+  }
+  return {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT) || 6379,
+    password: process.env.REDIS_PASSWORD || undefined,
+    username: process.env.REDIS_USERNAME || undefined,
+    db: parseInt(process.env.REDIS_DB) || 0,
+  };
+};
+
 module.exports = {
   initRedis,
   get,
@@ -323,6 +390,7 @@ module.exports = {
   invalidateUser,
   invalidateLists,
   getStats,
+  getConnectionOpts,
   CACHE_TTL,
   CACHE_KEYS,
   isConnected: () => isConnected

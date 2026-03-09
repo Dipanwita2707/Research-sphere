@@ -10,7 +10,8 @@ const nextConfig = {
   
   // Configure for containerized environments
   experimental: {
-    // Reduce memory usage during build
+    // Tree-shake heavy packages — only bundle used exports
+    optimizePackageImports: ['lucide-react', '@mui/material', 'recharts', 'framer-motion'],
   },
   
   // Proxy API requests to backend

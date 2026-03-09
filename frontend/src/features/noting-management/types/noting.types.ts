@@ -54,10 +54,91 @@ export interface Note {
   eventStartDate?: string | null;
   eventEndDate?: string | null;
   eventPaymentType?: 'free' | 'paid' | null;
+  eventParticipationType?: 'individual' | 'team' | null;
+  eventRegistrationFeeIndividual?: number | null;
+  eventRegistrationFeeTeam?: number | null;
+  eventApproxCapacity?: number | null;
+  eventDutyLeaveAvailable?: boolean | null;
+  eventDutyLeaveEligibility?: string[] | null;
+  eventDutyLeaveRoleType?: 'participants' | 'organizers' | 'both' | null;
+  eventHasSponsorship?: boolean | null;
+  eventSponsors?: { name: string; amount: number; type: 'cash' | 'in_kind'; notes?: string }[] | null;
+  eventHasResources?: boolean | null;
+  eventResources?: { category?: string; type: string; description?: string; estimatedCost?: number; pricePerPiece?: number; quantity?: number }[] | null;
+  eventCertification?: boolean | null;
+  eventPrizesAwards?: { position: number; rank: string; title?: string; prizeType: string; prizeAmount?: number; additionalPerks?: string[]; sortOrder?: number }[] | null;
+  notingEventType?: 'venue' | 'stall' | 'festival' | null;
+  /** Optional club association for event notings */
+  eventClubId?: string | null;
+  stallConfig?: {
+    enableStudentApplied: boolean;
+    maxStudentStalls?: number;
+    stallFee?: number;
+    applicationDeadline?: string;
+    enableCreatorMade: boolean;
+    creatorStalls: { name: string; description: string; capacity: number }[];
+  } | null;
+  festivalMeta?: { name: string; startDate: string; endDate: string; description?: string; coordinator?: string } | null;
+  subEvents?: Array<{
+    id?: string;
+    eventType: 'venue' | 'stall';
+    venueFormData: {
+      eventName: string;
+      eventType: string;
+      eventStartDate: string;
+      eventEndDate: string;
+      eventPaymentType: 'free' | 'paid';
+      eventParticipationType: 'individual' | 'team';
+      eventRegistrationFeeIndividual?: number | null;
+      eventRegistrationFeeTeam?: number | null;
+      eventApproxCapacity?: number | null;
+      eventDutyLeaveAvailable?: boolean | null;
+      eventDutyLeaveEligibility?: string[] | null;
+      eventDutyLeaveRoleType?: string | null;
+      eventHasSponsorship?: boolean | null;
+      eventSponsors?: { name: string; amount: number; type: string; notes?: string }[] | null;
+      eventHasResources?: boolean | null;
+      eventResources?: { type: string; description?: string; pricePerPiece?: number; quantity?: number }[] | null;
+      eventCertification?: boolean | null;
+      eventPrizesAwards?: { position: number; rank: string; title?: string; prizeType: string; prizeAmount?: number; additionalPerks?: string[] }[] | null;
+    };
+    stallConfig?: {
+      enableStudentApplied: boolean;
+      maxStudentStalls?: number;
+      stallFee?: number;
+      applicationDeadline?: string;
+      enableCreatorMade: boolean;
+      creatorStalls: { name: string; description: string; capacity: number }[];
+    } | null;
+  }> | null;
+  // ── DSW Club Creation fields ──────────────────────────────────────────────
+  clubName?: string | null;
+  clubCategoryId?: string | null;
+  clubPurpose?: string | null;
+  clubAcademicSession?: string | null;
+  clubTargetStudentGroup?: string[];
+  clubMeetingFrequency?: string | null;
+  clubExpectedActivityTypes?: string[];
+  clubEstimatedAnnualActivityCount?: number | null;
+  clubExpectedStudentStrength?: number | null;
+  clubFacultyFacilitatorId?: string | null;
+  clubChairpersonId?: string | null;
+  clubInitialMembers?: string[];
+  clubProposedEmail?: string | null;
+  clubSocialMediaHandles?: { facebook?: string; instagram?: string; twitter?: string; linkedin?: string } | null;
+  clubCodeOfConductAccepted?: boolean | null;
+  clubAntiDiscriminationAccepted?: boolean | null;
+  /** Resolved display names for club UUIDs — populated by backend for dsw_club_creation notes */
+  clubDetails?: {
+    categoryName: string | null;
+    parentCategoryName: string | null;
+    facultyFacilitator: { id: string; uid: string; name: string; department?: string | null; designation?: string | null } | null;
+    chairperson: { id: string; uid: string; name: string; department?: string | null; program?: string | null } | null;
+    members: { id: string; uid: string; name: string }[];
+  } | null;
   status: NoteStatus;
   createdById: string;
   currentHolderId?: string | null;
-  currentFlowIndex?: number | null;
   createdAt: string;
   updatedAt: string;
   createdBy?: {
@@ -81,23 +162,13 @@ export interface Note {
     uid: string;
     employeeDetails?: { displayName?: string; firstName?: string; lastName?: string };
   } | null;
-  /** Set when pending at a DSW/Central Team step (central department); any member can approve. */
-  currentStep?: NoteCurrentStep | null;
   points?: NotePoint[];
   history?: NoteHistoryEntry[];
   attachments?: { id: string; fileName: string; filePath: string; fileDescription?: string | null }[];
   /** Present when listing with filter=handled: action you took and when */
   myAction?: { action: 'approved' | 'rejected' | 'forwarded' | 'reverted'; performedAt: string };
-}
-
-/** When the note is at a DSW or Central Team step (central department), any member can act. */
-export interface NoteCurrentStep {
-  authorityType: string;
-  isCentralDepartment: true;
-  centralDepartmentId?: string | null;
-  centralDepartmentName?: string | null;
-  centralDepartmentCode?: string | null;
-  members: { id: string; displayName: string }[];
+  /** Present in list view: counts for history and attachments */
+  _count?: { history?: number; attachments?: number };
 }
 
 export interface NoteHistoryEntry {
@@ -108,6 +179,55 @@ export interface NoteHistoryEntry {
   createdAt: string;
   performedBy?: { id: string; uid: string; employeeDetails?: { displayName?: string; firstName?: string; lastName?: string } };
   nextHolder?: { id: string; uid: string; employeeDetails?: { displayName?: string } } | null;
+}
+
+export interface NoteCopyReply {
+  id: string;
+  copyId: string;
+  repliedById: string;
+  remarks: string;
+  attachments?: { filePath: string; fileName: string; fileDescription?: string | null }[];
+  createdAt: string;
+  repliedBy?: { id: string; uid: string; employeeDetails?: { displayName?: string } };
+}
+
+export interface NoteCopy {
+  id: string;
+  noteId: string;
+  sentById: string;
+  assignedToId: string;
+  remarks: string;
+  status: 'pending' | 'replied' | 'forwarded' | 'completed';
+  escalationLevel: number;
+  escalatedToId?: string | null;
+  rootCopyId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignedTo?: { id: string; uid: string; employeeDetails?: { displayName?: string; firstName?: string; lastName?: string } };
+  escalatedTo?: { id: string; uid: string; employeeDetails?: { displayName?: string } } | null;
+  sentBy?: { id: string; uid: string; employeeDetails?: { displayName?: string } };
+  replies?: NoteCopyReply[];
+  note?: {
+    id: string;
+    notingId: string;
+    category: string;
+    subcategory: string;
+    description: string;
+    status: string;
+    amount?: number | string | null;
+    amountRequired?: boolean;
+    approvalPeriod?: string;
+    recurringFrequency?: string | null;
+    policyWithinSgtu?: boolean;
+    policyOutsideSgtu?: boolean;
+    policyBoth?: boolean;
+    policyJustification?: string | null;
+    policyCompliant?: boolean | null;
+    createdAt?: string;
+    points?: { id: string; content: string; sortOrder: number }[];
+    attachments?: { id: string; filePath: string; fileName: string; fileDescription?: string | null }[];
+    createdBy?: { uid: string; employeeDetails?: { displayName?: string } };
+  };
 }
 
 export interface CreateNoteAttachmentPayload {
@@ -128,4 +248,6 @@ export interface CreateNotePayload {
   points?: string[];
   attachments?: CreateNoteAttachmentPayload[];
   submit?: boolean;
+  /** Optional club association — when set, the club's chairperson auto-receives event management permissions */
+  eventClubId?: string | null;
 }

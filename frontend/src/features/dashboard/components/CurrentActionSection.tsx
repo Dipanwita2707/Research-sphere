@@ -163,7 +163,7 @@ export default function CurrentActionSection({ userName, userId }: CurrentAction
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Current Action</h2>
         
         {/* Module Activity Cards in 3 columns */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
           {parameters.map((param, index) => (
             <div 
               key={index}
@@ -179,7 +179,7 @@ export default function CurrentActionSection({ userName, userId }: CurrentAction
         </div>
 
         {/* Metrics Row */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
           {displayMetrics.map((metric, index) => (
             <div key={index} className="text-center">
               <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">{metric.label}</p>

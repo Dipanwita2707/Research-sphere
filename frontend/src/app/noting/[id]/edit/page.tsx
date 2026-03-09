@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
 
 /**
  * Edit draft is handled by the same page as create: /noting/new.
@@ -18,8 +18,8 @@ export default function EditDraftRedirectPage() {
   }, [id, router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
+      <Skeleton className="w-8 h-8 rounded-sm" />
     </div>
   );
 }

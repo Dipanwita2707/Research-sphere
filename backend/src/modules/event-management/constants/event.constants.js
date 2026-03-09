@@ -29,11 +29,16 @@ const PAYMENT_TYPE = {
   PAID: 'paid',
 };
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const REGISTRATION_STATUS = {
+  DRAFT: 'draft',
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
   WAITLISTED: 'waitlisted',
+  REJECTED: 'rejected',
+  INCOMPLETE_TEAM: 'incomplete_team',
 };
 
 const PAYMENT_STATUS = {
@@ -48,10 +53,28 @@ const ENTRY_TYPE = {
   EXIT: 'exit',
 };
 
+/** Razorpay automatic capture configuration */
+const RAZORPAY_CAPTURE_CONFIG = {
+  automatic_expiry_period: 12,    // minutes
+  manual_expiry_period: 7200,     // seconds (2 hours)
+  refund_speed: 'optimum',
+};
+
+/** Rate limits for public (unauthenticated) endpoints */
+const PUBLIC_RATE_LIMIT = {
+  WINDOW_MS: 15 * 60 * 1000,  // 15 minutes
+  MAX_REQUESTS: 100,
+};
+
 const LIMITS = {
   MAX_EVENT_NAME_LENGTH: 256,
   MAX_DESCRIPTION_LENGTH: 5000,
+  MAX_LONG_DESCRIPTION_LENGTH: 50000,
+  DASHBOARD_LIMIT: 50,
   MAX_VENUE_LENGTH: 512,
+  MAX_CONTACT_NAME_LENGTH: 256,
+  REGISTRATION_CAP_MIN: 1,
+  REGISTRATION_CAP_MAX: 100000,
   DEFAULT_PAGE_SIZE: 20,
   MAX_PAGE_SIZE: 100,
 };
@@ -66,7 +89,8 @@ const ERRORS = {
   EVENT_FULL: 'Event has reached maximum capacity',
   REGISTRATION_NOT_FOUND: 'Registration not found',
   INVALID_QR_CODE: 'Invalid QR code',
-  ALREADY_ENTERED: 'User has already entered the event',
+  ALREADY_ENTERED: 'User has already entered. Check out first before checking in again.',
+  NOT_CHECKED_IN: 'User has not checked in yet. Check in first before checking out.',
   NOT_A_VOLUNTEER: 'You are not authorized as a volunteer for this event',
   INVALID_EVENT_DATES: 'Event end date must be after start date',
   REGISTRATION_DATES_INVALID: 'Registration dates must be within event dates',
@@ -81,4 +105,7 @@ module.exports = {
   ENTRY_TYPE,
   LIMITS,
   ERRORS,
+  RAZORPAY_CAPTURE_CONFIG,
+  PUBLIC_RATE_LIMIT,
+  EMAIL_REGEX,
 };

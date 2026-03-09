@@ -1,0 +1,31 @@
+60   getNoteById,
+61   getNoteWithDetails,
+62   verifyCanEditDraft,
+63   verifyCanEditNote,
+64   verifyCanDeleteNote,
+65   verifyNotePending,
+66   verifyCanActOnNote,
+67 } = require("../utils/noteHelpers");
+68 const {
+69   getFullNoteInclude,
+70   getListNoteInclude,
+71 } = require("../utils/selectFragments");
+72 
+73 /**
+74  * Get configuration for frontend
+75  * Returns categories, subcategories, and dropdown options
+76  *
+77  * @route GET /api/noting/config
+78  * @access Protected
+79  */
+80 // Config is completely static — cache it for 24 hours so repeated page loads
+81 // do not compute + serialize the same object on every request.
+82 const NOTING_CONFIG_CACHE_KEY = "noting:config:v1";
+83 
+84 const getConfig = asyncHandler(async (req, res) => {
+85   // Try cache first
+86   const cached = await cache.get(NOTING_CONFIG_CACHE_KEY);
+87   if (cached) {
+88     return ApiResponse.success(
+89       res,
+90       cached,

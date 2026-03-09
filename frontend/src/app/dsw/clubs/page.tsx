@@ -1,116 +1,275 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { Users, Filter, Search, Calendar, UserCheck, Mail, ExternalLink } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { clubAPI } from '@/features/dsw/services/api';
-import { Club, ClubFilters } from '@/features/dsw/types';
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Users,
+  Search,
+  Calendar,
+  UserCheck,
+  Mail,
+  Clock,
+  X,
+  CheckCircle,
+  ArrowRight,
+  FileText,
+  Send,
+} from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useApplyToClub, useClubs, useMyClubApplications } from "@/features/dsw/hooks";
+import { ClubStatusBadge } from "@/features/dsw/components/ClubStatusBadge";
+import { ClubFilters } from "@/features/dsw/types";
+import { getErrorMessage } from "@/shared/utils/errorHandler";
+import { useDebounce } from "@/shared/hooks/useDebounce";
+import { PageSkeleton } from "@/shared/components/PageSkeleton";
+import { useAuthStore } from "@/shared/auth/authStore";
 
 export default function AllClubsPage() {
   const router = useRouter();
-  const [clubs, setClubs] = useState<Club[]>([]);
-  const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+
   const [filters, setFilters] = useState<ClubFilters>({
     page: 1,
     limit: 20,
   });
-  const [total, setTotal] = useState(0);
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebounce(searchInput, 300);
+  const [showApplyModal, setShowApplyModal] = useState(false);
+  const [selectedClubId, setSelectedClubId] = useState("");
+  const [applyError, setApplyError] = useState<string | null>(null);
+
+  // Pending submission banner state
+  const [pendingBanner, setPendingBanner] = useState<{
+    show: boolean;
+    notingId: string;
+    clubName: string;
+  } | null>(null);
+
+  // Read query params on mount to show the pending banner
+  useEffect(() => {
+    const submitted = searchParams.get("submitted");
+    const notingId = searchParams.get("notingId");
+    const clubName = searchParams.get("clubName");
+
+    if (submitted === "true" && notingId) {
+      setPendingBanner({ show: true, notingId, clubName: clubName || "" });
+
+      // Clean up the URL without triggering a re-render/navigation
+      const url = new URL(window.location.href);
+      url.searchParams.delete("submitted");
+      url.searchParams.delete("notingId");
+      url.searchParams.delete("clubName");
+      window.history.replaceState({}, "", url.pathname + (url.search || ""));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
-    fetchClubs();
-  }, [filters]);
+    setFilters((prev) => ({
+      ...prev,
+      search: debouncedSearch || undefined,
+      page: 1,
+    }));
+  }, [debouncedSearch]);
 
-  const fetchClubs = async () => {
-    try {
-      setLoading(true);
-      const response = await clubAPI.getClubs(filters);
-      if (response.success) {
-        setClubs(response.data);
-        setTotal(response.pagination.total);
+  const { data: response, isLoading, error } = useClubs(filters);
+  const { data: myApplications = [] } = useMyClubApplications();
+  const applyToClub = useApplyToClub();
+  const { user } = useAuthStore();
+  const normalizedUserRole = String(
+    user?.userType ?? (user as any)?.role ?? "",
+  ).toLowerCase();
+  const isStudentUser = normalizedUserRole === "student";
+  const clubs = response?.success ? (response.data ?? []) : [];
+  const total = response?.pagination?.total ?? 0;
+  const errorMessage = error ? getErrorMessage(error) : null;
+
+  const applicationMap = useMemo(() => {
+    const map = new Map<string, "pending" | "approved" | "rejected">();
+    myApplications.forEach((app) => {
+      if (!map.has(app.clubId)) {
+        map.set(app.clubId, app.status);
       }
-    } catch (err: any) {
-      console.error('Error fetching clubs:', err);
-      // Set empty clubs on error so page still shows
-      setClubs([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+    return map;
+  }, [myApplications]);
 
-  const handleSearch = (searchTerm: string) => {
-    setFilters((prev) => ({ ...prev, search: searchTerm, page: 1 }));
+  const profileData = useMemo(() => {
+    const fullName =
+      `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim() ||
+      user?.student?.displayName ||
+      user?.username ||
+      "";
+
+    return {
+      fullName,
+      email: user?.email || "",
+      mobileNumber: user?.employeeDetails?.phone || "",
+      program: user?.student?.program || "",
+      course: user?.student?.registrationNo || user?.student?.studentId || "",
+    };
+  }, [user]);
+
+  const handleApply = async () => {
+    if (!selectedClubId) {
+      setApplyError("Please select a club first.");
+      return;
+    }
+
+    try {
+      setApplyError(null);
+      await applyToClub.mutateAsync({ clubId: selectedClubId });
+      setShowApplyModal(false);
+      setSelectedClubId("");
+    } catch (err) {
+      setApplyError(getErrorMessage(err));
+    }
   };
 
   const handleStatusFilter = (status: string) => {
     setFilters((prev) => ({
       ...prev,
-      status: status === 'all' ? undefined : (status as any),
+      status: status === "all" ? undefined : (status as ClubFilters["status"]),
       page: 1,
     }));
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<
-      string,
-      { label: string; className: string }
-    > = {
-      active: { label: 'Active', className: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' },
-      pending_approval: { label: 'Pending', className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' },
-      approved: { label: 'Approved', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' },
-      suspended: { label: 'Suspended', className: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' },
-      archived: { label: 'Archived', className: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400' },
-    };
-
-    const config = statusConfig[status] || statusConfig.active;
-    return (
-      <span
-        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.className}`}
-      >
-        {config.label}
-      </span>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading clubs...</p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <PageSkeleton message="Loading clubs..." />;
   }
 
   return (
     <div className="space-y-6">
+      {/* ── Pending Club Request Banner ── */}
+      {pendingBanner?.show && (
+        <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border border-amber-300 dark:border-amber-700 rounded-xl p-5 shadow-sm">
+          {/* Dismiss button */}
+          <button
+            onClick={() => setPendingBanner(null)}
+            className="absolute top-3 right-3 p-2.5 rounded-full text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+            aria-label="Dismiss"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="flex items-start gap-4 pr-8">
+            {/* Icon */}
+            <div className="flex-shrink-0 w-11 h-11 bg-amber-100 dark:bg-amber-900/40 rounded-full flex items-center justify-center">
+              <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h3 className="text-base font-semibold text-amber-900 dark:text-amber-100">
+                  Club Creation Request Submitted
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200">
+                  <Clock className="w-3 h-3" />
+                  Pending Approval
+                </span>
+              </div>
+
+              {pendingBanner.clubName && (
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                  Club:{" "}
+                  <span className="font-semibold">
+                    {pendingBanner.clubName}
+                  </span>
+                </p>
+              )}
+
+              <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                Your request has been sent to the Faculty Facilitator for
+                review. It will then go through the full approval chain before
+                your club is officially created.
+              </p>
+
+              {/* Approval chain */}
+              <div className="flex flex-wrap items-center gap-1.5 text-xs mb-3">
+                {[
+                  { label: "Faculty", done: true },
+                  { label: "HOD" },
+                  { label: "Dean" },
+                  { label: "DSW" },
+                  { label: "Higher Authority" },
+                ].map((step, i, arr) => (
+                  <React.Fragment key={step.label}>
+                    <span
+                      className={`px-2.5 py-1 rounded-full font-medium ${
+                        step.done
+                          ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 ring-1 ring-green-300 dark:ring-green-700"
+                          : "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
+                      }`}
+                    >
+                      {step.done && <span className="mr-1">✓</span>}
+                      {step.label}
+                    </span>
+                    {i < arr.length - 1 && (
+                      <ArrowRight className="w-3 h-3 text-amber-400 dark:text-amber-600 flex-shrink-0" />
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {/* Noting ID + track link */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 rounded-md">
+                  <FileText className="w-3.5 h-3.5" />
+                  <span className="font-mono font-medium">
+                    {pendingBanner.notingId}
+                  </span>
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Your club will appear here automatically once all approvals
+                  are received.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">All Clubs</h1>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Showing {clubs.length} of {total} clubs
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-ev-900">All Clubs</h1>
+          <p className="mt-2 text-ev-400">Showing {clubs.length} of {total} clubs</p>
         </div>
+
+        {isStudentUser && (
+          <button
+            type="button"
+            onClick={() => setShowApplyModal(true)}
+            className="ev-btn w-full sm:w-auto"
+          >
+            <Send className="w-4 h-4" />
+            Apply to Clubs
+          </button>
+        )}
       </div>
 
+      {errorMessage && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+          <p className="text-red-700 text-sm">{errorMessage}</p>
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="ev-card p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-ev-400" />
             <input
               type="text"
               placeholder="Search clubs by name, purpose, or ID..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              onChange={(e) => handleSearch(e.target.value)}
+              className="ev-input pl-10"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
           <select
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="ev-input sm:w-44"
             onChange={(e) => handleStatusFilter(e.target.value)}
-            value={filters.status || 'all'}
+            value={filters.status || "all"}
           >
             <option value="all">All Status</option>
             <option value="active">Active</option>
@@ -123,53 +282,57 @@ export default function AllClubsPage() {
 
       {/* Clubs Grid */}
       {clubs.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
-          <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Clubs Found
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            No clubs match your current filters. Try adjusting your search criteria.
+        <div className="ev-card p-12 text-center">
+          <Users className="w-14 h-14 text-ev-200 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-ev-900 mb-2">No Clubs Found</h3>
+          <p className="text-ev-400 text-sm">
+            No clubs match your current filters. Try adjusting your search
+            criteria.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {clubs.map((club) => (
             <div
               key={club.id}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow cursor-pointer"
+              className="ev-card ev-card-hover p-4 sm:p-6 cursor-pointer"
               onClick={() => router.push(`/dsw/clubs/${club.id}`)}
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                  <h3 className="text-base font-semibold text-ev-900 mb-0.5">
                     {club.name}
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-ev-400">
                     {club.clubId}
                   </p>
+                  {applicationMap.get(club.id) && (
+                    <p className="mt-1 text-xs font-semibold text-ev-700">
+                      Application: {applicationMap.get(club.id)}
+                    </p>
+                  )}
                 </div>
-                {getStatusBadge(club.status)}
+                <ClubStatusBadge status={club.status} size="sm" />
               </div>
 
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
+              <p className="text-sm text-ev-400 mb-4 line-clamp-2">
                 {club.purpose}
               </p>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <div className="space-y-1.5 text-sm">
+                <div className="flex items-center gap-2 text-ev-400">
                   <Users className="w-4 h-4" />
                   <span>{club._count?.members || 0} members</span>
                 </div>
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-2 text-ev-400">
                   <Calendar className="w-4 h-4" />
                   <span>Session {club.academicSession}</span>
                 </div>
                 {club.facultyFacilitator && (
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <div className="flex items-center gap-2 text-ev-400">
                     <UserCheck className="w-4 h-4" />
                     <span className="truncate">
-                      {club.facultyFacilitator.employeeDetails?.firstName}{' '}
+                      {club.facultyFacilitator.employeeDetails?.firstName}{" "}
                       {club.facultyFacilitator.employeeDetails?.lastName}
                     </span>
                   </div>
@@ -177,8 +340,8 @@ export default function AllClubsPage() {
               </div>
 
               {club.proposedEmail && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <div className="mt-4 pt-3 border-t border-[#b3cde0]/40">
+                  <div className="flex items-center gap-2 text-xs text-ev-400">
                     <Mail className="w-3 h-3" />
                     <span className="truncate">{club.proposedEmail}</span>
                   </div>
@@ -190,32 +353,138 @@ export default function AllClubsPage() {
       )}
 
       {/* Pagination */}
-      {total > filters.limit! && (
-        <div className="flex justify-center gap-2">
+      {total > (filters.limit ?? 20) && (
+        <div className="flex flex-wrap justify-center items-center gap-2">
           <button
-            onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(1, prev.page! - 1) }))}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                page: Math.max(1, (prev.page ?? 1) - 1),
+              }))
+            }
             disabled={filters.page === 1}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
+            className="ev-btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
           </button>
-          <span className="px-4 py-2 text-gray-700 dark:text-gray-300">
-            Page {filters.page} of {Math.ceil(total / filters.limit!)}
+          <span className="px-4 py-2 text-ev-800 text-sm font-medium">
+            Page {filters.page} of {Math.ceil(total / (filters.limit ?? 20))}
           </span>
           <button
             onClick={() =>
               setFilters((prev) => ({
                 ...prev,
-                page: Math.min(Math.ceil(total / filters.limit!), prev.page! + 1),
+                page: Math.min(
+                  Math.ceil(total / (filters.limit ?? 20)),
+                  (prev.page ?? 1) + 1,
+                ),
               }))
             }
-            disabled={filters.page! >= Math.ceil(total / filters.limit!)}
-            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-white"
+            disabled={
+              (filters.page ?? 1) >= Math.ceil(total / (filters.limit ?? 20))
+            }
+            className="ev-btn-outline disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
           </button>
         </div>
       )}
+
+      {showApplyModal && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowApplyModal(false);
+              setApplyError(null);
+            }
+          }}
+        >
+          <div className="ev-modal w-full max-w-lg p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-ev-900">Apply to Club</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowApplyModal(false);
+                  setApplyError(null);
+                }}
+                className="ev-btn-ghost"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div>
+              <label className="ev-label">Club Selection</label>
+              <select
+                value={selectedClubId}
+                onChange={(e) => setSelectedClubId(e.target.value)}
+                className="ev-input"
+              >
+                <option value="">Select Club</option>
+                {clubs
+                  .filter((club) => club.status === "active")
+                  .map((club) => {
+                    const status = applicationMap.get(club.id);
+                    const disabled = status === "pending" || status === "approved";
+                    return (
+                      <option key={club.id} value={club.id} disabled={disabled}>
+                        {club.name}{disabled ? ` (${status})` : ""}
+                      </option>
+                    );
+                  })}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <ReadOnlyField label="Full Name" value={profileData.fullName} />
+              <ReadOnlyField label="Email" value={profileData.email} />
+              <ReadOnlyField label="Mobile Number" value={profileData.mobileNumber} />
+              <ReadOnlyField label="Program" value={profileData.program} />
+              <ReadOnlyField label="Course" value={profileData.course} />
+            </div>
+
+            {applyError && (
+              <p className="text-sm text-red-600">{applyError}</p>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowApplyModal(false);
+                  setApplyError(null);
+                }}
+                className="ev-btn-outline"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={applyToClub.isPending}
+                className="ev-btn disabled:opacity-60"
+              >
+                {applyToClub.isPending ? "Applying..." : "Apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-ev-400 mb-1">{label}</label>
+      <input
+        value={value || "-"}
+        readOnly
+        className="w-full px-3 py-2 rounded-lg border border-[#b3cde0] bg-ev-50 text-sm text-ev-800"
+      />
     </div>
   );
 }

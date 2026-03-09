@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { 
   FileText,
@@ -47,6 +47,7 @@ import RecentNotifications from './RecentNotifications';
 import SocialFootprints from './SocialFootprints';
 import Footer from '../layouts/Footer';
 import TourGuide, { TourStep, TourStartButton } from './TourGuide';
+import { eventService } from '@/features/event-management/services/event.service';
 
 interface StudentData {
   uid: string;
@@ -1143,80 +1144,64 @@ const academicCalendarEvents = [
   { date: '2026-01-14', title: 'Makar Sankranti / Pongal', type: 'holiday' as const, description: 'Harvest festival celebrated across India - Restricted Holiday' },
   { date: '2026-01-23', title: 'Netaji Subhas Chandra Bose Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Netaji Subhas Chandra Bose - Restricted Holiday (Parakram Diwas)' },
   { date: '2026-01-26', title: 'Republic Day', type: 'holiday' as const, description: 'National holiday - Celebration of Indian Constitution adoption - Gazetted Holiday' },
-  
-  // February 2026 - Official Holidays
+
+  // February 2026 - Official Holidays & Exams
   { date: '2026-02-01', title: 'Guru Ravi Das Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Sant Guru Ravi Das - Restricted Holiday' },
   { date: '2026-02-02', title: 'Data Structures & Algorithms Exam', type: 'exam' as const, description: 'End-term examination', courseCode: 'CS301', room: 'Room 201', building: 'Block A', time: '10:00 AM - 1:00 PM', examType: 'End Semester', maxMarks: 100, duration: '3 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-05', title: 'Mid-Semester Exam Begins', type: 'exam' as const, description: 'Mid-term examinations start for all departments', courseCode: 'ALL', room: 'As per datesheet', building: 'All Blocks', time: '9:00 AM onwards', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Check datesheet for subject-wise schedule', 'Carry hall ticket', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-06', title: 'Operating Systems Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS302', room: 'Room 105', building: 'Block B', time: '10:00 AM - 12:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-12', title: 'Swami Dayananda Saraswati Jayanti', type: 'holiday' as const, description: 'Birthday of Swami Dayananda Saraswati - Restricted Holiday' },
-  { date: '2026-02-14', title: 'Valentine\'s Day Celebration', type: 'event' as const, description: 'Campus cultural event organized by Student Council' },
   { date: '2026-02-15', title: 'Maha Shivaratri', type: 'holiday' as const, description: 'Hindu festival dedicated to Lord Shiva - Gazetted Holiday' },
   { date: '2026-02-16', title: 'Database Management Systems Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS303', room: 'Room 302', building: 'Block A', time: '2:00 PM - 4:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-19', title: 'Shivaji Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Chhatrapati Shivaji Maharaj - Restricted Holiday' },
   { date: '2026-02-20', title: 'Computer Networks Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS304', room: 'Room 401', building: 'Block C', time: '10:00 AM - 12:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-26', title: 'Mid-Semester Results', type: 'crucial' as const, description: 'Mid-term exam results announcement' },
   { date: '2026-02-27', title: 'Software Engineering Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS305', room: 'Room 201', building: 'Block A', time: '10:00 AM - 12:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
-  
-  // February 2026 - SGT University Events
-  { date: '2026-02-05', title: 'Interview & Counseling Sessions', type: 'event' as const, description: 'Admissions & Student Interaction - SGT University Event' },
-  
-  // March 2026 - Official Holidays & SGT Events
-  { date: '2026-03-01', title: 'Basant Utsav 2026', type: 'event' as const, description: 'Spring Festival / Agriculture Celebration - SGT University Event' },
+
+  // March 2026 - Official Holidays
   { date: '2026-03-03', title: 'Holi', type: 'holiday' as const, description: 'Festival of colors - Gazetted Holiday' },
-  { date: '2026-03-08', title: 'International Women\'s Day', type: 'event' as const, description: 'Special celebration and seminar' },
-  { date: '2026-03-15', title: 'Agri Job Fair', type: 'event' as const, description: 'Career Placement in Agriculture - SGT University Event' },
-  { date: '2026-03-25', title: 'Sports Week Begins', type: 'event' as const, description: 'Inter-department sports competitions' },
-  
-  // April 2026 - Official Holidays & SGT Events
+
+  // April 2026 - Official Holidays & Crucial
   { date: '2026-04-03', title: 'Good Friday', type: 'holiday' as const, description: 'Christian holy day - Gazetted Holiday' },
   { date: '2026-04-06', title: 'End-Semester Exam Registration', type: 'crucial' as const, description: 'Last date for exam form submission' },
   { date: '2026-04-14', title: 'Dr. Ambedkar Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Dr. B.R. Ambedkar - Gazetted Holiday' },
-  { date: '2026-04-14', title: 'Baisakhi Festival', type: 'event' as const, description: 'Regional Cultural Celebration - SGT University Event' },
   { date: '2026-04-21', title: 'Mahavir Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Lord Mahavir - Gazetted Holiday' },
   { date: '2026-04-22', title: 'Ram Navami', type: 'holiday' as const, description: 'Birth of Lord Rama - Restricted Holiday' },
-  
-  // May 2026 - Official Holidays & SGT Events
+
+  // May 2026 - Official Holidays & Exams
   { date: '2026-05-01', title: 'May Day', type: 'holiday' as const, description: 'International Workers\' Day - Gazetted Holiday' },
   { date: '2026-05-04', title: 'End-Semester Exams Begin', type: 'exam' as const, description: 'Final examinations start for all programs', courseCode: 'ALL', room: 'As per datesheet', building: 'All Blocks', time: '9:00 AM onwards', examType: 'End Semester', maxMarks: 100, duration: '3 hours', instructions: ['Check datesheet for subject-wise schedule', 'Carry hall ticket and ID card', 'No electronic devices allowed', 'Use only blue/black pen'] },
-  { date: '2026-05-10', title: 'International Nanoscience Conference', type: 'event' as const, description: 'Research & Applied Sciences - SGT University Event' },
   { date: '2026-05-12', title: 'Buddha Purnima', type: 'holiday' as const, description: 'Birth anniversary of Gautama Buddha - Gazetted Holiday' },
-  
-  // June 2026 - SGT Events
+
+  // June 2026 - Crucial dates
   { date: '2026-06-05', title: 'Summer Vacation Begins', type: 'crucial' as const, description: 'Semester break starts' },
   { date: '2026-06-15', title: 'Annual Convocation 2026', type: 'crucial' as const, description: 'Graduation Ceremony - SGT University Event' },
   { date: '2026-06-15', title: 'Result Declaration', type: 'crucial' as const, description: 'End-semester results published' },
   { date: '2026-06-17', title: 'Eid ul-Adha (Bakrid)', type: 'holiday' as const, description: 'Islamic festival of sacrifice - Gazetted Holiday' },
-  
-  // July 2026 - Official Holidays
+
+  // July 2026
   { date: '2026-07-15', title: 'New Session Begins', type: 'crucial' as const, description: 'Next academic year starts' },
   { date: '2026-07-17', title: 'Muharram', type: 'holiday' as const, description: 'Islamic New Year - Gazetted Holiday' },
-  
-  // August 2026 - Official Holidays
+
+  // August 2026
   { date: '2026-08-08', title: 'Janmashtami', type: 'holiday' as const, description: 'Birth anniversary of Lord Krishna - Gazetted Holiday' },
   { date: '2026-08-15', title: 'Independence Day', type: 'holiday' as const, description: 'National holiday - Flag hoisting ceremony - Gazetted Holiday' },
-  { date: '2026-08-26', title: 'Freshers\' Week', type: 'event' as const, description: 'Welcome program for new students' },
-  
-  // September 2026 - Official Holidays
-  { date: '2026-09-05', title: 'Teachers\' Day', type: 'event' as const, description: 'Birth anniversary of Dr. Sarvepalli Radhakrishnan - Celebration for teachers' },
+
+  // September 2026
   { date: '2026-09-16', title: 'Milad-un-Nabi', type: 'holiday' as const, description: 'Prophet Muhammad\'s Birthday - Gazetted Holiday' },
-  
-  // October 2026 - Official Holidays
+
+  // October 2026
   { date: '2026-10-02', title: 'Mahatma Gandhi Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Mahatma Gandhi - Gazetted Holiday' },
   { date: '2026-10-20', title: 'Dussehra (Vijaya Dashami)', type: 'holiday' as const, description: 'Victory of good over evil - Gazetted Holiday' },
-  { date: '2026-10-31', title: 'Sardar Patel Jayanti', type: 'event' as const, description: 'National Unity Day - Birth anniversary of Sardar Vallabhbhai Patel' },
-  
-  // November 2026 - Official Holidays
+
+  // November 2026
   { date: '2026-11-08', title: 'Diwali (Deepavali)', type: 'holiday' as const, description: 'Festival of lights - Gazetted Holiday' },
   { date: '2026-11-09', title: 'Govardhan Puja', type: 'holiday' as const, description: 'Day after Diwali - Restricted Holiday' },
   { date: '2026-11-10', title: 'Bhai Dooj', type: 'holiday' as const, description: 'Festival celebrating brother-sister bond - Restricted Holiday' },
-  { date: '2026-11-14', title: 'Children\'s Day', type: 'event' as const, description: 'Birth anniversary of Jawaharlal Nehru - Special activities for children' },
   { date: '2026-11-23', title: 'Guru Nanak Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Guru Nanak Dev - Gazetted Holiday' },
-  { date: '2026-11-26', title: 'Constitution Day', type: 'event' as const, description: 'Commemoration of adoption of Indian Constitution' },
-  
-  // December 2026 - Official Holidays
+
+  // December 2026
   { date: '2026-12-25', title: 'Christmas', type: 'holiday' as const, description: 'Birth of Jesus Christ - Gazetted Holiday' },
-  { date: '2026-12-31', title: 'New Year\'s Eve', type: 'event' as const, description: 'End of year celebration' }
 ];
 
 export default function StudentDashboard() {
@@ -1257,6 +1242,34 @@ export default function StudentDashboard() {
   // Placement Drives State
   const [selectedPlacementDrive, setSelectedPlacementDrive] = useState<typeof placementDrives[0] | null>(null);
   const [showAllPlacementDrives, setShowAllPlacementDrives] = useState(false);
+
+  // Real Events State - fetched from API
+  const [upcomingRealEvents, setUpcomingRealEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [myRegisteredEventIds, setMyRegisteredEventIds] = useState<Set<string>>(new Set());
+
+  // Merge real API events into the academic calendar for display
+  const allCalendarEvents = useMemo(() => {
+    const realMapped = upcomingRealEvents
+      .filter((e: any) => e.startDate)
+      .map((e: any) => ({
+        date: e.startDate.substring(0, 10),
+        title: e.name,
+        type: 'event' as const,
+        description: e.description || `${e.eventType || 'University'} event`,
+        realEventId: e.id,
+        venue: e.venue,
+        startDateRaw: e.startDate,
+        endDateRaw: e.endDate,
+        bannerImageUrl: e.bannerImageUrl || null,
+        eventType: e.eventType,
+        paymentType: e.paymentType,
+        registrationFee: e.registrationFee,
+        teamRegistrationFee: e.teamRegistrationFee,
+        status: e.status,
+      }));
+    return [...academicCalendarEvents, ...realMapped];
+  }, [upcomingRealEvents]);
 
   // Virtual Tour State
   const [showTour, setShowTour] = useState(false);
@@ -1648,6 +1661,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     fetchStudentData();
+    fetchRealEvents();
   }, []);
 
   // Auto-scroll for authorities 3D carousel
@@ -1689,6 +1703,60 @@ export default function StudentDashboard() {
       logger.error('Failed to fetch student data:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fetch real events from the API (published & ongoing)
+  const fetchRealEvents = async () => {
+    try {
+      setEventsLoading(true);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Fetch published/ongoing events AND my registrations in parallel
+      const [publishedResult, ongoingResult, myRegsResult] = await Promise.allSettled([
+        eventService.getEvents({ status: 'published' }, 1, 100),
+        eventService.getEvents({ status: 'ongoing' }, 1, 100),
+        eventService.getMyRegistrations(1, 200),
+      ]);
+
+      // Build set of event IDs the student is registered for
+      if (myRegsResult.status === 'fulfilled') {
+        const registeredIds = new Set<string>(
+          (myRegsResult.value.registrations || [])
+            .filter((r: any) => r.status !== 'cancelled')
+            .map((r: any) => r.eventId as string)
+        );
+        setMyRegisteredEventIds(registeredIds);
+      }
+
+      const allEvents: any[] = [];
+      if (publishedResult.status === 'fulfilled') {
+        allEvents.push(...(publishedResult.value.events || []));
+      }
+      if (ongoingResult.status === 'fulfilled') {
+        allEvents.push(...(ongoingResult.value.events || []));
+      }
+
+      // Deduplicate by id, keep only upcoming (startDate >= today)
+      const seen = new Set<string>();
+      const upcoming = allEvents.filter((e: any) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        const eventStart = e.startDate ? new Date(e.startDate) : null;
+        return eventStart && eventStart >= today;
+      });
+
+      // Sort by startDate ascending
+      upcoming.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+      console.log(`✅ Fetched ${upcoming.length} real upcoming events`);
+      setUpcomingRealEvents(upcoming);
+    } catch (error) {
+      logger.error('Failed to fetch real events:', error);
+      setUpcomingRealEvents([]);
+    } finally {
+      setEventsLoading(false);
     }
   };
 
@@ -2702,7 +2770,9 @@ export default function StudentDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-3xl font-bold text-white">Upcoming Events</h3>
-                  <p className="text-cyan-100 mt-1">Campus events and activities</p>
+                  <p className="text-cyan-100 mt-1">
+                    {eventsLoading ? 'Loading...' : `${upcomingRealEvents.length} event${upcomingRealEvents.length !== 1 ? 's' : ''} you can register for`}
+                  </p>
                 </div>
                 <button
                   onClick={() => setActiveModal(null)}
@@ -2714,104 +2784,153 @@ export default function StudentDashboard() {
             </div>
             
             <div className="p-6">
-              <div className="grid gap-4">
-                {[
-                  { 
-                    id: 1, 
-                    title: 'Annual Tech Fest 2026', 
-                    date: '15th February', 
-                    time: '9:00 AM - 6:00 PM', 
-                    venue: 'Main Auditorium', 
-                    category: 'Technical',
-                    description: 'Join us for the biggest tech event of the year featuring coding competitions, hackathons, and tech talks',
-                    registrationLink: 'https://sgtuniversity.ac.in', // Placeholder - will be replaced
-                    image: '🎯'
-                  },
-                  { 
-                    id: 2, 
-                    title: 'Sports Week 2026', 
-                    date: '20th-25th February', 
-                    time: 'All Day', 
-                    venue: 'Sports Complex', 
-                    category: 'Sports',
-                    description: 'Inter-college sports competition including cricket, football, basketball, and athletics',
-                    registrationLink: 'https://sgtuniversity.ac.in',
-                    image: '⚽'
-                  },
-                  { 
-                    id: 3, 
-                    title: 'Cultural Night - Sangam 2026', 
-                    date: '28th February', 
-                    time: '6:00 PM - 10:00 PM', 
-                    venue: 'Open Air Theatre', 
-                    category: 'Cultural',
-                    description: 'Celebrate diversity with music, dance, drama and fashion shows from across India',
-                    registrationLink: 'https://sgtuniversity.ac.in',
-                    image: '🎭'
-                  },
-                ].map((event) => (
-                  <div key={event.id} className="p-6 bg-gradient-to-r from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl border-2 border-blue-300 dark:border-blue-700 hover:shadow-xl transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="text-6xl">{event.image}</div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{event.title}</h4>
-                            <span className="inline-block mt-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm font-semibold">
-                              {event.category}
-                            </span>
+              {eventsLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Loading events...</p>
+                </div>
+              ) : upcomingRealEvents.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <Calendar className="w-16 h-16 text-gray-300 dark:text-gray-600" />
+                  <p className="text-xl font-semibold text-gray-500 dark:text-gray-400">No Upcoming Events</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500">There are no published events you are eligible for right now.</p>
+                  <a
+                    href="https://sgt-event.vercel.app/student"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                  >
+                    Browse All Events <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {upcomingRealEvents.map((event: any) => {
+                    const startDate = event.startDate ? new Date(event.startDate) : null;
+                    const endDate = event.endDate ? new Date(event.endDate) : null;
+                    const formatDate = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                    const eventTypeIcons: Record<string, string> = {
+                      seminar: '🎓', workshop: '🔧', fest: '🎉', conference: '🏛️',
+                      competition: '🏆', cultural: '🎭', technical: '💻', sports: '⚽', other: '📌'
+                    };
+                    const icon = eventTypeIcons[event.eventType] || '📌';
+
+                    const isPaid = event.paymentType === 'paid';
+                    const fee = isPaid ? (event.registrationFee || event.teamRegistrationFee) : null;
+                    const isRegistered = myRegisteredEventIds.has(event.id);
+
+                    return (
+                      <div key={event.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all overflow-hidden">
+                        {/* Banner Image */}
+                        {event.bannerImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={event.bannerImageUrl}
+                            alt={event.name}
+                            className="w-full h-40 object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-full h-40 bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-7xl select-none">
+                            {icon}
                           </div>
-                        </div>
-                        
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{event.description}</p>
-                        
-                        <div className="grid grid-cols-3 gap-4 mb-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <p className="text-xs text-gray-500">Date</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.date}</p>
+                        )}
+                        <div className="p-5">
+                          <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+                              <div>
+                                <h4 className="text-xl font-bold text-gray-900 dark:text-white">{event.name}</h4>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold capitalize">
+                                    {event.eventType || 'Event'}
+                                  </span>
+                                  {event.status === 'ongoing' && (
+                                    <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">
+                                      🟢 Ongoing
+                                    </span>
+                                  )}
+                                  {isPaid && fee && (
+                                    <span className="inline-block px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-semibold">
+                                      ₹{fee} Entry
+                                    </span>
+                                  )}
+                                  {!isPaid && (
+                                    <span className="inline-block px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-semibold">
+                                      Free
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <p className="text-xs text-gray-500">Time</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.time}</p>
+
+                            {event.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{event.description}</p>
+                            )}
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                              {startDate && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-gray-500">Date</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                      {formatDate(startDate)}{endDate && endDate.toDateString() !== startDate.toDateString() ? ` – ${formatDate(endDate)}` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                              {startDate && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-gray-500">Time</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatTime(startDate)}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {event.venue && (
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-gray-500">Venue</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.venue}</p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <p className="text-xs text-gray-500">Venue</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.venue}</p>
+
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {isRegistered ? (
+                                <>
+                                  <div className="flex items-center gap-2 px-4 py-2.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-semibold">
+                                    <CheckCircle className="w-4 h-4" />
+                                    Registered
+                                  </div>
+                                  <a
+                                    href="/events/registrations"
+                                    className="flex-1 min-w-[120px] bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white py-2.5 rounded-lg font-semibold transition-colors text-center flex items-center justify-center gap-2 text-sm"
+                                  >
+                                    View Ticket <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                </>
+                              ) : (
+                                <a
+                                  href="https://sgt-event.vercel.app/student"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex-1 min-w-[120px] bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors text-center flex items-center justify-center gap-2 text-sm"
+                                >
+                                  Register Now <ExternalLink className="w-4 h-4" />
+                                </a>
+                              )}
                             </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <a
-                            href="https://sgt-event.vercel.app/student"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors text-center flex items-center justify-center gap-2"
-                          >
-                            Register Now <ExternalLink className="w-4 h-4" />
-                          </a>
-                          <a
-                            href={event.registrationLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2.5 border-2 border-blue-500 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors font-semibold flex items-center gap-2"
-                          >
-                            View Details <ExternalLink className="w-4 h-4" />
-                          </a>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3300,18 +3419,18 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      <div className="space-y-6" style={{ fontSize: '1.15em' }}>
+      <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
         {/* Welcome Section */}
         <FadeInUp delay={0.1}>
-          <div data-tour-id="welcome-section" className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-8 backdrop-blur-sm">
+          <div data-tour-id="welcome-section" className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-4 sm:p-6 lg:p-8 backdrop-blur-sm">
             {/* Main Grid: Left Content + Right Slideshow */}
-            <div className="grid lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
               {/* Left Side: Profile + Cards */}
-              <div className="lg:col-span-7 space-y-6">
+              <div className="lg:col-span-7 space-y-4 sm:space-y-6">
                 {/* Profile Section */}
-                <div className="flex items-start gap-6">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                   {/* Profile Picture */}
-                  <div data-tour-id="profile-picture" className="relative flex-shrink-0 group">
+                  <div data-tour-id="profile-picture" className="relative flex-shrink-0 group mx-auto sm:mx-0">
                     <div className="relative">
                       {/* Animated Ring */}
                       <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-75 group-hover:opacity-100 blur-md group-hover:blur-lg transition-all duration-300 animate-pulse"></div>
@@ -3346,41 +3465,41 @@ export default function StudentDashboard() {
                   </div>
 
                   {/* Greeting and Info */}
-                  <div className="flex-1">
-                    <p className="text-base text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 flex items-center gap-2 justify-center sm:justify-start">
                       <Clock className="w-4 h-4" />
                       {getCurrentDate()}
                     </p>
-                    <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-1 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                       {getGreeting()},
                     </h1>
-                    <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2 sm:mb-3">
                       {getUserName()}
                     </h2>
                     
-                    <div className="space-y-1 text-base">
-                      <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
-                        <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span><span className="font-semibold">Registration Number: </span> {studentData?.uid} | <span className="font-semibold">Section:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
+                    <div className="space-y-1 text-sm sm:text-base">
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
+                        <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm"><span className="font-semibold">Reg#:</span> {studentData?.uid} | <span className="font-semibold">Sec:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
                       </div>
-                      <div className="text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
+                      <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
                         {studentData?.program}
                       </div>
                     </div>
 
-                    <p className="mt-3 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    <p className="mt-2 sm:mt-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm leading-relaxed">
                       Welcome to your Student dashboard. Track your progress, manage your work, and stay connected.
                     </p>
                   </div>
                 </div>
 
                 {/* 5 Stats Cards in a row - With Internal Animations */}
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
                   {/* Happening Card - Warm Coral Theme */}
                   <div 
                     data-tour-id="happening-card"
                     onClick={() => setActiveModal('happening')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #dc2626 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3400,11 +3519,11 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <FileText className="w-5 h-5 drop-shadow-sm" />
+                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="w-2 h-2 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.happening}</p>
-                      <p className="text-sm font-medium opacity-90">Happening Now</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.happening}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Happening Now</p>
                     </div>
                   </div>
 
@@ -3412,7 +3531,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="messages-card"
                     onClick={() => setActiveModal('messages')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3429,11 +3548,11 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <MessageSquare className="w-5 h-5 drop-shadow-sm" />
+                        <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <span className="text-[8px] bg-white/25 px-1.5 py-0.5 rounded-full font-semibold">New</span>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.messages}</p>
-                      <p className="text-sm font-medium opacity-90">Messages</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.messages}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Messages</p>
                     </div>
                   </div>
 
@@ -3441,7 +3560,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="assignments-card"
                     onClick={() => setActiveModal('assignments')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3457,15 +3576,15 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <BookOpen className="w-5 h-5 drop-shadow-sm" />
+                        <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="flex gap-0.5">
                           <div className="w-1.5 h-3 bg-white/40 rounded-full"></div>
                           <div className="w-1.5 h-2 bg-white/30 rounded-full mt-1"></div>
                           <div className="w-1.5 h-2.5 bg-white/35 rounded-full mt-0.5"></div>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.assignments}</p>
-                      <p className="text-sm font-medium opacity-90">Assignments</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.assignments}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Assignments</p>
                     </div>
                   </div>
 
@@ -3473,7 +3592,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="events-card"
                     onClick={() => setActiveModal('events')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 50%, #0f766e 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3492,20 +3611,22 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <Calendar className="w-5 h-5 drop-shadow-sm" />
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="w-5 h-5 rounded-full border-2 border-white/30 flex items-center justify-center">
                           <div className="w-1.5 h-1.5 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '1.5s' }}></div>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.events}</p>
-                      <p className="text-sm font-medium opacity-90">Upcoming Events</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">
+                        {eventsLoading ? '...' : upcomingRealEvents.length}
+                      </p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Upcoming Events</p>
                     </div>
                   </div>
 
                   {/* Fees Card - Forest Green Theme */}
                   <div 
                     data-tour-id="fees-card"
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3522,7 +3643,7 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <svg className="w-5 h-5 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div className="flex items-center gap-0.5">
@@ -3531,14 +3652,14 @@ export default function StudentDashboard() {
                           </svg>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">₹0</p>
-                      <p className="text-sm font-medium opacity-90">Fees Cleared</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">₹0</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Fees Cleared</p>
                     </div>
                   </div>
                 </div>
 
                 {/* CGPA and Attendance Cards - Side by Side - SGT Theme */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* CGPA Card - Academic Blue Theme */}
                   <div 
                     data-tour-id="cgpa-card"
@@ -3808,7 +3929,7 @@ export default function StudentDashboard() {
                             const currentDate = new Date(year, month, day);
                             // Use local date formatting to avoid timezone issues
                             const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            const dayEvents = academicCalendarEvents.filter(e => e.date === dateString);
+                            const dayEvents = allCalendarEvents.filter(e => e.date === dateString);
                             const filteredEvents = calendarFilter === 'all' 
                               ? dayEvents 
                               : dayEvents.filter(e => e.type === calendarFilter);
@@ -3914,7 +4035,7 @@ export default function StudentDashboard() {
           const month = selectedDate!.getMonth() + 1;
           const day = selectedDate!.getDate();
           const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const dayEvents = academicCalendarEvents.filter(e => e.date === dateString);
+          const dayEvents = allCalendarEvents.filter(e => e.date === dateString);
           const filteredEvents = calendarFilter === 'all' 
             ? dayEvents 
             : dayEvents.filter(e => e.type === calendarFilter);
@@ -3940,9 +4061,22 @@ export default function StudentDashboard() {
                   // Check if this is an exam with detailed info
                   const isExamWithDetails = event.type === 'exam' && (event as any).courseCode;
                   const examDetails = event as any;
+                  // Check if this is a real API event
+                  const isRealEvent = !!(event as any).realEventId;
+                  const realEvent = event as any;
 
                   return (
                     <div key={idx} className={idx > 0 ? 'border-t-4 border-gray-200 dark:border-gray-700' : ''}>
+                      {/* Banner image for real events */}
+                      {isRealEvent && realEvent.bannerImageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={realEvent.bannerImageUrl}
+                          alt={event.title}
+                          className="w-full h-36 object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      )}
                       <div className={`bg-gradient-to-r ${headerColors[event.type]} p-5 text-white relative overflow-hidden`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full -ml-12 -mb-12"></div>
@@ -3951,6 +4085,9 @@ export default function StudentDashboard() {
                             <h4 className="font-bold text-xl leading-tight">{event.title}</h4>
                             {isExamWithDetails && (
                               <p className="text-white/80 text-sm mt-1">{examDetails.courseCode}</p>
+                            )}
+                            {isRealEvent && (
+                              <p className="text-white/80 text-sm mt-1 capitalize">{realEvent.eventType || 'University Event'}</p>
                             )}
                           </div>
                           {idx === 0 && (
@@ -3983,7 +4120,11 @@ export default function StudentDashboard() {
                               <span className="text-xs font-medium">Time</span>
                             </div>
                             <p className="text-sm font-bold text-gray-900 dark:text-white">
-                              {isExamWithDetails ? examDetails.time : 'All Day'}
+                              {isExamWithDetails
+                                ? examDetails.time
+                                : isRealEvent && realEvent.startDateRaw
+                                  ? new Date(realEvent.startDateRaw).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                                  : 'All Day'}
                             </p>
                           </div>
                         </div>
@@ -4054,6 +4195,35 @@ export default function StudentDashboard() {
                           </div>
                         )}
 
+                        {/* Venue for real events */}
+                        {isRealEvent && realEvent.venue && (
+                          <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-3 border border-teal-100 dark:border-teal-800 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                            <div>
+                              <p className="text-xs text-teal-600 dark:text-teal-400 font-medium">Venue</p>
+                              <p className="text-sm font-bold text-gray-900 dark:text-white">{realEvent.venue}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Payment badge for real events */}
+                        {isRealEvent && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {realEvent.paymentType === 'paid' ? (
+                              <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-semibold">
+                                ₹{realEvent.registrationFee || realEvent.teamRegistrationFee} Entry Fee
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-semibold">
+                                Free Entry
+                              </span>
+                            )}
+                            {realEvent.status === 'ongoing' && (
+                              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">🟢 Ongoing</span>
+                            )}
+                          </div>
+                        )}
+
                         {/* Description for non-exam events */}
                         {!isExamWithDetails && event.description && (
                           <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl p-4">
@@ -4066,6 +4236,34 @@ export default function StudentDashboard() {
                             <p className="text-sm text-gray-700 dark:text-gray-300">{event.description}</p>
                           </div>
                         )}
+
+                        {/* Register / View Ticket button for real events */}
+                        {isRealEvent && (() => {
+                          const calRegistered = myRegisteredEventIds.has(realEvent.realEventId);
+                          return calRegistered ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-xl text-sm font-semibold">
+                                <CheckCircle className="w-4 h-4" />
+                                You are Registered!
+                              </div>
+                              <a
+                                href="/events/registrations"
+                                className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white py-3 rounded-xl font-semibold transition-all text-center flex items-center justify-center gap-2 text-sm"
+                              >
+                                View Ticket <ExternalLink className="w-4 h-4" />
+                              </a>
+                            </div>
+                          ) : (
+                            <a
+                              href="https://sgt-event.vercel.app/student"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white py-3 rounded-xl font-semibold transition-all text-center flex items-center justify-center gap-2 text-sm"
+                            >
+                              Register Now <ExternalLink className="w-4 h-4" />
+                            </a>
+                          );
+                        })()}
 
                         {idx === filteredEvents.length - 1 && (
                           <button
@@ -4086,12 +4284,12 @@ export default function StudentDashboard() {
 
         {/* Quick Access Section - White with Blue Border */}
         <FadeInUp delay={0.3}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Quick Access</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Quick Access</h2>
             
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
               {/* Today's Timetable */}
-              <div data-tour-id="todays-timetable" className="bg-white dark:bg-gray-800 rounded-xl p-4 border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col h-[420px]"
+              <div data-tour-id="todays-timetable" className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col min-h-[350px] sm:h-[420px]"
                 style={{ boxShadow: '0 4px 20px rgba(59, 130, 246, 0.15)' }}
               >
                 <div className="flex items-center gap-2 mb-3">

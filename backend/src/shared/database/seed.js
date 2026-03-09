@@ -277,6 +277,20 @@ const seedDatabase = async () => {
     });
     console.log('✅ Central Team Central Department created');
 
+    const iprDepartment = await prisma.centralDepartment.upsert({
+      where: { departmentCode: 'IPR' },
+      update: {},
+      create: {
+        departmentCode: 'IPR',
+        departmentName: 'Intellectual Property Rights',
+        shortName: 'IPR',
+        departmentType: 'ipr',
+        isActive: true,
+        headOfDepartmentId: admin.id
+      }
+    });
+    console.log('✅ IPR Central Department created');
+
     await prisma.centralDepartmentPermission.upsert({
       where: {
         userId_centralDeptId: { userId: admin.id, centralDeptId: dswDepartment.id }

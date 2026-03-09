@@ -9,6 +9,8 @@ import { useTheme } from '@/shared/providers/ThemeProvider';
 import api from '@/shared/api/api';
 import Link from 'next/link';
 import logger from '@/shared/utils/logger';
+import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
+import { useMyClubs } from '@/features/dsw/hooks';
 
 interface DepartmentPermission {
   category: string;
@@ -86,7 +88,16 @@ export default function NavigationHeader() {
 
   const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
+  const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
   const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+  const { data: notingPermsData } = useNotingPermissions({ enabled: !!isStudent });
+  const { data: myClubsData } = useMyClubs();
+  const isClubChairpersonFromNoting = !!notingPermsData?.isClubChairperson;
+  const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
+    club => club.chairpersonId === user.id && club.status === 'active'
+  ));
+  const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
+  const canBrowseEvents = true;
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
@@ -310,6 +321,32 @@ export default function NavigationHeader() {
   // Level 1: Academics, Research and Development
   // Level 2 (under R&D): Submit & Track, Review & Approve
   // ============================================
+  // ============================================
+  // Build TMS (Ticket Management) children - role-based
+  // === TMS HIDDEN — Development in progress ===
+  // Uncomment the block below to re-enable Ticket Management in navigation
+  // ============================================
+  const tmsChildren: SubMenuItem[] = [];
+  /*
+  if (isStudent) {
+    tmsChildren.push(
+      { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
+      { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
+    );
+  }
+  if (isFaculty || isStaff || isAdmin) {
+    tmsChildren.push(
+      { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
+    );
+  }
+  if (isAdmin) {
+    tmsChildren.push(
+      { name: '📊 TMS Dashboard', href: '/tms/admin', description: 'Analytics & overview' },
+      { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
+    );
+  }
+  */
+
   const navigationSubItems: SubMenuItem[] = [
     // Academics
     {
@@ -324,7 +361,26 @@ export default function NavigationHeader() {
         { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
       ],
     },
+    // Events & Stalls
+    {
+      name: '🎪 Events & Stalls',
+      description: 'Browse events and stall opportunities',
+      children: [
+        ...(canBrowseEvents ? [{ name: '📅 All Events', href: '/events', description: 'Browse and register for events' }] : []),
+        { name: '🪄 Stall Opportunities', href: '/events/stall-opportunities', description: 'Apply for stalls at events' },
+        { name: '📋 My Registrations', href: '/events/registrations', description: 'View your event registrations' },
+      ],
+    },
   ];
+
+  const eventsMenu = navigationSubItems.find((item) => item.name === '🎪 Events & Stalls');
+  if (eventsMenu?.children && (isFaculty || isClubChairperson)) {
+    eventsMenu.children.splice(1, 0, {
+      name: '📝 My Created Events',
+      href: '/events/my-events',
+      description: 'Manage events you organized',
+    });
+  }
 
   // Add Research and Development if there are sub-items
   if (rndSubItems.length > 0) {
@@ -332,6 +388,15 @@ export default function NavigationHeader() {
       name: '🔬 Research & Development',
       description: 'Research, Patents & Reviews',
       children: rndSubItems,
+    });
+  }
+
+  // Add Ticket Management if there are sub-items
+  if (tmsChildren.length > 0) {
+    navigationSubItems.push({
+      name: '🎫 Ticket Management',
+      description: 'Grievances, Assistance & Enquiries',
+      children: tmsChildren,
     });
   }
 
@@ -385,7 +450,20 @@ export default function NavigationHeader() {
             { name: '👨‍🏫 Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
             { name: '👨‍🎓 Students', href: '/admin/students', description: 'Manage student records' },
             { name: '🔐 Role Permissions', href: '/admin/permissions', description: 'Configure access rights' },
-            { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+            { name: '� Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
+            { name: '�📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+          ],
+        },
+        
+        // Gate Entry Management
+        {
+          name: '🚪 Gate Entry',
+          description: 'Manage campus gate entries',
+          children: [
+            { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' },
+            { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' },
+            { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' },
+            { name: '📊 Analytics', href: '/admin/gate-entry/analytics', description: 'Comprehensive analytics & insights' },
           ],
         },
       ],

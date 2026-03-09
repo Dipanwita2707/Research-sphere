@@ -429,6 +429,7 @@ const updateStudent = async (req, res) => {
       sectionId,
       mentorId,
       currentSemester,
+      admissionDate,
       dateOfBirth,
       gender,
       bloodGroup,
@@ -451,7 +452,7 @@ const updateStudent = async (req, res) => {
 
     // If mentorId is being set/updated, validate mentor is faculty in same department
     const effectiveProgramId = programId || existingStudent.programId;
-    if (mentorId !== undefined) {
+    if (mentorId) {
       if (!effectiveProgramId) {
         return res.status(400).json({
           success: false,
@@ -494,18 +495,17 @@ const updateStudent = async (req, res) => {
       displayName,
       phone: phone !== undefined ? phone : existingStudent.phone,
       programId: programId || existingStudent.programId,
-      sectionId: sectionId || existingStudent.sectionId,
+      sectionId: sectionId !== undefined ? (sectionId || null) : existingStudent.sectionId,
       currentSemester: currentSemester ? parseInt(currentSemester) : existingStudent.currentSemester,
+      admissionDate: admissionDate ? new Date(admissionDate) : existingStudent.admissionDate,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existingStudent.dateOfBirth,
       gender: gender !== undefined ? gender : existingStudent.gender,
       bloodGroup: bloodGroup !== undefined ? bloodGroup : existingStudent.bloodGroup,
       parentContact: parentContact !== undefined ? parentContact : existingStudent.parentContact,
       emergencyContact: emergencyContact !== undefined ? emergencyContact : existingStudent.emergencyContact,
       address: address !== undefined ? address : existingStudent.address,
+      mentorId: mentorId !== undefined ? (mentorId || null) : existingStudent.mentorId,
     };
-    if (mentorId !== undefined) {
-      updateData.mentorId = mentorId || null;
-    }
 
     const updatedStudent = await prisma.studentDetails.update({
       where: { id },
@@ -575,7 +575,7 @@ const toggleStudentStatus = async (req, res) => {
       if (student.userLoginId) {
         await tx.userLogin.update({
           where: { id: student.userLoginId },
-          data: { isActive: !student.isActive },
+          data: { status: student.isActive ? 'inactive' : 'active' },
         });
       }
     });
