@@ -557,27 +557,28 @@ export default function StudentManagement() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student ID <span className="text-red-500">*</span>
+                        Student ID / Registration No <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         value={formData.studentId}
-                        onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setFormData({ ...formData, studentId: value, registrationNo: value });
+                        }}
                         disabled={!!editingStudent}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
+                        placeholder="Enter student ID (same as registration number)"
                         required
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Registration No <span className="text-red-500">*</span>
-                      </label>
+                    <div className="hidden">
                       <input
                         type="text"
                         value={formData.registrationNo}
                         onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        tabIndex={-1}
                       />
                     </div>
                     <div>
