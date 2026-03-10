@@ -165,7 +165,13 @@ const getNavItems = (
     });
   }
   
+<<<<<<< HEAD
   // Event Management - Not for staff/guard role (gate entry only access) (some items restricted)
+=======
+  // Event Management - Not for staff/guard role (gate entry only access)
+  if (!isStaff) items.push({
+  // Event Management - Available for all authenticated users (some items restricted)
+>>>>>>> cc0604855d357b93a99de816e8ea27d790c6c986
   const eventSubItems: NavItem[] = [
     ...(canBrowseEvents ? [{ name: 'Browse Events', href: '/events', icon: List }] : []),
     { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
@@ -181,7 +187,11 @@ const getNavItems = (
   if (hasVolunteerAssignments) {
     eventSubItems.push({ name: 'Volunteer', href: '/events/volunteer', icon: Shield });
   }
+<<<<<<< HEAD
   if (!isStaff) items.push({
+=======
+  items.push({
+>>>>>>> cc0604855d357b93a99de816e8ea27d790c6c986
     name: 'Event Management',
     href: canBrowseEvents ? '/events' : '/events/registrations',
     icon: Calendar,
