@@ -16,7 +16,7 @@ export default function VolunteersRedirect() {
   }, [eventId, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+    <div className="min-h-screen bg-[#f8fafc] dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
       <div className="text-center">
         <CardSkeleton className="w-full max-w-sm mx-auto mb-4" />
         <p className="text-gray-600 dark:text-gray-400 font-medium">Redirecting to Event Management...</p>

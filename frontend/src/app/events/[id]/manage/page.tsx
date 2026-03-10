@@ -394,8 +394,14 @@ export default function ManageEventPage() {
   };
   const removeFAQ = (i: number) => setFaqs(faqs.filter((_, idx) => idx !== i));
 
+  const isPrizeConfigLocked = !!event?.notingId;
+
   // Prize management
   const openAddPrize = () => {
+    if (isPrizeConfigLocked) {
+      toast({ type: 'error', message: 'Prize configuration is locked because it was defined in noting.' });
+      return;
+    }
     setEditingPrize({
       position: prizes.length + 1,
       rank: prizes.length === 0 ? 'Winner' : prizes.length === 1 ? 'First Runner Up' : prizes.length === 2 ? 'Second Runner Up' : `Position ${prizes.length + 1}`,
@@ -409,11 +415,19 @@ export default function ManageEventPage() {
   };
 
   const openEditPrize = (prize: EventPrize) => {
+    if (isPrizeConfigLocked) {
+      toast({ type: 'error', message: 'Prize configuration is locked because it was defined in noting.' });
+      return;
+    }
     setEditingPrize({ ...prize });
     setShowPrizeModal(true);
   };
 
   const savePrize = () => {
+    if (isPrizeConfigLocked) {
+      toast({ type: 'error', message: 'Prize configuration is locked because it was defined in noting.' });
+      return;
+    }
     if (!editingPrize || !editingPrize.rank.trim()) {
       toast({ type: 'error', message: 'Rank is required' });
       return;
@@ -428,6 +442,10 @@ export default function ManageEventPage() {
   };
 
   const deletePrize = (prizeId: string) => {
+    if (isPrizeConfigLocked) {
+      toast({ type: 'error', message: 'Prize configuration is locked because it was defined in noting.' });
+      return;
+    }
     setPrizes(prizes.filter(p => p.id !== prizeId));
   };
 
@@ -604,7 +622,7 @@ export default function ManageEventPage() {
       const updated = await eventService.updateEvent(eventId, buildUpdateData());
       
       // Save prizes if enabled
-      if (prizesEnabled && prizes.length > 0) {
+      if (!isPrizeConfigLocked && prizesEnabled && prizes.length > 0) {
         await eventService.bulkUpsertPrizes(eventId, prizes);
       }
       
@@ -627,7 +645,7 @@ export default function ManageEventPage() {
       await eventService.updateEvent(eventId, buildUpdateData());
       
       // Save prizes if enabled
-      if (prizesEnabled && prizes.length > 0) {
+      if (!isPrizeConfigLocked && prizesEnabled && prizes.length > 0) {
         await eventService.bulkUpsertPrizes(eventId, prizes);
       }
       
@@ -645,7 +663,7 @@ export default function ManageEventPage() {
   // --- Loading ---
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
         <PageSkeleton message="Loading event..." />
       </div>
     );
@@ -654,12 +672,12 @@ export default function ManageEventPage() {
   // --- Not Found ---
   if (!event) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Event Not Found</h2>
+          <h2 className="text-lg font-bold text-ev-900 dark:text-white mb-1">Event Not Found</h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">The event you&apos;re looking for doesn&apos;t exist.</p>
-          <Link href="/events" className="inline-flex items-center gap-2 px-5 py-2.5 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 transition-colors">
+          <Link href="/events" className="inline-flex items-center gap-2 px-5 py-2.5 bg-ev-700 text-white text-sm font-medium rounded-md hover:bg-ev-800 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Events
           </Link>
         </div>
@@ -672,21 +690,21 @@ export default function ManageEventPage() {
     <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">{children}</h3>
   );
 
-  const inputClass = 'w-full px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-1 focus:ring-sgt-500 focus:border-sgt-500 outline-none';
+  const inputClass = 'w-full px-3 py-2.5 text-sm border border-[#b3cde0] dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-ev-900 dark:text-white focus:ring-1 focus:ring-ev-700 focus:border-ev-700 outline-none';
   const inputErrClass = (field: string) => fieldErrors[field] ? 'border-red-400 dark:border-red-500 focus:ring-red-400 focus:border-red-400' : '';
   const FieldError = ({ field }: { field: string }) => fieldErrors[field] ? (
     <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3 shrink-0" />{fieldErrors[field]}</p>
   ) : null;
 
   const radioClass = (active: boolean) =>
-    `flex items-center gap-2.5 p-3 border rounded-md cursor-pointer transition-colors ${active ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'}`;
+    `flex items-center gap-2.5 p-3 border rounded-md cursor-pointer transition-colors ${active ? 'border-[#b3cde0] bg-ev-50/50 dark:bg-ev-900/10' : 'border-[#b3cde0] dark:border-gray-600 hover:border-gray-300'}`;
 
   const checkboxClass = (active: boolean) =>
-    `flex items-center gap-3 p-2.5 border rounded-md cursor-pointer transition-colors ${active ? 'border-sgt-400 bg-sgt-50/50 dark:bg-sgt-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'}`;
+    `flex items-center gap-3 p-2.5 border rounded-md cursor-pointer transition-colors ${active ? 'border-[#b3cde0] bg-ev-50/50 dark:bg-ev-900/10' : 'border-[#b3cde0] dark:border-gray-600 hover:border-gray-300'}`;
 
   const statusColors: Record<string, string> = {
     draft: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-    published: 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300',
+    published: 'bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200',
     ongoing: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300',
     completed: 'bg-purple-50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-300',
     cancelled: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300',
@@ -703,25 +721,25 @@ export default function ManageEventPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-6 px-4">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-6 px-4">
       <div className="max-w-[850px] mx-auto">
         {/* Navigation */}
         <Link
           href="/events/my-events"
-          className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 transition-colors mb-5"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-ev-700 transition-colors mb-5"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to My Events
         </Link>
 
         {/* ===== A4 Document Sheet ===== */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#b3cde0] dark:border-gray-700 shadow-ev overflow-hidden">
 
           {/* ── Document Header ── */}
-          <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-5">
+          <div className="border-b border-[#b3cde0] dark:border-gray-700 px-4 sm:px-8 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Event Update</h1>
+                <h1 className="text-xl font-bold text-ev-900 dark:text-white">Event Update</h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                   Update event details and configuration. Locked fields were set during noting approval.
                 </p>
@@ -730,14 +748,14 @@ export default function ManageEventPage() {
                 {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
               </span>
             </div>
-            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-sgt-50 dark:bg-sgt-900/20 border border-sgt-100 dark:border-sgt-800">
+            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-ev-50 dark:bg-ev-900/20 border border-ev-200 dark:border-ev-800">
               <span className="text-[10px] font-semibold text-gray-400 uppercase">Event ID</span>
-              <span className="font-mono text-sm font-semibold text-sgt-700 dark:text-sgt-300">{event.eventId}</span>
+              <span className="font-mono text-sm font-semibold text-ev-800 dark:text-ev-200">{event.eventId}</span>
             </div>
           </div>
 
           {/* ── Step Navigation ── */}
-          <div className="border-b border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 bg-gray-50 dark:bg-gray-900/30">
+          <div className="border-b border-[#b3cde0] dark:border-gray-700 px-4 sm:px-8 py-4 bg-gray-50 dark:bg-gray-900/30">
             <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto scrollbar-hide">
               {STEPS.map((step, idx) => {
                 const Icon = step.icon;
@@ -748,13 +766,13 @@ export default function ManageEventPage() {
                     <button
                       onClick={() => setCurrentStep(step.id)}
                       className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap min-h-[44px] ${
-                        isActive ? 'bg-sgt-600 text-white' : isCompleted ? 'bg-sgt-100 text-sgt-700 dark:bg-sgt-900/20 dark:text-sgt-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                        isActive ? 'bg-ev-700 text-white' : isCompleted ? 'bg-ev-100 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
                     >
                       {isCompleted ? <CheckCircle className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
                       <span>{step.name}</span>
                     </button>
-                    {idx < STEPS.length - 1 && <div className={`h-0.5 w-8 ${currentStep > step.id ? 'bg-sgt-400' : 'bg-gray-200 dark:bg-gray-600'}`} />}
+                    {idx < STEPS.length - 1 && <div className={`h-0.5 w-8 ${currentStep > step.id ? 'bg-ev-400' : 'bg-gray-200 dark:bg-gray-600'}`} />}
                   </React.Fragment>
                 );
               })}
@@ -770,7 +788,7 @@ export default function ManageEventPage() {
             {/* ====== Locked Fields (from Noting) ====== */}
             <section>
               <SectionLabel>Locked Fields (from Noting)</SectionLabel>
-              <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md border border-gray-100 dark:border-gray-700 p-4">
+              <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md border border-[#b3cde0] dark:border-gray-700 p-4">
                 <div className="flex items-start gap-2 mb-3">
                   <Lock className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -780,21 +798,21 @@ export default function ManageEventPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   <div className="flex gap-2">
                     <span className="text-gray-400 font-medium min-w-[80px]">Name:</span>
-                    <span className="text-gray-900 dark:text-white font-medium">{event.name}</span>
+                    <span className="text-ev-900 dark:text-white font-medium">{event.name}</span>
                   </div>
                   <div className="flex gap-2">
                     <span className="text-gray-400 font-medium min-w-[80px]">Type:</span>
-                    <span className="text-gray-900 dark:text-white capitalize">{event.eventType}</span>
+                    <span className="text-ev-900 dark:text-white capitalize">{event.eventType}</span>
                   </div>
                   <div className="flex gap-2">
                     <span className="text-gray-400 font-medium min-w-[80px]">Start:</span>
-                    <span className="text-gray-900 dark:text-white">
+                    <span className="text-ev-900 dark:text-white">
                       {new Date(event.startDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                     </span>
                   </div>
                   <div className="flex gap-2">
                     <span className="text-gray-400 font-medium min-w-[80px]">End:</span>
-                    <span className="text-gray-900 dark:text-white">
+                    <span className="text-ev-900 dark:text-white">
                       {new Date(event.endDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}
                     </span>
                   </div>
@@ -810,12 +828,12 @@ export default function ManageEventPage() {
                   </div>
                   <div className="flex gap-2 items-center">
                     <span className="text-gray-400 font-medium min-w-[80px]">Participation:</span>
-                    <span className="text-gray-900 dark:text-white capitalize">{participationType || event.participationType || 'individual'}</span>
+                    <span className="text-ev-900 dark:text-white capitalize">{participationType || event.participationType || 'individual'}</span>
                   </div>
                   {event.notingId && (
                     <div className="flex gap-2 items-center">
                       <span className="text-gray-400 font-medium min-w-[80px]">Noting:</span>
-                      <Link href={`/noting/${event.notingId}`} className="text-sgt-600 hover:text-sgt-700 dark:text-sgt-400 flex items-center gap-1 text-sm">
+                      <Link href={`/noting/${event.notingId}`} className="text-ev-700 hover:text-ev-800 dark:text-ev-400 flex items-center gap-1 text-sm">
                         View Noting <ExternalLink className="w-3 h-3" />
                       </Link>
                     </div>
@@ -834,19 +852,19 @@ export default function ManageEventPage() {
                     Event Banner <span className="text-xs text-gray-400 font-normal">(Recommended: 1200×400px)</span>
                   </label>
                   {bannerPreview ? (
-                    <div className="relative group rounded-md overflow-hidden border border-gray-200 dark:border-gray-600">
+                    <div className="relative group rounded-md overflow-hidden border border-[#b3cde0] dark:border-gray-600">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={bannerPreview} alt="Banner" className="w-full h-40 object-cover" />
                       <button
                         onClick={() => handleRemoveImage('banner')}
                         type="button"
-                        className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-800/90 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity border border-gray-200 dark:border-gray-600"
+                        className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-800/90 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity border border-[#b3cde0] dark:border-gray-600"
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-md cursor-pointer hover:border-sgt-400 transition-colors">
+                    <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-[#b3cde0] dark:border-gray-600 rounded-md cursor-pointer hover:border-[#b3cde0] transition-colors">
                       <Upload className="w-6 h-6 text-gray-300 mb-2" />
                       <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload banner</p>
                       <p className="text-xs text-gray-400 mt-0.5">PNG, JPG up to 5MB</p>
@@ -865,19 +883,19 @@ export default function ManageEventPage() {
                     Event Logo <span className="text-xs text-gray-400 font-normal">(Recommended: 300×300px)</span> <span className="text-red-500">*</span>
                   </label>
                   {logoPreview ? (
-                    <div className="relative group rounded-md overflow-hidden border border-gray-200 dark:border-gray-600 inline-block">
+                    <div className="relative group rounded-md overflow-hidden border border-[#b3cde0] dark:border-gray-600 inline-block">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={logoPreview} alt="Logo" className="w-24 h-24 object-cover" />
                       <button
                         onClick={() => handleRemoveImage('logo')}
                         type="button"
-                        className="absolute top-1 right-1 p-1 bg-white/90 dark:bg-gray-800/90 text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity border border-gray-200 dark:border-gray-600"
+                        className="absolute top-1 right-1 p-1 bg-white/90 dark:bg-gray-800/90 text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity border border-[#b3cde0] dark:border-gray-600"
                       >
                         <X className="w-3 h-3" />
                       </button>
                     </div>
                   ) : (
-                    <label className={`flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed rounded-md cursor-pointer hover:border-sgt-400 transition-colors ${fieldErrors.logo ? 'border-red-400' : 'border-gray-200 dark:border-gray-600'}`}>
+                    <label className={`flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed rounded-md cursor-pointer hover:border-[#b3cde0] transition-colors ${fieldErrors.logo ? 'border-red-400' : 'border-[#b3cde0] dark:border-gray-600'}`}>
                       <Upload className="w-5 h-5 text-gray-300 mb-1" />
                       <p className="text-[10px] text-gray-400 text-center">Upload</p>
                       <input
@@ -921,7 +939,7 @@ export default function ManageEventPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                     Detailed Description <span className="text-red-500">*</span>
                   </label>
-                  <div className={`noting-description-editor border rounded-md bg-white dark:bg-gray-700 transition-colors ${fieldErrors.longDescription ? 'border-red-400 dark:border-red-500' : 'border-gray-200 dark:border-gray-600 focus-within:border-sgt-500'}`}>
+                  <div className={`noting-description-editor border rounded-md bg-white dark:bg-gray-700 transition-colors ${fieldErrors.longDescription ? 'border-red-400 dark:border-red-500' : 'border-[#b3cde0] dark:border-gray-600 focus-within:border-ev-700'}`}>
                     {typeof window !== 'undefined' && ReactQuill && (
                       <ReactQuill
                         theme="snow"
@@ -991,9 +1009,9 @@ export default function ManageEventPage() {
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                       </label>
                       {event.notingId ? (
-                        <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md cursor-not-allowed">
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-gray-700/50 border border-[#b3cde0] dark:border-gray-600 rounded-md cursor-not-allowed">
                           <IndianRupee className="w-4 h-4 text-gray-400 shrink-0" />
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white">{registrationFee !== '' ? registrationFee : '—'}</span>
+                          <span className="text-sm font-semibold text-ev-900 dark:text-white">{registrationFee !== '' ? registrationFee : '—'}</span>
                           <span className="text-xs text-amber-600 dark:text-amber-400 ml-auto">Locked from Noting</span>
                         </div>
                       ) : (
@@ -1020,9 +1038,9 @@ export default function ManageEventPage() {
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                       </label>
                       {event.notingId ? (
-                        <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md cursor-not-allowed">
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 dark:bg-gray-700/50 border border-[#b3cde0] dark:border-gray-600 rounded-md cursor-not-allowed">
                           <IndianRupee className="w-4 h-4 text-gray-400 shrink-0" />
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white">{teamRegistrationFee !== '' ? teamRegistrationFee : '—'}</span>
+                          <span className="text-sm font-semibold text-ev-900 dark:text-white">{teamRegistrationFee !== '' ? teamRegistrationFee : '—'}</span>
                           <span className="text-xs text-amber-600 dark:text-amber-400 ml-auto">Locked from Noting</span>
                         </div>
                       ) : (
@@ -1083,7 +1101,7 @@ export default function ManageEventPage() {
                                 checked={checked}
                                 onChange={() => !event.notingId && setDutyLeaveEligibility(prev => checked ? prev.filter(x => x !== opt.value) : [...prev, opt.value])}
                                 disabled={!!event.notingId}
-                                className="w-4 h-4 text-sgt-600 rounded disabled:cursor-not-allowed"
+                                className="w-4 h-4 text-ev-700 rounded disabled:cursor-not-allowed"
                               />
                               <span>{opt.label}</span>
                             </label>
@@ -1100,7 +1118,7 @@ export default function ManageEventPage() {
                                 checked={dutyLeaveRoleType === opt.value}
                                 onChange={() => !event.notingId && setDutyLeaveRoleType(opt.value)}
                                 disabled={!!event.notingId}
-                                className="w-4 h-4 text-sgt-600 disabled:cursor-not-allowed"
+                                className="w-4 h-4 text-ev-700 disabled:cursor-not-allowed"
                               />
                               <span>{opt.label}</span>
                             </label>
@@ -1131,12 +1149,12 @@ export default function ManageEventPage() {
                           type="checkbox"
                           checked={showSponsorshipPublicly}
                           onChange={(e) => setShowSponsorshipPublicly(e.target.checked)}
-                          className="w-4 h-4 text-sgt-600 rounded"
+                          className="w-4 h-4 text-ev-700 rounded"
                         />
                         Show sponsorship to users on event page (creator decides at publish)
                       </label>
                       {sponsors.map((s, i) => (
-                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md min-w-0">
+                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-[#b3cde0] dark:border-gray-600 rounded-md min-w-0">
                           <input value={s.name} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Sponsor name" disabled={!!event.notingId} className={`${inputClass} !w-auto flex-1 min-w-0 disabled:cursor-not-allowed`} />
                           <select value={s.type} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`}>
                             <option value="cash">Cash</option>
@@ -1150,7 +1168,7 @@ export default function ManageEventPage() {
                           {!event.notingId && <button type="button" onClick={() => setSponsors(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
                         </div>
                       ))}
-                      {!event.notingId && <button type="button" onClick={() => setSponsors(prev => [...prev, { name: '', amount: 0, type: 'cash' }])} className="text-sm text-sgt-600 hover:text-sgt-700">+ Add sponsor</button>}
+                      {!event.notingId && <button type="button" onClick={() => setSponsors(prev => [...prev, { name: '', amount: 0, type: 'cash' }])} className="text-sm text-ev-700 hover:text-ev-800">+ Add sponsor</button>}
                     </div>
                   )}
                 </div>
@@ -1171,7 +1189,7 @@ export default function ManageEventPage() {
                   {hasResources && (
                     <div className="mt-2 space-y-2">
                       {resources.map((r, i) => (
-                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-gray-200 dark:border-gray-600 rounded-md min-w-0">
+                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-[#b3cde0] dark:border-gray-600 rounded-md min-w-0">
                           <select value={r.category} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, category: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`}>
                             <option value="internal">Internal</option>
                             <option value="external">External</option>
@@ -1182,7 +1200,7 @@ export default function ManageEventPage() {
                           {!event.notingId && <button type="button" onClick={() => setResources(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
                         </div>
                       ))}
-                      {!event.notingId && <button type="button" onClick={() => setResources(prev => [...prev, { category: 'internal', type: '', description: '' }])} className="text-sm text-sgt-600 hover:text-sgt-700">+ Add resource</button>}
+                      {!event.notingId && <button type="button" onClick={() => setResources(prev => [...prev, { category: 'internal', type: '', description: '' }])} className="text-sm text-ev-700 hover:text-ev-800">+ Add resource</button>}
                     </div>
                   )}
                 </div>
@@ -1264,7 +1282,7 @@ export default function ManageEventPage() {
                   <textarea value={rulesAndGuidelines} onChange={(e) => setRulesAndGuidelines(e.target.value)} rows={2} className={inputClass} placeholder="Event rules..." />
                 </div>
                 <label className={`${checkboxClass(certificateAvailable)} ${event?.notingId ? 'opacity-75 cursor-not-allowed' : ''}`}>
-                  <input type="checkbox" checked={certificateAvailable} onChange={(e) => !event?.notingId && setCertificateAvailable(e.target.checked)} disabled={!!event?.notingId} className="w-4 h-4 text-sgt-600 rounded focus:ring-sgt-500 disabled:cursor-not-allowed" />
+                  <input type="checkbox" checked={certificateAvailable} onChange={(e) => !event?.notingId && setCertificateAvailable(e.target.checked)} disabled={!!event?.notingId} className="w-4 h-4 text-ev-700 rounded focus:ring-ev-700 disabled:cursor-not-allowed" />
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Certificates will be provided</span>
                   {event?.notingId && <Lock className="w-3.5 h-3.5 text-amber-500 ml-1" />}
                 </label>
@@ -1277,7 +1295,7 @@ export default function ManageEventPage() {
               {faqs.length > 0 && (
                 <div className="space-y-2 mb-3">
                   {faqs.map((faq, i) => (
-                    <div key={i} className="rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 p-3 space-y-2">
+                    <div key={i} className="rounded-md border border-[#b3cde0] dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 p-3 space-y-2">
                       <input type="text" value={faq.question} onChange={(e) => updateFAQ(i, 'question', e.target.value)} className={inputClass} placeholder="Question" />
                       <textarea value={faq.answer} onChange={(e) => updateFAQ(i, 'answer', e.target.value)} rows={2} className={inputClass} placeholder="Answer" />
                       <button onClick={() => removeFAQ(i)} type="button" className="p-1.5 text-gray-300 hover:text-red-500 rounded-md transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -1285,7 +1303,7 @@ export default function ManageEventPage() {
                   ))}
                 </div>
               )}
-              <button onClick={addFAQ} type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-sgt-600 hover:bg-sgt-50 rounded-md transition-colors"><Plus className="w-4 h-4" /> Add FAQ</button>
+              <button onClick={addFAQ} type="button" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-ev-700 hover:bg-ev-50 rounded-md transition-colors"><Plus className="w-4 h-4" /> Add FAQ</button>
             </section>
               </>
             )}
@@ -1297,14 +1315,14 @@ export default function ManageEventPage() {
             {event.paymentType === 'paid' && (
               <section>
                 <SectionLabel>Participation &amp; Capacity</SectionLabel>
-                <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/20 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
+                  <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/20 border-b border-[#b3cde0]/30 dark:border-gray-700 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <IndianRupee className="w-4 h-4 text-sgt-600" />
+                      <IndianRupee className="w-4 h-4 text-ev-700" />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                         {participationType === 'team' ? 'Fee per Team (₹)' : 'Participation Fee (₹)'}
                       </span>
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">
+                      <span className="text-sm font-bold text-ev-900 dark:text-white">
                         ₹{participationType === 'team' ? (teamRegistrationFee || '—') : (registrationFee || '—')}
                       </span>
                     </div>
@@ -1316,8 +1334,8 @@ export default function ManageEventPage() {
                     )}
                   </div>
                   {participationType === 'team' && teamRegistrationFee !== '' && maxTeamSize !== '' && Number(maxTeamSize) > 0 && (
-                    <div className="px-4 py-3 bg-blue-50 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-800">
-                      <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                    <div className="px-4 py-3 bg-ev-50 dark:bg-ev-900/10 border-b border-ev-200 dark:border-ev-800">
+                      <p className="text-xs text-ev-800 dark:text-ev-200 flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 shrink-0" />
                         Total team fee will be equally divided among the maximum allowed team members.
                         &nbsp;<span className="font-semibold">Per-member fee: ₹{(Number(teamRegistrationFee) / Number(maxTeamSize)).toFixed(2)}</span>
@@ -1347,7 +1365,7 @@ export default function ManageEventPage() {
                   </p>
                 </div>
               )}
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
                 {/* Side by Side: Participation Type + Opportunity Mode */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-gray-200 dark:bg-gray-600">
                   {/* Participation Type */}
@@ -1355,14 +1373,14 @@ export default function ManageEventPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Participation Type</label>
                     <div className="flex flex-col gap-2">
                       <label className={`${radioClass(participationType === 'individual')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
-                        <input type="radio" name="participationType" checked={participationType === 'individual'} onChange={() => !event.notingId && setParticipationType('individual')} disabled={!!event.notingId} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500 disabled:cursor-not-allowed" />
+                        <input type="radio" name="participationType" checked={participationType === 'individual'} onChange={() => !event.notingId && setParticipationType('individual')} disabled={!!event.notingId} className="w-4 h-4 text-ev-700 focus:ring-ev-700 disabled:cursor-not-allowed" />
                         <div className="flex items-center gap-1.5">
                           <User className="w-4 h-4 text-gray-400" />
                           <span className="text-sm font-medium">Individual</span>
                         </div>
                       </label>
                       <label className={`${radioClass(participationType === 'team')} ${event.notingId ? 'cursor-not-allowed opacity-75' : ''}`}>
-                        <input type="radio" name="participationType" checked={participationType === 'team'} onChange={() => !event.notingId && setParticipationType('team')} disabled={!!event.notingId} className="w-4 h-4 text-sgt-600 focus:ring-sgt-500 disabled:cursor-not-allowed" />
+                        <input type="radio" name="participationType" checked={participationType === 'team'} onChange={() => !event.notingId && setParticipationType('team')} disabled={!!event.notingId} className="w-4 h-4 text-ev-700 focus:ring-ev-700 disabled:cursor-not-allowed" />
                         <div className="flex items-center gap-1.5">
                           <Users className="w-4 h-4 text-gray-400" />
                           <span className="text-sm font-medium">Team</span>
@@ -1381,7 +1399,7 @@ export default function ManageEventPage() {
                         <label key={mode} className={radioClass(opportunityMode === mode)}>
                           <input type="radio" name="opportunityMode" checked={opportunityMode === mode}
                             onChange={() => { setOpportunityMode(mode); setFieldErrors(p => { const n = {...p}; delete n.opportunityMode; return n; }); }}
-                            className="w-4 h-4 text-sgt-600 focus:ring-sgt-500" />
+                            className="w-4 h-4 text-ev-700 focus:ring-ev-700" />
                           <span className="text-sm font-medium capitalize">{mode}</span>
                         </label>
                       ))}
@@ -1392,7 +1410,7 @@ export default function ManageEventPage() {
 
                 {/* Team Configuration (Conditional) */}
                 {participationType === 'team' && (
-                  <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="p-4 border-t border-[#b3cde0] dark:border-gray-700">
                     <p className="text-xs font-medium text-gray-500 mb-3 flex items-center gap-1.5">
                       <Users className="w-3.5 h-3.5" />
                       Team Configuration
@@ -1416,8 +1434,8 @@ export default function ManageEventPage() {
                       <input type="date" value={teamRegistrationDeadline} onChange={(e) => setTeamRegistrationDeadline(e.target.value)} className={inputClass} />
                     </div>
                     {event.paymentType === 'paid' && teamRegistrationFee !== '' && maxTeamSize !== '' && Number(maxTeamSize) > 0 && (
-                      <div className="mt-3 px-3 py-2 rounded-md bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-                        <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                      <div className="mt-3 px-3 py-2 rounded-md bg-ev-50 dark:bg-ev-900/20 border border-ev-200 dark:border-ev-800">
+                        <p className="text-xs text-ev-800 dark:text-ev-200 flex items-center gap-1.5">
                           <IndianRupee className="w-3.5 h-3.5 shrink-0" />
                           Total team fee ₹{teamRegistrationFee} will be equally divided among {maxTeamSize} members.
                           &nbsp;<span className="font-semibold">Per-member: ₹{(Number(teamRegistrationFee) / Number(maxTeamSize)).toFixed(2)}</span>.
@@ -1427,19 +1445,19 @@ export default function ManageEventPage() {
                     )}
                     <div className="grid grid-cols-2 gap-2 mt-4">
                       <label className={checkboxClass(allowCrossInstituteTeams)}>
-                        <input type="checkbox" checked={allowCrossInstituteTeams} onChange={(e) => setAllowCrossInstituteTeams(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                        <input type="checkbox" checked={allowCrossInstituteTeams} onChange={(e) => setAllowCrossInstituteTeams(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Allow Cross-Institute Teams</span>
                       </label>
                       <label className={checkboxClass(interCollegeAllowed)}>
-                        <input type="checkbox" checked={interCollegeAllowed} onChange={(e) => setInterCollegeAllowed(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                        <input type="checkbox" checked={interCollegeAllowed} onChange={(e) => setInterCollegeAllowed(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Allow Inter-College Teams</span>
                       </label>
                       <label className={checkboxClass(allowTeamEditAfterSubmission)}>
-                        <input type="checkbox" checked={allowTeamEditAfterSubmission} onChange={(e) => setAllowTeamEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                        <input type="checkbox" checked={allowTeamEditAfterSubmission} onChange={(e) => setAllowTeamEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Allow Team Edit After Submission</span>
                       </label>
                       <label className={checkboxClass(autoApproveTeams)}>
-                        <input type="checkbox" checked={autoApproveTeams} onChange={(e) => setAutoApproveTeams(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                        <input type="checkbox" checked={autoApproveTeams} onChange={(e) => setAutoApproveTeams(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                         <span className="text-sm text-gray-700 dark:text-gray-300">Auto-approve Teams</span>
                       </label>
                     </div>
@@ -1451,7 +1469,7 @@ export default function ManageEventPage() {
             {/* ====== Registration Control Settings ====== */}
             <section>
               <SectionLabel>Registration Control Settings</SectionLabel>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+              <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Registration Cap (Overall Limit)</label>
@@ -1460,24 +1478,24 @@ export default function ManageEventPage() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <label className={checkboxClass(autoApproveRegistration)}>
-                    <input type="checkbox" checked={autoApproveRegistration} onChange={(e) => setAutoApproveRegistration(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                    <input type="checkbox" checked={autoApproveRegistration} onChange={(e) => setAutoApproveRegistration(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Auto-approve Registrations</span>
                   </label>
                   <label className={checkboxClass(showParticipantsPublicly)}>
-                    <input type="checkbox" checked={showParticipantsPublicly} onChange={(e) => setShowParticipantsPublicly(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                    <input type="checkbox" checked={showParticipantsPublicly} onChange={(e) => setShowParticipantsPublicly(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Show Participants Publicly</span>
                   </label>
                   <label className={checkboxClass(allowWithdrawRegistration)}>
-                    <input type="checkbox" checked={allowWithdrawRegistration} onChange={(e) => setAllowWithdrawRegistration(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                    <input type="checkbox" checked={allowWithdrawRegistration} onChange={(e) => setAllowWithdrawRegistration(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Allow Withdraw Registration</span>
                   </label>
                   <label className={checkboxClass(allowEditAfterSubmission)}>
-                    <input type="checkbox" checked={allowEditAfterSubmission} onChange={(e) => setAllowEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                    <input type="checkbox" checked={allowEditAfterSubmission} onChange={(e) => setAllowEditAfterSubmission(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Allow Edit After Submission</span>
                   </label>
                   {participationType === 'team' && (
                     <label className={checkboxClass(lockTeamAfterDeadline)}>
-                      <input type="checkbox" checked={lockTeamAfterDeadline} onChange={(e) => setLockTeamAfterDeadline(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                      <input type="checkbox" checked={lockTeamAfterDeadline} onChange={(e) => setLockTeamAfterDeadline(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">Lock Team After Deadline</span>
                     </label>
                   )}
@@ -1489,22 +1507,22 @@ export default function ManageEventPage() {
             {participationType === 'team' && (
               <section>
                 <SectionLabel>Team Discovery Settings</SectionLabel>
-                <div className="rounded-md border border-gray-200 dark:border-gray-700 p-4">
+                <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label className={checkboxClass(lookingForTeammatesEnabled)}>
-                      <input type="checkbox" checked={lookingForTeammatesEnabled} onChange={(e) => setLookingForTeammatesEnabled(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                      <input type="checkbox" checked={lookingForTeammatesEnabled} onChange={(e) => setLookingForTeammatesEnabled(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">Enable &quot;Looking for Teammates&quot;</span>
                     </label>
                     <label className={checkboxClass(allowPublicTeamListing)}>
-                      <input type="checkbox" checked={allowPublicTeamListing} onChange={(e) => setAllowPublicTeamListing(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                      <input type="checkbox" checked={allowPublicTeamListing} onChange={(e) => setAllowPublicTeamListing(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">Allow Public Team Listing</span>
                     </label>
                     <label className={checkboxClass(allowJoinRequests)}>
-                      <input type="checkbox" checked={allowJoinRequests} onChange={(e) => setAllowJoinRequests(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                      <input type="checkbox" checked={allowJoinRequests} onChange={(e) => setAllowJoinRequests(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">Allow Join Requests</span>
                     </label>
                     <label className={checkboxClass(allowInviteSystem)}>
-                      <input type="checkbox" checked={allowInviteSystem} onChange={(e) => setAllowInviteSystem(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                      <input type="checkbox" checked={allowInviteSystem} onChange={(e) => setAllowInviteSystem(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                       <span className="text-sm text-gray-700 dark:text-gray-300">Allow Invite System</span>
                     </label>
                   </div>
@@ -1521,42 +1539,48 @@ export default function ManageEventPage() {
             <section>
               <div className="flex items-center justify-between mb-3">
                 <SectionLabel>Prize Configuration</SectionLabel>
-                <label className={`flex items-center gap-2 ${event?.notingId ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
-                  {event?.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
+                <label className={`flex items-center gap-2 ${isPrizeConfigLocked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
+                  {isPrizeConfigLocked && <Lock className="w-3.5 h-3.5 text-amber-500" />}
                   <span className="text-sm text-gray-600 dark:text-gray-400">Enable Prizes</span>
-                  <input type="checkbox" checked={prizesEnabled} onChange={(e) => !event?.notingId && setPrizesEnabled(e.target.checked)} disabled={!!event?.notingId} className="w-5 h-5 text-sgt-600 rounded focus:ring-sgt-500 disabled:cursor-not-allowed" />
+                  <input type="checkbox" checked={prizesEnabled} onChange={(e) => !isPrizeConfigLocked && setPrizesEnabled(e.target.checked)} disabled={isPrizeConfigLocked} className="w-5 h-5 text-ev-700 rounded focus:ring-ev-700 disabled:cursor-not-allowed" />
                 </label>
               </div>
 
               {prizesEnabled && (
-                <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
                   <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800 px-4 py-2">
                     <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" />Once the event is live, prize amounts cannot be reduced.</p>
                   </div>
+
+                  {isPrizeConfigLocked && (
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800 px-4 py-2.5">
+                      <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5"><Lock className="w-3.5 h-3.5" />These prizes were approved through noting and cannot be edited here.</p>
+                    </div>
+                  )}
                   
                   <div className="p-4 space-y-3">
                     {prizes.map((prize, idx) => (
-                      <div key={prize.id || idx} className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600">
-                        <div className="w-14 h-14 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                          {prize.prizeType === 'trophy' ? <Trophy className="w-6 h-6 text-blue-600" /> : prize.prizeType === 'cash' ? <IndianRupee className="w-6 h-6 text-blue-600" /> : <Award className="w-6 h-6 text-blue-600" />}
+                      <div key={prize.id || idx} className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-[#b3cde0] dark:border-gray-600">
+                        <div className="w-14 h-14 rounded-lg bg-ev-100 dark:bg-ev-900/30 flex items-center justify-center shrink-0">
+                          {prize.prizeType === 'trophy' ? <Trophy className="w-6 h-6 text-ev-700" /> : prize.prizeType === 'cash' ? <IndianRupee className="w-6 h-6 text-ev-700" /> : <Award className="w-6 h-6 text-ev-700" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-gray-900 dark:text-white">{prize.rank}</h4>
+                          <h4 className="font-semibold text-ev-900 dark:text-white">{prize.rank}</h4>
                           <p className="text-sm text-gray-500 dark:text-gray-400">{prize.prizeType === 'cash' && prize.prizeAmount ? `₹${prize.prizeAmount.toLocaleString()}` : prize.title || PRIZE_TYPE_OPTIONS.find(p => p.value === prize.prizeType)?.label || 'Prize'}</p>
                           {prize.additionalPerks && prize.additionalPerks.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {prize.additionalPerks.map((perk, i) => <span key={i} className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded-full">{perk}</span>)}
+                              {prize.additionalPerks.map((perk, i) => <span key={i} className="px-2 py-0.5 bg-ev-50 dark:bg-ev-900/20 text-ev-800 dark:text-ev-200 text-xs rounded-full">{perk}</span>)}
                             </div>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => openEditPrize(prize)} className="p-2 text-gray-400 hover:text-sgt-600 transition-colors"><Settings className="w-4 h-4" /></button>
-                          <button onClick={() => deletePrize(prize.id!)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => openEditPrize(prize)} disabled={isPrizeConfigLocked} className="p-2 text-gray-400 hover:text-ev-700 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-gray-400"><Settings className="w-4 h-4" /></button>
+                          <button onClick={() => deletePrize(prize.id!)} disabled={isPrizeConfigLocked} className="p-2 text-gray-400 hover:text-red-500 transition-colors disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-gray-400"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
                     ))}
                     
-                    <button onClick={openAddPrize} className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg text-gray-500 hover:border-sgt-400 hover:text-sgt-600 transition-colors">
+                    <button onClick={openAddPrize} disabled={isPrizeConfigLocked} className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-[#b3cde0] dark:border-gray-600 rounded-lg text-gray-500 hover:border-[#b3cde0] hover:text-ev-700 transition-colors disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-gray-500">
                       <Plus className="w-5 h-5" /><span className="font-medium">Add Prize</span>
                     </button>
                   </div>
@@ -1567,32 +1591,32 @@ export default function ManageEventPage() {
             {/* ====== Custom Registration Questions ====== */}
             <section>
               <SectionLabel>Custom Registration Questions</SectionLabel>
-              <div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">
+              <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
+                <div className="p-4 border-b border-[#b3cde0] dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">
                   <label className={checkboxClass(requireFormSubmission)}>
-                    <input type="checkbox" checked={requireFormSubmission} onChange={(e) => setRequireFormSubmission(e.target.checked)} className="w-4 h-4 text-sgt-600 rounded" />
+                    <input type="checkbox" checked={requireFormSubmission} onChange={(e) => setRequireFormSubmission(e.target.checked)} className="w-4 h-4 text-ev-700 rounded" />
                     <span className="text-sm text-gray-700 dark:text-gray-300">Require form submission before team creation</span>
                   </label>
                 </div>
                 
                 <div className="p-4 space-y-3">
                   {customFields.map((field, idx) => (
-                    <div key={field.id || idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <div key={field.id || idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-[#b3cde0] dark:border-gray-600">
                       <div className="flex items-center gap-3">
                         <GripVertical className="w-4 h-4 text-gray-300 cursor-grab" />
                         <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">{field.fieldLabel}</h4>
+                          <h4 className="font-medium text-ev-900 dark:text-white">{field.fieldLabel}</h4>
                           <p className="text-xs text-gray-500">{FIELD_TYPE_OPTIONS.find(t => t.value === field.fieldType)?.label || field.fieldType}{field.isRequired && <span className="ml-1 text-red-500">• Required</span>}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => openEditField(field)} className="p-2 text-gray-400 hover:text-sgt-600 transition-colors"><Settings className="w-4 h-4" /></button>
+                        <button onClick={() => openEditField(field)} className="p-2 text-gray-400 hover:text-ev-700 transition-colors"><Settings className="w-4 h-4" /></button>
                         <button onClick={() => deleteField(field.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     </div>
                   ))}
                   
-                  <button onClick={openAddField} className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-lg text-gray-500 hover:border-sgt-400 hover:text-sgt-600 transition-colors">
+                  <button onClick={openAddField} className="w-full flex items-center justify-center gap-2 p-3 border-2 border-dashed border-[#b3cde0] dark:border-gray-600 rounded-lg text-gray-500 hover:border-[#b3cde0] hover:text-ev-700 transition-colors">
                     <Plus className="w-5 h-5" /><span className="font-medium">Add Question</span>
                   </button>
                 </div>
@@ -1604,11 +1628,11 @@ export default function ManageEventPage() {
           </div>
 
           {/* ── Document Footer — Action Buttons ── */}
-          <div className="border-t border-gray-200 dark:border-gray-700 px-4 sm:px-8 py-4 bg-gray-50 dark:bg-gray-900/20">
+          <div className="border-t border-[#b3cde0] dark:border-gray-700 px-4 sm:px-8 py-4 bg-gray-50 dark:bg-gray-900/20">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 sm:gap-3">
                 {currentStep > 1 && (
-                  <button onClick={() => setCurrentStep(currentStep - 1)} className="px-3 sm:px-4 py-2.5 min-h-[44px] border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                  <button onClick={() => setCurrentStep(currentStep - 1)} className="px-3 sm:px-4 py-2.5 min-h-[44px] border border-[#b3cde0] dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
                     <ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Previous</span>
                   </button>
                 )}
@@ -1619,7 +1643,7 @@ export default function ManageEventPage() {
                 )}
               </div>
               <div className="flex items-center gap-2 sm:gap-3">
-                <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
+                <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-ev-700 text-white text-sm font-medium rounded-md hover:bg-ev-800 disabled:opacity-50 flex items-center gap-2 transition-colors">
                   {saving ? <Skeleton className="w-4 h-4 rounded-sm" /> : <Save className="w-4 h-4" />}<span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Save</span>
                 </button>
                 <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
@@ -1636,21 +1660,21 @@ export default function ManageEventPage() {
       {showPrizeModal && editingPrize && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingPrize.id?.startsWith('temp-') || !editingPrize.id ? 'Add Prize' : 'Edit Prize'}</h3>
+            <div className="px-6 py-4 border-b border-[#b3cde0] dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ev-900 dark:text-white">{editingPrize.id?.startsWith('temp-') || !editingPrize.id ? 'Add Prize' : 'Edit Prize'}</h3>
               <button onClick={() => setShowPrizeModal(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Rank <span className="text-red-500">*</span></label>
-                <input type="text" value={editingPrize.rank} onChange={(e) => setEditingPrize({ ...editingPrize, rank: e.target.value })} className={inputClass} placeholder="e.g., Winner, Runner-up" />
+                <input type="text" value={editingPrize.rank} onChange={(e) => setEditingPrize({ ...editingPrize, rank: e.target.value })} disabled={isPrizeConfigLocked} className={inputClass} placeholder="e.g., Winner, Runner-up" />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prize Type</label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PRIZE_TYPE_OPTIONS.map(opt => (
-                    <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize, prizeType: opt.value })} className={`flex flex-col items-center gap-1 p-3 rounded-md border transition-colors ${editingPrize.prizeType === opt.value ? 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/20 text-sgt-700' : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
+                    <button key={opt.value} type="button" onClick={() => setEditingPrize({ ...editingPrize, prizeType: opt.value })} disabled={isPrizeConfigLocked} className={`flex flex-col items-center gap-1 p-3 rounded-md border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${editingPrize.prizeType === opt.value ? 'border-ev-700 bg-ev-50 dark:bg-ev-900/20 text-ev-800' : 'border-[#b3cde0] dark:border-gray-600 text-gray-500 hover:border-gray-300'}`}>
                       {opt.icon}<span className="text-xs font-medium">{opt.label}</span>
                     </button>
                   ))}
@@ -1660,7 +1684,7 @@ export default function ManageEventPage() {
               {editingPrize.prizeType === 'cash' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prize Amount (₹)</label>
-                  <input type="number" value={editingPrize.prizeAmount || ''} onChange={(e) => setEditingPrize({ ...editingPrize, prizeAmount: e.target.value ? Number(e.target.value) : undefined })} className={inputClass} placeholder="Enter amount" />
+                  <input type="number" value={editingPrize.prizeAmount || ''} onChange={(e) => setEditingPrize({ ...editingPrize, prizeAmount: e.target.value ? Number(e.target.value) : undefined })} disabled={isPrizeConfigLocked} className={inputClass} placeholder="Enter amount" />
                 </div>
               )}
 
@@ -1668,19 +1692,19 @@ export default function ManageEventPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Additional Perks</label>
                 <div className="flex flex-wrap gap-2">
                   {PERK_OPTIONS.map(perk => (
-                    <button key={perk} type="button" onClick={() => { const perks = editingPrize.additionalPerks || []; setEditingPrize({ ...editingPrize, additionalPerks: perks.includes(perk) ? perks.filter(p => p !== perk) : [...perks, perk] }); }} className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors ${editingPrize.additionalPerks?.includes(perk) ? 'border-sgt-500 bg-sgt-50 text-sgt-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{perk}</button>
+                    <button key={perk} type="button" onClick={() => { const perks = editingPrize.additionalPerks || []; setEditingPrize({ ...editingPrize, additionalPerks: perks.includes(perk) ? perks.filter(p => p !== perk) : [...perks, perk] }); }} disabled={isPrizeConfigLocked} className={`px-3 py-1.5 rounded-full border text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${editingPrize.additionalPerks?.includes(perk) ? 'border-ev-700 bg-ev-50 text-ev-800' : 'border-[#b3cde0] text-gray-500 hover:border-gray-300'}`}>{perk}</button>
                   ))}
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Other Details</label>
-                <textarea value={editingPrize.description || ''} onChange={(e) => setEditingPrize({ ...editingPrize, description: e.target.value })} rows={2} className={inputClass} placeholder="Additional description..." />
+                <textarea value={editingPrize.description || ''} onChange={(e) => setEditingPrize({ ...editingPrize, description: e.target.value })} rows={2} disabled={isPrizeConfigLocked} className={inputClass} placeholder="Additional description..." />
               </div>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-[#b3cde0] dark:border-gray-700 flex justify-end gap-3">
               <button type="button" onClick={() => setShowPrizeModal(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
-              <button type="button" onClick={savePrize} className="px-4 py-2 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 transition-colors">Save</button>
+              <button type="button" onClick={savePrize} disabled={isPrizeConfigLocked} className="px-4 py-2 bg-ev-700 text-white text-sm font-medium rounded-md hover:bg-ev-800 transition-colors disabled:cursor-not-allowed disabled:opacity-50">Save</button>
             </div>
           </div>
         </div>
@@ -1690,8 +1714,8 @@ export default function ManageEventPage() {
       {showFieldModal && editingField && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{editingField.id ? 'Edit Question' : 'Add Question'}</h3>
+            <div className="px-6 py-4 border-b border-[#b3cde0] dark:border-gray-700 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ev-900 dark:text-white">{editingField.id ? 'Edit Question' : 'Add Question'}</h3>
               <button onClick={() => setShowFieldModal(false)} className="p-2 text-gray-400 hover:text-gray-600 transition-colors"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
@@ -1725,13 +1749,13 @@ export default function ManageEventPage() {
               </div>
 
               <label className="flex items-center gap-2">
-                <input type="checkbox" checked={editingField.isRequired} onChange={(e) => setEditingField({ ...editingField, isRequired: e.target.checked })} className="w-4 h-4 text-sgt-600 rounded" />
+                <input type="checkbox" checked={editingField.isRequired} onChange={(e) => setEditingField({ ...editingField, isRequired: e.target.checked })} className="w-4 h-4 text-ev-700 rounded" />
                 <span className="text-sm text-gray-700 dark:text-gray-300">Required field</span>
               </label>
             </div>
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-[#b3cde0] dark:border-gray-700 flex justify-end gap-3">
               <button type="button" onClick={() => setShowFieldModal(false)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">Cancel</button>
-              <button type="button" onClick={saveField} className="px-4 py-2 bg-sgt-600 text-white text-sm font-medium rounded-md hover:bg-sgt-700 transition-colors">Save</button>
+              <button type="button" onClick={saveField} className="px-4 py-2 bg-ev-700 text-white text-sm font-medium rounded-md hover:bg-ev-800 transition-colors">Save</button>
             </div>
           </div>
         </div>

@@ -543,6 +543,7 @@ async function sendHostelBookingConfirmed(booking) {
 }
 
 module.exports = {
+  send,
   sendPassCreated,
   sendPassCancelledBeforeEntry,
   sendPassCancelledAfterEntry,

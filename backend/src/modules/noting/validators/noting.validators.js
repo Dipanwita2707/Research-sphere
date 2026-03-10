@@ -119,6 +119,16 @@ const updateDraftValidation = [
     .isUUID()
     .withMessage('Invalid note ID'),
 
+  body('category')
+    .optional()
+    .isString()
+    .withMessage('Category must be a string'),
+
+  body('subcategory')
+    .optional()
+    .isString()
+    .withMessage('Subcategory must be a string'),
+
   body('description')
     .optional()
     .isString()

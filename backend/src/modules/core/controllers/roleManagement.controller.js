@@ -341,8 +341,28 @@ exports.deleteRole = async (req, res) => {
       });
     }
 
-    await prisma.role.delete({
-      where: { id },
+    const usersWithRole = await prisma.userLogin.findMany({
+      where: { assignedRoleIds: { array_contains: id } },
+      select: { id: true, assignedRoleIds: true },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      for (const user of usersWithRole) {
+        const cleanedRoleIds = Array.isArray(user.assignedRoleIds)
+          ? user.assignedRoleIds.filter((roleId) => roleId !== id)
+          : [];
+
+        await tx.userLogin.update({
+          where: { id: user.id },
+          data: {
+            assignedRoleIds: cleanedRoleIds,
+          },
+        });
+      }
+
+      await tx.role.delete({
+        where: { id },
+      });
     });
 
     // Log audit event
@@ -354,17 +374,13 @@ exports.deleteRole = async (req, res) => {
       category: 'role_management',
       targetTable: 'role',
       targetId: id,
-      details: { roleName: role.name },
+      details: { roleName: role.name, affectedUsers: usersWithRole.length },
       ipAddress: getIp(req),
       userAgent: req.get('user-agent'),
     });
 
     // Invalidate cache for all users who had this role assigned
     try {
-      const usersWithRole = await prisma.userLogin.findMany({
-        where: { assignedRoleIds: { array_contains: id } },
-        select: { id: true },
-      });
       await Promise.all(usersWithRole.map(u => cache.invalidateUser(u.id)));
     } catch (cacheErr) {
       console.error('Cache invalidation error (deleteRole):', cacheErr);

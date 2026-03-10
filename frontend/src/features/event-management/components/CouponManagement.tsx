@@ -12,10 +12,10 @@ import type { EventCoupon, CouponFormData, CouponDiscountType } from '../types/e
 // ─────────────────────────────────────────────
 // Design constants
 // ─────────────────────────────────────────────
-const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
-const INPUT = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 outline-none transition-all';
+const CARD = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-[#b3cde0] dark:border-ev-700 shadow-ev';
+const INPUT = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-ev-900 dark:text-white text-sm focus:ring-2 focus:ring-ev-700 focus:border-ev-700 outline-none transition-all';
 const LABEL = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5';
-const BTN_PRIMARY = 'inline-flex items-center gap-2 px-4 py-2 bg-sgt-600 text-white text-sm font-medium rounded-lg hover:bg-sgt-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+const BTN_PRIMARY = 'inline-flex items-center gap-2 px-4 py-2 bg-ev-700 text-white text-sm font-medium rounded-lg hover:bg-ev-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 const BTN_SECONDARY = 'inline-flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors';
 
 // ─────────────────────────────────────────────
@@ -23,10 +23,10 @@ const BTN_SECONDARY = 'inline-flex items-center gap-2 px-4 py-2 border border-gr
 // ─────────────────────────────────────────────
 const EmptyState = ({ onAdd }: { onAdd: () => void }) => (
   <div className="text-center py-16">
-    <div className="w-16 h-16 bg-sgt-50 dark:bg-sgt-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-      <Tag className="w-8 h-8 text-sgt-600 dark:text-sgt-400" />
+    <div className="w-16 h-16 bg-ev-50 dark:bg-ev-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+      <Tag className="w-8 h-8 text-ev-700 dark:text-ev-400" />
     </div>
-    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No Coupons Yet</h3>
+    <h3 className="text-lg font-semibold text-ev-900 dark:text-white mb-1">No Coupons Yet</h3>
     <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 max-w-sm mx-auto">
       Create discount coupons for participants registering for this event.
     </p>
@@ -115,12 +115,12 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl">
-        <div className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div className="px-6 py-3 border-b border-[#b3cde0] dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-sgt-50 dark:bg-sgt-900/20 rounded-lg">
-              <Tag className="w-4 h-4 text-sgt-600 dark:text-sgt-400" />
+            <div className="p-2 bg-ev-50 dark:bg-ev-900/20 rounded-lg">
+              <Tag className="w-4 h-4 text-ev-700 dark:text-ev-400" />
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-ev-900 dark:text-white">
               {coupon ? 'Edit Coupon' : 'Create Coupon'}
             </h2>
           </div>
@@ -158,8 +158,8 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
                     onClick={() => set('discountType', t)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-sm rounded-lg border-2 transition-all ${
                       form.discountType === t
-                        ? 'border-sgt-500 bg-sgt-50 text-sgt-700 dark:bg-sgt-900/20 dark:text-sgt-300 font-semibold'
-                        : 'border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300'
+                        ? 'border-ev-700 bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 font-semibold'
+                        : 'border-[#b3cde0] dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:border-gray-300'
                     }`}
                   >
                     {t === 'percentage' ? <Percent className="w-3.5 h-3.5" /> : <IndianRupee className="w-3.5 h-3.5" />}
@@ -305,7 +305,7 @@ const CouponFormModal: React.FC<CouponFormModalProps> = ({ coupon, onClose, onSa
           </div>
 
           {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex justify-end gap-3 pt-4 border-t border-[#b3cde0]/30 dark:border-gray-700">
             <button type="button" onClick={onClose} className={BTN_SECONDARY} disabled={saving}>
               Cancel
             </button>
@@ -352,18 +352,18 @@ const CouponCard: React.FC<{
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className={`p-2.5 rounded-lg shrink-0 ${coupon.discountType === 'percentage' ? 'bg-violet-50 dark:bg-violet-900/20' : 'bg-sgt-50 dark:bg-sgt-900/20'}`}>
+          <div className={`p-2.5 rounded-lg shrink-0 ${coupon.discountType === 'percentage' ? 'bg-violet-50 dark:bg-violet-900/20' : 'bg-ev-50 dark:bg-ev-900/20'}`}>
             {coupon.discountType === 'percentage'
               ? <Percent className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-              : <IndianRupee className="w-4 h-4 text-sgt-600 dark:text-sgt-400" />
+              : <IndianRupee className="w-4 h-4 text-ev-700 dark:text-ev-400" />
             }
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-mono font-bold text-gray-900 dark:text-white text-base tracking-wide truncate">
+              <span className="font-mono font-bold text-ev-900 dark:text-white text-base tracking-wide truncate">
                 {coupon.code}
               </span>
-              <button onClick={copyCode} className="shrink-0 p-1 text-gray-400 hover:text-sgt-600 transition-colors" title="Copy code">
+              <button onClick={copyCode} className="shrink-0 p-1 text-gray-400 hover:text-ev-700 transition-colors" title="Copy code">
                 {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
             </div>
@@ -418,7 +418,7 @@ const CouponCard: React.FC<{
       </div>
 
       {/* Actions */}
-      <div className="flex items-center justify-end pt-1 border-t border-gray-100 dark:border-gray-700">
+      <div className="flex items-center justify-end pt-1 border-t border-[#b3cde0]/30 dark:border-gray-700">
         <div className="flex items-center gap-2">
           {/* Toggle Active */}
           <button
@@ -437,7 +437,7 @@ const CouponCard: React.FC<{
           {/* Edit */}
           <button
             onClick={() => onEdit(coupon)}
-            className="p-1.5 text-gray-400 hover:text-sgt-600 dark:hover:text-sgt-400 transition-colors rounded"
+            className="p-1.5 text-gray-400 hover:text-ev-700 dark:hover:text-ev-400 transition-colors rounded"
             title="Edit"
           >
             <Pencil className="w-4 h-4" />
@@ -545,7 +545,7 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
         <div className="w-14 h-14 bg-amber-50 dark:bg-amber-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
           <Info className="w-7 h-7 text-amber-500" />
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">Free Event</h3>
+        <h3 className="text-lg font-semibold text-ev-900 dark:text-white mb-1">Free Event</h3>
         <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
           Coupons are only available for paid events. This event has no registration fee.
         </p>
@@ -558,8 +558,8 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Tag className="w-5 h-5 text-sgt-600" />
+          <h2 className="text-xl font-bold text-ev-900 dark:text-white flex items-center gap-2">
+            <Tag className="w-5 h-5 text-ev-700" />
             Coupon Management
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -574,9 +574,9 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
       </div>
 
       {/* Info Banner */}
-      <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-900/15 border border-blue-100 dark:border-blue-900/30 rounded-lg">
-        <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-        <p className="text-xs text-blue-700 dark:text-blue-300">
+      <div className="flex items-start gap-3 p-4 bg-ev-50 dark:bg-ev-900/15 border border-ev-200 dark:border-ev-900/30 rounded-lg">
+        <Info className="w-4 h-4 text-ev-700 mt-0.5 shrink-0" />
+        <p className="text-xs text-ev-800 dark:text-ev-200">
           Coupons are <strong>event-specific</strong> — one coupon per registration. Usage is tracked atomically to prevent over-redemption even during concurrent registrations.
         </p>
       </div>
@@ -592,7 +592,7 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
           ].map(({ label, value }) => (
             <div key={label} className={`${CARD} px-4 py-3`}>
               <p className="text-xs text-gray-400 dark:text-gray-500">{label}</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">{value}</p>
+              <p className="text-2xl font-bold text-ev-900 dark:text-white mt-0.5">{value}</p>
             </div>
           ))}
         </div>
@@ -601,7 +601,7 @@ const CouponManagement: React.FC<CouponManagementProps> = ({ eventId, isPaidEven
       {/* Content */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-sgt-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-ev-700" />
         </div>
       ) : coupons.length === 0 ? (
         <div className={CARD}>

@@ -508,3 +508,272 @@ code {
 .noting-description-content .ql-indent-1 { padding-left: 2rem !important; }
 .noting-description-content .ql-indent-2 { padding-left: 4rem !important; }
 .noting-description-content .ql-indent-3 { padding-left: 6rem !important; }
+
+/* ====================================================================
+   EVENT MODULE — Corporate SaaS Utilities
+   Palette:  #011f4b · #03396c · #005b96 · #6497b1 · #b3cde0
+   ==================================================================== */
+
+/* --- Page shell ---------------------------------------------------- */
+.ev-page {
+  min-height: 100vh;
+  background: #f8fafc;
+}
+
+/* --- White card with blue tint border + soft shadow ---------------- */
+.ev-card {
+  background: #ffffff;
+  border: 1px solid #b3cde0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0,91,150,0.08), 0 1px 2px -1px rgba(0,91,150,0.06);
+}
+.ev-card-hover {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.ev-card-hover:hover {
+  border-color: #6497b1;
+  box-shadow: 0 4px 12px -2px rgba(0,91,150,0.12), 0 2px 4px -2px rgba(0,91,150,0.06);
+}
+
+/* --- Section header (dark navy label inside a card) ---------------- */
+.ev-section-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #011f4b;
+  letter-spacing: 0.01em;
+}
+
+/* --- Primary button ------------------------------------------------ */
+.ev-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: #005b96;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.ev-btn:hover {
+  background: #03396c;
+  box-shadow: 0 4px 12px -2px rgba(0,91,150,0.25);
+}
+.ev-btn:active {
+  background: #011f4b;
+}
+.ev-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* --- Secondary / outline button ------------------------------------ */
+.ev-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #005b96;
+  background: transparent;
+  border: 1px solid #b3cde0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.ev-btn-outline:hover {
+  background: #edf4f8;
+  border-color: #6497b1;
+  color: #03396c;
+}
+
+/* --- Ghost / icon-only button -------------------------------------- */
+.ev-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  color: #6497b1;
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ev-btn-ghost:hover {
+  background: #edf4f8;
+  color: #005b96;
+}
+
+/* --- Input / select ------------------------------------------------ */
+.ev-input {
+  width: 100%;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  color: #011f4b;
+  background: #ffffff;
+  border: 1px solid #b3cde0;
+  border-radius: 0.5rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.ev-input::placeholder {
+  color: #6497b1;
+}
+.ev-input:focus {
+  border-color: #005b96;
+  box-shadow: 0 0 0 3px rgba(0,91,150,0.10);
+}
+
+/* --- Tab bar ------------------------------------------------------- */
+.ev-tab {
+  padding: 0.625rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6497b1;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+.ev-tab:hover {
+  color: #03396c;
+}
+.ev-tab-active {
+  color: #005b96;
+  border-color: #005b96;
+  font-weight: 600;
+}
+
+/* --- Pill tab (filled variant used in management dashboard) -------- */
+.ev-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6497b1;
+  background: transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+.ev-pill:hover {
+  background: #edf4f8;
+  color: #03396c;
+}
+.ev-pill-active {
+  background: #005b96;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px 0 rgba(0,91,150,0.18);
+}
+
+/* --- Stat / metric card -------------------------------------------- */
+.ev-stat {
+  background: #ffffff;
+  border: 1px solid #b3cde0;
+  border-radius: 0.75rem;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px 0 rgba(0,91,150,0.08);
+}
+
+/* --- Badge --------------------------------------------------------- */
+.ev-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+/* --- Modal / slider overlay ---------------------------------------- */
+.ev-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(1,31,75,0.45);
+  backdrop-filter: blur(4px);
+}
+.ev-modal {
+  background: #ffffff;
+  border: 1px solid #b3cde0;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 24px -4px rgba(0,91,150,0.18);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* --- Table --------------------------------------------------------- */
+.ev-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.ev-table thead th {
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #03396c;
+  background: #edf4f8;
+  border-bottom: 1px solid #b3cde0;
+  text-align: left;
+}
+.ev-table tbody td {
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  color: #011f4b;
+  border-bottom: 1px solid #edf4f8;
+}
+.ev-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+/* --- Divider ------------------------------------------------------- */
+.ev-divider {
+  height: 1px;
+  background: #b3cde0;
+  border: none;
+  margin: 1rem 0;
+}
+
+/* --- Label for form fields ----------------------------------------- */
+.ev-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #03396c;
+  margin-bottom: 0.375rem;
+}
+
+/* --- Empty state --------------------------------------------------- */
+.ev-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: #6497b1;
+}
+.ev-empty svg {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}

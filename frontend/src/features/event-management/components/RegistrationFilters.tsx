@@ -13,14 +13,14 @@ import type {
 import { ROLE_LABELS } from '../types/registrationFilter.types';
 
 // ── Design Tokens ────────────────────────────────────────────────
-const PANEL_BG = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-sgt-300 dark:border-sgt-600 shadow-sgt';
+const PANEL_BG = 'bg-white dark:bg-gray-800 rounded-lg border-[1.5px] border-[#b3cde0] dark:border-ev-700 shadow-ev';
 const SECTION_HEADER = 'flex items-center justify-between cursor-pointer select-none py-2.5';
-const BADGE = 'inline-flex items-center justify-center rounded-full bg-sgt-100 dark:bg-sgt-900/40 text-sgt-700 dark:text-sgt-300 text-[10px] font-bold min-w-[18px] h-[18px] px-1';
+const BADGE = 'inline-flex items-center justify-center rounded-full bg-ev-50 dark:bg-ev-900/40 text-ev-800 dark:text-ev-200 text-[10px] font-bold min-w-[18px] h-[18px] px-1';
 const CONNECTOR = 'flex items-center justify-center py-1';
 const CONNECTOR_PILL = 'px-3 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-[10px] font-semibold border border-amber-200 dark:border-amber-800/40';
-const INPUT_BASE = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all';
+const INPUT_BASE = 'w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm text-ev-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-ev-700 focus:border-ev-700 transition-all';
 const SELECT_BASE = `${INPUT_BASE} appearance-none cursor-pointer`;
-const CHECKBOX_BASE = 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-sgt-600 focus:ring-sgt-500 cursor-pointer';
+const CHECKBOX_BASE = 'w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-ev-700 focus:ring-ev-700 cursor-pointer';
 
 // ── Collapsible Filter Section ────────────────────────────────
 const FilterSection = memo(({
@@ -127,7 +127,7 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
     return (
       <div className={`${PANEL_BG} p-6`}>
         <div className="flex items-center justify-center gap-2 py-8">
-          <Loader2 className="w-5 h-5 animate-spin text-sgt-600" />
+          <Loader2 className="w-5 h-5 animate-spin text-ev-700" />
           <span className="text-sm text-gray-500">Loading filter options...</span>
         </div>
       </div>
@@ -137,12 +137,12 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
   return (
     <div className={`${PANEL_BG} overflow-hidden`}>
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-[#b3cde0]/30 dark:border-gray-700 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Filter</h3>
+          <h3 className="text-sm font-semibold text-ev-900 dark:text-white">Filter</h3>
           {activeCount > 0 && (
-            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sgt-500 text-white text-[10px] font-bold">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-ev-700 text-white text-[10px] font-bold">
               {activeCount}
             </span>
           )}
@@ -152,7 +152,7 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
             <button
               type="button"
               onClick={handleClearAll}
-              className="text-xs text-sgt-600 dark:text-sgt-400 hover:underline font-medium"
+              className="text-xs text-ev-700 dark:text-ev-400 hover:underline font-medium"
             >
               Clear All
             </button>
@@ -179,8 +179,8 @@ const RegistrationFilters: React.FC<RegistrationFiltersProps> = ({
                 onClick={() => update({ status: s === 'all' ? undefined : s })}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                   (local.status || 'all') === s
-                    ? 'bg-sgt-50 dark:bg-sgt-900/30 border-sgt-500 text-sgt-700 dark:text-sgt-300'
-                    : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300'
+                    ? 'bg-ev-50 dark:bg-ev-900/30 border-ev-700 text-ev-800 dark:text-ev-200'
+                    : 'bg-gray-50 dark:bg-gray-700/50 border-[#b3cde0] dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-gray-300'
                 }`}
               >
                 {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}

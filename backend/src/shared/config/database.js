@@ -33,7 +33,7 @@ if (process.env.NODE_ENV === "production") {
       datasources: {
         db: {
           url:
-            process.env.DATABASE_URL + "?connection_limit=10&pool_timeout=30",
+            process.env.DATABASE_URL + "?connection_limit=5&pool_timeout=30",
         },
       },
       transactionOptions: {
@@ -57,7 +57,7 @@ if (process.env.NODE_ENV === "production") {
   prisma = global.prisma;
 }
 
-// Connection retry logic for Neon database
+// Connection retry logic
 let connectionAttempts = 0;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
@@ -97,35 +97,18 @@ prisma.$on("error", (e) => {
   }
 });
 
-// ── Neon keep-alive: prevent cold starts ──────────────────────────────────────
-// Neon suspends idle connections after ~5 minutes, causing 1-2s cold-start
-// latency on the next query. A lightweight SELECT 1 every 4 minutes keeps the
-// connection warm. The interval is cleared on process exit.
-const KEEP_ALIVE_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
-const keepAliveTimer = setInterval(async () => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-  } catch {
-    // Silently ignore — connectWithRetry will handle reconnection if needed
-  }
-}, KEEP_ALIVE_INTERVAL_MS);
-// Ensure the timer doesn't prevent Node from exiting
-if (keepAliveTimer.unref) keepAliveTimer.unref();
-
 // Handle cleanup on application termination
+// AWS RDS is a persistent server — no keep-alive pings needed.
 process.on("beforeExit", async () => {
-  clearInterval(keepAliveTimer);
   await prisma.$disconnect();
 });
 
 process.on("SIGINT", async () => {
-  clearInterval(keepAliveTimer);
   await prisma.$disconnect();
   process.exit(0);
 });
 
 process.on("SIGTERM", async () => {
-  clearInterval(keepAliveTimer);
   await prisma.$disconnect();
   process.exit(0);
 });

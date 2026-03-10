@@ -6,13 +6,12 @@ import Link from 'next/link';
 import {
   ArrowLeft, ArrowRight, CheckCircle2,
   AlertCircle, Info, MapPin, Phone, Mail, Building2,
-  QrCode, CreditCard, Users, Lock, Tag, X as XIcon, Loader2 as Loader2Icon,
+  QrCode, CreditCard, Users, Lock,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type {
   EventCustomField,
   RegistrationFormData,
-  CouponValidationResult,
 } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
@@ -28,11 +27,11 @@ interface DynamicFieldProps {
 }
 
 const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, error }) => {
-  const baseClasses = `w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white
-    focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all duration-200 outline-none
+  const baseClasses = `w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white
+    focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 transition-all duration-200 outline-none
     ${error
       ? 'border-red-300 focus:border-red-500 focus:ring-red-100 bg-red-50/10'
-      : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'}`;
+      : 'border-[#b3cde0] dark:border-gray-700 hover:border-ev-400 dark:hover:border-ev-400'}`;
 
   const renderField = () => {
     switch (field.fieldType) {
@@ -73,12 +72,12 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
           <div className="space-y-3 pt-1">
             {((field.options || []) as Array<string | { value: string; label: string }>).map((opt, idx) => (
               <label key={idx} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${value === (typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value)
-                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-500'
-                  : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                  ? 'border-ev-700 bg-ev-50/50 dark:bg-ev-900/20 ring-1 ring-ev-700'
+                  : 'border-[#b3cde0] dark:border-gray-700 hover:bg-ev-50/30 dark:hover:bg-gray-800'
                 }`}>
                 <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${value === (typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value)
-                    ? 'border-blue-500 bg-blue-500'
-                    : 'border-gray-300 dark:border-gray-600'
+                    ? 'border-ev-700 bg-ev-700'
+                    : 'border-[#b3cde0] dark:border-gray-600'
                   }`}>
                   {value === (typeof opt === 'string' ? opt : (opt as { value: string; label: string }).value) && (
                     <div className="w-2 h-2 rounded-full bg-white" />
@@ -109,12 +108,12 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
 
               return (
                 <label key={idx} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${isChecked
-                    ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 ring-1 ring-blue-500'
-                    : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    ? 'border-ev-700 bg-ev-50/50 dark:bg-ev-900/20 ring-1 ring-ev-700'
+                    : 'border-[#b3cde0] dark:border-gray-700 hover:bg-ev-50/30 dark:hover:bg-gray-800'
                   }`}>
                   <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isChecked
-                      ? 'border-blue-500 bg-blue-500'
-                      : 'border-gray-300 dark:border-gray-600'
+                      ? 'border-ev-700 bg-ev-700'
+                      : 'border-[#b3cde0] dark:border-gray-600'
                     }`}>
                     {isChecked && (
                       <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -158,14 +157,14 @@ const DynamicField: React.FC<DynamicFieldProps> = ({ field, value, onChange, err
 
   return (
     <div className="space-y-2 group">
-      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">
+      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 transition-colors group-hover:text-ev-700 dark:group-hover:text-ev-400">
         {field.fieldLabel}
         {field.isRequired && <span className="text-red-500 ml-1">*</span>}
       </label>
       {renderField()}
       {field.helpText && (
         <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-1.5 ml-1">
-          <Info className="w-3.5 h-3.5 text-blue-500" />
+          <Info className="w-3.5 h-3.5 text-ev-700" />
           {field.helpText}
         </p>
       )}
@@ -193,13 +192,6 @@ export default function EventRegistrationPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [step] = useState<'form' | 'team'>('form');
   const [profileFields, setProfileFields] = useState<Record<string, boolean>>({});
-
-  // Coupon state
-  const [couponCode, setCouponCode] = useState('');
-  const [couponInput, setCouponInput] = useState('');
-  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
-  const [couponValidating, setCouponValidating] = useState(false);
-  const [couponError, setCouponError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadForm = async () => {
@@ -319,9 +311,7 @@ export default function EventRegistrationPage() {
 
     setSubmitting(true);
     try {
-      // Include applied coupon code in submission payload
-      const payload = couponCode ? { ...values, couponCode } : values;
-      const result = await eventService.submitRegistrationForm(eventId, payload);
+      const result = await eventService.submitRegistrationForm(eventId, values);
       if (result.nextStep === 'team_management') {
         toast({ type: 'success', message: 'Profile saved! Proceeding to Team Setup.' });
         router.push(`/events/${eventId}/registration/team`);
@@ -344,38 +334,9 @@ export default function EventRegistrationPage() {
     }
   };
 
-  const handleValidateCoupon = async () => {
-    if (!couponInput.trim()) return;
-    setCouponValidating(true);
-    setCouponError(null);
-    try {
-      const result = await eventService.validateCoupon(
-        eventId,
-        couponInput.trim(),
-        formData?.event.registrationFee
-      );
-      setCouponResult(result);
-      setCouponCode(couponInput.trim().toUpperCase());
-      setCouponError(null);
-    } catch (err: any) {
-      setCouponError(err?.response?.data?.message || 'Invalid or expired coupon code');
-      setCouponResult(null);
-      setCouponCode('');
-    } finally {
-      setCouponValidating(false);
-    }
-  };
-
-  const handleRemoveCoupon = () => {
-    setCouponCode('');
-    setCouponInput('');
-    setCouponResult(null);
-    setCouponError(null);
-  };
-
   if (loading || !formData) {
     return (
-      <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950 flex flex-col items-center justify-center gap-4">
+      <div className="ev-page flex flex-col items-center justify-center gap-4">
         <PageSkeleton message="Loading registration..." />
       </div>
     );
@@ -396,25 +357,25 @@ export default function EventRegistrationPage() {
       : isPendingPayment
         ? { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', icon: <CreditCard className="w-6 h-6 text-amber-600 dark:text-amber-400" />, title: 'Payment Pending', titleColor: 'text-amber-800 dark:text-amber-200', desc: 'Your details are saved. Complete payment to confirm registration.' }
         : isIncompleteTeam
-          ? { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-200 dark:border-blue-800', icon: <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />, title: 'Personal Info Saved', titleColor: 'text-blue-800 dark:text-blue-200', desc: 'Your details are saved. Now set up your team to complete registration.' }
-          : { bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-gray-200 dark:border-gray-700', icon: <Lock className="w-6 h-6 text-gray-500" />, title: 'Already Registered', titleColor: 'text-gray-800 dark:text-gray-200', desc: 'Your registration details are locked.' };
+          ? { bg: 'bg-ev-50 dark:bg-ev-900/20', border: 'border-ev-200 dark:border-ev-800', icon: <Users className="w-6 h-6 text-ev-700 dark:text-ev-400" />, title: 'Personal Info Saved', titleColor: 'text-ev-800 dark:text-ev-200', desc: 'Your details are saved. Now set up your team to complete registration.' }
+          : { bg: 'bg-gray-50 dark:bg-gray-800', border: 'border-[#b3cde0] dark:border-gray-700', icon: <Lock className="w-6 h-6 text-gray-500" />, title: 'Already Registered', titleColor: 'text-gray-800 dark:text-gray-200', desc: 'Your registration details are locked.' };
 
     const savedData = existingReg?.formData || {};
 
     return (
-      <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="ev-page py-12 px-4 sm:px-6 lg:px-8 font-sans">
         <div className="max-w-3xl mx-auto space-y-6">
           <div>
             <Link
               href={`/events/${eventId}`}
-              className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors mb-3 group"
+              className="inline-flex items-center gap-2 text-sm font-medium text-ev-400 hover:text-ev-700 transition-colors mb-3 group"
             >
-              <div className="p-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 group-hover:border-blue-200 transition-colors">
+              <div className="p-1.5 rounded-full bg-white dark:bg-gray-800 border border-[#b3cde0] dark:border-gray-700 group-hover:border-ev-400 transition-colors">
                 <ArrowLeft className="w-3.5 h-3.5" />
               </div>
               Back to Event
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{formData.event.name}</h1>
+            <h1 className="text-2xl font-bold text-ev-900 dark:text-white">{formData.event.name}</h1>
           </div>
 
           {/* Status Banner */}
@@ -431,7 +392,7 @@ export default function EventRegistrationPage() {
               {isIncompleteTeam && (
                 <Link
                   href={`/events/${eventId}/registration/team`}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2"
+                  className="ev-btn px-4 py-2 text-sm font-bold rounded-xl transition-all flex items-center gap-2"
                 >
                   <Users className="w-4 h-4" />
                   Team Setup
@@ -460,12 +421,12 @@ export default function EventRegistrationPage() {
 
           {/* QR Code — shown only when confirmed */}
           {isFullyConfirmed && existingReg?.qrCode && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 text-center shadow-sm">
+            <div className="ev-card rounded-2xl p-6 text-center">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <QrCode className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                <h3 className="text-base font-bold text-gray-900 dark:text-white">Your Entry QR Code</h3>
+                <QrCode className="w-5 h-5 text-ev-700 dark:text-gray-300" />
+                <h3 className="text-base font-bold text-ev-900 dark:text-white">Your Entry QR Code</h3>
               </div>
-              <div className="inline-block bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-5">
+              <div className="inline-block bg-ev-50 dark:bg-gray-900 border border-[#b3cde0] dark:border-gray-700 rounded-xl px-6 py-5">
                 <p className="font-mono text-sm text-gray-800 dark:text-gray-200 break-all leading-relaxed tracking-wide">
                   {existingReg.qrCode}
                 </p>
@@ -477,11 +438,11 @@ export default function EventRegistrationPage() {
           )}
 
           {/* Read-only form data summary */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-gray-400" />
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">Submitted Details</h2>
-              <span className="ml-auto text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">Read-only</span>
+          <div className="ev-card rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-[#b3cde0]/30 dark:border-gray-700 bg-ev-50/50 dark:bg-gray-800/50 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-ev-400" />
+              <h2 className="text-base font-bold text-ev-900 dark:text-white">Submitted Details</h2>
+              <span className="ml-auto text-xs text-ev-400 bg-ev-50 dark:bg-gray-700 px-2 py-0.5 rounded-full">Read-only</span>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {([
@@ -502,7 +463,7 @@ export default function EventRegistrationPage() {
                 .map(f => (
                   <div key={f.key} className="space-y-1">
                     <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{f.label}</p>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-[#b3cde0] dark:border-gray-700">
                       {values[f.key] || '—'}
                     </p>
                   </div>
@@ -515,7 +476,7 @@ export default function EventRegistrationPage() {
                 return (
                   <div key={field.id} className="space-y-1">
                     <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide">{field.fieldLabel}</p>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-100 dark:border-gray-700">
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200 px-3 py-2 bg-gray-50 dark:bg-gray-900 rounded-lg border border-[#b3cde0] dark:border-gray-700">
                       {Array.isArray(val) ? val.join(', ') : String(val)}
                     </p>
                   </div>
@@ -529,7 +490,7 @@ export default function EventRegistrationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-gray-950 py-12 px-4 sm:px-6 lg:px-8 font-sans">
+    <div className="ev-page py-12 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-6xl mx-auto">
 
         {/* Navigation & Header */}
@@ -537,35 +498,35 @@ export default function EventRegistrationPage() {
           <div>
             <Link
               href={`/events/${eventId}`}
-              className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors mb-3 group"
+              className="inline-flex items-center gap-2 text-sm font-medium text-ev-400 hover:text-ev-700 transition-colors mb-3 group"
             >
-              <div className="p-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 group-hover:border-blue-200 transition-colors">
+              <div className="p-1.5 rounded-full bg-white dark:bg-gray-800 border border-[#b3cde0] dark:border-gray-700 group-hover:border-ev-400 transition-colors">
                 <ArrowLeft className="w-3.5 h-3.5" />
               </div>
               Back to Event Details
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+            <h1 className="text-3xl font-bold text-ev-900 dark:text-white tracking-tight">
               {isTeamEvent ? 'Participant Registration' : 'Event Registration'}
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-2 max-w-2xl text-lg">
-              Complete your profile details to register for <span className="font-semibold text-gray-900 dark:text-white">{formData.event.name}</span>.
+            <p className="text-ev-400 dark:text-gray-400 mt-2 max-w-2xl text-lg">
+              Complete your profile details to register for <span className="font-semibold text-ev-900 dark:text-white">{formData.event.name}</span>.
             </p>
           </div>
 
           {/* Progress Steps for Team Events */}
           {isTeamEvent && (
-            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pr-4 sm:pr-6 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pr-4 sm:pr-6 rounded-2xl border border-[#b3cde0]/60 dark:border-gray-700 shadow-ev overflow-x-auto scrollbar-hide">
               <div className={`flex items-center gap-3 pl-2 pr-4 py-2 rounded-xl transition-all ${step === 'form'
-                  ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200 shadow-sm ring-1 ring-blue-100 dark:ring-blue-800'
-                  : 'text-gray-500 dark:text-gray-400'
+                  ? 'bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 shadow-ev ring-1 ring-ev-200 dark:ring-ev-800'
+                  : 'text-ev-400 dark:text-gray-400'
                 }`}>
-                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === 'form' ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700'
+                <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${step === 'form' ? 'bg-ev-700 text-white' : 'bg-gray-200 dark:bg-gray-700'
                   }`}>1</span>
                 <span className="font-semibold text-sm">Personal Info</span>
               </div>
               <div className="w-8 h-[2px] bg-gray-200 dark:bg-gray-700 rounded-full" />
               <div className="flex items-center gap-3">
-                <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">2</span>
+                <span className="w-6 h-6 rounded-full bg-ev-50 dark:bg-gray-800 border-2 border-[#b3cde0] dark:border-gray-700 flex items-center justify-center text-xs font-bold text-ev-400">2</span>
                 <span className="font-medium text-sm text-gray-400 dark:text-gray-500">Team Setup</span>
               </div>
             </div>
@@ -576,26 +537,26 @@ export default function EventRegistrationPage() {
 
           {/* Left Sidebar - Key Info or Summary */}
           <div className="hidden lg:block lg:col-span-4 sticky top-8 space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-blue-100 dark:border-blue-900/30 p-6 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.05)]">
+            <div className="ev-card rounded-2xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                  <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="p-2.5 bg-ev-50 dark:bg-ev-900/20 rounded-xl">
+                  <Building2 className="w-5 h-5 text-ev-700 dark:text-ev-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Registration Info</h3>
+                  <h3 className="text-sm font-bold text-ev-900 dark:text-white uppercase tracking-wider">Registration Info</h3>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="flex gap-3">
-                  <div className="mt-0.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500" /></div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                  <div className="mt-0.5"><div className="w-1.5 h-1.5 rounded-full bg-ev-700" /></div>
+                  <p className="text-sm text-ev-400 dark:text-gray-300 leading-relaxed">
                     Please ensure all details are accurate as they will be used for certificates and communication.
                   </p>
                 </div>
                 {isTeamEvent && (
                   <div className="flex gap-3">
-                    <div className="mt-0.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500" /></div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                    <div className="mt-0.5"><div className="w-1.5 h-1.5 rounded-full bg-ev-700" /></div>
+                    <p className="text-sm text-ev-400 dark:text-gray-300 leading-relaxed">
                       After submitting your personal details, you will be redirected to create or join a team.
                     </p>
                   </div>
@@ -609,10 +570,10 @@ export default function EventRegistrationPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
 
               {/* 1. Personal Information Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-                  <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span className="w-1 h-5 bg-blue-500 rounded-full" />
+              <div className="ev-card rounded-2xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-[#b3cde0]/30 dark:border-gray-700 bg-ev-50/50 dark:bg-gray-800/50">
+                  <h2 className="text-lg font-bold text-ev-900 dark:text-white flex items-center gap-2">
+                    <span className="w-1 h-5 bg-ev-700 rounded-full" />
                     Basic Details
                   </h2>
                 </div>
@@ -620,14 +581,14 @@ export default function EventRegistrationPage() {
                 <div className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                   {/* Name Fields - locked from account */}
                   <div className="space-y-2 group">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                       First Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={values.firstName || ''}
                       readOnly
-                      className={`w-full px-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.firstName ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'
+                      className={`w-full px-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.firstName ? 'border-red-300 bg-red-50/10' : 'border-[#b3cde0] dark:border-gray-700'
                         }`}
                       placeholder="Ex. John"
                     />
@@ -635,14 +596,14 @@ export default function EventRegistrationPage() {
                   </div>
 
                   <div className="space-y-2 group">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                       Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={values.lastName || ''}
                       readOnly
-                      className={`w-full px-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.lastName ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'}`}
+                      className={`w-full px-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.lastName ? 'border-red-300 bg-red-50/10' : 'border-[#b3cde0] dark:border-gray-700'}`}
                       placeholder="Ex. Doe"
                     />
                     {errors.lastName && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.lastName}</p>}
@@ -650,18 +611,18 @@ export default function EventRegistrationPage() {
 
                   {/* Contact Fields */}
                   <div className="space-y-2 group md:col-span-2">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                       Email Address <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Mail className="h-5 w-5 text-gray-400" />
+                        <Mail className="h-5 w-5 text-ev-400" />
                       </div>
                       <input
                         type="email"
                         value={values.email || ''}
                         readOnly
-                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-gray-50/50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed ${errors.email ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'}`}
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-gray-50/50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 outline-none cursor-not-allowed ${errors.email ? 'border-red-300 bg-red-50/10' : 'border-[#b3cde0] dark:border-gray-700'}`}
                       />
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
                         <CheckCircle2 className="h-5 w-5 text-emerald-500" />
@@ -671,18 +632,18 @@ export default function EventRegistrationPage() {
                   </div>
 
                   <div className="space-y-2 group">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                       Mobile Number <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Phone className="h-4 w-4 text-gray-400" />
+                        <Phone className="h-4 w-4 text-ev-400" />
                       </div>
                       <input
                         type="tel"
                         value={values.phone || ''}
                         onChange={(e) => { setValues({ ...values, phone: e.target.value }); if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' })); }}
-                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none font-mono transition-all ${errors.phone ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none font-mono transition-all ${errors.phone ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                         placeholder="+91 99999 99999"
                       />
                     </div>
@@ -690,18 +651,18 @@ export default function EventRegistrationPage() {
                   </div>
 
                   <div className="space-y-2 group">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                       City / Location <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <MapPin className="h-4 w-4 text-gray-400" />
+                        <MapPin className="h-4 w-4 text-ev-400" />
                       </div>
                       <input
                         type="text"
                         value={values.location || ''}
                         onChange={(e) => { setValues({ ...values, location: e.target.value }); if (errors.location) setErrors((prev) => ({ ...prev, location: '' })); }}
-                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.location ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none transition-all ${errors.location ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                         placeholder="City, State"
                       />
                     </div>
@@ -709,18 +670,18 @@ export default function EventRegistrationPage() {
                   </div>
 
                   <div className="space-y-2 group md:col-span-2">
-                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                       Institute / College <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Building2 className="h-4 w-4 text-gray-400" />
+                        <Building2 className="h-4 w-4 text-ev-400" />
                       </div>
                       <input
                         type="text"
                         value={values.institute || ''}
                         readOnly
-                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.institute ? 'border-red-300 bg-red-50/10' : 'border-gray-200 dark:border-gray-700'}`}
+                        className={`w-full pl-11 pr-4 py-3 border rounded-xl bg-gray-50 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 outline-none cursor-not-allowed ${errors.institute ? 'border-red-300 bg-red-50/10' : 'border-[#b3cde0] dark:border-gray-700'}`}
                         placeholder="Full Name of Institute"
                       />
                       <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
@@ -747,10 +708,10 @@ export default function EventRegistrationPage() {
                 if (!hasAnyVisible) return null;
 
                 return (
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-                      <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                        <span className="w-1 h-5 bg-indigo-500 rounded-full" />
+                  <div className="ev-card rounded-2xl overflow-hidden">
+                    <div className="px-6 py-4 border-b border-[#b3cde0]/30 dark:border-gray-700 bg-ev-50/50 dark:bg-gray-800/50">
+                      <h2 className="text-lg font-bold text-ev-900 dark:text-white flex items-center gap-2">
+                        <span className="w-1 h-5 bg-ev-800 rounded-full" />
                         Academic Details
                       </h2>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Please fill in the details not found in your profile.</p>
@@ -760,14 +721,14 @@ export default function EventRegistrationPage() {
                       {/* Registration No / UID (students) */}
                       {showRegNo && (
                         <div className="space-y-2 group">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                             Registration No / UID <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={values.registrationNo || ''}
                             onChange={(e) => { setValues({ ...values, registrationNo: e.target.value }); if (errors.registrationNo) setErrors((prev) => ({ ...prev, registrationNo: '' })); }}
-                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.registrationNo ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none transition-all ${errors.registrationNo ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                             placeholder="e.g., 2021-ABC-1234"
                           />
                           {errors.registrationNo && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.registrationNo}</p>}
@@ -777,14 +738,14 @@ export default function EventRegistrationPage() {
                       {/* Employee ID (employees) */}
                       {showEmpId && (
                         <div className="space-y-2 group">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                             Employee ID <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={values.employeeId || ''}
                             onChange={(e) => { setValues({ ...values, employeeId: e.target.value }); if (errors.employeeId) setErrors((prev) => ({ ...prev, employeeId: '' })); }}
-                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.employeeId ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none transition-all ${errors.employeeId ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                             placeholder="e.g., EMP-001"
                           />
                           {errors.employeeId && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.employeeId}</p>}
@@ -794,14 +755,14 @@ export default function EventRegistrationPage() {
                       {/* Gender */}
                       {showGender && (
                         <div className="space-y-2 group">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                             Gender <span className="text-red-500">*</span>
                           </label>
                           <div className="relative">
                             <select
                               value={values.gender || ''}
                               onChange={(e) => { setValues({ ...values, gender: e.target.value }); if (errors.gender) setErrors((prev) => ({ ...prev, gender: '' })); }}
-                              className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none appearance-none cursor-pointer transition-all ${errors.gender ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                              className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none appearance-none cursor-pointer transition-all ${errors.gender ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                             >
                               <option value="">Select Gender</option>
                               <option value="Male">Male</option>
@@ -820,14 +781,14 @@ export default function EventRegistrationPage() {
                       {/* School / Faculty */}
                       {showSchool && (
                         <div className="space-y-2 group">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                             School / Faculty <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={values.school || ''}
                             onChange={(e) => { setValues({ ...values, school: e.target.value }); if (errors.school) setErrors((prev) => ({ ...prev, school: '' })); }}
-                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.school ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none transition-all ${errors.school ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                             placeholder="e.g., Faculty of Engineering"
                           />
                           {errors.school && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.school}</p>}
@@ -837,14 +798,14 @@ export default function EventRegistrationPage() {
                       {/* Department */}
                       {showDept && (
                         <div className="space-y-2 group">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                             Department <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={values.department || ''}
                             onChange={(e) => { setValues({ ...values, department: e.target.value }); if (errors.department) setErrors((prev) => ({ ...prev, department: '' })); }}
-                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.department ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none transition-all ${errors.department ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                             placeholder="e.g., Computer Science & Engineering"
                           />
                           {errors.department && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.department}</p>}
@@ -854,14 +815,14 @@ export default function EventRegistrationPage() {
                       {/* Program (students only) */}
                       {showProgram && (
                         <div className="space-y-2 group">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                             Program <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={values.program || ''}
                             onChange={(e) => { setValues({ ...values, program: e.target.value }); if (errors.program) setErrors((prev) => ({ ...prev, program: '' })); }}
-                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.program ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none transition-all ${errors.program ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                             placeholder="e.g., B.Tech Computer Science"
                           />
                           {errors.program && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.program}</p>}
@@ -871,14 +832,14 @@ export default function EventRegistrationPage() {
                       {/* Pass Out Year (students only) */}
                       {showPassOutYear && (
                         <div className="space-y-2 group">
-                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-blue-600 transition-colors">
+                          <label className="text-sm font-semibold text-gray-700 dark:text-gray-200 group-hover:text-ev-700 transition-colors">
                             Pass Out Year <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="text"
                             value={values.passOutYear || ''}
                             onChange={(e) => { setValues({ ...values, passOutYear: e.target.value }); if (errors.passOutYear) setErrors((prev) => ({ ...prev, passOutYear: '' })); }}
-                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-all ${errors.passOutYear ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-100 focus:border-blue-500 hover:border-blue-300'}`}
+                            className={`w-full px-4 py-3 border rounded-xl bg-white dark:bg-gray-800 text-ev-900 dark:text-white outline-none transition-all ${errors.passOutYear ? 'border-red-300 bg-red-50/10 focus:ring-2 focus:ring-red-100 focus:border-red-500' : 'border-[#b3cde0] dark:border-gray-700 focus:ring-2 focus:ring-ev-200/40 focus:border-ev-700 hover:border-ev-400'}`}
                             placeholder="e.g., 2025"
                           />
                           {errors.passOutYear && <p data-validation-error className="text-xs text-red-500 font-medium pl-1">{errors.passOutYear}</p>}
@@ -891,10 +852,10 @@ export default function EventRegistrationPage() {
 
               {/* 2. Additional Fields Card (if any) */}
               {formData.customFields.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                      <span className="w-1 h-5 bg-purple-500 rounded-full" />
+                <div className="ev-card rounded-2xl overflow-hidden">
+                  <div className="px-6 py-4 border-b border-[#b3cde0]/30 dark:border-gray-700 bg-ev-50/50 dark:bg-gray-800/50">
+                    <h2 className="text-lg font-bold text-ev-900 dark:text-white flex items-center gap-2">
+                      <span className="w-1 h-5 bg-ev-400 rounded-full" />
                       Additional Information
                     </h2>
                   </div>
@@ -914,98 +875,18 @@ export default function EventRegistrationPage() {
                 </div>
               )}
 
-              {/* 3. Coupon Code Section — paid events only */}
-              {formData.event.paymentType === 'paid' && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                      <span className="w-1 h-5 bg-emerald-500 rounded-full" />
-                      <Tag className="w-4 h-4 text-emerald-600" />
-                      Have a Coupon?
-                    </h2>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Apply a discount coupon to reduce your registration fee.</p>
-                  </div>
-                  <div className="p-6 space-y-4">
-                    {!couponResult ? (
-                      <div className="flex gap-3">
-                        <input
-                          type="text"
-                          value={couponInput}
-                          onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleValidateCoupon(); } }}
-                          placeholder="Enter coupon code"
-                          className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-mono uppercase focus:ring-2 focus:ring-emerald-100 focus:border-emerald-500 outline-none transition-all"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleValidateCoupon}
-                          disabled={couponValidating || !couponInput.trim()}
-                          className="px-5 py-3 bg-emerald-600 text-white font-semibold rounded-xl hover:bg-emerald-700 transition-all disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {couponValidating ? <Loader2Icon className="w-4 h-4 animate-spin" /> : 'Apply'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                          <span className="font-mono font-bold text-emerald-700 dark:text-emerald-300">{couponResult.code}</span>
-                          {couponResult.description && (
-                            <span className="text-xs text-emerald-600 dark:text-emerald-400">— {couponResult.description}</span>
-                          )}
-                        </div>
-                        <button type="button" onClick={handleRemoveCoupon} className="p-1 text-emerald-500 hover:text-red-500 transition-colors">
-                          <XIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
-
-                    {couponError && (
-                      <div className="flex items-center gap-2 text-sm text-red-500">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        {couponError}
-                      </div>
-                    )}
-
-                    {/* Discount breakdown */}
-                    {couponResult && (
-                      <div className="space-y-2 pt-1">
-                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                          <span>Original Amount</span>
-                          <span>₹{couponResult.originalAmount.toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                          <span>
-                            Discount ({couponResult.discountType === 'percentage'
-                              ? `${couponResult.discountValue}%`
-                              : 'Fixed'})
-                          </span>
-                          <span>−₹{couponResult.discountAmount.toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="flex justify-between text-base font-bold text-gray-900 dark:text-white pt-2 border-t border-gray-100 dark:border-gray-700">
-                          <span>Final Payable</span>
-                          <span className="text-emerald-600 dark:text-emerald-400">
-                            ₹{couponResult.finalAmount.toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               {/* Action Bar */}
               <div className="sticky bottom-4 z-20">
-                <div className="bg-white dark:bg-gray-800 p-4 md:p-5 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-xl shadow-gray-200/50 dark:shadow-black/20 flex items-center justify-between gap-4">
+                <div className="ev-card p-4 md:p-5 rounded-2xl shadow-xl shadow-ev-200/30 dark:shadow-black/20 flex items-center justify-between gap-4">
 
-                  <p className="text-sm text-gray-500 dark:text-gray-400 hidden md:block">
+                  <p className="text-sm text-ev-400 dark:text-gray-400 hidden md:block">
                     <span className="text-red-500">*</span> Indicates required fields
                   </p>
 
                   <div className="flex items-center gap-3 w-full md:w-auto">
                     <Link
                       href={`/events/${eventId}`}
-                      className="flex-1 md:flex-none px-6 py-3 text-center text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+                      className="flex-1 md:flex-none px-6 py-3 text-center text-sm font-semibold text-ev-800 dark:text-gray-300 hover:bg-ev-50 dark:hover:bg-gray-700/50 rounded-xl transition-colors border border-transparent hover:border-[#b3cde0] dark:hover:border-gray-700"
                     >
                       Cancel
                     </Link>
@@ -1013,7 +894,7 @@ export default function EventRegistrationPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="flex-1 md:flex-none px-8 py-3 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl text-sm font-bold shadow-lg shadow-gray-200 dark:shadow-none hover:shadow-xl hover:translate-y-[-1px] active:translate-y-[0px] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 md:flex-none px-8 py-3 bg-ev-700 dark:bg-ev-700 text-white dark:text-white rounded-xl text-sm font-bold shadow-lg shadow-ev-200 dark:shadow-none hover:bg-ev-800 hover:shadow-xl hover:translate-y-[-1px] active:translate-y-[0px] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {submitting ? (
                         <>

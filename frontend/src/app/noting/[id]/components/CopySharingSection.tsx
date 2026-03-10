@@ -274,14 +274,14 @@ export default function CopySharingSection({
   if (note.status !== "approved" || note.createdById !== currentUserId) return null;
 
   return (
-    <section className="pt-5 mt-2 border-t border-gray-200 dark:border-gray-700">
+    <section className="pt-5 mt-2 border-t border-[#b3cde0]/30 dark:border-gray-700">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
           Post-Approval Copy Sharing
         </h3>
         <button
           onClick={() => setShowCopyPanel(!showCopyPanel)}
-          className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center gap-1.5 font-medium transition-colors"
+          className="px-3 py-1.5 text-xs bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] flex items-center gap-1.5 font-medium transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
         >
           <Users className="w-3.5 h-3.5" />
           {showCopyPanel ? "Cancel" : "Send Copy"}
@@ -290,7 +290,7 @@ export default function CopySharingSection({
 
       {/* Send Copy Panel */}
       {showCopyPanel && (
-        <div className="rounded-md border border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/10 p-4 space-y-3 mb-4">
+        <div className="rounded-xl border border-[#b3cde0]/40 dark:border-[#005b96]/30 bg-[#b3cde0]/10 dark:bg-[#005b96]/5 p-4 space-y-3 mb-4">
           {/* Selected Users */}
           {selectedCopyUsers.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -323,7 +323,7 @@ export default function CopySharingSection({
               value={copySearchQuery}
               onChange={(e) => setCopySearchQuery(e.target.value)}
               placeholder="Search users by name, UID or emp ID..."
-              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200"
             />
             {copySearchLoading && (
               <LoadingSpinner
@@ -379,7 +379,7 @@ export default function CopySharingSection({
             value={copyRemarks}
             onChange={(e) => setCopyRemarks(e.target.value)}
             rows={2}
-            className={`w-full px-3 py-2 text-sm border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none ${!copyRemarks.trim() ? "border-red-300" : "border-gray-200 dark:border-gray-600"}`}
+            className={`w-full px-3 py-2 text-sm border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${!copyRemarks.trim() ? "border-red-300" : "border-[#b3cde0]/50 dark:border-gray-600"}`}
             placeholder="Instructions / remarks for assigned users (mandatory)..."
           />
           {/* Send Button */}
@@ -390,7 +390,7 @@ export default function CopySharingSection({
               selectedCopyUsers.length === 0 ||
               !copyRemarks.trim()
             }
-            className="w-full px-3 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 font-medium flex items-center justify-center gap-1.5 transition-colors"
+            className="w-full px-3 py-2 text-sm bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-medium flex items-center justify-center gap-1.5 transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
           >
             {copySendLoading ? (
               <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
@@ -459,7 +459,7 @@ export default function CopySharingSection({
                         ? "text-emerald-600 bg-emerald-50 border-emerald-200"
                         : latestStatus === "forwarded"
                           ? "text-amber-600 bg-amber-50 border-amber-200"
-                          : "text-gray-600 bg-gray-50 border-gray-200";
+                          : "text-[#03396c] bg-[#b3cde0]/10 border-[#b3cde0]/40";
                   const maxLevel = Math.max(
                     ...groupCopies.map(
                       (c) => c.escalationLevel || 0,
@@ -493,7 +493,7 @@ export default function CopySharingSection({
                   return (
                     <div
                       key={rootId}
-                      className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden"
+                      className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 overflow-hidden"
                     >
                       <button
                         type="button"
@@ -524,7 +524,7 @@ export default function CopySharingSection({
                             }
                           }
                         }}
-                        className="w-full flex items-center gap-3 p-3 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-left transition-colors"
+                        className="w-full flex items-center gap-3 p-3 bg-white dark:bg-gray-800 hover:bg-[#f8fafc] dark:hover:bg-gray-700/50 text-left transition-all duration-200"
                       >
                         <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 text-xs font-bold">
                           {assigneeInitial}
@@ -574,7 +574,7 @@ export default function CopySharingSection({
                       </button>
 
                       {isExpanded && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-gray-50/50 dark:bg-gray-900/20 space-y-4">
+                        <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 p-4 bg-[#f8fafc]/50 dark:bg-gray-900/20 space-y-4">
                           {/* ── Vertical Flowchart: interleave worker replies with escalation ── */}
                           {(() => {
                             const creatorName = getDisplayName(
@@ -749,7 +749,7 @@ export default function CopySharingSection({
                             return (
                               <div className="flex flex-col items-center w-full max-w-lg mx-auto">
                                 {/* ── Node: Creator ── */}
-                                <div className="w-full rounded-xl border-2 border-indigo-300 dark:border-indigo-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
+                                <div className="w-full rounded-xl border-2 border-[#6497b1] dark:border-[#005b96] bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
                                   <div className="bg-indigo-50 dark:bg-indigo-900/30 px-4 py-2 flex items-center gap-2.5">
                                     <div className="w-7 h-7 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
                                       {creatorName.charAt(0)}
@@ -778,7 +778,7 @@ export default function CopySharingSection({
                                           (r: any) => (
                                             <div
                                               key={r.id}
-                                              className="flex items-start gap-2 bg-indigo-50/60 dark:bg-indigo-900/10 rounded-md px-2.5 py-1.5"
+                                              className="flex items-start gap-2 bg-[#b3cde0]/10 dark:bg-[#005b96]/10 rounded-xl px-2.5 py-1.5"
                                             >
                                               <MessageSquare className="w-3 h-3 text-indigo-500 mt-0.5 flex-shrink-0" />
                                               <div className="min-w-0 flex-1">
@@ -1211,7 +1211,7 @@ export default function CopySharingSection({
                                           setForwardingCopyId(null);
                                           setForwardCopyRemarks("");
                                         }}
-                                        className="px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50"
+                                        className="px-3 py-1.5 text-xs border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl text-[#03396c] dark:text-gray-400 hover:bg-[#f8fafc] transition-all duration-200"
                                       >
                                         Cancel
                                       </button>
@@ -1295,7 +1295,7 @@ export default function CopySharingSection({
                                         )
                                       }
                                       rows={2}
-                                      className={`w-full px-3 py-2 text-xs border rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder:text-gray-400 focus:ring-1 focus:ring-indigo-500 outline-none ${!replyRemarks.trim() ? "border-red-300" : "border-gray-200 dark:border-gray-600"}`}
+                                      className={`w-full px-3 py-2 text-xs border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 outline-none transition-all duration-200 ${!replyRemarks.trim() ? "border-red-300" : "border-[#b3cde0]/50 dark:border-gray-600"}`}
                                       placeholder="Your reply / status update (mandatory)..."
                                     />
                                     {/* Attached files */}
@@ -1331,7 +1331,7 @@ export default function CopySharingSection({
                                       </div>
                                     )}
                                     <div className="flex gap-2">
-                                      <label className="px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50 cursor-pointer flex items-center gap-1">
+                                      <label className="px-3 py-1.5 text-xs border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl text-[#03396c] dark:text-gray-400 hover:bg-[#f8fafc] cursor-pointer flex items-center gap-1 transition-all duration-200">
                                         {replyUploadLoading ? (
                                           <LoadingSpinner
                                             size="sm"
@@ -1361,7 +1361,7 @@ export default function CopySharingSection({
                                           replyLoading ||
                                           !replyRemarks.trim()
                                         }
-                                        className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50 font-medium flex items-center gap-1 transition-colors"
+                                        className="px-3 py-1.5 text-xs bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-medium flex items-center gap-1 transition-all duration-200"
                                       >
                                         {replyLoading ? (
                                           <LoadingSpinner
@@ -1379,7 +1379,7 @@ export default function CopySharingSection({
                                           setReplyRemarks("");
                                           setReplyAttachments([]);
                                         }}
-                                        className="px-3 py-1.5 text-xs border border-gray-200 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50"
+                                        className="px-3 py-1.5 text-xs border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl text-[#03396c] dark:text-gray-400 hover:bg-[#f8fafc] transition-all duration-200"
                                       >
                                         Cancel
                                       </button>
@@ -1397,7 +1397,7 @@ export default function CopySharingSection({
                                       setReplyAttachments([]);
                                     }}
                                     disabled={!!forwardingCopyId}
-                                    className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 font-medium flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="px-3 py-1.5 text-xs bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] font-medium flex items-center gap-1 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     <MessageSquare className="w-3 h-3" />
                                     Reply

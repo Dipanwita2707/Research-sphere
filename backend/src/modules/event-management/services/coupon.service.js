@@ -34,9 +34,18 @@ const computeDiscount = (coupon, amount) => {
   // Discount cannot exceed the payable amount
   if (discountAmount > amount) discountAmount = amount;
 
+  let finalAmount = amount - discountAmount;
+
+  // Partial discounts must still leave at least ₹1 payable.
+  // Only a true full-discount coupon is allowed to reduce the total to ₹0.
+  if (finalAmount > 0 && finalAmount < 1) {
+    finalAmount = 1;
+    discountAmount = amount - finalAmount;
+  }
+
   return {
     discountAmount: Math.round(discountAmount * 100) / 100,
-    finalAmount: Math.round((amount - discountAmount) * 100) / 100,
+    finalAmount: Math.round(finalAmount * 100) / 100,
   };
 };
 
@@ -224,13 +233,6 @@ const validateCoupon = async (eventId, code, userId, amount) => {
   }
 
   const { discountAmount, finalAmount } = computeDiscount(coupon, registrationAmount);
-
-  // Razorpay minimum is ₹1 — catch sub-minimum amounts early
-  if (finalAmount > 0 && finalAmount < 1) {
-    throw new ValidationError(
-      `This coupon brings your amount to ₹${finalAmount.toFixed(2)}, which is below the minimum payable amount of ₹1. Please use a smaller discount or contact the organiser.`
-    );
-  }
 
   return {
     valid: true,

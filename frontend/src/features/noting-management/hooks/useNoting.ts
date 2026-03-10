@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { useState, useEffect } from "react";
 import { notingService } from "../services/noting.service";
 import type { NoteCopy } from "../types/noting.types";
+import { useAuthStore } from "@/shared/auth/authStore";
 
 export type NotingListParams = {
   filter?: "mine" | "pending" | "handled" | "copies";
@@ -43,7 +44,7 @@ export const NOTING_QUERY_KEYS = {
   config: () => ["noting", "config"],
   myManager: () => ["noting", "my-manager"],
   creatorInfo: () => ["noting", "creator-info"],
-  permissions: () => ["noting", "permissions"],
+  permissions: (userId?: string | null) => ["noting", "permissions", userId ?? "anonymous"],
   noteCopies: (noteId: string) => ["noting", "copies", noteId],
 };
 
@@ -117,6 +118,7 @@ export function useNote(id: string) {
     queryFn: () => notingService.getById(id),
     enabled: !!id,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: false, // don't retry on 404/403 — stops re-fetching deleted notes
   });
 }
 
@@ -232,12 +234,15 @@ export function useCreatorInfo(options: { enabled?: boolean } = {}) {
  */
 export function useNotingPermissions(options: { enabled?: boolean } = {}) {
   const { enabled = true } = options;
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+
   return useQuery({
-    queryKey: NOTING_QUERY_KEYS.permissions(),
+    queryKey: NOTING_QUERY_KEYS.permissions(userId),
     queryFn: () => notingService.getMyNotingPermissions(),
-    enabled,
-    staleTime: 5 * 60 * 1000, // 5 min — permissions rarely change mid-session
-    gcTime: 10 * 60 * 1000,   // 10 min GC — outlives staleTime for background refetch
+    enabled: enabled && !!userId,
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: 'always',
   });
 }
 

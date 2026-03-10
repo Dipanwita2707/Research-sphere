@@ -172,6 +172,49 @@ const updateVolunteer = async (eventId, volunteerId, updateData, updatedBy) => {
  * @param {Object} scanData - Gate location and remarks
  * @returns {Object} Entry log with registration and volunteer details
  */
+const previewQRScan = async (eventId, qrCode, entryType, volunteerId) => {
+  const canScan = await isEventVolunteer(prisma, eventId, volunteerId);
+  if (!canScan) {
+    throw new ForbiddenError(ERRORS.NOT_A_VOLUNTEER);
+  }
+
+  const registration = await validateQRCodeAndGetRegistration(prisma, qrCode, eventId);
+
+  const normalizedEntryType = entryType === 'exit' ? 'exit' : 'entry';
+  const totalAllowedEntries = registration.totalAllowedEntries || 1;
+  const totalEntriesDone = registration.checkedInCount || 0;
+  const totalExitsDone = registration.checkedOutCount || 0;
+  const currentlyInside = Math.max(0, totalEntriesDone - totalExitsDone);
+  const availableEntrySlots = Math.max(0, totalAllowedEntries - currentlyInside);
+
+  const user = registration.user_login;
+  const participantName =
+    user?.studentLogin?.displayName ||
+    `${user?.studentLogin?.firstName || ''} ${user?.studentLogin?.lastName || ''}`.trim() ||
+    user?.employeeDetails?.displayName ||
+    `${user?.employeeDetails?.firstName || ''} ${user?.employeeDetails?.lastName || ''}`.trim() ||
+    user?.uid ||
+    'Attendee';
+
+  return {
+    registrationId: registration.registrationId,
+    qrCode: registration.qrCode,
+    entryType: normalizedEntryType,
+    participant: {
+      name: participantName,
+      uid: user?.uid,
+      email: user?.email,
+    },
+    totalAllowedEntries,
+    checkedInCount: totalEntriesDone,
+    checkedOutCount: totalExitsDone,
+    currentlyInside,
+    availableEntrySlots,
+    maxForThisScan:
+      normalizedEntryType === 'entry' ? availableEntrySlots : currentlyInside,
+  };
+};
+
 const scanQRCode = async (
   eventId,
   qrCode,
@@ -192,14 +235,43 @@ const scanQRCode = async (
     eventId,
   );
 
-  // Entry: block if already checked in (must checkout first)
-  if (entryType === "entry" && registration.hasEntered) {
-    throw new ValidationError(ERRORS.ALREADY_ENTERED);
+  const normalizedEntryType = entryType === "exit" ? "exit" : "entry";
+  const totalAllowedEntries = registration.totalAllowedEntries || 1;
+  const totalEntriesDone = registration.checkedInCount || 0;
+  const totalExitsDone = registration.checkedOutCount || 0;
+  const currentlyInside = Math.max(0, totalEntriesDone - totalExitsDone);
+  const availableEntrySlots = Math.max(0, totalAllowedEntries - currentlyInside);
+  const peopleCount = Number(
+    scanData?.peopleCount ?? scanData?.entriesToCheckIn ?? 1,
+  );
+
+  if (!Number.isInteger(peopleCount) || peopleCount < 1) {
+    throw new ValidationError("peopleCount must be at least 1");
   }
-  // Exit: block if not checked in (must checkin first)
-  if (entryType === "exit" && !registration.hasEntered) {
-    throw new ValidationError(ERRORS.NOT_CHECKED_IN);
+
+  if (normalizedEntryType === "entry" && availableEntrySlots <= 0) {
+    throw new ValidationError(
+      `Pass capacity reached (${currentlyInside}/${totalAllowedEntries} currently inside)`,
+    );
   }
+
+  if (normalizedEntryType === "entry" && peopleCount > availableEntrySlots) {
+    throw new ValidationError(
+      `Only ${availableEntrySlots} entry slot(s) available (${currentlyInside}/${totalAllowedEntries} currently inside)`,
+    );
+  }
+
+  if (normalizedEntryType === "exit" && currentlyInside <= 0) {
+    throw new ValidationError("No one is currently inside for this pass");
+  }
+
+  if (normalizedEntryType === "exit" && peopleCount > currentlyInside) {
+    throw new ValidationError(
+      `Only ${currentlyInside} attendee(s) currently inside for this pass`,
+    );
+  }
+
+  const markStudentExit = Boolean(scanData?.markStudentExit);
 
   // Get volunteer details
   const volunteer = await prisma.eventVolunteer.findFirst({
@@ -209,7 +281,6 @@ const scanQRCode = async (
     },
   });
 
-  // Create entry log
   const entry = await prisma.$transaction(async (tx) => {
     const entryLog = await tx.eventEntry.create({
       data: {
@@ -217,7 +288,8 @@ const scanQRCode = async (
         eventId,
         registrationId: registration.id,
         volunteerId: volunteer.id,
-        entryType,
+        entryType: normalizedEntryType,
+        entryCount: peopleCount,
         gateLocation: scanData.gateLocation,
         remarks: scanData.remarks,
       },
@@ -269,28 +341,122 @@ const scanQRCode = async (
       },
     });
 
-    // Update registration entry status
-    if (entryType === "entry") {
-      await tx.eventRegistration.update({
-        where: { id: registration.id },
-        data: {
-          hasEntered: true,
-          enteredAt: new Date(),
-        },
-      });
-    } else if (entryType === "exit") {
-      await tx.eventRegistration.update({
-        where: { id: registration.id },
-        data: {
-          hasEntered: false,
-        },
-      });
+    const nextEntriesDone =
+      normalizedEntryType === "entry"
+        ? totalEntriesDone + peopleCount
+        : totalEntriesDone;
+    const nextExitsDone =
+      normalizedEntryType === "exit"
+        ? totalExitsDone + peopleCount
+        : totalExitsDone;
+    const nextCurrentlyInside = Math.max(0, nextEntriesDone - nextExitsDone);
+
+    // Student presence assumption:
+    // - Any entry implies the student is assumed inside.
+    // - Student remains assumed inside while someone is inside unless explicitly marked exited.
+    // - If nobody is inside, student is not inside.
+    let nextStudentInside = Boolean(registration.studentInsideAssumed);
+    if (normalizedEntryType === "entry") {
+      nextStudentInside = true;
+    } else if (nextCurrentlyInside <= 0) {
+      nextStudentInside = false;
+    } else if (markStudentExit) {
+      nextStudentInside = false;
     }
 
-    return entryLog;
+    const updatedRegistration = await tx.eventRegistration.update({
+      where: { id: registration.id },
+      data: {
+        checkedInCount:
+          normalizedEntryType === "entry"
+            ? { increment: peopleCount }
+            : undefined,
+        checkedOutCount:
+          normalizedEntryType === "exit"
+            ? { increment: peopleCount }
+            : undefined,
+        hasEntered: nextEntriesDone > 0,
+        enteredAt:
+          normalizedEntryType === "entry"
+            ? registration.enteredAt || new Date()
+            : registration.enteredAt,
+        studentInsideAssumed: nextStudentInside,
+      },
+      select: {
+        id: true,
+        registrationId: true,
+        qrCode: true,
+        totalAllowedEntries: true,
+        checkedInCount: true,
+        checkedOutCount: true,
+        studentInsideAssumed: true,
+        extraPassCount: true,
+      },
+    });
+
+    return { entryLog, updatedRegistration };
   });
 
-  return entry;
+  const user = registration.user_login;
+  const userName =
+    user?.studentLogin?.displayName ||
+    `${user?.studentLogin?.firstName || ""} ${user?.studentLogin?.lastName || ""}`.trim() ||
+    user?.employeeDetails?.displayName ||
+    `${user?.employeeDetails?.firstName || ""} ${user?.employeeDetails?.lastName || ""}`.trim() ||
+    user?.uid ||
+    "Attendee";
+
+  return {
+    id: entry.entryLog.id,
+    eventId,
+    registrationId: registration.id,
+    entryType: normalizedEntryType,
+    entryCount: entry.entryLog.entryCount,
+    scannedAt: entry.entryLog.scannedAt,
+    gateLocation: entry.entryLog.gateLocation,
+    remarks: entry.entryLog.remarks,
+    registration: {
+      id: registration.id,
+      registrationId: registration.registrationId,
+      qrCode: registration.qrCode,
+      user: {
+        id: user?.id,
+        uid: user?.uid,
+        email: user?.email,
+        name: userName,
+      },
+      totalAllowedEntries: entry.updatedRegistration.totalAllowedEntries,
+      checkedInCount: entry.updatedRegistration.checkedInCount,
+      checkedOutCount: entry.updatedRegistration.checkedOutCount,
+      currentlyInside: Math.max(
+        0,
+        entry.updatedRegistration.checkedInCount - entry.updatedRegistration.checkedOutCount,
+      ),
+      availableEntrySlots: Math.max(
+        0,
+        entry.updatedRegistration.totalAllowedEntries -
+          Math.max(
+            0,
+            entry.updatedRegistration.checkedInCount - entry.updatedRegistration.checkedOutCount,
+          ),
+      ),
+      // Keep legacy field name for existing clients.
+      remainingEntries: Math.max(
+        0,
+        entry.updatedRegistration.totalAllowedEntries -
+          Math.max(
+            0,
+            entry.updatedRegistration.checkedInCount - entry.updatedRegistration.checkedOutCount,
+          ),
+      ),
+      studentInside: entry.updatedRegistration.studentInsideAssumed,
+      extraPassCount: entry.updatedRegistration.extraPassCount,
+    },
+    message:
+      normalizedEntryType === "exit"
+        ? `Checked out ${peopleCount} attendee(s)`
+        : `Checked in ${peopleCount} attendee(s)`,
+  };
 };
 
 /**
@@ -370,19 +536,20 @@ const getMyVolunteerActivity = async (userId, filters = {}) => {
   if (volunteerRecords.length === 0) {
     return {
       entries: [],
+      stats: { totalScans: 0, totalEntries: 0, totalExits: 0 },
       pagination: { page, limit, total: 0, totalPages: 0 },
     };
   }
 
   const volunteerIds = volunteerRecords.map((v) => v.id);
-  const volunteerEventIds = volunteerRecords.map((v) => v.eventId);
 
   const where = {
     volunteerId: { in: volunteerIds },
   };
 
   if (eventId) {
-    where.eventId = eventId;
+    const event = await getEventLean(prisma, eventId);
+    where.eventId = event.id;
   }
 
   if (startDate || endDate) {
@@ -390,6 +557,76 @@ const getMyVolunteerActivity = async (userId, filters = {}) => {
     if (startDate) where.scannedAt.gte = new Date(startDate);
     if (endDate) where.scannedAt.lte = new Date(endDate);
   }
+
+  if (search?.trim()) {
+    const searchTerm = search.trim();
+    where.OR = [
+      {
+        EventRegistration: {
+          registrationId: { contains: searchTerm, mode: 'insensitive' },
+        },
+      },
+      {
+        EventRegistration: {
+          user_login: {
+            uid: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+      },
+      {
+        EventRegistration: {
+          user_login: {
+            email: { contains: searchTerm, mode: 'insensitive' },
+          },
+        },
+      },
+      {
+        EventRegistration: {
+          user_login: {
+            employeeDetails: {
+              OR: [
+                { displayName: { contains: searchTerm, mode: 'insensitive' } },
+                { firstName: { contains: searchTerm, mode: 'insensitive' } },
+                { lastName: { contains: searchTerm, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
+      },
+      {
+        EventRegistration: {
+          user_login: {
+            studentLogin: {
+              OR: [
+                { displayName: { contains: searchTerm, mode: 'insensitive' } },
+                { firstName: { contains: searchTerm, mode: 'insensitive' } },
+                { lastName: { contains: searchTerm, mode: 'insensitive' } },
+                { registrationNo: { contains: searchTerm, mode: 'insensitive' } },
+              ],
+            },
+          },
+        },
+      },
+    ];
+  }
+
+  const allMatchingEntries = await prisma.eventEntry.findMany({
+    where,
+    select: {
+      entryType: true,
+      entryCount: true,
+    },
+  });
+
+  const stats = allMatchingEntries.reduce(
+    (acc, entry) => {
+      const count = entry.entryCount || 1;
+      if (entry.entryType === 'entry') acc.totalEntries += count;
+      if (entry.entryType === 'exit') acc.totalExits += count;
+      return acc;
+    },
+    { totalEntries: 0, totalExits: 0 }
+  );
 
   const [entries, total] = await Promise.all([
     prisma.eventEntry.findMany({
@@ -458,6 +695,7 @@ const getMyVolunteerActivity = async (userId, filters = {}) => {
       eventId: e.eventId,
       registrationId: e.registrationId,
       entryType: e.entryType,
+      entryCount: e.entryCount || 1,
       scannedAt: e.scannedAt,
       gateLocation: e.gateLocation,
       remarks: e.remarks,
@@ -484,6 +722,11 @@ const getMyVolunteerActivity = async (userId, filters = {}) => {
 
   return {
     entries: formattedEntries,
+    stats: {
+      totalScans: total,
+      totalEntries: stats.totalEntries,
+      totalExits: stats.totalExits,
+    },
     pagination: {
       page,
       limit,
@@ -618,6 +861,7 @@ const getVolunteerActivity = async (
       eventId: e.eventId,
       registrationId: e.registrationId,
       entryType: e.entryType,
+      entryCount: e.entryCount || 1,
       scannedAt: e.scannedAt,
       gateLocation: e.gateLocation,
       remarks: e.remarks,
@@ -664,6 +908,7 @@ module.exports = {
   assignVolunteer,
   removeVolunteer,
   updateVolunteer,
+  previewQRScan,
   scanQRCode,
   getMyVolunteerAssignments,
   getMyVolunteerActivity,

@@ -77,6 +77,9 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
   const set = useCallback(<K extends keyof VenueFormData>(k: K, v: VenueFormData[K]) => {
     onChangeRef.current({ ...dataRef.current, [k]: v });
   }, []);
+  const setMany = useCallback((patch: Partial<VenueFormData>) => {
+    onChangeRef.current({ ...dataRef.current, ...patch });
+  }, []);
   const ns = useCallback((n: string) => `${fieldsetPrefix}-${n}`, [fieldsetPrefix]);
 
   const addSponsor = useCallback(() => set('eventSponsors', [...dataRef.current.eventSponsors, { name: '', amount: '', type: 'cash', notes: '' }]), [set]);
@@ -176,6 +179,7 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                     <label className={labelCls}>Start Date & Time <span className="text-red-500">*</span></label>
                     <DateTimePicker
                       disabled={disabled}
+                      format="DD/MM/YYYY hh:mm A"
                       value={data.eventStartDate ? dayjs(data.eventStartDate) : null}
                       minDateTime={festivalStartDate ? dayjs(festivalStartDate) : dayjs(TODAY)}
                       maxDateTime={festivalEndDate ? dayjs(festivalEndDate).endOf('day') : undefined}
@@ -206,6 +210,7 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                     <label className={labelCls}>End Date & Time <span className="text-red-500">*</span></label>
                     <DateTimePicker
                       disabled={disabled}
+                      format="DD/MM/YYYY hh:mm A"
                       value={data.eventEndDate ? dayjs(data.eventEndDate) : null}
                       minDateTime={data.eventStartDate ? dayjs(data.eventStartDate) : (festivalStartDate ? dayjs(festivalStartDate) : dayjs(TODAY))}
                       maxDateTime={festivalEndDate ? dayjs(festivalEndDate).endOf('day') : undefined}
@@ -388,8 +393,8 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                 <div className="flex justify-between items-start gap-4">
                   <label className={labelCls}>Duty Leave Required?</label>
                   <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
-                    <button type="button" onClick={() => !disabled && onChange({ ...data, eventDutyLeaveAvailable: true, eventDutyLeaveEligibility: data.eventDutyLeaveEligibility.length ? data.eventDutyLeaveEligibility : ['ug', 'pg', 'phd'], eventDutyLeaveRoleType: data.eventDutyLeaveRoleType || 'participants' })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventDutyLeaveAvailable ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                    <button type="button" onClick={() => !disabled && onChange({ ...data, eventDutyLeaveAvailable: false, eventDutyLeaveEligibility: [], eventDutyLeaveRoleType: undefined })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventDutyLeaveAvailable ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
+                    <button type="button" onClick={() => !disabled && setMany({ eventDutyLeaveAvailable: true, eventDutyLeaveEligibility: dataRef.current.eventDutyLeaveEligibility.length ? dataRef.current.eventDutyLeaveEligibility : ['ug', 'pg', 'phd'], eventDutyLeaveRoleType: dataRef.current.eventDutyLeaveRoleType || 'participants' })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventDutyLeaveAvailable ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
+                    <button type="button" onClick={() => !disabled && setMany({ eventDutyLeaveAvailable: false, eventDutyLeaveEligibility: [], eventDutyLeaveRoleType: undefined })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventDutyLeaveAvailable ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
                   </div>
                 </div>
 
@@ -430,7 +435,7 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                   <label className={labelCls}>Sponsorship Available?</label>
                   <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
                     <button type="button" onClick={() => !disabled && set('eventHasSponsorship', true)} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventHasSponsorship ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                    <button type="button" onClick={() => !disabled && onChange({ ...data, eventHasSponsorship: false, eventSponsors: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasSponsorship ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
+                    <button type="button" onClick={() => !disabled && setMany({ eventHasSponsorship: false, eventSponsors: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasSponsorship ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
                   </div>
                 </div>
 
@@ -491,7 +496,7 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
                 <label className={labelCls}>Are any resources required?</label>
                 <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
                   <button type="button" onClick={() => !disabled && set('eventHasResources', true)} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventHasResources ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                  <button type="button" onClick={() => !disabled && onChange({ ...data, eventHasResources: false, eventResources: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasResources ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
+                  <button type="button" onClick={() => !disabled && setMany({ eventHasResources: false, eventResources: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasResources ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
                 </div>
               </div>
 
@@ -597,8 +602,8 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
               <div className="flex justify-between items-start gap-4">
                 <label className={labelCls}>Prizes & Winners</label>
                 <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
-                  <button type="button" onClick={() => !disabled && onChange({ ...data, eventHasPrizes: true })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventHasPrizes ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                  <button type="button" onClick={() => !disabled && onChange({ ...data, eventHasPrizes: false, eventPrizesAwards: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasPrizes ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
+                  <button type="button" onClick={() => !disabled && setMany({ eventHasPrizes: true })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventHasPrizes ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
+                  <button type="button" onClick={() => !disabled && setMany({ eventHasPrizes: false, eventPrizesAwards: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasPrizes ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
                 </div>
               </div>
 

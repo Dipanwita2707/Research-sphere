@@ -66,6 +66,21 @@ const validateEventSettingsUpdate = (req, _res, next) => {
     }
   }
 
+  if (body.allowExtraPasses !== undefined && typeof body.allowExtraPasses !== 'boolean') {
+    throw new ValidationError('allowExtraPasses must be a boolean');
+  }
+
+  if (body.maxExtraPassesPerUser !== undefined) {
+    const max = Number(body.maxExtraPassesPerUser);
+    if (!Number.isInteger(max) || max < 0 || max > 20) {
+      throw new ValidationError('maxExtraPassesPerUser must be an integer between 0 and 20');
+    }
+  }
+
+  if (body.allowExtraPasses === true && body.maxExtraPassesPerUser !== undefined && Number(body.maxExtraPassesPerUser) < 1) {
+    throw new ValidationError('maxExtraPassesPerUser must be at least 1 when allowExtraPasses is enabled');
+  }
+
   next();
 };
 

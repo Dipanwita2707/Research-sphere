@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, AlertCircle, Ticket as TicketIcon } from 'lucide-react';
+import { Calendar, MapPin, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, Search, Ticket as TicketIcon } from 'lucide-react';
 import QRCodeGenerator from 'qrcode';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { EventRegistration } from '@/features/event-management/types/event.types';
@@ -10,7 +10,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import TicketModal from '@/components/TicketModal';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
-import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
+import { CardSkeleton } from "@/components/skeletons";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   draft: { label: 'Draft', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300', icon: Clock },
@@ -22,6 +22,14 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   incomplete_team: { label: 'Incomplete Team', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', icon: Users },
 };
 
+const REGISTRATION_STATUS_OPTIONS = [
+  { id: '', label: 'All Tickets' },
+  { id: 'confirmed', label: 'Active' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'waitlisted', label: 'Waitlist' },
+  { id: 'cancelled', label: 'Cancelled' },
+];
+
 export default function MyRegistrationsPage() {
   const { toast } = useToast();
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
@@ -32,11 +40,29 @@ export default function MyRegistrationsPage() {
   const [selectedTicket, setSelectedTicket] = useState<EventRegistration | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [addingGuestFor, setAddingGuestFor] = useState<string | null>(null);
+  const [guestForm, setGuestForm] = useState({ guestName: '', guestEmail: '', mobileNumber: '', relationship: '' });
+  const [submittingGuest, setSubmittingGuest] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
 
   const fetchRegistrations = async () => {
     setLoading(true);
     try {
-      const result = await eventService.getMyRegistrations(page, 20, statusFilter || undefined);
+      const result = await eventService.getMyRegistrations(
+        page,
+        20,
+        statusFilter || undefined,
+        debouncedSearch || undefined
+      );
       setRegistrations(result.registrations);
       setPagination(result.pagination);
     } catch (error: any) {
@@ -48,7 +74,7 @@ export default function MyRegistrationsPage() {
 
   useEffect(() => {
     fetchRegistrations();
-  }, [page, statusFilter]);
+  }, [page, statusFilter, debouncedSearch]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
@@ -102,13 +128,43 @@ export default function MyRegistrationsPage() {
     }
   };
 
+  const handleCreateExtraPass = async (registration: EventRegistration) => {
+    const eventId = (registration as any).Event?.id || registration.event?.id;
+    if (!eventId) {
+      toast({ type: 'error', message: 'Unable to detect event for this registration' });
+      return;
+    }
+
+    if (!guestForm.guestName.trim() || !guestForm.guestEmail.trim() || !guestForm.mobileNumber.trim() || !guestForm.relationship.trim()) {
+      toast({ type: 'error', message: 'Please fill all guest details' });
+      return;
+    }
+
+    setSubmittingGuest(true);
+    try {
+      await eventService.createExtraPass(eventId, {
+        guestName: guestForm.guestName.trim(),
+        guestEmail: guestForm.guestEmail.trim(),
+        mobileNumber: guestForm.mobileNumber.trim(),
+        relationship: guestForm.relationship.trim(),
+      });
+      toast({ type: 'success', message: 'Extra pass created successfully' });
+      setGuestForm({ guestName: '', guestEmail: '', mobileNumber: '', relationship: '' });
+      await fetchRegistrations();
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) });
+    } finally {
+      setSubmittingGuest(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-black font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-[#F8FAFC] dark:bg-black font-sans selection:bg-ev-700/30">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 mb-8 sm:mb-12">
           <div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-3">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-ev-900 dark:text-white tracking-tight mb-3">
               My Tickets
             </h1>
             <p className="text-sm sm:text-lg text-gray-500 dark:text-gray-400 font-medium max-w-lg">
@@ -118,43 +174,66 @@ export default function MyRegistrationsPage() {
 
           <Link
             href="/events"
-            className="group flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full hover:border-blue-500 dark:hover:border-blue-500 transition-all shadow-sm hover:shadow-md"
+            className="group flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-900 border border-[#b3cde0] dark:border-gray-800 rounded-full hover:border-ev-700 dark:hover:border-ev-700 transition-all shadow-ev hover:shadow-md"
           >
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-ev-700 dark:group-hover:text-ev-400 transition-colors">
               Explore Events
             </span>
-            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/30 flex items-center justify-center transition-colors">
-              <TicketIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 group-hover:bg-ev-50 dark:group-hover:bg-ev-900/30 flex items-center justify-center transition-colors">
+              <TicketIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-ev-700 dark:group-hover:text-ev-400" />
             </div>
           </Link>
         </div>
 
-        {/* Tab-style Filter */}
-        <div className="flex overflow-x-auto pb-4 mb-8 gap-2 no-scrollbar">
-          {[
-            { id: '', label: 'All Tickets' },
-            { id: 'confirmed', label: 'Active' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'waitlisted', label: 'Waitlist' },
-            { id: 'cancelled', label: 'Cancelled' },
-          ].map((status) => (
-            <button
-              key={status.id}
-              onClick={() => {
-                setStatusFilter(status.id);
+        <div className="mb-8 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4">
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
                 setPage(1);
               }}
-              className={`
-                whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-bold transition-all border
-                ${statusFilter === status.id
-                  ? 'bg-gray-900 dark:bg-white text-white dark:text-black border-gray-900 dark:border-white shadow-lg shadow-gray-200 dark:shadow-none translate-y-[-1px]'
-                  : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }
-              `}
+              className="w-full appearance-none rounded-2xl border border-[#b3cde0] dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 pr-10 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-ev outline-none transition focus:border-ev-700 focus:ring-4 focus:ring-ev-700/10"
             >
-              {status.label}
-            </button>
-          ))}
+              {REGISTRATION_STATUS_OPTIONS.map((status) => (
+                <option key={status.id || 'all'} value={status.id}>
+                  {status.label}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              placeholder={statusFilter ? 'Search within selected status' : 'Search all tickets'}
+              className="w-full rounded-2xl border border-[#b3cde0] dark:border-gray-800 bg-white dark:bg-gray-900 px-11 py-3 pr-11 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-ev outline-none transition placeholder:text-gray-400 focus:border-ev-700 focus:ring-4 focus:ring-ev-700/10"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setPage(1);
+                }}
+                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                aria-label="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Registrations List */}
@@ -167,13 +246,15 @@ export default function MyRegistrationsPage() {
               <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full mx-auto mb-6 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <TicketIcon className="h-10 w-10 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">No tickets found</h3>
+              <h3 className="text-2xl font-bold text-ev-900 dark:text-white mb-3">No tickets found</h3>
               <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto leading-relaxed">
-                You haven't registered for any events yet. Join an event to see your tickets here.
+                {searchTerm || statusFilter
+                  ? 'No tickets match the selected filter and search.'
+                  : "You haven't registered for any events yet. Join an event to see your tickets here."}
               </p>
               <Link
                 href="/events"
-                className="inline-flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-blue-500/25 active:scale-95"
+                className="inline-flex items-center gap-2 px-8 py-3 bg-ev-700 hover:bg-ev-800 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-ev-700/25 active:scale-95"
               >
                 Browse Events
               </Link>
@@ -190,6 +271,17 @@ export default function MyRegistrationsPage() {
                 const eventVenue = (registration as any).Event?.venue || registration.event?.venue;
                 const eventType = (registration as any).Event?.eventType || registration.event?.eventType;
                 const regId = registration.registrationId;
+                const eventAllowsExtraPasses = Boolean((registration as any).Event?.allowExtraPasses ?? registration.event?.allowExtraPasses);
+                const maxExtraPasses = Number((registration as any).Event?.maxExtraPassesPerUser ?? registration.event?.maxExtraPassesPerUser ?? 0);
+                const summary = registration.extraPassSummary || {
+                  extraPassCount: registration.extraPassCount || 0,
+                  totalAllowedEntries: registration.totalAllowedEntries || 1,
+                  checkedInCount: registration.checkedInCount || 0,
+                  remainingEntries: Math.max(0, (registration.totalAllowedEntries || 1) - (registration.checkedInCount || 0)),
+                };
+                const guests = registration.guests || [];
+                const canAddExtraPass = eventAllowsExtraPasses && summary.extraPassCount < maxExtraPasses;
+                const registrationEligible = !['cancelled', 'rejected', 'draft', 'waitlisted'].includes(registration.status);
 
                 const getStatusStyles = (status: string) => {
                   switch (status) {
@@ -202,14 +294,14 @@ export default function MyRegistrationsPage() {
                     case 'waitlisted':
                       return 'bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30';
                     default:
-                      return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border border-gray-200 dark:border-gray-700';
+                      return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 border border-[#b3cde0] dark:border-gray-700';
                   }
                 };
 
                 return (
                   <div
                     key={registration.id}
-                    className="group relative bg-white dark:bg-gray-900 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden"
+                    className="group relative bg-white dark:bg-gray-900 rounded-[2rem] border border-[#b3cde0] dark:border-gray-800 shadow-ev hover:shadow-xl transition-all duration-300 overflow-hidden"
                   >
                     {/* Decorative Top Gradient Line */}
                     <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${registration.status === 'confirmed' ? 'from-green-500 via-emerald-500 to-teal-500' :
@@ -233,7 +325,7 @@ export default function MyRegistrationsPage() {
                                   {eventType}
                                 </span>
                               )}
-                              <h3 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white leading-tight mb-1.5">
+                              <h3 className="text-xl sm:text-2xl font-black text-ev-900 dark:text-white leading-tight mb-1.5">
                                 {eventName}
                               </h3>
                               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
@@ -243,7 +335,7 @@ export default function MyRegistrationsPage() {
                             </div>
 
                             <div className={`
-                              self-start px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5 shadow-sm
+                              self-start px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5 shadow-ev
                               ${getStatusStyles(registration.status)}
                             `}>
                               {StatusIcon && <StatusIcon className="w-3 h-3" />}
@@ -253,25 +345,25 @@ export default function MyRegistrationsPage() {
 
                           {/* Middle: Details Grid */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 transition-colors">
+                            <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-[#b3cde0] dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 transition-colors">
                               <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0 text-orange-600 dark:text-orange-400">
                                 <Calendar className="w-4 h-4" />
                               </div>
                               <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Date & Time</p>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                <p className="text-sm font-semibold text-ev-900 dark:text-white">
                                   {eventDate ? formatDate(eventDate) : 'TBA'}
                                 </p>
                               </div>
                             </div>
 
-                            <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 transition-colors">
+                            <div className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-[#b3cde0] dark:border-gray-800 hover:bg-white dark:hover:bg-gray-800 transition-colors">
                               <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0 text-indigo-600 dark:text-indigo-400">
                                 <MapPin className="w-4 h-4" />
                               </div>
                               <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Location</p>
-                                <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-1">
+                                <p className="text-sm font-semibold text-ev-900 dark:text-white line-clamp-1">
                                   {eventVenue || 'TBA'}
                                 </p>
                               </div>
@@ -285,6 +377,67 @@ export default function MyRegistrationsPage() {
                               Checked in at {formatDate(registration.enteredAt)}
                             </div>
                           )}
+
+                          <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 p-3 bg-white/80 dark:bg-gray-900/40">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Group Pass Summary</p>
+                            <div className="grid grid-cols-3 gap-2 text-xs">
+                              <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
+                                <p className="text-gray-500">Total People</p>
+                                <p className="font-bold text-ev-900 dark:text-gray-100">{summary.totalAllowedEntries}</p>
+                              </div>
+                              <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
+                                <p className="text-gray-500">Checked In</p>
+                                <p className="font-bold text-ev-900 dark:text-gray-100">{summary.checkedInCount}</p>
+                              </div>
+                              <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
+                                <p className="text-gray-500">Remaining</p>
+                                <p className="font-bold text-ev-900 dark:text-gray-100">{summary.remainingEntries}</p>
+                              </div>
+                            </div>
+
+                            {eventAllowsExtraPasses && registrationEligible && (
+                              <div className="mt-3">
+                                <button
+                                  onClick={() => setAddingGuestFor(prev => prev === registration.id ? null : registration.id)}
+                                  disabled={!canAddExtraPass}
+                                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-ev-700 text-white disabled:bg-gray-300 disabled:text-gray-600"
+                                >
+                                  Add Extra Pass
+                                </button>
+                                <p className="text-xs text-gray-500 mt-1">Used: {summary.extraPassCount}/{maxExtraPasses} guest passes</p>
+                              </div>
+                            )}
+
+                            {addingGuestFor === registration.id && canAddExtraPass && (
+                              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <input value={guestForm.guestName} onChange={(e) => setGuestForm(prev => ({ ...prev, guestName: e.target.value }))} placeholder="Guest Name" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <input value={guestForm.guestEmail} onChange={(e) => setGuestForm(prev => ({ ...prev, guestEmail: e.target.value }))} placeholder="Guest Email" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <input value={guestForm.mobileNumber} onChange={(e) => setGuestForm(prev => ({ ...prev, mobileNumber: e.target.value }))} placeholder="Mobile Number" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <input value={guestForm.relationship} onChange={(e) => setGuestForm(prev => ({ ...prev, relationship: e.target.value }))} placeholder="Relationship" className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800" />
+                                <button
+                                  onClick={() => handleCreateExtraPass(registration)}
+                                  disabled={submittingGuest}
+                                  className="sm:col-span-2 px-3 py-2 rounded-lg text-xs font-semibold bg-gray-900 text-white disabled:opacity-60"
+                                >
+                                  {submittingGuest ? 'Creating...' : 'Create Guest Pass'}
+                                </button>
+                              </div>
+                            )}
+
+                            {guests.length > 0 && (
+                              <div className="mt-3">
+                                <p className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">Guest List</p>
+                                <div className="space-y-1 max-h-28 overflow-y-auto">
+                                  {guests.map((guest) => (
+                                    <div key={guest.id} className="text-xs px-2 py-1 rounded bg-gray-50 dark:bg-gray-800 flex justify-between gap-2">
+                                      <span className="font-medium text-gray-800 dark:text-gray-100">{guest.guestName}</span>
+                                      <span className="text-gray-500">{guest.relationship}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -296,17 +449,17 @@ export default function MyRegistrationsPage() {
                       </div>
 
                       {/* Right: Actions (Ticket Stub) */}
-                      <div className="lg:w-64 bg-gray-50 dark:bg-gray-800/30 p-6 lg:p-7 flex flex-col justify-center items-center gap-4 border-t lg:border-t-0 lg:border-l border-gray-100 dark:border-gray-800">
+                      <div className="lg:w-64 bg-gray-50 dark:bg-gray-800/30 p-6 lg:p-7 flex flex-col justify-center items-center gap-4 border-t lg:border-t-0 lg:border-l border-[#b3cde0]/30 dark:border-gray-800">
                         {registration.status === 'confirmed' ? (
                           <>
                             {/* QR Button / Preview */}
                             <button
                               onClick={() => setSelectedQR(registration.qrCode)}
-                              className="group/qr w-32 aspect-square bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center gap-1.5 hover:border-blue-500 dark:hover:border-blue-500 transition-all cursor-pointer relative overflow-hidden"
+                              className="group/qr w-32 aspect-square bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex flex-col items-center justify-center gap-1.5 hover:border-ev-700 dark:hover:border-ev-700 transition-all cursor-pointer relative overflow-hidden"
                             >
-                              <div className="absolute inset-0 bg-blue-50 dark:bg-blue-900/10 opacity-0 group-hover/qr:opacity-100 transition-opacity" />
-                              <QrCode className="w-8 h-8 text-gray-400 group-hover/qr:text-blue-500 transition-colors" />
-                              <span className="text-[10px] font-bold text-gray-500 group-hover/qr:text-blue-600 uppercase tracking-wide">Show QR</span>
+                              <div className="absolute inset-0 bg-ev-50 dark:bg-ev-900/10 opacity-0 group-hover/qr:opacity-100 transition-opacity" />
+                              <QrCode className="w-8 h-8 text-gray-400 group-hover/qr:text-ev-700 transition-colors" />
+                              <span className="text-[10px] font-bold text-gray-500 group-hover/qr:text-ev-700 uppercase tracking-wide">Show QR</span>
                             </button>
 
                             <button
@@ -328,7 +481,7 @@ export default function MyRegistrationsPage() {
 
                         <Link
                           href={`/events/${(registration as any).Event?.id || registration.event?.id}`}
-                          className="text-xs font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors flex items-center gap-1"
+                          className="text-xs font-semibold text-gray-500 hover:text-ev-900 dark:hover:text-white transition-colors flex items-center gap-1"
                         >
                           View Event Page
                         </Link>
@@ -345,7 +498,7 @@ export default function MyRegistrationsPage() {
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-6 py-3 border border-gray-200 dark:border-gray-800 rounded-xl font-semibold bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                  className="px-6 py-3 border border-[#b3cde0] dark:border-gray-800 rounded-xl font-semibold bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-ev"
                 >
                   Previous
                 </button>
@@ -357,7 +510,7 @@ export default function MyRegistrationsPage() {
                 <button
                   onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
                   disabled={page === pagination.totalPages}
-                  className="px-6 py-3 border border-gray-200 dark:border-gray-800 rounded-xl font-semibold bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                  className="px-6 py-3 border border-[#b3cde0] dark:border-gray-800 rounded-xl font-semibold bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-ev"
                 >
                   Next
                 </button>
@@ -370,15 +523,15 @@ export default function MyRegistrationsPage() {
         {selectedQR && (
           <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
             <div
-              className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full p-8 shadow-2xl scale-100 animate-in zoom-in-95 duration-200 relative overflow-hidden border border-gray-200 dark:border-gray-800"
+              className="bg-white dark:bg-gray-900 rounded-3xl max-w-sm w-full p-8 shadow-2xl scale-100 animate-in zoom-in-95 duration-200 relative overflow-hidden border border-[#b3cde0] dark:border-gray-800"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Decorative Header */}
-              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-500 to-purple-600" />
+              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-ev-700 to-purple-600" />
 
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">Entry Pass</h3>
+                  <h3 className="text-xl font-bold text-ev-900 dark:text-white">Entry Pass</h3>
                   <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-bold">Scan at gate</p>
                 </div>
                 <button
@@ -389,7 +542,7 @@ export default function MyRegistrationsPage() {
                 </button>
               </div>
 
-              <div className="bg-white p-6 rounded-2xl border-2 border-dashed border-gray-200 mb-6 flex flex-col items-center justify-center relative">
+              <div className="bg-white p-6 rounded-2xl border-2 border-dashed border-[#b3cde0] mb-6 flex flex-col items-center justify-center relative">
                 <div className="absolute top-0 bottom-0 left-0 w-full h-full opacity-[0.03] bg-[radial-gradient(#000_1px,transparent_1px)] [background-size:8px_8px]" />
 
                 {qrDataUrl ? (
@@ -411,7 +564,7 @@ export default function MyRegistrationsPage() {
               <div className="space-y-3">
                 <button
                   onClick={() => selectedTicket && downloadQRCode(selectedQR, selectedTicket)}
-                  className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none"
+                  className="w-full py-3 bg-ev-700 text-white rounded-xl font-bold text-sm hover:bg-ev-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-ev-200 dark:shadow-none"
                 >
                   <Download className="w-4 h-4" />
                   Download Pass

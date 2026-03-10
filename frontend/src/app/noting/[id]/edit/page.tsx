@@ -18,7 +18,7 @@ export default function EditDraftRedirectPage() {
   }, [id, router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
       <Skeleton className="w-8 h-8 rounded-sm" />
     </div>
   );
