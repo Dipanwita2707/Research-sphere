@@ -216,16 +216,43 @@ function VerifyPassPageContent() {
             return;
           }
           
-          // Handle cancelled pass response
+          // Handle cancelled pass response — auto-checkout using verification code from QR
           if (response.isCancelled) {
+            setActiveTab('manual');
+            setLoading(false);
+
+            // If the QR contains the checkout verification code, do checkout immediately
+            // (no second scan needed — single scan workflow)
+            if (qrData.checkout_verification_code && passData) {
+              setActionLoading(true);
+              try {
+                const checkoutResult = await gateEntryService.recordCheckout(passData.passId, {
+                  gate: 'Main Gate',
+                  remarks: 'Checkout via cancelled pass QR scan',
+                  verificationCode: qrData.checkout_verification_code
+                });
+                setPass(checkoutResult.pass);
+                setIsCancelledPass(false);
+                toast.success('Checkout recorded successfully! Visitor may exit.', 'Checkout Complete');
+              } catch (err: any) {
+                // Auto-checkout failed — fall back to showing pass for manual checkout
+                setIsCancelledPass(true);
+                setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
+                setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
+                setPass(passData);
+                toast.error(err.response?.data?.message || 'Checkout failed — please try manual code entry.', 'Checkout Error');
+              } finally {
+                setActionLoading(false);
+              }
+              return;
+            }
+
+            // No verification code in QR — show pass for manual checkout
             setIsCancelledPass(true);
             setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
             setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
             setPass(passData);
-            // Switch to manual tab to release camera before checkout modal scanner starts
-            setActiveTab('manual');
             toast.warning(response.message || t('verifyPass.toast.cancelledPassWarning'));
-            setLoading(false);
             return;
           }
           
@@ -864,11 +891,13 @@ function VerifyPassPageContent() {
         // For after_check_in: show checkout credentials (new QR + code generated)
         // For from_checked_out: person already outside, no checkout QR needed - just success
         if (cancelResponse.cancellation_type === 'after_check_in') {
+          const expiresAt = cancelResponse.pass.checkoutQrExpiresAt || '';
           setCheckoutCredentials({
             checkoutId: cancelResponse.pass.checkoutUniqueId || '',
             checkoutCode: cancelResponse.pass.checkoutVerificationCode || '',
-            expiresAt: cancelResponse.pass.checkoutQrExpiresAt || ''
+            expiresAt
           });
+          setCheckoutExpiresAt(expiresAt || null);
           setShowCheckoutCredentialsModal(true);
         }
         
@@ -1499,7 +1528,7 @@ function VerifyPassPageContent() {
                         {pass.dailyEntries.map((entry, idx) => (
                           <tr key={entry.id} className={`border-b border-gray-100 hover:bg-gray-50 ${!entry.exitTime ? 'bg-green-50' : ''}`}>
                             <td className="px-3 py-2 font-bold text-purple-700">{idx + 1}</td>
-                            <td className="px-3 py-2">{new Date(entry.entryDate).toLocaleDateString('en-IN')}</td>
+                            <td className="px-3 py-2">{new Date(entry.entryDate).toLocaleDateString('en-IN', { timeZone: 'UTC' })}</td>
                             <td className="px-3 py-2 text-green-700 font-medium">
                               ↓ {entry.entryTime ? new Date(entry.entryTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}
                             </td>
@@ -1569,18 +1598,6 @@ function VerifyPassPageContent() {
                     >
                       <CheckCircle className="w-5 h-5 md:w-6 md:h-6" />
                       {actionLoading ? t('verifyPass.actions.processing') : t('verifyPass.actions.allowEntry')}
-                    </button>
-                  )}
-
-                  {/* Cancel Pass when visitor is checked_out (already outside) */}
-                  {pass.passStatus === 'checked_out' && !isCancelledPass && (
-                    <button
-                      onClick={() => setShowCancelFirstModal(true)}
-                      disabled={actionLoading}
-                      className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all hover:shadow-lg flex items-center justify-center gap-2 md:gap-3 font-bold text-base md:text-lg disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-95"
-                    >
-                      <XCircle className="w-5 h-5 md:w-6 md:h-6" />
-                      {actionLoading ? t('verifyPass.actions.processing') : t('verifyPass.actions.cancelPass')}
                     </button>
                   )}
 
@@ -2232,7 +2249,6 @@ function VerifyPassPageContent() {
                       {t('verifyPass.cancelModal.currentlyCheckedIn')}
                     </p>
                     <ol className="text-sm text-orange-700 mt-2 ml-4 list-decimal space-y-1">
-                      <li>{t('verifyPass.cancelModal.step1')}</li>
                       <li>{t('verifyPass.cancelModal.step2')}</li>
                       <li>{t('verifyPass.cancelModal.step3')}</li>
                       <li>{t('verifyPass.cancelModal.step4')}</li>
