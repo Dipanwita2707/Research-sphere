@@ -16,6 +16,16 @@ module.exports = {
           'very-light': '#b3cde0',
           background: '#f8fafc',
         },
+        // Corporate Event Module Palette
+        ev: {
+          900: '#011f4b',   // darkest navy — headings, strong text
+          800: '#03396c',   // dark blue — sub-headings, active tabs
+          700: '#005b96',   // primary blue — buttons, links
+          400: '#6497b1',   // mid-blue — borders, muted accents
+          200: '#b3cde0',   // light blue — card borders, dividers
+          50:  '#edf4f8',   // tinted bg for hover / zebra rows
+          bg:  '#f8fafc',   // page background
+        },
         // SGT University Blue Theme Palette
         sgt: {
           50: '#ADE1FB',   // Lightest - backgrounds, hover states
@@ -71,6 +81,10 @@ module.exports = {
         'sgt-xl': '0 25px 50px -12px rgba(1, 8, 45, 0.35)',
         'card': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
         'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+        // Corporate event module shadows
+        'ev': '0 1px 3px 0 rgba(0, 91, 150, 0.08), 0 1px 2px -1px rgba(0, 91, 150, 0.06)',
+        'ev-md': '0 4px 12px -2px rgba(0, 91, 150, 0.10), 0 2px 4px -2px rgba(0, 91, 150, 0.06)',
+        'ev-lg': '0 10px 24px -4px rgba(0, 91, 150, 0.12), 0 4px 8px -4px rgba(0, 91, 150, 0.06)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],

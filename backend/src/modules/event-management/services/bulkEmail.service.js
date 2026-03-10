@@ -12,6 +12,7 @@
  */
 
 const sgMail = require('@sendgrid/mail');
+const sanitizeHtml = require('sanitize-html');
 
 // ── Initialise SendGrid ──────────────────────────────────────────
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
@@ -62,16 +63,24 @@ function escapeHtml(str) {
 
 /**
  * Build a clean HTML email body with header banner + editable content.
- * All user-supplied strings are HTML-escaped to prevent XSS.
- * `body` may contain intentional HTML from the email composer — it is
- * still escaped because emails should not carry arbitrary HTML from users.
- * If you later want to allow rich HTML in `body`, sanitise it with a
- * library like DOMPurify instead of raw escapeHtml.
+ * `eventName` and `recipientName` are escaped (plain text).
+ * `body` comes from the ReactQuill rich-text editor so it is sanitised
+ * with sanitize-html to allow safe formatting tags while blocking XSS.
  */
 function buildEmailHtml({ eventName, body, recipientName = 'there', pixelHtml = '' }) {
   const safeEventName    = escapeHtml(eventName);
   const safeRecipientName = escapeHtml(recipientName);
-  const safeBody          = escapeHtml(body);
+  const safeBody = sanitizeHtml(body, {
+    allowedTags: ['p', 'br', 'b', 'i', 'u', 's', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'span', 'h1', 'h2', 'h3', 'h4', 'blockquote'],
+    allowedAttributes: {
+      a: ['href', 'target', 'rel'],
+      span: ['style'],
+      p: ['style'],
+    },
+    allowedStyles: {
+      '*': { 'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/] },
+    },
+  });
 
   return `
 <!DOCTYPE html>

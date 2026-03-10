@@ -72,7 +72,7 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
   const needsOptions = ['dropdown', 'checkbox', 'radio'].includes(localField.fieldType || '');
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
+    <div className="border border-[#b3cde0] dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
       <div
         className="flex items-center justify-between p-4 cursor-pointer"
         onClick={() => !isNew && setExpanded(!expanded)}
@@ -85,7 +85,7 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
           )}
           <div className="flex items-center gap-2">
             {selectedFieldType?.icon || <AlignLeft className="w-4 h-4 text-gray-400" />}
-            <span className="font-medium text-gray-900 dark:text-white">
+            <span className="font-medium text-ev-900 dark:text-white">
               {localField.fieldLabel || (isNew ? 'New Field' : 'Untitled Field')}
             </span>
           </div>
@@ -112,7 +112,7 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
       </div>
 
       {(expanded || isNew) && (
-        <div className="p-4 pt-0 border-t border-gray-200 dark:border-gray-700 space-y-4">
+        <div className="p-4 pt-0 border-t border-[#b3cde0] dark:border-gray-700 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Field Label */}
             <div>
@@ -167,7 +167,7 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
                 type="button"
                 onClick={() => setLocalField({ ...localField, isRequired: !localField.isRequired })}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  localField.isRequired ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                  localField.isRequired ? 'bg-ev-700' : 'bg-gray-200 dark:bg-gray-700'
                 }`}
               >
                 <span
@@ -230,7 +230,7 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
               <button
                 type="button"
                 onClick={() => setExpanded(false)}
-                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900"
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-ev-900"
               >
                 Cancel
               </button>
@@ -239,7 +239,7 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
               type="button"
               onClick={handleSave}
               disabled={!localField.fieldLabel || !localField.fieldName}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 bg-ev-700 text-white rounded-lg hover:bg-ev-800 disabled:opacity-50"
             >
               {isNew ? 'Add Field' : 'Save Changes'}
             </button>
@@ -345,25 +345,25 @@ export default function RegistrationSettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
         <CardSkeleton className="w-full max-w-sm mx-auto mb-4" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-8">
       <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="mb-6">
-          <Link href={`/events/${eventId}/manage`} className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 mb-4">
+          <Link href={`/events/${eventId}/manage`} className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-ev-700 mb-4">
             <ArrowLeft className="w-4 h-4" />
             Back to Event Management
           </Link>
           
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Registration Settings</h1>
+              <h1 className="text-2xl font-bold text-ev-900 dark:text-white">Registration Settings</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
                 Configure registration form and team settings
               </p>
@@ -371,7 +371,7 @@ export default function RegistrationSettingsPage() {
             <button
               onClick={handleSaveSettings}
               disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 bg-ev-700 text-white rounded-lg hover:bg-ev-800 disabled:opacity-50 flex items-center gap-2"
             >
               {saving ? <Skeleton className="w-4 h-4 rounded-full" /> : <Save className="w-4 h-4" />}
               Save Settings
@@ -381,9 +381,9 @@ export default function RegistrationSettingsPage() {
 
         <div className="space-y-6">
           {/* General Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#b3cde0] dark:border-gray-700">
+            <div className="p-4 border-b border-[#b3cde0] dark:border-gray-700">
+              <h2 className="font-semibold text-ev-900 dark:text-white flex items-center gap-2">
                 <Settings className="w-5 h-5" />
                 General Settings
               </h2>
@@ -392,14 +392,14 @@ export default function RegistrationSettingsPage() {
               {/* Auto Approve */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Auto-approve registrations</p>
+                  <p className="font-medium text-ev-900 dark:text-white">Auto-approve registrations</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Automatically approve new registrations</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSettings({ ...settings, autoApproveRegistration: !settings.autoApproveRegistration })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.autoApproveRegistration ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                    settings.autoApproveRegistration ? 'bg-ev-700' : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 >
                   <span
@@ -413,14 +413,14 @@ export default function RegistrationSettingsPage() {
               {/* Require Form */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Require form submission</p>
+                  <p className="font-medium text-ev-900 dark:text-white">Require form submission</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Users must fill out the registration form</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSettings({ ...settings, requireFormSubmission: !settings.requireFormSubmission })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.requireFormSubmission ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                    settings.requireFormSubmission ? 'bg-ev-700' : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 >
                   <span
@@ -434,14 +434,14 @@ export default function RegistrationSettingsPage() {
               {/* Allow Edit */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Allow editing after submission</p>
+                  <p className="font-medium text-ev-900 dark:text-white">Allow editing after submission</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Users can edit their registration after submitting</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSettings({ ...settings, allowEditAfterSubmission: !settings.allowEditAfterSubmission })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.allowEditAfterSubmission ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                    settings.allowEditAfterSubmission ? 'bg-ev-700' : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 >
                   <span
@@ -455,9 +455,9 @@ export default function RegistrationSettingsPage() {
           </div>
 
           {/* Team Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#b3cde0] dark:border-gray-700">
+            <div className="p-4 border-b border-[#b3cde0] dark:border-gray-700">
+              <h2 className="font-semibold text-ev-900 dark:text-white flex items-center gap-2">
                 <Users className="w-5 h-5" />
                 Team Settings
               </h2>
@@ -466,14 +466,14 @@ export default function RegistrationSettingsPage() {
               {/* Looking for Teammates */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">Enable &ldquo;Looking for Teammates&rdquo;</p>
+                  <p className="font-medium text-ev-900 dark:text-white">Enable &ldquo;Looking for Teammates&rdquo;</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Allow users to indicate they&apos;re looking for teammates</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setSettings({ ...settings, lookingForTeammatesEnabled: !settings.lookingForTeammatesEnabled })}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.lookingForTeammatesEnabled ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                    settings.lookingForTeammatesEnabled ? 'bg-ev-700' : 'bg-gray-200 dark:bg-gray-700'
                   }`}
                 >
                   <span
@@ -544,9 +544,9 @@ export default function RegistrationSettingsPage() {
           </div>
 
           {/* Custom Fields */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-[#b3cde0] dark:border-gray-700">
+            <div className="p-4 border-b border-[#b3cde0] dark:border-gray-700">
+              <h2 className="font-semibold text-ev-900 dark:text-white flex items-center gap-2">
                 <FileText className="w-5 h-5" />
                 Custom Form Fields
               </h2>
@@ -566,7 +566,7 @@ export default function RegistrationSettingsPage() {
               ))}
 
               {/* Add New Field */}
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <div className="border-t border-[#b3cde0] dark:border-gray-700 pt-4">
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                   <Plus className="w-4 h-4" />
                   Add New Field

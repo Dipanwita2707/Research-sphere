@@ -92,7 +92,19 @@ const getEventSettings = async (eventId, userId, user) => {
     });
   }
 
-  return visibility;
+  const eventConfig = await prisma.event.findUnique({
+    where: { id: event.id },
+    select: {
+      allowExtraPasses: true,
+      maxExtraPassesPerUser: true,
+    },
+  });
+
+  return {
+    ...visibility,
+    allowExtraPasses: eventConfig?.allowExtraPasses || false,
+    maxExtraPassesPerUser: eventConfig?.maxExtraPassesPerUser ?? 0,
+  };
 };
 
 /**
@@ -129,24 +141,88 @@ const updateEventSettings = async (eventId, userId, data, user) => {
   if (data.allowedBatchYears !== undefined) updateData.allowedBatchYears = toArray(data.allowedBatchYears).map(Number).filter(Boolean);
   if (data.allowedSectionIds !== undefined) updateData.allowedSectionIds = toArray(data.allowedSectionIds);
 
-  // Upsert: create if doesn't exist, update otherwise
-  const visibility = await prisma.eventVisibility.upsert({
-    where: { eventId: event.id },
-    create: {
-      eventId: event.id,
-      isActive: updateData.isActive ?? true,
-      visibleToRoles: updateData.visibleToRoles ?? ['student', 'faculty', 'staff', 'admin', 'superadmin', 'parent'],
-      studentFilterType: updateData.studentFilterType ?? 'all',
-      allowedSchoolIds: updateData.allowedSchoolIds ?? [],
-      allowedDepartmentIds: updateData.allowedDepartmentIds ?? [],
-      allowedProgramIds: updateData.allowedProgramIds ?? [],
-      allowedBatchYears: updateData.allowedBatchYears ?? [],
-      allowedSectionIds: updateData.allowedSectionIds ?? [],
-    },
-    update: updateData,
+  const eventUpdateData = {};
+  if (data.allowExtraPasses !== undefined) {
+    eventUpdateData.allowExtraPasses = Boolean(data.allowExtraPasses);
+  }
+  if (data.maxExtraPassesPerUser !== undefined) {
+    const max = Number(data.maxExtraPassesPerUser);
+    if (!Number.isInteger(max) || max < 0 || max > 20) {
+      throw new ValidationError('maxExtraPassesPerUser must be an integer between 0 and 20');
+    }
+    eventUpdateData.maxExtraPassesPerUser = max;
+  }
+
+  if (eventUpdateData.allowExtraPasses === true && eventUpdateData.maxExtraPassesPerUser !== undefined && eventUpdateData.maxExtraPassesPerUser < 1) {
+    throw new ValidationError('maxExtraPassesPerUser must be at least 1 when extra passes are enabled');
+  }
+
+  if (eventUpdateData.allowExtraPasses === false) {
+    eventUpdateData.maxExtraPassesPerUser = 0;
+  }
+
+  const [visibility, updatedEvent] = await prisma.$transaction(async (tx) => {
+    let visibilityRecord;
+    if (Object.keys(updateData).length > 0) {
+      visibilityRecord = await tx.eventVisibility.upsert({
+        where: { eventId: event.id },
+        create: {
+          eventId: event.id,
+          isActive: updateData.isActive ?? true,
+          visibleToRoles: updateData.visibleToRoles ?? ['student', 'faculty', 'staff', 'admin', 'superadmin', 'parent'],
+          studentFilterType: updateData.studentFilterType ?? 'all',
+          allowedSchoolIds: updateData.allowedSchoolIds ?? [],
+          allowedDepartmentIds: updateData.allowedDepartmentIds ?? [],
+          allowedProgramIds: updateData.allowedProgramIds ?? [],
+          allowedBatchYears: updateData.allowedBatchYears ?? [],
+          allowedSectionIds: updateData.allowedSectionIds ?? [],
+        },
+        update: updateData,
+      });
+    } else {
+      visibilityRecord = await tx.eventVisibility.findUnique({ where: { eventId: event.id } });
+      if (!visibilityRecord) {
+        visibilityRecord = await tx.eventVisibility.create({
+          data: {
+            eventId: event.id,
+            isActive: true,
+            visibleToRoles: ['student', 'faculty', 'staff', 'admin', 'superadmin', 'parent'],
+            studentFilterType: 'all',
+            allowedSchoolIds: [],
+            allowedDepartmentIds: [],
+            allowedProgramIds: [],
+            allowedBatchYears: [],
+            allowedSectionIds: [],
+          },
+        });
+      }
+    }
+
+    const eventRecord = Object.keys(eventUpdateData).length > 0
+      ? await tx.event.update({
+          where: { id: event.id },
+          data: eventUpdateData,
+          select: {
+            allowExtraPasses: true,
+            maxExtraPassesPerUser: true,
+          },
+        })
+      : await tx.event.findUnique({
+          where: { id: event.id },
+          select: {
+            allowExtraPasses: true,
+            maxExtraPassesPerUser: true,
+          },
+        });
+
+    return [visibilityRecord, eventRecord];
   });
 
-  return visibility;
+  return {
+    ...visibility,
+    allowExtraPasses: updatedEvent.allowExtraPasses,
+    maxExtraPassesPerUser: updatedEvent.maxExtraPassesPerUser,
+  };
 };
 
 /**
@@ -194,7 +270,19 @@ const toggleEventActive = async (eventId, userId, user) => {
     );
   }
 
-  return visibility;
+  const eventConfig = await prisma.event.findUnique({
+    where: { id: event.id },
+    select: {
+      allowExtraPasses: true,
+      maxExtraPassesPerUser: true,
+    },
+  });
+
+  return {
+    ...visibility,
+    allowExtraPasses: eventConfig?.allowExtraPasses || false,
+    maxExtraPassesPerUser: eventConfig?.maxExtraPassesPerUser ?? 0,
+  };
 };
 
 /**

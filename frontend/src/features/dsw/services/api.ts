@@ -18,6 +18,7 @@ import {
   DSWStatistics,
   ClubChangeRequest,
   ClubCreationRequest,
+  ClubMemberApplication,
 } from "../types";
 import { DSW_API_ENDPOINTS } from "../constants";
 
@@ -31,6 +32,7 @@ export interface ClubEvent {
   status: string;
   venue: string | null;
   bannerImageUrl: string | null;
+  createdById?: string;
 }
 
 // Club API
@@ -195,6 +197,41 @@ export const clubAPI = {
   getClubEvents: async (clubId: string): Promise<ApiResponse<ClubEvent[]>> => {
     const response = await api.get<ApiResponse<ClubEvent[]>>(
       DSW_API_ENDPOINTS.CLUB_EVENTS(clubId),
+    );
+    return response.data;
+  },
+
+  applyToClub: async (clubId: string): Promise<ApiResponse<ClubMemberApplication>> => {
+    const response = await api.post<ApiResponse<ClubMemberApplication>>(
+      DSW_API_ENDPOINTS.CLUB_APPLICATIONS(clubId),
+      {},
+    );
+    return response.data;
+  },
+
+  getClubApplications: async (clubId: string): Promise<ApiResponse<ClubMemberApplication[]>> => {
+    const response = await api.get<ApiResponse<ClubMemberApplication[]>>(
+      DSW_API_ENDPOINTS.CLUB_APPLICATIONS(clubId),
+    );
+    return response.data;
+  },
+
+  getMyClubApplications: async (): Promise<ApiResponse<ClubMemberApplication[]>> => {
+    const response = await api.get<ApiResponse<ClubMemberApplication[]>>(
+      DSW_API_ENDPOINTS.MY_CLUB_APPLICATIONS,
+    );
+    return response.data;
+  },
+
+  reviewClubApplication: async (
+    clubId: string,
+    applicationId: string,
+    decision: "approved" | "rejected",
+    reviewNote?: string,
+  ): Promise<ApiResponse<{ updatedApplication: ClubMemberApplication }>> => {
+    const response = await api.patch<ApiResponse<{ updatedApplication: ClubMemberApplication }>>(
+      DSW_API_ENDPOINTS.CLUB_APPLICATION_REVIEW(clubId, applicationId),
+      { decision, reviewNote },
     );
     return response.data;
   },

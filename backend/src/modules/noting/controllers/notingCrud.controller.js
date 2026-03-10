@@ -21,6 +21,7 @@ const { ValidationError } = require("../../../shared/utils/AppError");
 const { generateNotingId } = require("../services/notingId.service");
 const approvalFlowService = require("../services/approvalFlow.service");
 const { invalidateNoteCaches } = require("../services/noting.service");
+const notingNotification = require("../services/notingNotification.service");
 
 const { NOTE_STATUS, NOTE_ACTIONS } = require("../constants/noting.constants");
 const {
@@ -402,6 +403,11 @@ const create = asyncHandler(async (req, res) => {
   // Invalidate all noting caches since a new note was created
   await invalidateNoteCaches(finalNote.id);
 
+  // Trigger notification: the assigned approver is informed the note is pending review
+  if (submit && finalNote.currentHolderId) {
+    notingNotification.notifyAssigned(finalNote, finalNote.currentHolderId);
+  }
+
   return ApiResponse.created(
     res,
     finalNote,
@@ -426,6 +432,9 @@ const updateDraft = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { id } = req.params;
   const {
+    // Allow category/subcategory changes on a draft
+    category,
+    subcategory,
     description,
     approvalPeriod,
     recurringFrequency,
@@ -477,6 +486,13 @@ const updateDraft = asyncHandler(async (req, res) => {
   // Verify creator can still edit (no approver actions yet)
   await verifyCanEditNote(note, userId);
 
+  // If category/subcategory are being changed, validate the new pair
+  if (category !== undefined || subcategory !== undefined) {
+    const newCategory = category !== undefined ? category : note.category;
+    const newSubcategory = subcategory !== undefined ? subcategory : note.subcategory;
+    validateCategory(newCategory, newSubcategory);
+  }
+
   // Validate description if provided
   let descriptionValue;
   if (description !== undefined) {
@@ -513,6 +529,42 @@ const updateDraft = asyncHandler(async (req, res) => {
 
   // Prepare update data
   const updateData = {};
+
+  // Persist category / subcategory changes
+  if (category !== undefined) updateData.category = category;
+  if (subcategory !== undefined) {
+    updateData.subcategory = subcategory;
+    // When the user switches away from an events subcategory, clear all event
+    // fields so the submit validator no longer requires notingEventType.
+    const isNowEvent = (subcategory || '').toLowerCase().includes('events');
+    if (!isNowEvent) {
+      updateData.notingEventType = null;
+      updateData.eventName = null;
+      updateData.eventType = null;
+      updateData.eventStartDate = null;
+      updateData.eventEndDate = null;
+      updateData.eventPaymentType = null;
+      updateData.eventParticipationType = null;
+      updateData.eventRegistrationFeeIndividual = null;
+      updateData.eventRegistrationFeeTeam = null;
+      updateData.eventApproxCapacity = null;
+      updateData.eventDutyLeaveAvailable = null;
+      updateData.eventDutyLeaveEligibility = null;
+      updateData.eventDutyLeaveRoleType = null;
+      updateData.eventHasSponsorship = null;
+      updateData.eventSponsors = null;
+      updateData.eventHasResources = null;
+      updateData.eventResources = null;
+      updateData.eventCertification = null;
+      updateData.eventCapacityFixed = null;
+      updateData.eventPrizesAwards = null;
+      updateData.stallConfig = null;
+      updateData.festivalMeta = null;
+      updateData.subEvents = null;
+      updateData.eventClubId = null;
+    }
+  }
+
   if (descriptionValue !== undefined) updateData.description = descriptionValue;
   if (approvalPeriod !== undefined)
     updateData.approvalPeriod = approvalPeriod || "one_time";
@@ -834,6 +886,11 @@ const submitDraft = asyncHandler(async (req, res) => {
 
   await invalidateNoteCaches(id);
 
+  // Trigger notification: the assigned approver is informed the note is pending review
+  if (updated.currentHolderId) {
+    notingNotification.notifyAssigned(updated, updated.currentHolderId);
+  }
+
   return ApiResponse.success(
     res,
     updated,
@@ -930,19 +987,24 @@ const list = asyncHandler(async (req, res) => {
     startDate, // Date range start
     endDate, // Date range end
     includeCounts, // When true, include mine/pending/handled counts in response
+    includeHandledCount, // When true, also compute expensive handled count
     cursor, // Cursor-based pagination (pass last item ID)
     handledAction, // When filter=handled: 'approved' | 'rejected' to sub-filter by action type
   } = req.query;
   const { page, limit, skip } = getPaginationParams(req.query);
   const useCursor = !!cursor;
   const wantCounts = includeCounts === "true" || includeCounts === true;
+  const wantHandledCount =
+    includeHandledCount === "true" ||
+    includeHandledCount === true ||
+    filter === "handled";
 
   // ── PERF: Cache list results per-user per-params for 30s ────────────────
   // The list endpoint runs 2-5 DB queries (findMany + count + optional counts).
   // On Neon serverless, each round-trip adds latency. 30s cache covers rapid
   // tab-switching & filter changes while invalidateNoteCaches() busts stale data.
   const paginationKey = useCursor ? `c:${cursor}:${limit}` : `${page}:${limit}`;
-  const listCacheKey = `noting:list:${userId}:${filter}:${paginationKey}:${status || ""}:${category || ""}:${search || ""}:${createdById || ""}:${startDate || ""}:${endDate || ""}:${wantCounts}:${handledAction || ""}`;
+  const listCacheKey = `noting:list:${userId}:${filter}:${paginationKey}:${status || ""}:${category || ""}:${search || ""}:${createdById || ""}:${startDate || ""}:${endDate || ""}:${wantCounts}:${wantHandledCount}:${handledAction || ""}`;
   const cachedList = await cache.get(listCacheKey);
   if (cachedList) {
     return res.status(200).json(cachedList);
@@ -1076,23 +1138,14 @@ const list = asyncHandler(async (req, res) => {
     // ── PERF: Cache counts per-user in Redis (30s TTL) ─────────────────────
     // Counts rarely change between page navigations. Caching prevents 3 extra
     // DB round-trips on every filter/page change.
-    const countsCacheKey = `noting:counts:${userId}`;
+    // Lite counts avoid heavy DISTINCT note_history scan for normal list loads.
+    const countsScope = wantHandledCount ? "full" : "lite";
+    const countsCacheKey = `noting:counts:${userId}:${countsScope}`;
     let counts = await cache.get(countsCacheKey);
 
     if (!counts) {
-      const actions = [
-        NOTE_ACTIONS.APPROVED,
-        NOTE_ACTIONS.REJECTED,
-        NOTE_ACTIONS.FORWARDED,
-        NOTE_ACTIONS.REVERTED,
-      ];
-      const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
-      const [mineCount, handledResult, pendingCount] = await Promise.all([
+      const [mineCount, pendingCount] = await Promise.all([
         prisma.note.count({ where: { createdById: userId } }),
-        prisma.$queryRaw(Prisma.sql`
-          SELECT COUNT(DISTINCT note_id)::int as cnt FROM note_history
-          WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
-        `),
         prisma.note.count({
           where: {
             status: NOTE_STATUS.PENDING,
@@ -1100,7 +1153,23 @@ const list = asyncHandler(async (req, res) => {
           },
         }),
       ]);
-      const handledCount = handledResult?.[0]?.cnt ?? 0;
+
+      let handledCount = 0;
+      if (wantHandledCount) {
+        const actions = [
+          NOTE_ACTIONS.APPROVED,
+          NOTE_ACTIONS.REJECTED,
+          NOTE_ACTIONS.FORWARDED,
+          NOTE_ACTIONS.REVERTED,
+        ];
+        const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
+        const handledResult = await prisma.$queryRaw(Prisma.sql`
+          SELECT COUNT(DISTINCT note_id)::int as cnt FROM note_history
+          WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
+        `);
+        handledCount = handledResult?.[0]?.cnt ?? 0;
+      }
+
       counts = { mine: mineCount, pending: pendingCount, handled: handledCount };
       // Cache for 60 seconds (invalidated on state changes)
       await cache.set(countsCacheKey, counts, 60);
@@ -1143,7 +1212,7 @@ const getCounts = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   // ── PERF: Check cache first (same key as list handler uses) ─────────────
-  const countsCacheKey = `noting:counts:${userId}`;
+  const countsCacheKey = `noting:counts:${userId}:full`;
   const cached = await cache.get(countsCacheKey);
   if (cached) {
     return ApiResponse.success(res, cached, "Counts fetched successfully");

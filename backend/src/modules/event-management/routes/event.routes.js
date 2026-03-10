@@ -41,6 +41,7 @@ const stallRoutes = require('./stall.routes');
 const prizeRoutes = require('./prize.routes');
 const couponRoutes = require('./coupon.routes');
 const bulkEmailRoutes = require('./bulkEmail.routes');
+const certificateRoutes = require('./certificate.routes');
 const settingsRoutes = require('./settings.routes');
 
 // Rate limiter for public (unauthenticated) endpoints to prevent abuse
@@ -76,11 +77,19 @@ router.get('/:id/feedback-info', publicEndpointLimiter, validateEventId, feedbac
 router.get('/:id/stalls/:stallId/feedback-info', publicEndpointLimiter, validateEventId, feedbackController.getStallFeedbackFormInfo);
 router.post('/:id/stalls/:stallId/feedback', publicEndpointLimiter, validateEventId, feedbackController.submitStallFeedback);
 
+// Public certificate verification (anyone can verify)
+const certificateController = require('../controllers/certificate.controller');
+router.get('/certificates/verify/:code', publicEndpointLimiter, certificateController.verifyCertificate);
+
 // ════════════════════════════════════════════════════════════════════
 //  AUTHENTICATED ROUTES
 // ════════════════════════════════════════════════════════════════════
 
 router.use(protect);
+
+// Authenticated certificate endpoints (my certificates / download)
+router.get('/certificates/my', certificateController.getMyCertificates);
+router.get('/certificates/download/:code', certificateController.downloadCertificate);
 
 /**
  * Allow scan if user has event_manage_attendance OR is a volunteer with canScanQr
@@ -184,6 +193,9 @@ router.get('/:id/volunteers', validateEventId, eventManagePerm, eventController.
 // Club members for quick volunteer assignment (when event is linked to a club)
 router.get('/:id/club-members', validateEventId, eventManagePerm, eventController.getClubMembers);
 
+// Preview QR scan (pass info without creating entry)
+router.post('/:id/scan/preview', validateEventId, allowEventScan, eventController.previewQRScan);
+
 // Scan QR code for entry/exit
 router.post('/:id/scan', validateEventId, allowEventScan, validateQRScan, eventController.scanQRCode);
 
@@ -197,6 +209,8 @@ router.get('/:id/stalls/:stallId/owner-feedback', validateEventId, feedbackContr
 
 router.get('/:id/registration-form', validateEventId, registrationController.getRegistrationForm);
 router.post('/:id/register-with-form', validateEventId, registrationController.submitRegistrationForm);
+router.get('/:id/extra-passes', validateEventId, registrationController.getMyExtraPasses);
+router.post('/:id/extra-passes', validateEventId, registrationController.createExtraPass);
 router.get('/:id/registration-settings', validateEventId, customFieldController.getRegistrationSettings);
 router.patch('/:id/registration-settings', validateEventId, eventManagePerm, customFieldController.updateRegistrationSettings);
 router.get('/:id/custom-fields', validateEventId, customFieldController.getCustomFields);
@@ -213,6 +227,7 @@ router.use(stallRoutes);
 router.use(prizeRoutes);
 router.use(couponRoutes);
 router.use(bulkEmailRoutes);
+router.use(certificateRoutes);
 router.use(settingsRoutes);
 
 module.exports = router;

@@ -1,0 +1,2777 @@
+[
+  {
+    "id": "TC001",
+    "title": "Browse events listing and verify pagination controls are visible",
+    "description": "Verifies a user can open the events listing page and see event results with pagination controls.",
+    "category": "Event Discovery & Listing",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to \"/events\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify page title contains \"Events\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Search\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Event type\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Pagination\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Search events by keyword and see matching results",
+    "description": "Verifies keyword search filters the events list to relevant results.",
+    "category": "Event Discovery & Listing",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"workshop\" into the \"Search\" field"
+      },
+      {
+        "type": "action",
+        "description": "Press \"Enter\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"search=workshop\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Event results list\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"workshop\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Filter events by type and verify filter is applied",
+    "description": "Verifies selecting an event type filters the listing and updates the page state.",
+    "category": "Event Discovery & Listing",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Seminar\" from the \"Event type\" dropdown"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"type=seminar\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Event results list\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Active filters\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Combine search + type filter and keep both filters active",
+    "description": "Verifies combined filtering (search keyword and event type) works end-to-end.",
+    "category": "Event Discovery & Listing",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"workshop\" into the \"Search\" field"
+      },
+      {
+        "type": "action",
+        "description": "Press \"Enter\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Seminar\" from the \"Event type\" dropdown"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"search=workshop\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"type=seminar\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Event results list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Pagination: move to next page of event results",
+    "description": "Verifies a user can navigate to the next page of results and the URL/state updates.",
+    "category": "Event Discovery & Listing",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to \"/events\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Next page\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Next page\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"page=\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Event results list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Pagination with filters: changing page keeps active filters",
+    "description": "Verifies paginating does not drop an active search filter.",
+    "category": "Event Discovery & Listing",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"workshop\" into the \"Search\" field"
+      },
+      {
+        "type": "action",
+        "description": "Press \"Enter\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Next page\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"search=workshop\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"page=\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Event results list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Festival grouping: verify festival section/grouping is displayed when present",
+    "description": "Verifies events grouped under a festival are displayed as a distinct group/section on the listing page.",
+    "category": "Event Discovery & Listing",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Scroll to \"Festival\" section"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Festival\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Festival event group\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Event results list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Event detail page shows core event information and register CTA",
+    "description": "Verifies a published event detail page displays the main sections (description, schedule/venue, prizes) and a visible registration call-to-action.",
+    "category": "Event Detail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Events\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the first event card in the events list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Description\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Schedule\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Prizes\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Register\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Event detail page shows registration status as Open when registrations are available",
+    "description": "Verifies the event detail page clearly shows an open registration status when registrations are enabled for the event.",
+    "category": "Event Detail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event that indicates registration is open"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Registration\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Open\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Register\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Event detail page shows registration status as Closed when registration window is over",
+    "description": "Verifies the event detail page shows a closed status and does not present an active registration action when registrations are closed.",
+    "category": "Event Detail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event that indicates registration is closed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Registration\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Closed\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Register\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Event detail page displays capacity information when provided",
+    "description": "Verifies that event capacity (total seats or remaining slots) is visible on the event detail page when the event is capacity-limited.",
+    "category": "Event Detail",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event that shows a limited capacity indicator in the list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Capacity\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Seats\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Event detail page handles missing optional sections gracefully (no prizes)",
+    "description": "Verifies the event detail page renders without errors when optional fields like prizes are not present.",
+    "category": "Event Detail",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event that does not mention prizes in its summary"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Description\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Schedule\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Prizes\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Event detail page shows a not found message for an invalid/non-existent event link",
+    "description": "Verifies the UI shows a user-friendly not found state when the event ID does not exist.",
+    "category": "Event Detail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events/non-existent-event-id"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Not found\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Event detail page shows a not found/restricted message for an unpublished or restricted event (student view)",
+    "description": "Verifies the UI does not reveal details and shows a not found/restricted state when the event is not visible to students.",
+    "category": "Event Detail",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event that appears restricted/unavailable (if present in the list) or a restricted event link provided by the environment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Not found\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Register\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Register for a free event with required custom fields (happy path)",
+    "description": "Verifies a logged-in student can complete registration for a free event by filling dynamic custom fields and seeing a success/QR confirmation.",
+    "category": "Individual Event Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card with a visible \"Free\" price label"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Register\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Registration successful\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Register for a free event with optional coupon field left empty",
+    "description": "Verifies registration succeeds when the coupon code is not provided and only custom fields are filled.",
+    "category": "Individual Event Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card with a visible \"Free\" price label"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Register\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"QR Code\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Attempt registration with missing required custom field (client-side/server-side validation)",
+    "description": "Verifies the registration form blocks submission or shows a visible validation error when required dynamic fields are not filled.",
+    "category": "Individual Event Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card with a visible \"Free\" price label"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Register\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Apply an invalid coupon code and verify visible error message",
+    "description": "Verifies an invalid coupon is rejected and the user sees a clear error without completing registration.",
+    "category": "Individual Event Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card with a visible \"Free\" price label"
+      },
+      {
+        "type": "action",
+        "description": "Type \"INVALIDCOUPON123\" into the coupon code field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid coupon\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Apply a valid coupon code and confirm discounted/free registration completes",
+    "description": "Verifies a valid coupon can be applied and the user can complete registration successfully.",
+    "category": "Individual Event Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card with a visible \"Free\" price label"
+      },
+      {
+        "type": "action",
+        "description": "Type \"VALIDCOUPON\" into the coupon code field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Register\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Registration successful\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Registration blocked when event is full (capacity reached)",
+    "description": "Verifies the UI shows a clear error or disabled registration when an event has reached capacity.",
+    "category": "Individual Event Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card that shows a visible label such as \"Full\" or \"Sold out\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Register\" button if it is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event is full\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "Login and open Team Registration page for an event",
+    "description": "Verifies a student can log in and reach the team registration UI for an event.",
+    "category": "Team Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card or event link that supports team registration"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Team Registration\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Create a new team successfully",
+    "description": "Verifies a logged-in student can create a team for a team-based event and sees the new team in the UI.",
+    "category": "Team Registration",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card or event link that supports team registration"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Automation Team Alpha\" into the team name field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Create Team\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Automation Team Alpha\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Prevent creating a team with an empty team name",
+    "description": "Verifies the UI shows a validation message and does not create a team when team name is blank.",
+    "category": "Team Registration",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card or event link that supports team registration"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Create Team\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Team name is required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Payment page shows order details (amount and currency) before checkout",
+    "description": "Verifies the payment page displays a clear payable amount and currency to the user before initiating checkout.",
+    "category": "Payment Integration (Razorpay)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"My Registrations\" (or \"Registrations\") in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on a registration for a paid event that is awaiting payment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Amount\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"INR\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Prevent payment initiation when registration is missing or invalid (UI validation)",
+    "description": "Verifies the UI blocks payment initiation or shows a clear error when required payment context is missing.",
+    "category": "Payment Integration (Razorpay)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"My Registrations\" (or \"Registrations\") in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Pay\" or \"Payment\" entry point for a registration that does not show a payable amount (free event or already paid)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Payment not required\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Pay Now\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Already-paid registration does not allow starting a new Razorpay payment",
+    "description": "Verifies the UI reflects completed payment and prevents duplicate payment attempts.",
+    "category": "Payment Integration (Razorpay)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"My Registrations\" (or \"Registrations\") in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on a registration that is marked as paid/completed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Payment completed\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Pay Now\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Validate a percentage coupon during event registration and see discounted amount",
+    "description": "Verifies a student can apply a valid percentage coupon during registration and the UI reflects the discount before completing registration.",
+    "category": "Coupon & Discount System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event card that shows a registration option"
+      },
+      {
+        "type": "action",
+        "description": "Verify text \"Register\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Authorized volunteer scans a valid QR for ENTRY and sees success details",
+    "description": "Verifies that a user with QR scanning permission can record an ENTRY scan and see participant details and confirmation.",
+    "category": "QR Code Attendance Scanning",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event from the events list"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Scan\" or \"QR Scan\" option for the event"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Scan\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Authorized volunteer scans a valid QR for EXIT and sees success details",
+    "description": "Verifies that an authorized scanner can record an EXIT scan and see confirmation on the scan page.",
+    "category": "QR Code Attendance Scanning",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event from the events list"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Scan\" or \"QR Scan\" option for the event"
+      },
+      {
+        "type": "action",
+        "description": "Select \"EXIT\" from the scan type dropdown"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"EXIT\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "Scan ENTRY with gate and remarks recorded and visible in the success view",
+    "description": "Verifies that optional metadata (gate and remarks) can be provided during scanning and is reflected in the visible scan confirmation.",
+    "category": "QR Code Attendance Scanning",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event from the events list"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Scan\" or \"QR Scan\" option for the event"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Main Entrance\" into the gate field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"on time\" into the remarks field"
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "Invalid QR code shows an error and does not show participant success details",
+    "description": "Verifies that scanning an invalid/unrecognized QR displays a visible error state.",
+    "category": "QR Code Attendance Scanning",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event from the events list"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Scan\" or \"QR Scan\" option for the event"
+      },
+      {
+        "type": "action",
+        "description": "Type \"INVALID-QR-0000\" into the QR code input field"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "User without scan permission is blocked from scanning (not authorized)",
+    "description": "Verifies that a logged-in user lacking QR scan permission sees a visible 'not authorized' state when attempting to access scanning.",
+    "category": "QR Code Attendance Scanning",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the username/email field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event from the events list"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Scan\" or \"QR Scan\" option for the event"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Not authorized\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC033",
+    "title": "Public certificate verification page loads and shows verification input",
+    "description": "Verifies that the public certificate verification page is accessible and presents a way to enter a verification code.",
+    "category": "Certificate System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /verify"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify page title contains \"Verify\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Verify\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Verification code\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC034",
+    "title": "Verify page rejects an obviously invalid verification code",
+    "description": "Verifies that entering an invalid verification code shows a clear not-found/invalid result to the user.",
+    "category": "Certificate System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /verify"
+      },
+      {
+        "type": "action",
+        "description": "Type \"INVALID-CODE-DOES-NOT-EXIST-12345\" into the \"Verification code\" field"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Verify\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Not found\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC035",
+    "title": "Verify page handles empty submission gracefully",
+    "description": "Verifies the verification form prevents or flags submission when the code is empty.",
+    "category": "Certificate System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /verify"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Verify\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC036",
+    "title": "Verify page handles whitespace-only input as invalid",
+    "description": "Verifies that whitespace-only input is not treated as a valid verification code.",
+    "category": "Certificate System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /verify"
+      },
+      {
+        "type": "action",
+        "description": "Type \"     \" into the \"Verification code\" field"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Verify\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Not found\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC037",
+    "title": "My Certificates page is accessible after login",
+    "description": "Verifies that a logged-in user can reach the My Certificates page and see the page content.",
+    "category": "Certificate System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the \"Email\" field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the \"Password\" field"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Login\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL does not contain \"/login\""
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /events/my-certificates"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"My Certificates\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC038",
+    "title": "My Certificates page provides a way to verify a certificate",
+    "description": "Verifies that the logged-in certificates area provides an obvious navigation path to certificate verification.",
+    "category": "Certificate System",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the \"Email\" field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the \"Password\" field"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Login\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL does not contain \"/login\""
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /events/my-certificates"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Verify\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC039",
+    "title": "Organizer sends a bulk email successfully when sufficient credits are available",
+    "description": "Verifies an organizer can compose and send a bulk email and sees a visible success confirmation with a sent count.",
+    "category": "Bulk Email System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"Email Credits Available\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Bulk Email\" in the event menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Test subject - Bulk email\" into the Subject field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Hello, this is a test bulk email message.\" into the Email Body field"
+      },
+      {
+        "type": "action",
+        "description": "Select \"All registrants\" from the Recipient Filter dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Send\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Email sent\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Sent\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC040",
+    "title": "Bulk email send is blocked with visible error when credits are insufficient",
+    "description": "Verifies the UI prevents sending bulk email and shows an 'Insufficient email credits' error when credits are not available.",
+    "category": "Bulk Email System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"No Email Credits\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Bulk Email\" in the event menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Credits check\" into the Subject field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"This should fail due to insufficient credits.\" into the Email Body field"
+      },
+      {
+        "type": "action",
+        "description": "Select \"All registrants\" from the Recipient Filter dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Send\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Insufficient email credits\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC041",
+    "title": "Email history shows the most recent bulk email after a successful send",
+    "description": "Verifies that after sending a bulk email, the email history page lists the new entry with a visible sent count.",
+    "category": "Bulk Email System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"Email Credits Available\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Bulk Email\" in the event menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"History entry check\" into the Subject field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"This email should appear in history.\" into the Email Body field"
+      },
+      {
+        "type": "action",
+        "description": "Select \"All registrants\" from the Recipient Filter dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Send\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Email sent\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Email History\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"History\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"History entry check\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Sent\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC042",
+    "title": "Open analytics section is visible for an email history entry",
+    "description": "Verifies the organizer can view open analytics for a sent email from the history screen.",
+    "category": "Bulk Email System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"Email Credits Available\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Email History\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"History\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on the most recent email history row"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Open\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Opens\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC043",
+    "title": "Subject is required: sending with an empty subject shows a validation error",
+    "description": "Verifies the bulk email form enforces required subject and displays a visible validation message.",
+    "category": "Bulk Email System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"Email Credits Available\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Bulk Email\" in the event menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \" \" into the Subject field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Body present but no subject.\" into the Email Body field"
+      },
+      {
+        "type": "action",
+        "description": "Select \"All registrants\" from the Recipient Filter dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Send\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Subject is required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC044",
+    "title": "Body is required: sending with an empty body shows a validation error",
+    "description": "Verifies the bulk email form enforces required body and displays a visible validation message.",
+    "category": "Bulk Email System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"Email Credits Available\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Bulk Email\" in the event menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Missing body validation\" into the Subject field"
+      },
+      {
+        "type": "action",
+        "description": "Type \" \" into the Email Body field"
+      },
+      {
+        "type": "action",
+        "description": "Select \"All registrants\" from the Recipient Filter dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Send\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Body is required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC045",
+    "title": "Recipient filter must be selected: sending without a filter shows a validation error",
+    "description": "Verifies the bulk email form enforces recipient filter selection before sending.",
+    "category": "Bulk Email System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"Email Credits Available\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Bulk Email\" in the event menu"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Filter required\" into the Subject field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Attempting to send without choosing recipients.\" into the Email Body field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Send\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Recipient filter is required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC046",
+    "title": "Email history list loads and displays key columns for an organizer",
+    "description": "Verifies the email history screen loads successfully and shows expected visible headers/details for past emails.",
+    "category": "Bulk Email System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Events\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event named \"Email Credits Available\""
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Email History\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"History\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Subject\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Sent\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Opens\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC047",
+    "title": "Organizer creates a new stall from an event’s Stalls page",
+    "description": "Verifies an authenticated organizer can create a stall and sees it listed afterward.",
+    "category": "Stall Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\""
+      },
+      {
+        "type": "action",
+        "description": "Click on an event item to open its details page"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Stalls\" (or \"Stall Management\") in the event navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Stalls\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC048",
+    "title": "Organizer submits the Create Stall form with valid details",
+    "description": "Verifies the Create Stall form accepts valid inputs and shows the new stall in the list.",
+    "category": "Stall Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event item to open its details page"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Stalls\" (or \"Stall Management\") in the event navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Create Stall\" (or \"Add Stall\") button"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Food & Beverages Stall\" into the \"Stall Name\" field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Snacks and beverages for attendees.\" into the \"Description\" field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Save\" (or \"Create\") button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Food & Beverages Stall\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC049",
+    "title": "Create Stall validation: required fields block submission",
+    "description": "Verifies the UI prevents stall creation when required fields are empty and shows a visible validation message.",
+    "category": "Stall Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event item to open its details page"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Stalls\" (or \"Stall Management\") in the event navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Create Stall\" (or \"Add Stall\") button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Save\" (or \"Create\") button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Stall Name\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC050",
+    "title": "Public stall listing is visible from Stall Opportunities page",
+    "description": "Verifies stall opportunities can be viewed in the public listing page UI.",
+    "category": "Stall Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events/stall-opportunities"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify page title contains \"Stall\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Stall\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Stall opportunities list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC051",
+    "title": "Public stall listing supports basic discovery/search interaction (if present)",
+    "description": "Verifies users can filter or search stall opportunities and see updated visible results.",
+    "category": "Stall Management",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /events/stall-opportunities"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Search\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"stall\" into the \"Search\" field"
+      },
+      {
+        "type": "action",
+        "description": "Press Enter"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Stall opportunities list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC052",
+    "title": "Student attempts to apply when application portal is closed and sees an error",
+    "description": "Verifies an authenticated student sees an 'Application portal closed' style error when applying during a closed window.",
+    "category": "Stall Management",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Stall Opportunities\" in the main navigation (or open Stall Opportunities from Events)"
+      },
+      {
+        "type": "action",
+        "description": "Click on a stall opportunity item to open its details"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Apply\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Application portal closed\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC053",
+    "title": "Student application form blocks submission when mandatory fields are missing (if form exists)",
+    "description": "Verifies the apply workflow shows visible validation feedback when the application form is incomplete.",
+    "category": "Stall Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Stall Opportunities\" in the main navigation (or open Stall Opportunities from Events)"
+      },
+      {
+        "type": "action",
+        "description": "Click on a stall opportunity item to open its details"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Apply\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Submit\" (or \"Confirm Application\") button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"required\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC054",
+    "title": "Organizer reviews stall applications list UI (visibility and basic loading)",
+    "description": "Verifies the organizer can access the stall applications area and the list loads visibly.",
+    "category": "Stall Management",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on an event item to open its details page"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Stalls\" (or \"Stall Management\") in the event navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Applications\" (or \"Student Applications\") within Stall Management"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Applications\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC055",
+    "title": "Submit event feedback successfully with rating and optional comment",
+    "description": "Verifies a public user can submit event feedback with a valid rating and comment and sees a success confirmation.",
+    "category": "Feedback System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the event feedback page for a known event that the tester has attended (via a pre-seeded test event)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event Feedback\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Select \"8\" as the rating."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Well organized event with helpful speakers.\" into the comment field."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Thank you\" is visible."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Feedback submitted\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC056",
+    "title": "Submit event feedback successfully with rating only (no comment)",
+    "description": "Verifies a public user can submit event feedback with only a rating and the comment left blank.",
+    "category": "Feedback System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the event feedback page for a known event that the tester has attended (use a different pre-seeded attendee identity or a separate pre-seeded event)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event Feedback\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Select \"10\" as the rating."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Thank you\" is visible."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Feedback submitted\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC057",
+    "title": "Validation error when submitting event feedback without rating",
+    "description": "Verifies the UI blocks submission and shows a visible validation message when rating is missing.",
+    "category": "Feedback System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the event feedback page for a known event that the tester has attended (pre-seeded test data)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event Feedback\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Type \"I forgot to rate but left a comment.\" into the comment field."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"rating required\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC058",
+    "title": "Prevent duplicate event feedback submission from the same user/session",
+    "description": "Verifies the UI shows an error or disables resubmission after feedback was already submitted for the same event.",
+    "category": "Feedback System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the event feedback page for a known event where feedback has already been submitted for this same tester identity/session (pre-seeded)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event Feedback\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Select \"7\" as the rating."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Already submitted\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC059",
+    "title": "Feedback blocked when user has not attended the event",
+    "description": "Verifies the UI prevents feedback submission and shows a visible error when the user did not attend the event.",
+    "category": "Feedback System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the event feedback page for a known event that the tester has NOT attended (pre-seeded test data)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event Feedback\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Select \"6\" as the rating."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"not attended\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC060",
+    "title": "Submit stall feedback successfully with rating and comment",
+    "description": "Verifies a public user can submit feedback for a stall with a valid rating and comment and sees a success confirmation.",
+    "category": "Feedback System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the stall feedback page for a known stall within a known event that the tester has attended (pre-seeded test data)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Stall Feedback\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Select \"9\" as the rating."
+      },
+      {
+        "type": "action",
+        "description": "Type \"Great stall experience and quick service.\" into the comment field."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Thank you\" is visible."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Feedback submitted\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC061",
+    "title": "Rating boundary values accepted (1 and 10) for event feedback",
+    "description": "Verifies the UI accepts minimum and maximum rating values without error and confirms submission.",
+    "category": "Feedback System",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the event feedback page for a known event that the tester has attended (pre-seeded test data that allows a fresh submission)."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event Feedback\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Select \"1\" as the rating."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Feedback submitted\" is visible."
+      },
+      {
+        "type": "action",
+        "description": "Navigate to the event feedback page for another known event that the tester has attended (pre-seeded test data that allows a fresh submission)."
+      },
+      {
+        "type": "action",
+        "description": "Select \"10\" as the rating."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Submit Feedback\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Feedback submitted\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC062",
+    "title": "Organizer can view aggregated event feedback and responses list",
+    "description": "Verifies an authenticated organizer can access the feedback results view and see aggregated values and a list of responses.",
+    "category": "Feedback System",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login."
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field."
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Sign in\"."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/events\"."
+      },
+      {
+        "type": "action",
+        "description": "Click on the event that has existing feedback (pre-seeded)."
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Feedback\" (or \"Feedback Results\") in the event navigation."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Average Rating\" is visible."
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Responses\" is visible."
+      }
+    ]
+  },
+  {
+    "id": "TC063",
+    "title": "Organizer logs in and opens the Event Management dashboard area",
+    "description": "Verifies an organizer can log in and reach the event management dashboard entry point without errors.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Event\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC064",
+    "title": "Dashboard shows Registrations tab and loads registrations list",
+    "description": "Verifies the organizer can open the Registrations tab and see a registrations list on the dashboard.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Registrations\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Registrations\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Registrations table/list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC065",
+    "title": "Registrations tab supports filtering using available filter controls",
+    "description": "Verifies the registrations view exposes filter controls and applying a filter updates the visible list state.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Registrations\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Filter\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Filter\""
+      }
+    ]
+  },
+  {
+    "id": "TC066",
+    "title": "Analytics tab loads and shows key metrics",
+    "description": "Verifies the organizer can open Analytics and view key metrics like total registrations and attendance rate.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Analytics\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Analytics\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Total\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Attendance\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC067",
+    "title": "Analytics view shows a registrations-by-date visualization/section",
+    "description": "Verifies Analytics includes a registrations-by-date section (chart/table) that renders visibly.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Analytics\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Registrations\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Date\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Registrations by date chart/table\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC068",
+    "title": "Volunteers tab is accessible from the dashboard and renders its section",
+    "description": "Verifies navigation to Volunteers tab works and the volunteers section is displayed.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Volunteers\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Volunteers\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Volunteers section\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC069",
+    "title": "Stalls tab is accessible from the dashboard and renders its section",
+    "description": "Verifies navigation to Stalls tab works and the stalls section is displayed.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Stalls\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Stalls\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Stalls section\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC070",
+    "title": "Feedback tab is accessible from the dashboard and renders its section",
+    "description": "Verifies navigation to Feedback tab works and the feedback section is displayed.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Feedback\" tab"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Feedback\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Feedback section\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC071",
+    "title": "Login fails with invalid credentials and prevents dashboard access",
+    "description": "Verifies invalid login does not grant access to the event management dashboard and shows an error message.",
+    "category": "Event Management Dashboard (Registrations & Analytics)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"not-a-real-user@example.com\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"wrong-password\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Invalid\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/login\""
+      }
+    ]
+  }
+]

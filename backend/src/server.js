@@ -236,6 +236,10 @@ const startServer = async () => {
     // Initialize scheduled email sender
     const emailScheduler = require('./modules/event-management/services/emailScheduler.service');
     emailScheduler.start();
+
+    // Initialize BullMQ email queue (graceful — no-op if Redis unavailable)
+    const emailQueue = require('./jobs/emailQueue');
+    await emailQueue.init();
     
     app.listen(config.port, () => {
       console.log(
@@ -248,7 +252,8 @@ const startServer = async () => {
       console.log(
         `📦 Cache initialized (${cache.isConnected() ? "Redis" : "Memory fallback"})`,
       );
-      console.log(`📊 Audit report scheduler initialized`);
+      console.log(`� Email queue: ${emailQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
+      console.log(`�📊 Audit report scheduler initialized`);
       console.log(`🎫 TMS auto-escalation scheduler initialized`);
       console.log(`🎫 QR activation job started for gate entry`);
     });
@@ -259,5 +264,13 @@ const startServer = async () => {
 };
 
 startServer();
+
+// Graceful shutdown — clean up BullMQ connections
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received — shutting down email queue…');
+  const emailQueue = require('./jobs/emailQueue');
+  await emailQueue.shutdown();
+  process.exit(0);
+});
 
 module.exports = app;

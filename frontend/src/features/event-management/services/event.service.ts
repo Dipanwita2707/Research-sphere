@@ -24,6 +24,8 @@ import type {
   EventCoupon,
   CouponFormData,
   CouponValidationResult,
+  EventExtraPass,
+  PassPreviewData,
 } from '../types/event.types';
 
 const BASE_URL = '/events';
@@ -95,12 +97,14 @@ export const eventService = {
   async getMyRegistrations(
     page: number = 1,
     limit: number = 20,
-    status?: string
+    status?: string,
+    search?: string
   ): Promise<{ registrations: EventRegistration[]; pagination: any }> {
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', limit.toString());
     if (status) params.append('status', status);
+    if (search?.trim()) params.append('search', search.trim());
 
     const response = await api.get(`${BASE_URL}/registrations/my?${params.toString()}`);
     return response.data.data;
@@ -228,6 +232,11 @@ export const eventService = {
     return response.data.data;
   },
 
+  async previewQRScan(id: string, qrCode: string, entryType: 'entry' | 'exit'): Promise<PassPreviewData> {
+    const response = await api.post(`${BASE_URL}/${id}/scan/preview`, { qrCode, entryType });
+    return response.data.data;
+  },
+
   /**
    * Cancel registration
    */
@@ -274,7 +283,7 @@ export const eventService = {
     page: number = 1,
     limit: number = 30,
     filters: { eventId?: string; search?: string; startDate?: string; endDate?: string } = {}
-  ): Promise<{ entries: any[]; pagination: any }> {
+  ): Promise<{ entries: any[]; pagination: any; stats: { totalScans: number; totalEntries: number; totalExits: number } }> {
     const params = new URLSearchParams();
     params.append('page', page.toString());
     params.append('limit', limit.toString());
@@ -304,6 +313,46 @@ export const eventService = {
    */
   async submitRegistrationForm(eventId: string, formData: Record<string, any>): Promise<any> {
     const response = await api.post(`${BASE_URL}/${eventId}/register-with-form`, formData);
+    return response.data.data;
+  },
+
+  async getMyExtraPasses(eventId: string): Promise<{
+    allowExtraPasses: boolean;
+    maxExtraPassesPerUser: number;
+    registrationId: string;
+    guests: EventExtraPass[];
+    summary: {
+      extraPassCount: number;
+      totalAllowedEntries: number;
+      checkedInCount: number;
+      checkedOutCount?: number;
+      currentlyInside?: number;
+      availableEntrySlots?: number;
+      remainingEntries: number;
+      studentInside?: boolean;
+    };
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/extra-passes`);
+    return response.data.data;
+  },
+
+  async createExtraPass(
+    eventId: string,
+    payload: { guestName: string; guestEmail: string; mobileNumber: string; relationship: string }
+  ): Promise<{
+    extraPass: EventExtraPass;
+    summary: {
+      extraPassCount: number;
+      totalAllowedEntries: number;
+      checkedInCount: number;
+      checkedOutCount?: number;
+      currentlyInside?: number;
+      availableEntrySlots?: number;
+      remainingEntries: number;
+      studentInside?: boolean;
+    };
+  }> {
+    const response = await api.post(`${BASE_URL}/${eventId}/extra-passes`, payload);
     return response.data.data;
   },
 
@@ -880,8 +929,9 @@ export const eventService = {
    * Create a Razorpay order for individual event registration.
    * Backend calculates the amount — never trust frontend values.
    */
-  async createIndividualPaymentOrder(eventId: string) {
-    const response = await api.post(`${BASE_URL}/${eventId}/payments/individual/create-order`);
+  async createIndividualPaymentOrder(eventId: string, couponCode?: string | null) {
+    const payload = couponCode === undefined ? {} : { couponCode };
+    const response = await api.post(`${BASE_URL}/${eventId}/payments/individual/create-order`, payload);
     return response.data.data;
   },
 
@@ -947,7 +997,7 @@ export const eventService = {
     testEmail?: string;
     registrationIds?: string[];
     scheduledAt?: string; // ISO date string — if set, schedules the send
-  }): Promise<{ success: boolean; sent: number; failed: number; errors: string[]; scheduled?: boolean; scheduledAt?: string; logId?: string; recipientCount?: number }> {
+  }): Promise<{ success: boolean; sent: number; failed: number; errors: string[]; scheduled?: boolean; scheduledAt?: string; logId?: string; recipientCount?: number; queued?: boolean; jobId?: string }> {
     const response = await api.post(`${BASE_URL}/${eventId}/emails/send`, payload);
     return response.data.data;
   },
@@ -1088,6 +1138,189 @@ export const eventService = {
     amount?: number
   ): Promise<CouponValidationResult> {
     const response = await api.post(`${BASE_URL}/${eventId}/coupons/validate`, { code, amount });
+    return response.data.data;
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  //  Certificate Management
+  // ════════════════════════════════════════════════════════════════
+
+  /**
+   * Upload a certificate template (image file + text config).
+   */
+  async uploadCertificateTemplate(eventId: string, formData: FormData): Promise<{
+    id: string;
+    name: string;
+    certificateType: string;
+    templateUrl: string | null;
+    title: string;
+    content: string;
+    textColor: string;
+  }> {
+    const response = await api.post(`${BASE_URL}/${eventId}/certificates/templates`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data.data;
+  },
+
+  /**
+   * List certificate templates for an event.
+   */
+  async getCertificateTemplates(eventId: string): Promise<Array<{
+    id: string;
+    name: string;
+    certificateType: string;
+    templateUrl: string | null;
+    title: string;
+    content: string;
+    textColor: string;
+    isDefault: boolean;
+    createdAt: string;
+  }>> {
+    const response = await api.get(`${BASE_URL}/${eventId}/certificates/templates`);
+    return response.data.data;
+  },
+
+  /**
+   * Update a certificate template's text configuration.
+   */
+  async updateCertificateTemplate(eventId: string, templateId: string, data: {
+    title?: string;
+    content?: string;
+    textColor?: string;
+    name?: string;
+    certificateType?: string;
+  }): Promise<void> {
+    await api.patch(`${BASE_URL}/${eventId}/certificates/templates/${templateId}`, data);
+  },
+
+  /**
+   * Delete a certificate template.
+   */
+  async deleteCertificateTemplate(eventId: string, templateId: string): Promise<void> {
+    await api.delete(`${BASE_URL}/${eventId}/certificates/templates/${templateId}`);
+  },
+
+  /**
+   * Get recipient counts per registration status for the certificate slider.
+   */
+  async getCertificateRecipientsCount(eventId: string): Promise<{
+    all: number;
+    confirmed: number;
+    pending: number;
+    cancelled: number;
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/certificates/recipients-count`);
+    return response.data.data;
+  },
+
+  /**
+   * Send certificates to event registrants.
+   */
+  async sendCertificates(eventId: string, payload: {
+    templateId: string;
+    canvasWidth: number;
+    textFields: Array<{
+      text: string;
+      x: number;
+      y: number;
+      fontSize: number;
+      color: string;
+      fontWeight: string;
+      textAlign: string;
+    }>;
+    imageFields?: Array<{ s3Key: string; x: number; y: number; width: number }>;
+    filter?: string;
+    registrationIds?: string[];
+    duplicateAction?: 'skip' | 'resend';
+  }): Promise<{
+    success?: boolean;
+    sent?: number;
+    failed?: number;
+    recipientCount?: number;
+    skippedCount?: number;
+    logId?: string;
+    requiresConfirmation?: boolean;
+    duplicateCount?: number;
+    totalRecipients?: number;
+    newRecipients?: number;
+  }> {
+    const response = await api.post(`${BASE_URL}/${eventId}/certificates/send`, payload);
+    return response.data.data;
+  },
+
+  /**
+   * Send a test certificate to any email for preview.
+   */
+  async sendTestCertificate(eventId: string, payload: {
+    templateId: string;
+    canvasWidth: number;
+    textFields: Array<{
+      text: string;
+      x: number;
+      y: number;
+      fontSize: number;
+      color: string;
+      fontWeight: string;
+      textAlign: string;
+    }>;
+    imageFields?: Array<{ s3Key: string; x: number; y: number; width: number }>;
+    testEmail: string;
+  }): Promise<{ sent: number }> {
+    const response = await api.post(`${BASE_URL}/${eventId}/certificates/test-send`, payload);
+    return response.data.data;
+  },
+
+  /**
+   * Get certificate sending history for an event.
+   */
+  async getCertificateHistory(eventId: string, page = 1, limit = 20): Promise<{
+    logs: Array<{
+      id: string;
+      certificateType: string;
+      title: string;
+      filter: string;
+      recipientCount: number;
+      sentCount: number;
+      failedCount: number;
+      status: string;
+      errors: string[];
+      sentAt: string;
+      sentByName: string;
+      sentByEmail: string | null;
+    }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/certificates/history`, { params: { page, limit } });
+    return response.data.data;
+  },
+
+  /**
+   * Get the authenticated user's certificates.
+   */
+  async getMyCertificates(page = 1, limit = 20): Promise<{
+    certificates: Array<{
+      id: string;
+      certificateTitle: string;
+      certificateType: string;
+      eventName: string;
+      eventId: string;
+      holderName: string;
+      issueDate: string;
+      verificationCode: string;
+      hasDownload: boolean;
+    }>;
+    pagination: { page: number; limit: number; total: number; totalPages: number };
+  }> {
+    const response = await api.get(`${BASE_URL}/certificates/my`, { params: { page, limit } });
+    return response.data.data;
+  },
+
+  /**
+   * Download a certificate PDF (returns presigned URL).
+   */
+  async downloadCertificate(verificationCode: string): Promise<{ downloadUrl: string }> {
+    const response = await api.get(`${BASE_URL}/certificates/download/${verificationCode}`);
     return response.data.data;
   },
 };

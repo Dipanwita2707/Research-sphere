@@ -9,6 +9,8 @@ import { useTheme } from '@/shared/providers/ThemeProvider';
 import api from '@/shared/api/api';
 import Link from 'next/link';
 import logger from '@/shared/utils/logger';
+import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
+import { useMyClubs } from '@/features/dsw/hooks';
 
 interface DepartmentPermission {
   category: string;
@@ -88,6 +90,14 @@ export default function NavigationHeader() {
   const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
   const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
   const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+  const { data: notingPermsData } = useNotingPermissions({ enabled: !!isStudent });
+  const { data: myClubsData } = useMyClubs();
+  const isClubChairpersonFromNoting = !!notingPermsData?.isClubChairperson;
+  const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
+    club => club.chairpersonId === user.id && club.status === 'active'
+  ));
+  const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
+  const canBrowseEvents = true;
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
@@ -356,12 +366,21 @@ export default function NavigationHeader() {
       name: '🎪 Events & Stalls',
       description: 'Browse events and stall opportunities',
       children: [
-        { name: '📅 All Events', href: '/events', description: 'Browse and register for events' },
+        ...(canBrowseEvents ? [{ name: '📅 All Events', href: '/events', description: 'Browse and register for events' }] : []),
         { name: '🪄 Stall Opportunities', href: '/events/stall-opportunities', description: 'Apply for stalls at events' },
         { name: '📋 My Registrations', href: '/events/registrations', description: 'View your event registrations' },
       ],
     },
   ];
+
+  const eventsMenu = navigationSubItems.find((item) => item.name === '🎪 Events & Stalls');
+  if (eventsMenu?.children && (isFaculty || isClubChairperson)) {
+    eventsMenu.children.splice(1, 0, {
+      name: '📝 My Created Events',
+      href: '/events/my-events',
+      description: 'Manage events you organized',
+    });
+  }
 
   // Add Research and Development if there are sub-items
   if (rndSubItems.length > 0) {

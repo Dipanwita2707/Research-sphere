@@ -22,8 +22,9 @@ const paymentService = require('../services/payment.service');
 const createIndividualOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
+  const { couponCode } = req.body || {};
 
-  const result = await paymentService.createIndividualPaymentOrder(id, userId);
+  const result = await paymentService.createIndividualPaymentOrder(id, userId, couponCode);
 
   return ApiResponse.success(res, result, 'Payment order created successfully');
 });

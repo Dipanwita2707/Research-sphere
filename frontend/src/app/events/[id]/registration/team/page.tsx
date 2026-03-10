@@ -135,7 +135,7 @@ const MemberCard: React.FC<MemberCardProps> = ({
   };
 
   return (
-    <div className="group flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600 shadow-sm transition-all duration-200 hover:shadow-md">
+    <div className="group flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 hover:border-[#b3cde0] dark:hover:border-gray-600 shadow-ev transition-all duration-200 hover:shadow-md">
       <div className="flex items-center gap-4">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-inner ${isLeader
           ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400'
@@ -144,7 +144,7 @@ const MemberCard: React.FC<MemberCardProps> = ({
           {initials.toUpperCase()}
         </div>
         <div>
-          <p className="font-semibold text-gray-900 dark:text-white">
+          <p className="font-semibold text-ev-900 dark:text-white">
             {displayName}
           </p>
           <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -172,7 +172,7 @@ const MemberCard: React.FC<MemberCardProps> = ({
         {variant === 'search' && onInvite && (
           <button
             onClick={onInvite}
-            className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 transition-all shadow-sm flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium bg-ev-700 text-white rounded-lg hover:bg-ev-800 active:scale-95 transition-all shadow-ev flex items-center gap-2"
           >
             <Send className="w-3.5 h-3.5" />
             Invite
@@ -211,16 +211,16 @@ const InvitationCard: React.FC<InvitationCardProps> = ({
   const user = type === 'sent' ? invitation.invitee : invitation.inviter;
 
   return (
-    <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm transition-all hover:shadow-md">
+    <div className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 shadow-ev transition-all hover:shadow-md">
       <div className="flex items-center gap-4">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${type === 'sent'
-          ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400'
+          ? 'bg-ev-100 text-ev-700 dark:bg-ev-900/30 dark:text-ev-400'
           : 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400'
           }`}>
           {user?.firstName?.[0]}{user?.lastName?.[0] || ''}
         </div>
         <div>
-          <p className="font-medium text-gray-900 dark:text-white">
+          <p className="font-medium text-ev-900 dark:text-white">
             {type === 'sent'
               ? `${user?.firstName} ${user?.lastName}`
               : `${user?.firstName} ${user?.lastName}`
@@ -240,7 +240,7 @@ const InvitationCard: React.FC<InvitationCardProps> = ({
           <>
             <button
               onClick={onAccept}
-              className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-95 transition-all shadow-sm flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs font-semibold bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-95 transition-all shadow-ev flex items-center gap-1.5"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               Accept
@@ -289,10 +289,10 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, onRequestJoin, hasRequested }
     : team.leader?.name || 'Unknown Leader';
 
   return (
-    <div className="group flex flex-col p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-700 hover:shadow-lg transition-all duration-300">
+    <div className="group flex flex-col p-5 bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0] dark:border-gray-700 hover:border-[#b3cde0] dark:hover:border-ev-800 hover:shadow-lg transition-all duration-300">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="font-bold text-gray-900 dark:text-white text-lg group-hover:text-blue-600 transition-colors">
+          <h3 className="font-bold text-ev-900 dark:text-white text-lg group-hover:text-ev-700 transition-colors">
             {team.name}
           </h3>
           <div className="flex items-center gap-2 mt-1.5">
@@ -307,13 +307,13 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, onRequestJoin, hasRequested }
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mb-6 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-gray-100 dark:border-gray-700/50">
+      <div className="flex items-center gap-3 mb-6 p-2 rounded-lg bg-gray-50 dark:bg-gray-700/30 border border-[#b3cde0] dark:border-gray-700/50">
         <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center border border-amber-200 dark:border-amber-900/50">
           <Crown className="w-4 h-4 text-amber-600 dark:text-amber-400" />
         </div>
         <div>
           <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-medium">Team Leader</p>
-          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+          <p className="text-sm font-semibold text-ev-900 dark:text-white">
             {leaderName}
           </p>
         </div>
@@ -324,7 +324,7 @@ const TeamCard: React.FC<TeamCardProps> = ({ team, onRequestJoin, hasRequested }
         disabled={hasRequested}
         className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all ${hasRequested
           ? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed border border-dashed border-gray-300 dark:border-gray-600'
-          : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-gray-600 hover:border-blue-600 hover:text-blue-600 dark:hover:border-blue-500 dark:hover:text-blue-500 active:bg-blue-50'
+          : 'bg-white dark:bg-gray-800 text-ev-900 dark:text-white border-2 border-[#b3cde0] dark:border-gray-600 hover:border-ev-700 hover:text-ev-700 dark:hover:border-ev-700 dark:hover:text-ev-700 active:bg-ev-50'
           }`}
       >
         {hasRequested ? (
@@ -717,14 +717,14 @@ export default function TeamManagementPage() {
           <div>
             <Link
               href={`/events/${eventId}/registration`}
-              className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors mb-3 group"
+              className="inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-ev-700 transition-colors mb-3 group"
             >
-              <div className="p-1.5 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 group-hover:border-blue-200 transition-colors">
+              <div className="p-1.5 rounded-full bg-white dark:bg-gray-800 border border-[#b3cde0] dark:border-gray-700 group-hover:border-ev-200 transition-colors">
                 <ArrowLeft className="w-3.5 h-3.5" />
               </div>
               Back to Personal Info
             </Link>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+            <h1 className="text-3xl font-bold text-ev-900 dark:text-white tracking-tight">
               Team Management
             </h1>
             <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">
@@ -732,16 +732,16 @@ export default function TeamManagementPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pl-6 rounded-2xl border border-gray-200/60 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center gap-3 bg-white dark:bg-gray-800 p-2 pl-6 rounded-2xl border border-[#b3cde0]/60 dark:border-gray-700 shadow-ev">
             <div className="flex items-center gap-3">
               <span className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center text-xs font-bold text-white">
                 <CheckCircle2 className="w-4 h-4" />
               </span>
-              <span className="font-medium text-sm text-gray-900 dark:text-white">Personal Info</span>
+              <span className="font-medium text-sm text-ev-900 dark:text-white">Personal Info</span>
             </div>
             <div className="w-8 h-[2px] bg-green-500 rounded-full" />
-            <div className={`flex items-center gap-3 pr-4 py-2 rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200 shadow-sm ring-1 ring-blue-100 dark:ring-blue-800`}>
-              <span className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white">2</span>
+            <div className={`flex items-center gap-3 pr-4 py-2 rounded-xl bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 shadow-ev ring-1 ring-ev-200 dark:ring-ev-800`}>
+              <span className="w-6 h-6 rounded-full bg-ev-700 flex items-center justify-center text-xs font-bold text-white">2</span>
               <span className="font-semibold text-sm">Team Setup</span>
             </div>
           </div>
@@ -753,11 +753,11 @@ export default function TeamManagementPage() {
           <div className="lg:col-span-8 space-y-8">
 
             {/* Tab Switcher */}
-            <div className="bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex gap-1">
+            <div className="bg-white dark:bg-gray-800 p-1.5 rounded-xl border border-[#b3cde0] dark:border-gray-700 shadow-ev flex gap-1">
               <button
                 onClick={() => setActiveTab('create')}
                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'create'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-none'
+                  ? 'bg-ev-700 text-white shadow-md shadow-ev-200 dark:shadow-none'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
               >
@@ -767,7 +767,7 @@ export default function TeamManagementPage() {
               <button
                 onClick={() => setActiveTab('join')}
                 className={`flex-1 py-3 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${activeTab === 'join'
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-none'
+                  ? 'bg-ev-700 text-white shadow-md shadow-ev-200 dark:shadow-none'
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                   }`}
               >
@@ -781,11 +781,11 @@ export default function TeamManagementPage() {
               <div className="space-y-6">
                 {!myTeam ? (
                   // Empty State - Create Team Form
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden p-8 text-center">
-                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-blue-600 dark:text-blue-400">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 shadow-ev overflow-hidden p-8 text-center">
+                    <div className="w-16 h-16 bg-ev-50 dark:bg-ev-900/20 rounded-2xl flex items-center justify-center mx-auto mb-6 text-ev-700 dark:text-ev-400">
                       <Plus className="w-8 h-8" />
                     </div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Start a New Team</h2>
+                    <h2 className="text-xl font-bold text-ev-900 dark:text-white mb-2">Start a New Team</h2>
                     <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-md mx-auto">
                       Create a team and invite your friends to participate together. You'll be the team leader.
                     </p>
@@ -799,7 +799,7 @@ export default function TeamManagementPage() {
                           type="text"
                           value={teamName}
                           onChange={(e) => setTeamName(e.target.value)}
-                          className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all outline-none shadow-sm"
+                          className="w-full px-4 py-3 border border-[#b3cde0] dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900 text-ev-900 dark:text-white focus:ring-2 focus:ring-ev-200 focus:border-ev-700 transition-all outline-none shadow-ev"
                           placeholder="e.g. The Code Warriors"
                         />
                       </div>
@@ -807,7 +807,7 @@ export default function TeamManagementPage() {
                       <button
                         onClick={handleCreateTeam}
                         disabled={creatingTeam || !teamName.trim()}
-                        className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full py-3 bg-ev-700 text-white rounded-xl font-bold hover:bg-ev-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-ev-200 dark:shadow-none disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {creatingTeam ? (
                           <>
@@ -827,16 +827,16 @@ export default function TeamManagementPage() {
                   // Team Management View
                   <div className="space-y-6">
                     {/* Team Header Card */}
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                      <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/50">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 shadow-ev overflow-hidden">
+                      <div className="p-6 border-b border-[#b3cde0]/30 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/50 dark:bg-gray-800/50">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-200 dark:shadow-none">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-ev-700 to-ev-900 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-ev-200 dark:shadow-none">
                             {myTeam.name.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{myTeam.name}</h2>
+                            <h2 className="text-xl font-bold text-ev-900 dark:text-white">{myTeam.name}</h2>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 border border-blue-100 dark:border-blue-900/30">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-ev-50 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200 border border-ev-200 dark:border-ev-900/30">
                                 <Crown className="w-3 h-3" />
                                 {myTeam.members?.find(m => m.role === 'leader')?.user?.firstName || 'Leader'}
                               </span>
@@ -849,9 +849,9 @@ export default function TeamManagementPage() {
 
                       {/* Team Status & Actions */}
                       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        <div className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center gap-2">
+                        <div className="px-3 py-1.5 rounded-lg bg-white dark:bg-gray-700 border border-[#b3cde0] dark:border-gray-600 flex items-center gap-2">
                           <Users className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          <span className="text-sm font-semibold text-ev-900 dark:text-white">
                             {myTeam.memberCount?.current || myTeam.members?.length || 1}{' '}
                             <span className="text-gray-400 font-normal">
                               / {myTeam.memberCount?.max || myTeam.event?.maxTeamSize || eventSettings?.maxTeamSize || 4}
@@ -944,16 +944,16 @@ export default function TeamManagementPage() {
 
                       {/* Make Team Public Toggle */}
                       {myTeam.isLeader && (myTeam.memberCount?.current || myTeam.members?.length || 1) < (myTeam.memberCount?.max || myTeam.event?.maxTeamSize || eventSettings?.maxTeamSize || 4) && (
-                        <div className="mx-6 mb-4 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <div className="mx-6 mb-4 p-4 bg-white dark:bg-gray-800 border border-[#b3cde0] dark:border-gray-700 rounded-lg">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               {myTeam.lookingForMembers ? (
-                                <Eye className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                <Eye className="w-5 h-5 text-ev-700 dark:text-ev-400" />
                               ) : (
                                 <EyeOff className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                               )}
                               <div>
-                                <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                <h4 className="text-sm font-semibold text-ev-900 dark:text-white">
                                   Make Team Public
                                 </h4>
                                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -966,12 +966,12 @@ export default function TeamManagementPage() {
                             <button
                               onClick={handleToggleLookingForMembers}
                               disabled={togglingVisibility}
-                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 ${
-                                myTeam.lookingForMembers ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-ev-700 focus:ring-offset-2 disabled:opacity-50 ${
+                                myTeam.lookingForMembers ? 'bg-ev-700' : 'bg-gray-300 dark:bg-gray-600'
                               }`}
                             >
                               <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 shadow-sm ${
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 shadow-ev ${
                                   myTeam.lookingForMembers ? 'translate-x-6' : 'translate-x-1'
                                 }`}
                               />
@@ -982,7 +982,7 @@ export default function TeamManagementPage() {
 
                       {/* Members List */}
                       <div className="p-6">
-                        <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-ev-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                           Team Members
                           <span className="text-xs font-normal text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
                             {myTeam.members?.length}
@@ -1038,20 +1038,20 @@ export default function TeamManagementPage() {
                       }
 
                       return (
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden p-6">
-                          <h3 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider mb-4">
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 shadow-ev overflow-hidden p-6">
+                          <h3 className="text-sm font-bold text-ev-900 dark:text-white uppercase tracking-wider mb-4">
                             Invite New Members
                           </h3>
 
                           <div className="flex gap-3 mb-6">
                             <div className="relative flex-1 group">
-                              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-ev-700 transition-colors" />
                               <input
                                 type="text"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all font-medium"
+                                className="w-full pl-10 pr-4 py-3 border border-[#b3cde0] dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-900 text-ev-900 dark:text-white outline-none focus:ring-2 focus:ring-ev-200 focus:border-ev-700 transition-all font-medium"
                                 placeholder="Search by name or email..."
                               />
                             </div>
@@ -1078,7 +1078,7 @@ export default function TeamManagementPage() {
                           )}
 
                           {searchQuery && searchResults.length === 0 && !searching && (
-                            <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                            <div className="text-center py-8 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-[#b3cde0] dark:border-gray-700">
                               <p className="text-sm text-gray-500 dark:text-gray-400">
                                 No users found matching &ldquo;{searchQuery}&rdquo;
                               </p>
@@ -1094,10 +1094,10 @@ export default function TeamManagementPage() {
 
             {/* Join Team Tab Content */}
             {activeTab === 'join' && (
-              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm min-h-[400px]">
-                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 shadow-ev min-h-[400px]">
+                <div className="p-6 border-b border-[#b3cde0]/30 dark:border-gray-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Available Teams</h2>
+                    <h2 className="text-lg font-bold text-ev-900 dark:text-white">Available Teams</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       Find a team that is looking for members.
                     </p>
@@ -1108,7 +1108,7 @@ export default function TeamManagementPage() {
                       type="text"
                       value={teamsSearchQuery}
                       onChange={(e) => setTeamsSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-sm focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none"
+                      className="w-full pl-9 pr-4 py-2 border border-[#b3cde0] dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 text-sm focus:ring-2 focus:ring-ev-200 focus:border-ev-700 outline-none"
                       placeholder="Filter teams..."
                     />
                   </div>
@@ -1146,7 +1146,7 @@ export default function TeamManagementPage() {
                       <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
                         <Users className="w-8 h-8 text-gray-300 dark:text-gray-600" />
                       </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">No teams found</h3>
+                      <h3 className="text-lg font-semibold text-ev-900 dark:text-white mb-1">No teams found</h3>
                       <p className="text-gray-500 dark:text-gray-400 max-w-sm">
                         There are currently no teams actively looking for members. You can try searching again later or create your own team.
                       </p>
@@ -1178,7 +1178,7 @@ export default function TeamManagementPage() {
                 <button
                   onClick={handleFinalizeRegistration}
                   disabled={finalizingTeam}
-                  className="w-full py-3 bg-white text-emerald-700 rounded-xl font-bold hover:bg-green-50 active:translate-y-[1px] transition-all flex items-center justify-center gap-2 shadow-sm relative z-10 disabled:opacity-50"
+                  className="w-full py-3 bg-white text-emerald-700 rounded-xl font-bold hover:bg-green-50 active:translate-y-[1px] transition-all flex items-center justify-center gap-2 shadow-ev relative z-10 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-5 h-5" />
                   {finalizingTeam ? 'Completing...' : isPaidEvent ? 'Finalize Team' : 'Complete Registration'}
@@ -1203,12 +1203,12 @@ export default function TeamManagementPage() {
 
             {/* Payment Card — Show after team is finalized but payment pending */}
             {myTeam && myTeam.isComplete && isPaidEvent && !isTeamPaid && myTeam.isLeader && (
-              <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 shadow-lg shadow-blue-200 dark:shadow-none text-white overflow-hidden relative">
+              <div className="bg-gradient-to-br from-ev-700 to-ev-900 rounded-2xl p-6 shadow-lg shadow-ev-200 dark:shadow-none text-white overflow-hidden relative">
                 <div className="absolute top-0 right-0 -mr-8 -mt-8 opacity-20">
                   <CreditCard className="w-40 h-40" />
                 </div>
                 <h3 className="text-lg font-bold mb-2 relative z-10">Complete Payment</h3>
-                <p className="text-blue-100 text-sm mb-4 relative z-10 opacity-90">
+                <p className="text-ev-100 text-sm mb-4 relative z-10 opacity-90">
                   Your team is finalized. Pay to confirm all registrations.
                 </p>
 
@@ -1221,13 +1221,13 @@ export default function TeamManagementPage() {
                       onChange={(e) => { setCouponInput(e.target.value.toUpperCase()); setCouponError(null); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleValidateCoupon(); } }}
                       placeholder="Coupon code (optional)"
-                      className="flex-1 px-3 py-2 rounded-lg bg-white/20 text-white placeholder-blue-200 border border-white/30 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-white/40"
+                      className="flex-1 px-3 py-2 rounded-lg bg-white/20 text-white placeholder-ev-200 border border-white/30 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-white/40"
                     />
                     <button
                       type="button"
                       onClick={handleValidateCoupon}
                       disabled={couponValidating || !couponInput.trim()}
-                      className="px-3 py-2 bg-white text-blue-700 font-bold rounded-lg text-sm hover:bg-blue-50 disabled:opacity-50 flex items-center gap-1"
+                      className="px-3 py-2 bg-white text-ev-800 font-bold rounded-lg text-sm hover:bg-ev-50 disabled:opacity-50 flex items-center gap-1"
                     >
                       {couponValidating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Tag className="w-3.5 h-3.5" />}
                     </button>
@@ -1237,7 +1237,7 @@ export default function TeamManagementPage() {
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-green-300" />
                       <span className="font-mono font-bold text-white text-sm">{couponResult.code}</span>
-                      <span className="text-blue-200 text-xs">−₹{couponResult.discountAmount.toLocaleString('en-IN')}</span>
+                      <span className="text-ev-200 text-xs">−₹{couponResult.discountAmount.toLocaleString('en-IN')}</span>
                     </div>
                     <button type="button" onClick={handleRemoveCoupon} className="text-white/70 hover:text-white">
                       <X className="w-4 h-4" />
@@ -1256,13 +1256,13 @@ export default function TeamManagementPage() {
                   <IndianRupee className="w-5 h-5" />
                   {payableAmount.toLocaleString('en-IN')}
                   {couponResult && (
-                    <span className="text-sm font-normal line-through text-blue-300 ml-2">₹{teamFee.toLocaleString('en-IN')}</span>
+                    <span className="text-sm font-normal line-through text-ev-200 ml-2">₹{teamFee.toLocaleString('en-IN')}</span>
                   )}
                 </div>
                 <button
                   onClick={handleTeamPayment}
                   disabled={paymentProcessing || paymentLoading}
-                  className="w-full py-3 bg-white text-blue-700 rounded-xl font-bold hover:bg-blue-50 active:translate-y-[1px] transition-all flex items-center justify-center gap-2 shadow-sm relative z-10 disabled:opacity-50"
+                  className="w-full py-3 bg-white text-ev-800 rounded-xl font-bold hover:bg-ev-50 active:translate-y-[1px] transition-all flex items-center justify-center gap-2 shadow-ev relative z-10 disabled:opacity-50"
                 >
                   {paymentProcessing || paymentLoading ? (
                     <>
@@ -1352,12 +1352,12 @@ export default function TeamManagementPage() {
             )}
 
             {/* Notifications Panel */}
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-              <div className="p-1.5 flex gap-1 border-b border-gray-100 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0] dark:border-gray-700 shadow-ev overflow-hidden">
+              <div className="p-1.5 flex gap-1 border-b border-[#b3cde0]/30 dark:border-gray-700">
                 <button
                   onClick={() => setActiveSection('invitations')}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors relative ${activeSection === 'invitations'
-                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                    ? 'bg-ev-50 text-ev-700 dark:bg-ev-900/20 dark:text-ev-400'
                     : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
@@ -1371,7 +1371,7 @@ export default function TeamManagementPage() {
                 <button
                   onClick={() => setActiveSection('requests')}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wide transition-colors relative ${activeSection === 'requests'
-                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
+                    ? 'bg-ev-50 text-ev-700 dark:bg-ev-900/20 dark:text-ev-400'
                     : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'
                     }`}
                 >
@@ -1432,7 +1432,7 @@ export default function TeamManagementPage() {
                     {invitations.filter(i => i.status === 'pending').length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-ev-700" />
                           Inbound
                         </p>
                         {invitations.filter(i => i.status === 'pending').map((inv) => (
@@ -1483,7 +1483,7 @@ export default function TeamManagementPage() {
                     {requests.filter(r => r.status === 'pending').length > 0 && (
                       <div className="space-y-3">
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-ev-700" />
                           Needs Approval
                         </p>
                         {requests.filter(r => r.status === 'pending').map((req) => {
@@ -1496,13 +1496,13 @@ export default function TeamManagementPage() {
                             : 'U';
 
                           return (
-                            <div key={req.id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between">
+                            <div key={req.id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-[#b3cde0] dark:border-gray-700 shadow-ev flex items-center justify-between">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
+                                <div className="w-8 h-8 rounded-full bg-ev-100 flex items-center justify-center text-xs font-bold text-ev-700">
                                   {initials.toUpperCase()}
                                 </div>
                                 <div>
-                                  <p className="text-xs font-semibold text-gray-900 dark:text-white">{displayName}</p>
+                                  <p className="text-xs font-semibold text-ev-900 dark:text-white">{displayName}</p>
                                   <p className="text-[10px] text-gray-500">Requests to join</p>
                                 </div>
                               </div>
@@ -1534,9 +1534,9 @@ export default function TeamManagementPage() {
                           Pending Approval
                         </p>
                         {sentRequests.filter(r => r.status === 'pending').map((req) => (
-                          <div key={req.id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between opacity-80">
+                          <div key={req.id} className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-[#b3cde0] dark:border-gray-700 shadow-ev flex items-center justify-between opacity-80">
                             <div>
-                              <p className="text-xs font-semibold text-gray-900 dark:text-white">Joining {req.team?.name}</p>
+                              <p className="text-xs font-semibold text-ev-900 dark:text-white">Joining {req.team?.name}</p>
                               <p className="text-[10px] text-amber-500 font-medium">Waiting for leader</p>
                             </div>
                             <Clock className="w-4 h-4 text-amber-400" />

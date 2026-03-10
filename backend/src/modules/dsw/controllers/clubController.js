@@ -261,6 +261,138 @@ async function getClubMembers(req, res) {
 }
 
 /**
+ * Create club membership application (student)
+ * POST /api/dsw/clubs/:clubId/applications
+ */
+async function createClubApplication(req, res) {
+  try {
+    if (req.user.role !== "student") {
+      return res.status(403).json({
+        success: false,
+        message: "Only students can apply to clubs",
+      });
+    }
+
+    const { clubId } = req.params;
+    const application = await clubService.createClubApplication(clubId, req.user.id);
+
+    await Promise.all([
+      cache.del(_clubCacheKey(clubId)),
+      cache.delPattern(_myClubsPattern(req.user.id)),
+    ]);
+
+    return res.status(201).json({
+      success: true,
+      message: SuccessMessages.CLUB_APPLICATION_SUBMITTED,
+      data: application,
+    });
+  } catch (error) {
+    console.error("Error in createClubApplication:", error);
+    const status =
+      error.message === ErrorMessages.CLUB_NOT_FOUND
+        ? 404
+        : error.message === ErrorMessages.DUPLICATE_MEMBER || error.message === ErrorMessages.DUPLICATE_APPLICATION
+          ? 409
+          : 400;
+
+    return res.status(status).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+/**
+ * Get all applications for a club (owner/facilitator)
+ * GET /api/dsw/clubs/:clubId/applications
+ */
+async function getClubApplications(req, res) {
+  try {
+    const { clubId } = req.params;
+    const applications = await clubService.getClubApplications(clubId);
+    return res.json({
+      success: true,
+      data: applications,
+      count: applications.length,
+    });
+  } catch (error) {
+    console.error("Error in getClubApplications:", error);
+    const status = error.message === ErrorMessages.CLUB_NOT_FOUND ? 404 : 500;
+    return res.status(status).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+/**
+ * Get my club applications (student)
+ * GET /api/dsw/clubs/applications/my
+ */
+async function getMyClubApplications(req, res) {
+  try {
+    const applications = await clubService.getMyClubApplications(req.user.id);
+    return res.json({
+      success: true,
+      data: applications,
+      count: applications.length,
+    });
+  } catch (error) {
+    console.error("Error in getMyClubApplications:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch your club applications",
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * Review club application (owner/facilitator)
+ * PATCH /api/dsw/clubs/:clubId/applications/:applicationId/review
+ */
+async function reviewClubApplication(req, res) {
+  try {
+    const { clubId, applicationId } = req.params;
+    const { decision, reviewNote } = req.body;
+
+    const result = await clubService.reviewClubApplication(
+      clubId,
+      applicationId,
+      req.user.id,
+      decision,
+      reviewNote,
+      req,
+    );
+
+    await Promise.all([
+      _invalidateStatsCache(),
+      cache.del(_clubCacheKey(clubId)),
+      cache.delPattern(_myClubsPattern(result.updatedApplication.applicantId)),
+    ]);
+
+    return res.json({
+      success: true,
+      message: SuccessMessages.CLUB_APPLICATION_REVIEWED,
+      data: result,
+    });
+  } catch (error) {
+    console.error("Error in reviewClubApplication:", error);
+    const status =
+      error.message === ErrorMessages.CLUB_APPLICATION_NOT_FOUND || error.message === ErrorMessages.CLUB_NOT_FOUND
+        ? 404
+        : error.message === ErrorMessages.CLUB_APPLICATION_ALREADY_REVIEWED
+          ? 409
+          : 400;
+
+    return res.status(status).json({
+      success: false,
+      message: error.message,
+    });
+  }
+}
+
+/**
  * Update club editable fields
  * PATCH /api/dsw/clubs/:clubId
  */
@@ -715,6 +847,10 @@ module.exports = {
   getMyClubs,
   getMyClubRequests,
   patchOldClubRequests,
+  createClubApplication,
+  getClubApplications,
+  getMyClubApplications,
+  reviewClubApplication,
   addMember,
   removeMember,
   updateMemberRole,

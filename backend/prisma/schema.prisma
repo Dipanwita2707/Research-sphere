@@ -25,6 +25,7 @@ model UserLogin {
   updatedAt                                         DateTime                             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   Event                                             Event[]
   EventRegistration                                 EventRegistration[]
+  EventExtraPass                                    EventExtraPass[]
   EventVolunteer                                    EventVolunteer[]
   auditLogs                                         AuditLog[]
   createdBookChapterPolicies                        BookChapterIncentivePolicy[]         @relation("BookChapterPolicyCreatedBy")
@@ -55,6 +56,8 @@ model UserLogin {
   daily_entry_guard                                  gate_pass_daily_entry[]      @relation("DailyEntryGuard")
   daily_exit_guard                                   gate_pass_daily_entry[]      @relation("DailyExitGuard")
   emailLogsSent                                     EventEmailLog[]              @relation("EmailLogSentBy")
+  certificateTemplatesCreated                       EventCertificateTemplate[]   @relation("CertTemplateCreatedBy")
+  certificateLogsSent                               EventCertificateLog[]        @relation("CertLogSentBy")
   couponsCreated                                    EventCoupon[]                @relation("CouponCreatedBy")
   couponUsages                                      CouponUsage[]                @relation("CouponUsageUser")
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
@@ -115,6 +118,8 @@ model UserLogin {
   clubMemberships                                   ClubMember[]                         @relation("ClubMemberStudent")
   clubMembersAdded                                  ClubMember[]                         @relation("ClubMemberAddedBy")
   clubMembersRemoved                                ClubMember[]                         @relation("ClubMemberRemovedBy")
+  clubApplicationsSubmitted                         ClubMemberApplication[]              @relation("ClubApplicationApplicant")
+  clubApplicationsReviewed                          ClubMemberApplication[]              @relation("ClubApplicationReviewedBy")
   clubChangeRequestsInitiated                       ClubChangeRequest[]                  @relation("ClubChangeRequestedBy")
   clubChangeRequestsApproved                        ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
   clubChangeRequestsRejected                        ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
@@ -1933,6 +1938,8 @@ model Note {
   @@index([currentHolderId], map: "note_currentHolderId_idx")
   @@index([status, createdById], map: "note_status_createdById_idx")
   @@index([status, currentHolderId], map: "note_status_currentHolderId_idx")
+  @@index([createdById, updatedAt(sort: Desc)], map: "note_created_by_updated_at_idx")
+  @@index([currentHolderId, status, updatedAt(sort: Desc)], map: "note_current_holder_status_updated_at_idx")
   @@index([updatedAt], map: "note_updatedAt_idx")
   @@index([status, updatedAt], map: "note_status_updatedAt_idx")
   @@index([eventName])
@@ -1970,6 +1977,7 @@ model NoteHistory {
   @@index([noteId, createdAt], map: "note_history_noteId_createdAt_idx")
   @@index([performedById], map: "note_history_performedById_idx")
   @@index([performedById, action], map: "note_history_performedById_action_idx")
+  @@index([performedById, action, noteId], map: "note_history_performed_by_action_note_id_idx")
   @@index([performedById, createdAt], map: "note_history_performedById_createdAt_idx")
   @@index([noteId, action], map: "note_history_noteId_action_idx")
   @@map("note_history")
@@ -2027,6 +2035,7 @@ model NoteCopy {
   @@index([status])
   @@index([assignedToId, status], map: "note_copy_assignedToId_status_idx")
   @@index([assignedToId, createdAt(sort: Desc)], map: "note_copy_assignedToId_createdAt_idx")
+  @@index([noteId, rootCopyId, createdAt], map: "note_copy_note_root_created_at_idx")
   @@index([noteId, assignedToId], map: "note_copy_noteId_assignedToId_idx")
   @@map("note_copy")
 }
@@ -2283,6 +2292,8 @@ model Event {
   showParticipantsPublicly   Boolean             @default(false)           // Show participants publicly
   allowWithdrawRegistration  Boolean             @default(true)            // Allow withdraw registration
   lockTeamAfterDeadline      Boolean             @default(true)            // Lock team after deadline
+  allowExtraPasses           Boolean             @default(false)
+  maxExtraPassesPerUser      Int                 @default(0)
 
   // Team Discovery Settings
   allowPublicTeamListing     Boolean             @default(true)            // Allow public team listing
@@ -2310,6 +2321,7 @@ model Event {
   user_login                 UserLogin           @relation(fields: [createdById], references: [id])
   note                       Note?               @relation(fields: [notingId], references: [id])
   EventEntry                 EventEntry[]
+  EventExtraPass             EventExtraPass[]
   EventRegistration          EventRegistration[]
   EventVolunteer             EventVolunteer[]
   EventCustomField           EventCustomField[]
@@ -2325,6 +2337,8 @@ model Event {
   EventEmailCredit           EventEmailCredit?
   EmailCreditLog             EmailCreditLog[]
   EventCoupon                EventCoupon[]
+  EventCertificateTemplate   EventCertificateTemplate[]
+  EventCertificateLog        EventCertificateLog[]
 
   @@index([createdById])
   @@index([eventId])
@@ -2371,6 +2385,7 @@ model EventEntry {
   registrationId    String
   volunteerId       String
   entryType         EntryType
+  entryCount        Int               @default(1)
   scannedAt         DateTime          @default(now())
   gateLocation      String?
   remarks           String?
@@ -2399,6 +2414,11 @@ model EventRegistration {
   amountPaid            Float?
   hasEntered            Boolean                      @default(false)
   enteredAt             DateTime?
+  extraPassCount        Int                          @default(0)
+  totalAllowedEntries   Int                          @default(1)
+  checkedInCount        Int                          @default(0)
+  checkedOutCount       Int                          @default(0)
+  studentInsideAssumed  Boolean                      @default(false)
   registeredAt          DateTime                     @default(now())
   updatedAt             DateTime
 
@@ -2420,6 +2440,7 @@ model EventRegistration {
   user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
   EventFieldResponse    EventFieldResponse[]
+  EventExtraPass        EventExtraPass[]
   Payment               Payment[]
   EventCoupon           EventCoupon?                 @relation(fields: [couponId], references: [id])
   CouponUsage           CouponUsage?
@@ -2437,6 +2458,30 @@ model EventRegistration {
   @@index([couponId])
   @@index([eventId, paymentStatus], map: "event_registration_eventId_paymentStatus_idx")
   @@index([userId, status], map: "event_registration_userId_status_idx")
+  @@index([userId, registeredAt(sort: Desc)], map: "event_registration_userId_registeredAt_idx")
+}
+
+model EventExtraPass {
+  id              String            @id
+  eventId         String
+  registrationId  String
+  createdById     String            @db.Uuid
+  guestName       String
+  guestEmail      String
+  mobileNumber    String
+  relationship    String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime
+
+  Event             Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  EventRegistration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  user_login        UserLogin         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([registrationId])
+  @@index([createdById])
+  @@index([eventId, registrationId], map: "event_extra_pass_eventId_registrationId_idx")
+  @@index([registrationId, createdAt], map: "event_extra_pass_registrationId_createdAt_idx")
 }
 
 model EventVolunteer {
@@ -3455,6 +3500,7 @@ model Club {
   noting                       Note?                     @relation("ClubCreationNoting", fields: [notingId], references: [id])
   eventNotings                 Note[]                    @relation("EventNotingClub")
   members                      ClubMember[]
+  applications                 ClubMemberApplication[]
   auditLogs                    ClubAuditLog[]
   changeRequests               ClubChangeRequest[]
 
@@ -3493,6 +3539,32 @@ model ClubMember {
   @@index([clubId, isActive])              // active member count (_count where isActive=true)
   @@index([clubId, isActive, joinedAt])    // getClubById members: where isActive + orderBy joinedAt
   @@map("club_member")
+}
+
+model ClubMemberApplication {
+  id            String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId        String                      @map("club_id") @db.Uuid
+  applicantId   String                      @map("applicant_id") @db.Uuid
+  applicantName String                      @map("applicant_name") @db.VarChar(256)
+  email         String?                     @db.Citext
+  mobileNumber  String?                     @map("mobile_number") @db.VarChar(20)
+  program       String?                     @db.VarChar(128)
+  course        String?                     @db.VarChar(128)
+  status        ClubMemberApplicationStatus @default(pending)
+  reviewNote    String?                     @map("review_note") @db.VarChar(500)
+  reviewedById  String?                     @map("reviewed_by_id") @db.Uuid
+  reviewedAt    DateTime?                   @map("reviewed_at") @db.Timestamptz(6)
+  createdAt     DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  club        Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  applicant   UserLogin @relation("ClubApplicationApplicant", fields: [applicantId], references: [id])
+  reviewedBy  UserLogin? @relation("ClubApplicationReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([clubId, status], map: "club_member_application_club_status_idx")
+  @@index([applicantId], map: "club_member_application_applicant_idx")
+  @@index([createdAt], map: "club_member_application_created_at_idx")
+  @@map("club_member_application")
 }
 
 model ClubChangeRequest {
@@ -3710,6 +3782,14 @@ enum ClubChangeRequestStatusEnum {
   rejected
 
   @@map("club_change_request_status_enum")
+}
+
+enum ClubMemberApplicationStatus {
+  pending
+  approved
+  rejected
+
+  @@map("club_member_application_status")
 }
 
 // ============================================
@@ -3979,6 +4059,86 @@ enum refund_status_enum {
   processed
   failed
   cancelled
+}
+
+// ============================================
+// Event Certificate System
+// ============================================
+
+// Template uploaded by the event organizer (image background + text config)
+model EventCertificateTemplate {
+  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId           String
+  name              String    @default("Certificate of Participation")
+  certificateType   String    @default("participation") @db.VarChar(32)  // participation | winner
+  templateS3Key     String?                                              // S3 key for uploaded template image
+  templateUrl       String?                                              // Full S3 URL
+  title             String    @default("Certificate of Participation")   // Text overlay title
+  content           String    @default("")                               // Body text with placeholders like [Candidate Name], [Event Name]
+  textColor         String    @default("#1c4980") @db.VarChar(16)
+  isDefault         Boolean   @default(false)                            // Preset templates
+  createdById       String    @db.Uuid
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  event             Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy         UserLogin @relation("CertTemplateCreatedBy", fields: [createdById], references: [id])
+  certificateLogs   EventCertificateLog[]
+
+  @@index([eventId])
+  @@map("event_certificate_template")
+}
+
+// Log of certificate send operations
+model EventCertificateLog {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId         String
+  templateId      String    @db.Uuid
+  sentById        String    @db.Uuid
+  certificateType String    @default("participation") @db.VarChar(32)
+  title           String
+  content         String
+  textColor       String    @default("#1c4980") @db.VarChar(16)
+  filter          String    @default("all") @db.VarChar(32)
+  registrationIds Json      @default("[]")
+  recipientCount  Int       @default(0)
+  sentCount       Int       @default(0)
+  failedCount     Int       @default(0)
+  status          String    @default("processing") @db.VarChar(16)  // processing | sent | partial | failed
+  errors          Json      @default("[]")
+  sentAt          DateTime  @default(now())
+
+  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template        EventCertificateTemplate @relation(fields: [templateId], references: [id])
+  sentBy          UserLogin @relation("CertLogSentBy", fields: [sentById], references: [id])
+  recipients      CertificateRecipientLog[]
+
+  @@index([eventId])
+  @@index([sentById])
+  @@index([sentAt])
+  @@map("event_certificate_log")
+}
+
+// Per-recipient certificate delivery tracking
+model CertificateRecipientLog {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  certificateLogId    String    @db.Uuid
+  email               String
+  name                String    @default("")
+  status              String    @default("pending") @db.VarChar(16)  // pending | sent | failed
+  failureReason       String?
+  certificateS3Key    String?                                        // S3 key for generated PDF
+  verificationCode    String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid  // Public verification ID
+  sentAt              DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime  @default(now())
+
+  certificateLog      EventCertificateLog @relation(fields: [certificateLogId], references: [id], onDelete: Cascade)
+
+  @@index([certificateLogId])
+  @@index([email])
+  @@index([verificationCode])
+  @@map("certificate_recipient_log")
 }
 
 // ============================================

@@ -41,7 +41,7 @@ interface UsePaymentOptions {
 
 interface UsePaymentReturn {
   /** Initiate individual payment flow */
-  initiateIndividualPayment: () => Promise<void>;
+  initiateIndividualPayment: (couponCode?: string | null) => Promise<void>;
   /** Initiate team payment flow */
   initiateTeamPayment: (teamId: string, couponCode?: string) => Promise<void>;
   /** Whether payment is in progress */
@@ -129,7 +129,7 @@ export const usePayment = ({
   /**
    * Individual Payment Flow
    */
-  const initiateIndividualPayment = useCallback(async () => {
+  const initiateIndividualPayment = useCallback(async (couponCode?: string | null) => {
     if (processingRef.current) return;
     processingRef.current = true;
     setError(null);
@@ -143,7 +143,7 @@ export const usePayment = ({
       }
 
       // 2. Create order on backend
-      const orderData: RazorpayOrderResponse = await eventService.createIndividualPaymentOrder(eventId);
+      const orderData: RazorpayOrderResponse = await eventService.createIndividualPaymentOrder(eventId, couponCode);
 
       // 2b. If coupon covered 100% → no Razorpay needed, already confirmed
       if ((orderData as any).couponFullyFree) {

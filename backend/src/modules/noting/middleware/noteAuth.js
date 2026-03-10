@@ -11,10 +11,10 @@ const { getModulePermissionKey } = require('../services/approvalFlow.service');
 const { hasPermissionAsync } = require('../../../shared/config/permissions.config');
 
 /**
- * Middleware: Load note and verify user can act on it (approve/reject/forward)
- * Attaches note to req.note
+ * Middleware factory: enforce note holder status plus action + subcategory permission.
+ * Attaches note to req.note.
  */
-const requireNoteApprover = async (req, res, next) => {
+const requireNoteApprover = (requiredActionKeys = [], actionLabel = 'perform this action') => async (req, res, next) => {
   const userId = req.user.id;
   const { id } = req.params;
 
@@ -42,9 +42,26 @@ const requireNoteApprover = async (req, res, next) => {
     req.user.roleCode === 'DEAN';
 
   if (!isPrivilegedRole) {
+    const actionKeys = Array.isArray(requiredActionKeys)
+      ? requiredActionKeys.filter(Boolean)
+      : [requiredActionKeys].filter(Boolean);
+
+    if (actionKeys.length > 0) {
+      const actionChecks = await Promise.all(
+        actionKeys.map((permissionKey) => hasPermissionAsync(req.user, permissionKey))
+      );
+
+      if (!actionChecks.some(Boolean)) {
+        throw new ForbiddenError(
+          `You do not have the required Approval Action permission to ${actionLabel}. ` +
+          `Required action: ${actionKeys.join(' OR ')}.`
+        );
+      }
+    }
+
     const modulePermKey = getModulePermissionKey(note);
-    // Check ONLY the specific subcategory key — do NOT fall back to
-    // noting_approve (that's an action permission, not a subcategory one).
+    // Check ONLY the specific subcategory key — action permissions and
+    // subcategory approvals are independent and both are required.
     const hasSubcatPerm = await hasPermissionAsync(req.user, modulePermKey);
     if (!hasSubcatPerm) {
       const subcatLabel = (note.subcategory || 'unknown').replace(/_/g, ' ');

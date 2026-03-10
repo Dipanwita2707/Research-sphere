@@ -257,6 +257,11 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
         onClose();
         setSubject(''); setBody(''); setFilter('all'); setReplyTo('');
         setScheduleMode(false); setScheduledDate(''); setScheduledTime('09:00');
+      } else if (result.queued) {
+        toast({ type: 'success', message: `Email queued — sending to ${result.recipientCount ?? recipientCount} recipient(s) in background.` });
+        onClose();
+        eventService.getEmailCredits(eventId).then(setCredits).catch(() => {});
+        setSubject(''); setBody(''); setFilter('all'); setReplyTo('');
       } else if (result.success) {
         toast({ type: 'success', message: `Email sent to ${result.sent} recipient(s)!` });
         onClose();
@@ -323,14 +328,14 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
         }`}
       >
         {/* ── Header ──────────────────────────────────────── */}
-        <div className="border-b border-gray-200 dark:border-gray-700/60 bg-white dark:bg-gray-900">
+        <div className="border-b border-[#b3cde0] dark:border-gray-700/60 bg-white dark:bg-gray-900">
           <div className="flex items-center justify-between px-5 py-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sgt-500 to-indigo-600 flex items-center justify-center shadow-sm">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-ev-700 to-ev-900 flex items-center justify-center shadow-ev">
                 <Mail className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-gray-900 dark:text-white leading-none">Email</h2>
+                <h2 className="text-base font-bold text-ev-900 dark:text-white leading-none">Email</h2>
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 truncate max-w-[180px]">{eventName}</p>
               </div>
             </div>
@@ -376,7 +381,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
               onClick={() => setSliderTab('compose')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                 sliderTab === 'compose'
-                  ? 'border-sgt-600 text-sgt-600 dark:text-sgt-400 dark:border-sgt-400'
+                  ? 'border-ev-700 text-ev-700 dark:text-ev-400 dark:border-ev-400'
                   : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
             >
@@ -388,7 +393,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
               onClick={() => setSliderTab('history')}
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors ${
                 sliderTab === 'history'
-                  ? 'border-sgt-600 text-sgt-600 dark:text-sgt-400 dark:border-sgt-400'
+                  ? 'border-ev-700 text-ev-700 dark:text-ev-400 dark:border-ev-400'
                   : 'border-transparent text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300'
               }`}
             >
@@ -404,17 +409,17 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
           <div className="px-5 py-5 space-y-5">
 
             {/* ── To: Recipients Card ──────────────────────── */}
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
+            <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
               {/* Recipient count header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-700/60">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-[#b3cde0]/30 dark:border-gray-700/60">
                 <div className="flex items-center gap-2.5">
                   <div className="flex -space-x-1.5">
-                    {[['bg-sgt-500','A'],['bg-indigo-500','B'],['bg-emerald-500','C']].map(([bg, ltr], i) => (
+                    {[['bg-ev-700','A'],['bg-indigo-500','B'],['bg-emerald-500','C']].map(([bg, ltr], i) => (
                       <div key={i} className={`w-7 h-7 rounded-full border-2 border-white dark:border-gray-800 flex items-center justify-center text-[9px] font-bold text-white ${bg}`}>{ltr}</div>
                     ))}
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">
+                    <p className="text-sm font-bold text-ev-900 dark:text-white leading-none">
                       {countsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin inline" /> : recipientCount}
                       {!countsLoading && <span className="font-normal text-gray-500 dark:text-gray-400"> recipient{recipientCount !== 1 ? 's' : ''}</span>}
                     </p>
@@ -457,9 +462,9 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
             </div>
 
             {/* ── Compose Card ─────────────────────────────── */}
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700/60 flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-sgt-500" />
+            <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
+              <div className="px-4 py-3 border-b border-[#b3cde0]/30 dark:border-gray-700/60 flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-ev-700" />
                 <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Compose</span>
               </div>
 
@@ -472,20 +477,20 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="Enter email subject…"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 focus:bg-white dark:focus:bg-gray-800 transition-all"
+                    className="w-full px-3.5 py-2.5 border border-[#b3cde0] dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-sm text-ev-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-ev-700 focus:border-ev-700 focus:bg-white dark:focus:bg-gray-800 transition-all"
                   />
                 </div>
 
                 {/* Body – Rich text editor */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1.5 uppercase tracking-wider">Body</label>
-                  <div className="rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden">
+                  <div className="rounded-lg border border-[#b3cde0] dark:border-gray-600 overflow-hidden">
                     {/* Header banner */}
                     <div className="bg-gradient-to-r from-[#0F2573] via-[#266CA9] to-[#4BBAF2] px-5 py-4 text-center">
                       <p className="text-white text-sm font-bold tracking-wide">{eventName || 'Event Name'}</p>
                     </div>
                     {/* Greeting */}
-                    <div className="bg-white dark:bg-gray-800 px-4 pt-3 pb-1 border-b border-gray-100 dark:border-gray-700">
+                    <div className="bg-white dark:bg-gray-800 px-4 pt-3 pb-1 border-b border-[#b3cde0]/30 dark:border-gray-700">
                       <p className="text-xs text-gray-400 italic">Hi [Recipient Name],</p>
                     </div>
                     {/* Quill editor */}
@@ -503,7 +508,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                       )}
                     </div>
                     {/* Footer strip */}
-                    <div className="bg-gray-50 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-700 px-4 py-2.5 text-center">
+                    <div className="bg-gray-50 dark:bg-gray-800/60 border-t border-[#b3cde0]/30 dark:border-gray-700 px-4 py-2.5 text-center">
                       <p className="text-[10px] font-semibold text-gray-400">SGT Event Portal · {eventName || 'this event'}</p>
                     </div>
                   </div>
@@ -512,7 +517,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
             </div>
 
             {/* ── Advanced Options Card ─────────────────────── */}
-            <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
+            <div className="rounded-xl border border-[#b3cde0] dark:border-gray-700 bg-white dark:bg-gray-800/50 overflow-hidden">
               {/* Reply-to toggle */}
               <button
                 type="button"
@@ -526,19 +531,19 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                 <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showReplyTo ? 'rotate-180' : ''}`} />
               </button>
               {showReplyTo && (
-                <div className="px-4 pb-4 border-t border-gray-100 dark:border-gray-700/60 pt-3">
+                <div className="px-4 pb-4 border-t border-[#b3cde0]/30 dark:border-gray-700/60 pt-3">
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Replies will be forwarded to this address.</p>
                   <input
                     type="email"
                     value={replyTo}
                     onChange={(e) => setReplyTo(e.target.value)}
                     placeholder="reply-to@example.com"
-                    className="w-full px-3.5 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+                    className="w-full px-3.5 py-2.5 border border-[#b3cde0] dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-sm text-ev-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-ev-700 focus:border-ev-700 transition-all"
                   />
                 </div>
               )}
 
-              <div className="border-t border-gray-100 dark:border-gray-700/60">
+              <div className="border-t border-[#b3cde0]/30 dark:border-gray-700/60">
                 {/* Test email row */}
                 <div className="px-4 py-3">
                   <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2.5 flex items-center gap-2">
@@ -551,13 +556,13 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                       value={testEmail}
                       onChange={(e) => setTestEmail(e.target.value)}
                       placeholder="test@example.com"
-                      className="flex-1 px-3.5 py-2.5 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+                      className="flex-1 px-3.5 py-2.5 border border-[#b3cde0] dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-sm text-ev-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-ev-700 focus:border-ev-700 transition-all"
                     />
                     <button
                       type="button"
                       onClick={handleSendTest}
                       disabled={sendingTest}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 whitespace-nowrap"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 whitespace-nowrap"
                     >
                       {sendingTest ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                       Test
@@ -621,8 +626,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                   return (
                     <div key={log.id} className={`rounded-lg border overflow-hidden ${
                       isScheduled ? 'border-violet-300 dark:border-violet-700' :
-                      isCancelled ? 'border-gray-200 dark:border-gray-700 opacity-60' :
-                      'border-gray-200 dark:border-gray-700'
+                      isCancelled ? 'border-[#b3cde0] dark:border-gray-700 opacity-60' :
+                      'border-[#b3cde0] dark:border-gray-700'
                     }`}>
                       {/* Summary Row */}
                       <button
@@ -635,7 +640,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                         {!isScheduled && <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`} />}
                         {isScheduled && <Calendar className="w-4 h-4 text-violet-500 shrink-0" />}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{log.subject}</p>
+                          <p className="text-sm font-semibold text-ev-900 dark:text-white truncate">{log.subject}</p>
                           <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
                             {isScheduled && log.scheduledAt ? (
                               <>
@@ -692,7 +697,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
 
                       {/* Expanded Detail */}
                       {expanded && (
-                        <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-4 py-4 space-y-4 text-sm">
+                        <div className="border-t border-[#b3cde0] dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 px-4 py-4 space-y-4 text-sm">
 
                           {/* ── Stats Dashboard ──────────────── */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -703,14 +708,14 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                                 <p className="text-lg font-bold text-green-700 dark:text-green-300">{log.deliveredCount}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40">
-                              <MailOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-ev-50 dark:bg-ev-900/20 border border-ev-200 dark:border-ev-800/40">
+                              <MailOpen className="w-4 h-4 text-ev-700 dark:text-ev-400" />
                               <div>
-                                <p className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase">Opened</p>
-                                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{log.openedCount}</p>
+                                <p className="text-[10px] font-semibold text-ev-700 dark:text-ev-400 uppercase">Opened</p>
+                                <p className="text-lg font-bold text-ev-800 dark:text-ev-200">{log.openedCount}</p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-100 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-600">
+                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-gray-100 dark:bg-gray-700/40 border border-[#b3cde0] dark:border-gray-600">
                               <MailX className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                               <div>
                                 <p className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase">Not Opened</p>
@@ -731,13 +736,13 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                             <div>
                               <div className="flex justify-between items-center mb-1">
                                 <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Open Rate</span>
-                                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                                <span className="text-xs font-bold text-ev-700 dark:text-ev-400">
                                   {Math.round((log.openedCount / log.deliveredCount) * 100)}%
                                 </span>
                               </div>
                               <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                 <div
-                                  className="h-full bg-blue-500 rounded-full transition-all"
+                                  className="h-full bg-ev-500 rounded-full transition-all"
                                   style={{ width: `${Math.round((log.openedCount / log.deliveredCount) * 100)}%` }}
                                 />
                               </div>
@@ -809,13 +814,13 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                             </div>
 
                             {/* Recipient List */}
-                            <div className="max-h-52 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800">
+                            <div className="max-h-52 overflow-y-auto rounded border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800">
                               {filteredRecipients.length === 0 ? (
                                 <div className="px-3 py-4 text-center text-xs text-gray-400">No recipients match this filter.</div>
                               ) : (
                                 filteredRecipients.map((r) => {
                                   const rStatusColor =
-                                    r.status === 'delivered' && r.openCount > 0 ? 'text-blue-600 dark:text-blue-400'
+                                    r.status === 'delivered' && r.openCount > 0 ? 'text-ev-700 dark:text-ev-400'
                                     : r.status === 'delivered' ? 'text-green-600 dark:text-green-400'
                                     : r.status === 'failed' || r.status === 'bounced' ? 'text-red-500 dark:text-red-400'
                                     : 'text-gray-500 dark:text-gray-400';
@@ -825,8 +830,8 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                                     : r.status === 'failed' || r.status === 'bounced' ? XCircle
                                     : Clock;
                                   return (
-                                    <div key={r.id} className="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                                      <div className="w-7 h-7 rounded-full bg-sgt-100 dark:bg-sgt-900/40 flex items-center justify-center text-[10px] font-bold text-sgt-700 dark:text-sgt-300 shrink-0">
+                                    <div key={r.id} className="flex items-center gap-2 px-3 py-2 border-b border-[#b3cde0]/30 dark:border-gray-700 last:border-0">
+                                      <div className="w-7 h-7 rounded-full bg-ev-50 dark:bg-ev-900/40 flex items-center justify-center text-[10px] font-bold text-ev-800 dark:text-ev-200 shrink-0">
                                         {(r.name || r.email || '?').charAt(0).toUpperCase()}
                                       </div>
                                       <div className="min-w-0 flex-1">
@@ -865,7 +870,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                           <div>
                             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Email Body Preview</span>
                             <div
-                              className="mt-1 p-3 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-300 max-h-40 overflow-y-auto prose prose-sm dark:prose-invert"
+                              className="mt-1 p-3 rounded border border-[#b3cde0] dark:border-gray-600 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-300 max-h-40 overflow-y-auto prose prose-sm dark:prose-invert"
                               dangerouslySetInnerHTML={{ __html: log.body }}
                             />
                           </div>
@@ -907,10 +912,10 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
 
         {/* ── Footer Actions ──────────────────────────────── */}
         {sliderTab === 'compose' && (
-        <div className="border-t border-gray-200 dark:border-gray-700/60 bg-white dark:bg-gray-900">
+        <div className="border-t border-[#b3cde0] dark:border-gray-700/60 bg-white dark:bg-gray-900">
           {/* Schedule date/time picker (shown when schedule mode is on) */}
           {scheduleMode && (
-            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-700/60 bg-violet-50 dark:bg-violet-900/10 flex flex-wrap items-center gap-3">
+            <div className="px-5 py-3 border-b border-[#b3cde0]/30 dark:border-gray-700/60 bg-violet-50 dark:bg-violet-900/10 flex flex-wrap items-center gap-3">
               <Calendar className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400 shrink-0" />
               <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Schedule for</span>
               <input
@@ -918,13 +923,13 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
                 value={scheduledDate}
                 min={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setScheduledDate(e.target.value)}
-                className="flex-1 min-w-[120px] px-3 py-1.5 border border-violet-300 dark:border-violet-600 rounded-lg text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all"
+                className="flex-1 min-w-[120px] px-3 py-1.5 border border-violet-300 dark:border-violet-600 rounded-lg text-xs bg-white dark:bg-gray-800 text-ev-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all"
               />
               <input
                 type="time"
                 value={scheduledTime}
                 onChange={(e) => setScheduledTime(e.target.value)}
-                className="w-28 px-3 py-1.5 border border-violet-300 dark:border-violet-600 rounded-lg text-xs bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all"
+                className="w-28 px-3 py-1.5 border border-violet-300 dark:border-violet-600 rounded-lg text-xs bg-white dark:bg-gray-800 text-ev-900 dark:text-white focus:ring-2 focus:ring-violet-500 focus:border-violet-500 transition-all"
               />
             </div>
           )}
@@ -957,7 +962,7 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
               className={`w-8 h-8 flex items-center justify-center rounded-lg border transition-all shrink-0 ${
                 scheduleMode
                   ? 'bg-violet-100 dark:bg-violet-900/30 border-violet-400 text-violet-600 dark:text-violet-400'
-                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600 text-gray-400 hover:text-violet-600 hover:border-violet-400'
+                  : 'bg-white dark:bg-gray-800 border-[#b3cde0] dark:border-gray-600 text-gray-400 hover:text-violet-600 hover:border-violet-400'
               }`}
             >
               <Calendar className="w-4 h-4" />
@@ -967,10 +972,10 @@ export default function EmailSlider({ open, onClose, eventId, eventName, selecte
               type="button"
               onClick={handleSend}
               disabled={sending || recipientCount === 0 || (scheduleMode && !scheduledDate) || (!!credits && credits.available < recipientCount)}
-              className={`flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm ${
+              className={`flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-ev ${
                 scheduleMode
                   ? 'bg-violet-600 hover:bg-violet-700 active:bg-violet-800'
-                  : 'bg-sgt-600 hover:bg-sgt-700 active:bg-sgt-800'
+                  : 'bg-ev-700 hover:bg-ev-800 active:bg-ev-900'
               }`}
             >
               {sending ? (

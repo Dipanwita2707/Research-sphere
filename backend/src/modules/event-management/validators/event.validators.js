@@ -137,10 +137,24 @@ const validateQRScan = [
     .withMessage('QR code must be a string'),
 
   body('entryType')
-    .notEmpty()
-    .withMessage('Entry type is required')
+    .optional()
     .isIn(['entry', 'exit'])
     .withMessage('Entry type must be either entry or exit'),
+
+  body('entriesToCheckIn')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('entriesToCheckIn must be an integer between 1 and 50'),
+
+  body('peopleCount')
+    .optional()
+    .isInt({ min: 1, max: 50 })
+    .withMessage('peopleCount must be an integer between 1 and 50'),
+
+  body('markStudentExit')
+    .optional()
+    .isBoolean()
+    .withMessage('markStudentExit must be a boolean'),
 
   body('gateLocation')
     .optional()

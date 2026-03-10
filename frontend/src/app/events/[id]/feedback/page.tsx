@@ -57,7 +57,7 @@ export default function EventFeedbackPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
         <div className="animate-pulse text-gray-500">Loading...</div>
       </div>
     );
@@ -65,15 +65,15 @@ export default function EventFeedbackPage() {
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8 text-center">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Event Not Found</h2>
+          <h2 className="text-xl font-bold text-ev-900 dark:text-white mb-2">Event Not Found</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             This event may have been removed or is not yet published.
           </p>
           <Link
             href="/events"
-            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-sgt-600 dark:text-sgt-400 hover:underline"
+            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-ev-700 dark:text-ev-400 hover:underline"
           >
             <ArrowLeft className="w-4 h-4" />
             Browse Events
@@ -85,18 +85,18 @@ export default function EventFeedbackPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
             <CheckCircle className="w-10 h-10 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Thank You!</h2>
+          <h2 className="text-xl font-bold text-ev-900 dark:text-white mb-2">Thank You!</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             Your feedback has been submitted successfully.
           </p>
           <Link
             href={`/events/${eventId}`}
-            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-sgt-600 dark:text-sgt-400 hover:underline"
+            className="inline-flex items-center gap-2 px-4 py-2 min-h-[44px] text-sm font-medium text-ev-700 dark:text-ev-400 hover:underline"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Event
@@ -114,23 +114,23 @@ export default function EventFeedbackPage() {
     activeRating <= 9 ? 'Great' : 'Excellent';
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 sm:py-8 px-4">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-6 sm:py-8 px-4">
       <div className="max-w-md mx-auto">
         <Link
           href={`/events/${eventId}`}
-          className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-sgt-600 dark:hover:text-sgt-400 mb-4 sm:mb-6 min-h-[44px]"
+          className="inline-flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-ev-700 dark:hover:text-ev-400 mb-4 sm:mb-6 min-h-[44px]"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Event
         </Link>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
           {/* Header */}
-          <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 text-center">
-            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-sgt-50 dark:bg-sgt-900/30 flex items-center justify-center">
-              <MessageSquare className="w-5 h-5 text-sgt-500" />
+          <div className="p-4 sm:p-6 border-b border-[#b3cde0] dark:border-gray-700 text-center">
+            <div className="w-10 h-10 mx-auto mb-3 rounded-full bg-ev-50 dark:bg-ev-900/30 flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-ev-700" />
             </div>
-            <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-lg sm:text-xl font-bold text-ev-900 dark:text-white">
               Event Feedback
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -156,8 +156,8 @@ export default function EventFeedbackPage() {
                       onClick={() => setRating(val)}
                       className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center text-sm font-bold transition-all duration-150 ${
                         filled
-                          ? 'bg-sgt-600 text-white shadow-md scale-105'
-                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-sgt-50 dark:hover:bg-sgt-900/20'
+                          ? 'bg-ev-700 text-white shadow-md scale-105'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:bg-ev-50 dark:hover:bg-ev-900/20'
                       }`}
                     >
                       {val}
@@ -169,7 +169,7 @@ export default function EventFeedbackPage() {
                 activeRating === 0 ? 'text-gray-400 dark:text-gray-500' :
                 activeRating <= 3 ? 'text-red-500' :
                 activeRating <= 5 ? 'text-amber-500' :
-                activeRating <= 7 ? 'text-blue-500' :
+                activeRating <= 7 ? 'text-ev-700' :
                 'text-emerald-500'
               }`}>
                 {activeRating > 0 && <span className="mr-1">{activeRating}/10</span>}
@@ -187,7 +187,7 @@ export default function EventFeedbackPage() {
                 onChange={(e) => setShortDescription(e.target.value)}
                 rows={3}
                 maxLength={2000}
-                className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white resize-none"
+                className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-ev-700 focus:border-ev-700 bg-white dark:bg-gray-700 text-ev-900 dark:text-white resize-none"
                 placeholder="Any additional comments or suggestions..."
               />
               <p className="text-xs text-gray-400 mt-1 text-right">{shortDescription.length}/2000</p>
@@ -196,7 +196,7 @@ export default function EventFeedbackPage() {
             <button
               type="submit"
               disabled={submitting || rating < 1}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] text-sm font-semibold text-white bg-sgt-600 rounded-lg hover:bg-sgt-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 min-h-[48px] text-sm font-semibold text-white bg-ev-700 rounded-lg hover:bg-ev-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? (
                 <div className="flex items-center gap-2">
