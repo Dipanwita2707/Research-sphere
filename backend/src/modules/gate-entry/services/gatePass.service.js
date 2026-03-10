@@ -908,7 +908,7 @@ class GatePassService {
         
         const now = new Date();
         if (now > pass.checkout_qr_expires_at) {
-          throw new Error('Checkout QR code has expired (1-hour validity)');
+          throw new Error('Checkout QR code has expired. Please contact admin to regenerate checkout credentials.');
         }
         
         if (pass.pass_status !== 'cancelled') {
@@ -945,7 +945,10 @@ class GatePassService {
           if (isFirstDay) {
           const [hours, minutes] = pass.entry_time.split(':').map(Number);
           const entryTimeInMinutes = hours * 60 + minutes;
-          const currentTimeInMinutes = nowIST.getHours() * 60 + nowIST.getMinutes();
+          // Use toISOString() to extract hours/minutes from the IST-shifted Date
+          // (avoids double-counting IST on machines already in IST timezone)
+          const istTimeStr = nowIST.toISOString().split('T')[1]; // e.g. "09:30:00.000Z"
+          const currentTimeInMinutes = parseInt(istTimeStr.split(':')[0]) * 60 + parseInt(istTimeStr.split(':')[1]);
           const activationWindowMinutes = 5 * 60; // 5 hours
           
           // Activate if within activation window or entry time has passed
@@ -1060,11 +1063,14 @@ class GatePassService {
 
       // Track daily entry for all passes (in/out count) - always create a new record
       {
-        const istOffset = 5.5 * 60 * 60 * 1000;
-        const nowIST = new Date(now.getTime() + istOffset);
-        const todayDate = new Date(nowIST.getFullYear(), nowIST.getMonth(), nowIST.getDate());
+        // Get today's date in IST using proper timezone conversion
+        // Using Date.UTC() ensures PostgreSQL @db.Date stores the correct IST date
+        // (not local-midnight which would be UTC previous day on an IST server)
+        const nowIST = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        const todayDate = new Date(Date.UTC(nowIST.getFullYear(), nowIST.getMonth(), nowIST.getDate()));
         const startDate = new Date(pass.visit_date);
-        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        const startIST = new Date(startDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        const startDateOnly = new Date(Date.UTC(startIST.getFullYear(), startIST.getMonth(), startIST.getDate()));
         const dayNumber = Math.floor((todayDate - startDateOnly) / (24 * 60 * 60 * 1000)) + 1;
 
         await prisma.gate_pass_daily_entry.create({
@@ -1564,7 +1570,7 @@ class GatePassService {
         }
       });
 
-      logger.info(`[CANCEL AFTER CHECK-IN] Pass cancelled: ${updatedPass.pass_id}, checkout QR generated with 1-hour validity`);
+      logger.info(`[CANCEL AFTER CHECK-IN] Pass cancelled: ${updatedPass.pass_id}, checkout QR generated with 24-hour validity`);
 
       // TODO: Send email and WhatsApp notification to visitor with checkout QR
       // This will be implemented with notification service
@@ -1728,23 +1734,20 @@ class GatePassService {
       const timestamp = Date.now();
       const expiresAt = new Date(timestamp + 60 * 60 * 1000); // 1 hour from now
       
-      // Generate checkout QR data with new unique checkout ID
+      // Generate checkout QR data — keep minimal to reduce QR density and improve scannability
       const checkoutData = {
         type: 'CHECKOUT',
         checkout_id: checkoutUniqueId,
-        checkout_verification_code: checkoutVerificationCode,
-        original_pass_id: pass.pass_id,
-        timestamp: timestamp,
-        expiresAt: expiresAt.toISOString()
+        checkout_verification_code: checkoutVerificationCode
       };
 
-      // Generate QR code as Data URL
+      // Generate QR code as Data URL — use 'M' error correction (less dense, easier to scan)
       const qrCodeDataURL = await QRCode.toDataURL(JSON.stringify(checkoutData), {
-        errorCorrectionLevel: 'H',
+        errorCorrectionLevel: 'M',
         type: 'image/png',
         quality: 0.92,
-        margin: 1,
-        width: 300
+        margin: 2,
+        width: 500
       });
 
       logger.info(`[CHECKOUT QR] Generated new checkout ID: ${checkoutUniqueId}, verification code: ${checkoutVerificationCode} for pass: ${pass.pass_id}, expires at: ${expiresAt.toISOString()}`);
@@ -1788,8 +1791,9 @@ class GatePassService {
 
         const now = new Date();
         if (pass.checkout_qr_expires_at && now > pass.checkout_qr_expires_at) {
-          const expiredMinutes = Math.floor((now.getTime() - pass.checkout_qr_expires_at.getTime()) / (1000 * 60));
-          throw new Error(`Checkout credentials expired ${expiredMinutes} minute(s) ago. Visitor must contact admin for new checkout credentials.`);
+          const expiredHours = Math.floor((now.getTime() - pass.checkout_qr_expires_at.getTime()) / (1000 * 60 * 60));
+          const expiredMinutes = Math.floor(((now.getTime() - pass.checkout_qr_expires_at.getTime()) % (1000 * 60 * 60)) / (1000 * 60));
+          throw new Error(`Checkout credentials expired ${expiredHours > 0 ? expiredHours + 'h ' : ''}${expiredMinutes}m ago. Please contact admin to regenerate checkout credentials.`);
         }
 
         // Validate NEW checkout verification code — MANDATORY for final checkout
