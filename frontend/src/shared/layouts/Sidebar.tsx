@@ -165,6 +165,8 @@ const getNavItems = (
     });
   }
   
+  // Event Management - Not for staff/guard role (gate entry only access)
+  if (!isStaff) items.push({
   // Event Management - Available for all authenticated users (some items restricted)
   const eventSubItems: NavItem[] = [
     ...(canBrowseEvents ? [{ name: 'Browse Events', href: '/events', icon: List }] : []),
@@ -189,6 +191,20 @@ const getNavItems = (
   });
   
   
+  // Gate Entry - For staff/guard only (shown as main nav item)
+  if (isStaff) {
+    items.push({
+      name: 'Gate Entry',
+      href: '/admin/gate-entry',
+      icon: Shield,
+      subItems: [
+        { name: 'All Passes', href: '/admin/gate-entry', icon: List },
+        { name: 'Verify Pass', href: '/admin/gate-entry/verify', icon: QrCode },
+        { name: 'Create Pass', href: '/admin/gate-entry/create-pass', icon: Plus },
+      ]
+    });
+  }
+
   // Common items
   items.push(
     { name: 'Notifications', href: '/notifications', icon: Bell },

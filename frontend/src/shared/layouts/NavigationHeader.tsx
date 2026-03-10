@@ -116,7 +116,7 @@ export default function NavigationHeader() {
   // Gate Entry Access Control based on designation
   const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
   const isGuard = userDesignation.includes('guard') || userDesignation.includes('security');
-  const hasFullGateEntryAccess = isAdmin || isGuard;
+  const hasFullGateEntryAccess = isAdmin || isGuard || isStaff;
   const showGateEntryModule = true; // All users including students can now create passes
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
@@ -541,11 +541,13 @@ export default function NavigationHeader() {
     });
   }
 
-  // Add Navigation menu
-  menuItems.push({
-    name: 'UMS Navigation',
-    subItems: navigationSubItems,
-  });
+  // UMS Navigation - hidden for staff/guard (they only need Gate Entry)
+  if (!isStaff) {
+    menuItems.push({
+      name: 'UMS Navigation',
+      subItems: navigationSubItems,
+    });
+  }
 
   // ============================================
   // ADMINISTRATION - Gate Entry module always inside Administration

@@ -372,8 +372,8 @@ function CreatePassPageContent() {
       return false;
     }
     
-    // Multi-day accommodation validation
-    if (isMultiDay) {
+    // Multi-day accommodation validation - only for students creating Parent/Guardian passes
+    if (canBookHostel) {
       if (wantToBook === null) {
         setError(t('createPass.err.accommodationRequired'));
         return false;
@@ -420,9 +420,9 @@ function CreatePassPageContent() {
         vehicleType: formData.hasVehicle ? formData.vehicleType : undefined,
         vehicleNumber: formData.hasVehicle ? formData.vehicleNumber : undefined,
         vehicleModel: formData.hasVehicle ? formData.vehicleModel : undefined,
-        stayRequired: isMultiDay ? true : false,
-        checkInDate: isMultiDay ? formData.visitDate : undefined,
-        checkOutDate: isMultiDay ? formData.visitEndDate : undefined,
+        stayRequired: canBookHostel && wantToBook === true,
+        checkInDate: canBookHostel && wantToBook === true ? formData.visitDate : undefined,
+        checkOutDate: canBookHostel && wantToBook === true ? formData.visitEndDate : undefined,
       };
       
       const response = await gateEntryService.createPass(passData);

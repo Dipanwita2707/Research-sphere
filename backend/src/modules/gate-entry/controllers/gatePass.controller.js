@@ -340,6 +340,8 @@ class GatePassController {
         successMessage = 'Pass cancelled successfully. Emergency checkout QR code sent to visitor (valid for 1 hour).';
       } else if (pass.cancellation_type === 'before_check_in') {
         successMessage = 'Pass cancelled successfully. Visitor has been notified via WhatsApp and email.';
+      } else if (pass.cancellation_type === 'from_checked_out') {
+        successMessage = 'Pass cancelled successfully. Visitor was already outside campus.';
       }
 
       return res.status(200).json(
@@ -394,6 +396,25 @@ class GatePassController {
       logger.error('Get check-in history error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to fetch check-in history', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Get daily entry/exit records for a multi-day pass
+   * GET /api/v1/gate-entry/daily-entries/:passId
+   */
+  async getDailyEntries(req, res) {
+    try {
+      const { passId } = req.params;
+      const data = await gatePassService.getDailyEntries(passId);
+      return res.status(200).json(
+        formatResponse(true, 'Daily entries fetched successfully', data)
+      );
+    } catch (error) {
+      logger.error('Get daily entries error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to fetch daily entries', null, error.message)
       );
     }
   }
