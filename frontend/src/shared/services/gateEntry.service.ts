@@ -110,6 +110,19 @@ export interface GatePass {
     id: string;
     username: string;
   };
+  // Multi-day daily check-in/check-out
+  isMultiDayDaily?: boolean;
+  dailyEntries?: DailyEntry[];
+}
+
+export interface DailyEntry {
+  id: string;
+  dayNumber: number;
+  entryDate: string;
+  entryTime: string;
+  exitTime?: string | null;
+  entryGate?: string;
+  exitGate?: string;
 }
 
 export interface GatePassStats {
@@ -343,6 +356,8 @@ function transformPass(pass: any): GatePass {
       id: creatorData.id,
       username: creatorName,
     } : undefined,
+    isMultiDayDaily: pass.isMultiDayDaily || false,
+    dailyEntries: pass.dailyEntries || pass.daily_entries || [],
   };
 }
 
@@ -478,13 +493,17 @@ class GateEntryService {
   /**
    * Cancel a gate pass
    */
-  async cancelPass(passId: string, reason: string): Promise<{ success: boolean; pass: GatePass }> {
+  async cancelPass(passId: string, reason: string): Promise<{ success: boolean; pass: GatePass; cancellation_type?: string }> {
     const response = await api.post<any>(
       `/gate-entry/cancel/${passId}`,
       { reason }
     );
     const rawPass = response.data?.data?.pass;
-    return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null as any };
+    return { 
+      success: response.data.success, 
+      pass: rawPass ? transformPass(rawPass) : null as any,
+      cancellation_type: response.data?.data?.cancellationType
+    };
   }
 
   /**
@@ -513,6 +532,14 @@ class GateEntryService {
     );
     const rawPass = response.data?.data?.pass;
     return { success: response.data.success, pass: rawPass ? transformPass(rawPass) : null as any };
+  }
+
+  /**
+   * Get daily entry/exit records for a multi-day pass
+   */
+  async getDailyEntries(passId: string): Promise<{ success: boolean; data: { passId: string; totalDays: number; entries: DailyEntry[] } }> {
+    const response = await api.get<any>(`/gate-entry/daily-entries/${passId}`);
+    return { success: response.data.success, data: response.data.data };
   }
 
   /**

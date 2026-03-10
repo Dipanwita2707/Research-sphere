@@ -27,13 +27,7 @@ const activateQRCodes = async () => {
     // Get today's date in YYYY-MM-DD format (IST)
     const todayIST = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    // Find passes that need QR activation
-    // Criteria:
-    // 1. qr_status is 'inactive'
-    // 2. pass_status is 'created'
-    // 3. visit_date is today or in the future
-    // 4. entry_time is within the next 5 hours (from visit_date)
-    
+    // ============ ACTIVATE NEW PASSES (status=created) ============
     const passesToActivate = await prisma.gate_pass.findMany({
       where: {
         qr_status: 'inactive',
@@ -112,6 +106,51 @@ const activateQRCodes = async () => {
       }
     }
 
+    // ============ RE-ACTIVATE CHECKED_OUT PASSES (all passes support unlimited in/out) ============
+    // Find checked_out passes that have inactive QR and today is within their date range
+    const passesToReactivate = await prisma.gate_pass.findMany({
+      where: {
+        qr_status: 'inactive',
+        pass_status: 'checked_out',
+        OR: [
+          // Single-day passes: visit_date is today
+          {
+            visit_end_date: null,
+            visit_date: { gte: todayIST, lt: new Date(todayIST.getTime() + 24 * 60 * 60 * 1000) }
+          },
+          // Multi-day passes: today is within date range
+          {
+            visit_end_date: { not: null, gte: todayIST },
+            visit_date: { lte: todayIST }
+          }
+        ]
+      },
+      select: {
+        id: true,
+        pass_id: true,
+        visit_date: true,
+        visit_end_date: true
+      }
+    });
+
+    if (passesToReactivate.length > 0) {
+      const result = await prisma.gate_pass.updateMany({
+        where: {
+          id: { in: passesToReactivate.map(p => p.id) }
+        },
+        data: {
+          qr_status: 'active',
+          qr_activation_time: now
+        }
+      });
+
+      console.log(`[QR Activation Job] 🔄 Re-activated ${result.count} checked_out pass QR codes for re-entry`);
+      passesToReactivate.forEach(pass => {
+        const endDate = pass.visit_end_date ? new Date(pass.visit_end_date).toISOString().split('T')[0] : 'single-day';
+        console.log(`  - Pass ID: ${pass.pass_id}, Visit: ${new Date(pass.visit_date).toISOString().split('T')[0]}, End: ${endDate}`);
+      });
+    }
+
     // ============ EXPIRE PASSES ============
     // Expire QR codes at 6 PM IST on end date (room also freed at same time)
     // Before 6 PM: only expire past-date passes
@@ -125,7 +164,7 @@ const activateQRCodes = async () => {
       ? { lte: todayIST }
       : { lt: todayIST };
     
-    // Find passes to expire
+    // Find passes to expire (exclude multi-day daily passes that are checked_out and still within date range)
     const passesToExpire = await prisma.gate_pass.findMany({
       where: {
         qr_status: 'active',

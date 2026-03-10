@@ -64,9 +64,8 @@ router.get('/check-duplicate', async (req, res) => {
       });
     }
     
-    // Import service
-    const GatePassService = require('../services/gatePass.service');
-    const gatePassService = new GatePassService();
+    // Import service (exports an instance, not a class)
+    const gatePassService = require('../services/gatePass.service');
     
     // Check for duplicates
     const result = await gatePassService.checkDuplicatePass(
@@ -218,6 +217,13 @@ router.get('/bookings/:passId', checkGateEntryAccess(), gatePassController.getBo
  * @access Private (Admin, Guards only - Verify permission required)
  */
 router.get('/check-in-history', canVerifyPass, gatePassController.getCheckInHistory);
+
+/**
+ * @route GET /api/v1/gate-entry/daily-entries/:passId
+ * @desc Get daily entry/exit records for a multi-day pass
+ * @access Private (Admin, Guards only - Verify permission required)
+ */
+router.get('/daily-entries/:passId', canVerifyPass, gatePassController.getDailyEntries);
 
 /**
  * @route GET /api/v1/gate-entry/export-excel

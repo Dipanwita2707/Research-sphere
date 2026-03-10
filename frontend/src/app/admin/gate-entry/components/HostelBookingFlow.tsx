@@ -91,7 +91,7 @@ export default function HostelBookingFlow({
       onClose();
     } else if (choice === 'existing') {
       // For existing booking, just close - user should provide details in main form
-      showInfo('Please provide your existing hostel details in the form');
+      showInfo('Please provide your existing guest house details in the form');
       onClose();
     } else if (choice === 'new') {
       setStep('select_hostel');

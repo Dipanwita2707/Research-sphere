@@ -52,6 +52,8 @@ model UserLogin {
   bookingsCreated                                   HostelBooking[]                      @relation("BookingCreatedBy")
   refundsProcessed                                  RefundTransaction[]                  @relation("RefundProcessedBy")
   gate_pass_history                                 gate_pass_history[]
+  daily_entry_guard                                  gate_pass_daily_entry[]      @relation("DailyEntryGuard")
+  daily_exit_guard                                   gate_pass_daily_entry[]      @relation("DailyExitGuard")
   emailLogsSent                                     EventEmailLog[]              @relation("EmailLogSentBy")
   couponsCreated                                    EventCoupon[]                @relation("CouponCreatedBy")
   couponUsages                                      CouponUsage[]                @relation("CouponUsageUser")
@@ -2139,6 +2141,7 @@ model gate_pass {
   gate_pass_history                                  gate_pass_history[]
   gate_pass_notification                             gate_pass_notification[]
   refund_transactions                                RefundTransaction[]
+  daily_entries                                      gate_pass_daily_entry[]
 
   @@index([created_by_id])
   @@index([mobile_number])
@@ -2159,6 +2162,30 @@ model gate_pass_history {
   user_login      UserLogin             @relation(fields: [performed_by_id], references: [id])
 
   @@index([gate_pass_id])
+}
+
+model gate_pass_daily_entry {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  gate_pass_id    String    @db.Uuid
+  day_number      Int
+  entry_date      DateTime  @db.Date
+  entry_time      DateTime  @db.Timestamptz(6)
+  exit_time       DateTime? @db.Timestamptz(6)
+  entry_gate      String?   @db.VarChar(100)
+  exit_gate       String?   @db.VarChar(100)
+  entry_guard_id  String?   @db.Uuid
+  exit_guard_id   String?   @db.Uuid
+  entry_remarks   String?
+  exit_remarks    String?
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  gate_pass       gate_pass  @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  entry_guard     UserLogin? @relation("DailyEntryGuard", fields: [entry_guard_id], references: [id])
+  exit_guard      UserLogin? @relation("DailyExitGuard", fields: [exit_guard_id], references: [id])
+
+  @@index([gate_pass_id, entry_date])
+  @@index([gate_pass_id])
+  @@map("gate_pass_daily_entries")
 }
 
 model gate_pass_notification {

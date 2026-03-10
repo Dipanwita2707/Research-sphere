@@ -84,7 +84,19 @@ class GatePassService {
         paymentStatus: pass.hostel_booking.payment_status,
         hostelName: pass.hostel_booking.room?.hostel?.name,
         roomNumber: pass.hostel_booking.room?.room_number
-      } : null
+      } : null,
+      // Multi-day daily check-in/check-out data
+      // All passes support unlimited in/out cycling
+      isMultiDayDaily: true,
+      dailyEntries: (pass.daily_entries || []).map(e => ({
+        id: e.id,
+        dayNumber: e.day_number,
+        entryDate: formatDateForFrontend(e.entry_date),
+        entryTime: formatDateForFrontend(e.entry_time),
+        exitTime: formatDateForFrontend(e.exit_time),
+        entryGate: e.entry_gate,
+        exitGate: e.exit_gate
+      }))
     };
     
     console.log(`[TRANSFORM DEBUG] Pass ${pass.pass_id}: visitEndDate = ${transformed.visitEndDate}, checkOutDate = ${transformed.checkOutDate}, extensionCount = ${transformed.extensionCount}, extensionReason = "${transformed.extensionReason}"`);
@@ -909,22 +921,38 @@ class GatePassService {
 
       // Real-time QR activation check (for regular check-in)
       // If pass is inactive and should be active now, activate it
-      if (pass.qr_status === 'inactive' && pass.pass_status === 'created') {
+      // Also handle checked_out passes that need re-activation for re-entry
+      const needsActivation = pass.qr_status === 'inactive' && (
+        pass.pass_status === 'created' ||
+        pass.pass_status === 'checked_out'
+      );
+      if (needsActivation) {
         const now = new Date();
         const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
         const nowIST = new Date(now.getTime() + istOffset);
         const todayStr = nowIST.toISOString().split('T')[0];
         const visitDateStr = new Date(pass.visit_date).toISOString().split('T')[0];
+        const endDateStr = pass.visit_end_date ? new Date(pass.visit_end_date).toISOString().split('T')[0] : visitDateStr;
         
-        // Check if visit date is today
-        if (visitDateStr === todayStr && pass.entry_time) {
+        // Check if today is within the visit date range
+        const isWithinRange = todayStr >= visitDateStr && todayStr <= endDateStr;
+        
+        if (isWithinRange && pass.entry_time) {
+          // For first day, check activation window. For subsequent days, activate immediately.
+          const isFirstDay = todayStr === visitDateStr;
+          let shouldActivate = !isFirstDay; // subsequent days: always activate
+          
+          if (isFirstDay) {
           const [hours, minutes] = pass.entry_time.split(':').map(Number);
           const entryTimeInMinutes = hours * 60 + minutes;
           const currentTimeInMinutes = nowIST.getHours() * 60 + nowIST.getMinutes();
           const activationWindowMinutes = 5 * 60; // 5 hours
           
           // Activate if within activation window or entry time has passed
-          if ((entryTimeInMinutes - currentTimeInMinutes) <= activationWindowMinutes) {
+            shouldActivate = (entryTimeInMinutes - currentTimeInMinutes) <= activationWindowMinutes;
+          }
+          
+          if (shouldActivate) {
             pass = await prisma.gate_pass.update({
               where: { id: pass.id },
               data: {
@@ -937,12 +965,33 @@ class GatePassService {
         }
       }
 
+      // Attach daily entry records for all passes (in/out tracking)
+      {
+        const dailyEntries = await prisma.gate_pass_daily_entry.findMany({
+          where: { gate_pass_id: pass.id },
+          orderBy: [{ day_number: 'asc' }, { entry_time: 'asc' }]
+        });
+        pass.daily_entries = dailyEntries;
+      }
+
       // Return pass data
       return pass;
     } catch (error) {
       logger.error('Error verifying pass:', error);
       throw error;
     }
+  }
+
+  /**
+   * Check if a pass qualifies for multi-day daily check-in/check-out flow
+   * Criteria: has visit_end_date, stay_required is false, visitor_relation is NOT Parent/Guardian
+   */
+  isMultiDayDailyPass(pass) {
+    if (!pass.visit_end_date) return false;
+    if (pass.stay_required) return false;
+    const relation = (pass.visitor_relation || '').toLowerCase();
+    if (relation === 'parent' || relation === 'guardian') return false;
+    return true;
   }
 
   /**
@@ -962,9 +1011,30 @@ class GatePassService {
         throw new Error('Pass is cancelled or denied');
       }
 
+      // Allow entry for 'created' passes (first entry) and 'checked_out' passes (re-entry)
+      // All passes support unlimited in/out. Cancel = final checkout.
+      if (pass.pass_status !== 'created' && pass.pass_status !== 'checked_out') {
+        throw new Error('Pass is not in a valid state for entry');
+      }
+
       // Check QR status - must be active to allow entry
       if (pass.qr_status !== 'active') {
         throw new Error('QR code is not active yet. QR becomes active 5 hours before entry time.');
+      }
+
+      // For re-entry (checked_out), validate today is within date range
+      if (pass.pass_status === 'checked_out') {
+        const now2 = new Date();
+        const istOffset2 = 5.5 * 60 * 60 * 1000;
+        const nowIST2 = new Date(now2.getTime() + istOffset2);
+        const todayStr = nowIST2.toISOString().split('T')[0];
+        const startStr = new Date(pass.visit_date).toISOString().split('T')[0];
+        const endStr = pass.visit_end_date
+          ? new Date(pass.visit_end_date).toISOString().split('T')[0]
+          : startStr; // Single-day pass: end = start
+        if (todayStr < startStr || todayStr > endStr) {
+          throw new Error('Today is outside the valid date range for this pass');
+        }
       }
 
       // If verification code is provided, validate it
@@ -974,23 +1044,43 @@ class GatePassService {
         }
       }
 
+      const now = new Date();
+
       const updatedPass = await prisma.gate_pass.update({
         where: { pass_id },
         data: {
           status: 'checked_in', // Legacy field
           pass_status: 'checked_in',
-          actual_entry_time: new Date(),
+          actual_entry_time: now,
           entry_gate: entryData.gate,
           entry_guard_id: guardId,
           entry_remarks: entryData.remarks || null
         }
       });
 
-      // Create history (skip for now due to schema issues)
-      // await prisma.gate_pass_history.create({...});
+      // Track daily entry for all passes (in/out count) - always create a new record
+      {
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const nowIST = new Date(now.getTime() + istOffset);
+        const todayDate = new Date(nowIST.getFullYear(), nowIST.getMonth(), nowIST.getDate());
+        const startDate = new Date(pass.visit_date);
+        const startDateOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        const dayNumber = Math.floor((todayDate - startDateOnly) / (24 * 60 * 60 * 1000)) + 1;
 
-      // Skip notification for now
-      // await this.sendEntryNotification(updatedPass);
+        await prisma.gate_pass_daily_entry.create({
+          data: {
+            gate_pass_id: pass.id,
+            day_number: dayNumber,
+            entry_date: todayDate,
+            entry_time: now,
+            entry_gate: entryData.gate,
+            entry_guard_id: guardId,
+            entry_remarks: entryData.remarks || null
+          }
+        });
+
+        logger.info(`Daily entry recorded for pass ${pass.pass_id}, day ${dayNumber} (entry #${await prisma.gate_pass_daily_entry.count({ where: { gate_pass_id: pass.id } })})`);
+      }
 
       logger.info(`Entry allowed for pass: ${pass.pass_id}`);
       return updatedPass;
@@ -1048,24 +1138,107 @@ class GatePassService {
         throw new Error('Visitor is not checked in');
       }
 
+      // If verification code is provided, validate it against the ORIGINAL code (same as entry)
+      // QR scan path sends no code (trusted physical scan); manual path must match original verification_code
+      if (exitData.verification_code) {
+        if (pass.verification_code !== exitData.verification_code) {
+          throw new Error('Invalid verification code. Please use the original code from the pass.');
+        }
+      }
+
+      const now = new Date();
+
       const updatedPass = await prisma.gate_pass.update({
         where: { pass_id },
         data: {
-          status: 'completed', // Legacy field
+          status: 'active', // Legacy enum field - 'checked_out' not in gate_pass_status_enum, use 'active' since pass is still valid
           pass_status: 'checked_out',
-          actual_exit_time: new Date(),
+          actual_exit_time: now,
           exit_gate: exitData.gate,
           exit_guard_id: guardId,
-          exit_remarks: exitData.remarks || null
+          exit_remarks: exitData.remarks || null,
+          // Deactivate QR until next scan (verifyPass) or cron re-activates it
+          qr_status: 'inactive'
         }
       });
 
-      // Skip history for now
+      // Track daily exit - find the most recent entry without an exit time
+      {
+        const latestOpenEntry = await prisma.gate_pass_daily_entry.findFirst({
+          where: {
+            gate_pass_id: pass.id,
+            exit_time: null
+          },
+          orderBy: { entry_date: 'desc' }
+        });
+
+        if (latestOpenEntry) {
+          await prisma.gate_pass_daily_entry.update({
+            where: { id: latestOpenEntry.id },
+            data: {
+              exit_time: now,
+              exit_gate: exitData.gate,
+              exit_guard_id: guardId,
+              exit_remarks: exitData.remarks || null
+            }
+          });
+        }
+
+        logger.info(`Daily exit recorded for pass ${pass.pass_id}`);
+      }
 
       logger.info(`Exit recorded for pass: ${pass.pass_id}`);
       return updatedPass;
     } catch (error) {
       logger.error('Error recording exit:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get daily entry/exit records for a multi-day pass
+   */
+  async getDailyEntries(pass_id) {
+    try {
+      const pass = await prisma.gate_pass.findUnique({
+        where: { pass_id },
+        select: { id: true, pass_id: true, visit_date: true, visit_end_date: true, stay_required: true, visitor_relation: true }
+      });
+
+      if (!pass) {
+        throw new Error('Pass not found');
+      }
+
+      const entries = await prisma.gate_pass_daily_entry.findMany({
+        where: { gate_pass_id: pass.id },
+        orderBy: { day_number: 'asc' },
+        include: {
+          entry_guard: { select: { id: true, uid: true } },
+          exit_guard: { select: { id: true, uid: true } }
+        }
+      });
+
+      return {
+        passId: pass.pass_id,
+        totalDays: pass.visit_end_date
+          ? Math.ceil((new Date(pass.visit_end_date) - new Date(pass.visit_date)) / (24 * 60 * 60 * 1000)) + 1
+          : 1,
+        entries: entries.map(e => ({
+          id: e.id,
+          dayNumber: e.day_number,
+          entryDate: e.entry_date,
+          entryTime: e.entry_time,
+          exitTime: e.exit_time,
+          entryGate: e.entry_gate,
+          exitGate: e.exit_gate,
+          entryGuard: e.entry_guard?.uid || null,
+          exitGuard: e.exit_guard?.uid || null,
+          entryRemarks: e.entry_remarks,
+          exitRemarks: e.exit_remarks
+        }))
+      };
+    } catch (error) {
+      logger.error('Error fetching daily entries:', error);
       throw error;
     }
   }
@@ -1135,7 +1308,6 @@ class GatePassService {
 
           logger.info(`[CANCEL BEFORE CHECK-IN] Refund calculation: Original: ${originalAmount}, Fee: ${cancellationFeeAmount} (${cancellationFeePercent}%), Refund: ${refundAmount}`);
 
-          // Store refund info (RefundTransaction table not available yet)
           logger.info(`[CANCEL BEFORE CHECK-IN] Refund will be processed: ₹${refundAmount}`);
 
           // Update HostelBooking status
@@ -1148,7 +1320,22 @@ class GatePassService {
             }
           });
 
-          logger.info(`[CANCEL BEFORE CHECK-IN] Hostel booking cancelled with refund`);
+          // Create RefundTransaction record
+          await prisma.refundTransaction.create({
+            data: {
+              booking_id: hostelBooking.id,
+              pass_id: pass.id,
+              original_amount: originalAmount,
+              cancellation_fee_percent: cancellationFeePercent,
+              cancellation_fee_amount: cancellationFeeAmount,
+              refund_amount: refundAmount,
+              refund_status: 'processed',
+              processed_at: new Date(),
+              remarks: `Cancelled before check-in. Slab: ${appliedSlab} (${refundPercent}% refund)`,
+            }
+          });
+
+          logger.info(`[CANCEL BEFORE CHECK-IN] Hostel booking cancelled with refund, RefundTransaction created`);
 
           hostelRefundData = {
             booking_id: hostelBooking.id,
@@ -1249,13 +1436,13 @@ class GatePassService {
         throw new Error('Cancellation reason is required');
       }
 
-      // Check if pass is already cancelled or checked out
+      // Check if pass is already cancelled or completed
       if (pass.pass_status === 'cancelled') {
         throw new Error('Pass is already cancelled');
       }
 
-      if (pass.pass_status === 'checked_out') {
-        throw new Error('Pass is already checked out. Cannot cancel.');
+      if (pass.pass_status === 'completed') {
+        throw new Error('Pass is already completed. Cannot cancel.');
       }
 
       logger.info(`[CANCEL PASS] User ${userId} (admin:${isAdmin}, guard:${isGuard}, creator:${isCreator}) cancelling pass ${pass_id}, Status: ${pass.pass_status}`);
@@ -1265,8 +1452,11 @@ class GatePassService {
         // Before check-in cancellation (no checkout QR needed)
         return await this.cancelBeforeCheckIn(pass, userId, reason);
       } else if (pass.pass_status === 'checked_in') {
-        // After check-in cancellation (generates checkout QR)
+        // After check-in cancellation (generates checkout QR for final checkout)
         return await this.cancelAfterCheckIn(pass, userId, reason);
+      } else if (pass.pass_status === 'checked_out') {
+        // Person is already outside - just cancel and mark as final
+        return await this.cancelFromCheckedOut(pass, userId, reason);
       } else {
         throw new Error(`Cannot cancel pass with status: ${pass.pass_status}`);
       }
@@ -1288,18 +1478,69 @@ class GatePassService {
 
       // Cancel associated hostel booking so room becomes available again
       const hostelBooking = await prisma.hostelBooking.findUnique({
-        where: { gate_pass_id: pass.id }
+        where: { gate_pass_id: pass.id },
+        include: { room: { include: { hostel: true } } }
       });
       if (hostelBooking && hostelBooking.booking_status !== 'cancelled') {
+        // After check-in: calculate refund based on same slab policy
+        const now = new Date();
+        const checkInDate = new Date(hostelBooking.check_in_date);
+        const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
+        const hoursUntilCheckIn = timeUntilCheckIn / (1000 * 60 * 60);
+        const daysUntilCheckIn = hoursUntilCheckIn / 24;
+
+        let refundPercent = 0;
+        let appliedSlab = '';
+        if (daysUntilCheckIn >= 3) {
+          refundPercent = 90;
+          appliedSlab = '3+ days before check-in';
+        } else if (daysUntilCheckIn >= 1) {
+          refundPercent = 70;
+          appliedSlab = '1-3 days before check-in';
+        } else if (hoursUntilCheckIn >= 2) {
+          refundPercent = 40;
+          appliedSlab = '2-24 hours before check-in';
+        } else {
+          refundPercent = 0;
+          appliedSlab = 'After check-in / Less than 2 hours';
+        }
+
+        const originalAmount = parseFloat(hostelBooking.total_price) || 0;
+        const cancellationFeePercent = 100 - refundPercent;
+        const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
+        const refundAmount = originalAmount - cancellationFeeAmount;
+
+        logger.info(`[CANCEL AFTER CHECK-IN] Refund: Original=${originalAmount}, Fee=${cancellationFeeAmount} (${cancellationFeePercent}%), Refund=${refundAmount}`);
+
+        const shouldRefund = hostelBooking.payment_status === 'completed' && refundAmount > 0;
+
         await prisma.hostelBooking.update({
           where: { id: hostelBooking.id },
           data: {
             booking_status: 'cancelled',
-            payment_status: hostelBooking.payment_status === 'completed' ? 'refunded' : hostelBooking.payment_status,
+            payment_status: shouldRefund ? 'refunded' : hostelBooking.payment_status,
             updated_at: new Date()
           }
         });
-        logger.info(`[CANCEL AFTER CHECK-IN] Hostel booking ${hostelBooking.id} cancelled, room freed`);
+
+        // Create RefundTransaction record
+        if (hostelBooking.payment_status === 'completed') {
+          await prisma.refundTransaction.create({
+            data: {
+              booking_id: hostelBooking.id,
+              pass_id: pass.id,
+              original_amount: originalAmount,
+              cancellation_fee_percent: cancellationFeePercent,
+              cancellation_fee_amount: cancellationFeeAmount,
+              refund_amount: refundAmount,
+              refund_status: 'processed',
+              processed_at: new Date(),
+              remarks: `Cancelled after check-in. Slab: ${appliedSlab} (${refundPercent}% refund)`,
+            }
+          });
+        }
+
+        logger.info(`[CANCEL AFTER CHECK-IN] Hostel booking ${hostelBooking.id} cancelled, room freed, RefundTransaction created`);
       }
 
       // Generate NEW unique checkout ID and QR code with 1-hour validity
@@ -1342,6 +1583,75 @@ class GatePassService {
       };
     } catch (error) {
       logger.error('[CANCEL AFTER CHECK-IN] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel pass from checked_out state (person already exited campus)
+   * No checkout QR needed since visitor is already outside.
+   * This is a final closure of the pass.
+   */
+  async cancelFromCheckedOut(pass, userId, reason) {
+    try {
+      logger.info(`[CANCEL FROM CHECKED_OUT] Pass ${pass.pass_id}, User: ${userId}`);
+
+      // Cancel associated hostel booking so room becomes available
+      const hostelBooking = await prisma.hostelBooking.findUnique({
+        where: { gate_pass_id: pass.id },
+        include: { room: { include: { hostel: true } } }
+      });
+      if (hostelBooking && hostelBooking.booking_status !== 'cancelled') {
+        const originalAmount = parseFloat(hostelBooking.total_price) || 0;
+
+        await prisma.hostelBooking.update({
+          where: { id: hostelBooking.id },
+          data: {
+            booking_status: 'cancelled',
+            updated_at: new Date()
+          }
+        });
+
+        // Create RefundTransaction record if payment was completed
+        if (hostelBooking.payment_status === 'completed' && originalAmount > 0) {
+          await prisma.refundTransaction.create({
+            data: {
+              booking_id: hostelBooking.id,
+              pass_id: pass.id,
+              original_amount: originalAmount,
+              cancellation_fee_percent: 100,
+              cancellation_fee_amount: originalAmount,
+              refund_amount: 0,
+              refund_status: 'processed',
+              processed_at: new Date(),
+              remarks: `Cancelled from checked_out state. No refund - visitor already checked out.`,
+            }
+          });
+        }
+
+        logger.info(`[CANCEL FROM CHECKED_OUT] Hostel booking ${hostelBooking.id} cancelled`);
+      }
+
+      // Mark pass as cancelled (final state - person already outside)
+      const updatedPass = await prisma.gate_pass.update({
+        where: { pass_id: pass.pass_id },
+        data: {
+          status: 'cancelled',
+          pass_status: 'cancelled',
+          qr_status: 'inactive',
+          cancellation_time: new Date(),
+          cancellation_reason: reason
+        }
+      });
+
+      logger.info(`[CANCEL FROM CHECKED_OUT] Pass cancelled: ${updatedPass.pass_id} - final closure, visitor already outside`);
+
+      return {
+        ...updatedPass,
+        cancellation_type: 'from_checked_out'
+      };
+    } catch (error) {
+      logger.error('[CANCEL FROM CHECKED_OUT] Error:', error);
       throw error;
     }
   }
@@ -1482,14 +1792,17 @@ class GatePassService {
           throw new Error(`Checkout credentials expired ${expiredMinutes} minute(s) ago. Visitor must contact admin for new checkout credentials.`);
         }
 
-        // Validate NEW checkout verification code (different from check-in code)
-        if (exitData.verificationCode) {
-          if (!pass.checkout_verification_code) {
-            throw new Error('No checkout verification code found. Please scan the checkout QR code.');
-          }
-          if (exitData.verificationCode !== pass.checkout_verification_code) {
-            throw new Error('Invalid checkout verification code. Please use the NEW code sent after cancellation.');
-          }
+        // Validate NEW checkout verification code — MANDATORY for final checkout
+        // The checkout code is different from the original entry/exit code.
+        // Original pass codes are NOT accepted here; only the new checkout QR/code works.
+        if (!exitData.verificationCode) {
+          throw new Error('Checkout verification code is required. Please scan the new checkout QR code or enter the 6-digit code generated after cancellation.');
+        }
+        if (!pass.checkout_verification_code) {
+          throw new Error('No checkout credentials found for this pass. Please contact admin.');
+        }
+        if (exitData.verificationCode !== pass.checkout_verification_code) {
+          throw new Error('Invalid checkout verification code. Use the NEW code generated after cancellation — the original pass code will not work here.');
         }
         
         logger.info(`[CHECKOUT] Cancelled pass checkout: ${pass.pass_id}, checkout ID: ${pass.checkout_unique_id}, QR expires: ${pass.checkout_qr_expires_at}`);
@@ -1501,18 +1814,19 @@ class GatePassService {
         where: { pass_id },
         data: {
           status: 'completed', // Legacy field
-          pass_status: 'checked_out',
+          pass_status: 'completed', // FINAL checkout - no more actions allowed
+          qr_status: 'used', // QR permanently disabled
           actual_exit_time: new Date(),
           exit_gate: exitData.gate || 'Main Gate',
           exit_guard_id: guardId,
-          exit_remarks: exitData.remarks || (pass.pass_status === 'cancelled' ? 'Emergency checkout via cancelled pass QR' : null),
+          exit_remarks: exitData.remarks || (pass.pass_status === 'cancelled' ? 'Final checkout via cancelled pass QR' : 'Final checkout'),
           // Clear checkout QR fields
           checkout_qr_code: null,
           checkout_qr_expires_at: null
         }
       });
 
-      logger.info(`[CHECKOUT] Successful checkout for pass: ${pass.pass_id}, Status was: ${pass.pass_status}`);
+      logger.info(`[CHECKOUT] Final checkout for pass: ${pass.pass_id}, Status was: ${pass.pass_status} → completed`);
       return updatedPass;
     } catch (error) {
       logger.error('[CHECKOUT] Error:', error);
@@ -1921,7 +2235,16 @@ class GatePassService {
         passCreators,
         
         // Recent data
-        recentActivity
+        recentActivity,
+
+        // Guest House stats
+        guestHouseBookingCount,
+        guestHouseRevenueAgg,
+        guestHouseByStatus,
+        topGuestHouses,
+        recentBookings,
+        refundStats,
+        checkedInVisitors
       ] = await Promise.all([
         // 1-8: Overview counts
         prisma.gate_pass.count({ where: whereClause }),
@@ -2074,6 +2397,98 @@ class GatePassService {
                 }
               }
             }
+          }
+        }),
+
+        // 19: Guest House total bookings
+        prisma.hostelBooking.count(),
+
+        // 20: Guest House revenue aggregate
+        prisma.hostelBooking.aggregate({
+          _sum: { total_price: true },
+          _avg: { total_price: true },
+        }),
+
+        // 21: Guest House bookings by status
+        prisma.hostelBooking.groupBy({
+          by: ['booking_status'],
+          _count: true,
+        }),
+
+        // 22: Top guest houses by bookings count + revenue
+        prisma.hostelBooking.groupBy({
+          by: ['hostel_name'],
+          _count: true,
+          _sum: { total_price: true },
+          orderBy: { _count: { hostel_name: 'desc' } },
+          take: 10,
+        }),
+
+        // 23: Recent bookings with full details (use room relation for names)
+        prisma.hostelBooking.findMany({
+          take: 20,
+          orderBy: { created_at: 'desc' },
+          select: {
+            id: true,
+            hostel_name: true,
+            room_number: true,
+            check_in_date: true,
+            check_out_date: true,
+            total_price: true,
+            booking_status: true,
+            payment_status: true,
+            guest_count: true,
+            created_at: true,
+            room: {
+              select: {
+                room_number: true,
+                hostel: { select: { name: true } }
+              }
+            },
+            gate_pass: {
+              select: {
+                pass_id: true,
+                visitor_name: true,
+                mobile_number: true,
+              }
+            },
+            refund_transactions: {
+              select: {
+                refund_amount: true,
+                refund_status: true,
+                cancellation_fee_amount: true,
+                cancellation_fee_percent: true,
+                original_amount: true,
+                remarks: true,
+              }
+            }
+          }
+        }),
+
+        // 24: Refund stats aggregate
+        prisma.refundTransaction.aggregate({
+          _count: true,
+          _sum: { refund_amount: true, original_amount: true, cancellation_fee_amount: true },
+        }),
+
+        // 25: Currently checked-in visitors (inside campus right now)
+        prisma.gate_pass.findMany({
+          where: { pass_status: 'checked_in' },
+          orderBy: { actual_entry_time: 'desc' },
+          take: 50,
+          select: {
+            pass_id: true,
+            visitor_name: true,
+            mobile_number: true,
+            purpose_of_visit: true,
+            actual_entry_time: true,
+            entry_gate: true,
+            number_of_persons: true,
+            has_vehicle: true,
+            vehicle_type: true,
+            vehicle_number: true,
+            person_to_meet_name: true,
+            department_to_visit: true,
           }
         })
       ]);
@@ -2262,6 +2677,79 @@ class GatePassService {
         passesCreated: c._count
       }));
 
+      // Process Guest House data
+      const guestHouseStatsData = {
+        totalBookings: guestHouseBookingCount,
+        totalRevenue: parseFloat(guestHouseRevenueAgg._sum.total_price || 0),
+        avgRevenue: parseFloat(guestHouseRevenueAgg._avg.total_price || 0),
+        pending: guestHouseByStatus.find(s => s.booking_status === 'pending')?._count || 0,
+        confirmed: guestHouseByStatus.find(s => s.booking_status === 'confirmed')?._count || 0,
+        cancelled: guestHouseByStatus.find(s => s.booking_status === 'cancelled')?._count || 0,
+        completed: guestHouseByStatus.find(s => s.booking_status === 'completed')?._count || 0,
+      };
+
+      const topGuestHousesData = topGuestHouses
+        .filter(h => h.hostel_name)
+        .map(h => ({
+          name: h.hostel_name,
+          bookings: h._count,
+          revenue: parseFloat(h._sum.total_price || 0),
+        }));
+
+      const recentBookingsData = recentBookings.map(b => ({
+        id: b.id,
+        guestHouse: b.hostel_name || b.room?.hostel?.name || 'N/A',
+        roomNumber: b.room_number || b.room?.room_number || 'N/A',
+        checkIn: b.check_in_date,
+        checkOut: b.check_out_date,
+        visitorName: b.gate_pass?.visitor_name || 'N/A',
+        visitorPhone: b.gate_pass?.mobile_number || '',
+        passId: b.gate_pass?.pass_id || 'N/A',
+        totalPrice: parseFloat(b.total_price || 0),
+        bookingStatus: b.booking_status || 'pending',
+        paymentStatus: b.payment_status || 'pending',
+        guestCount: b.guest_count,
+        createdAt: b.created_at,
+        refund: b.refund_transactions.length > 0 ? {
+          refundAmount: b.refund_transactions[0].refund_amount,
+          refundStatus: b.refund_transactions[0].refund_status,
+          cancellationFee: b.refund_transactions[0].cancellation_fee_amount,
+          cancellationFeePercent: b.refund_transactions[0].cancellation_fee_percent,
+          originalAmount: b.refund_transactions[0].original_amount,
+          remarks: b.refund_transactions[0].remarks,
+        } : (b.payment_status === 'refunded' ? {
+          refundAmount: parseFloat(b.total_price || 0),
+          refundStatus: 'processed',
+          cancellationFee: 0,
+          cancellationFeePercent: 0,
+          originalAmount: parseFloat(b.total_price || 0),
+          remarks: 'Refunded',
+        } : null),
+      }));
+
+      // Process checked-in visitors
+      const checkedInVisitorsData = checkedInVisitors.map(v => ({
+        passId: v.pass_id,
+        visitorName: v.visitor_name,
+        phone: v.mobile_number,
+        purpose: v.purpose_of_visit,
+        entryTime: v.actual_entry_time,
+        entryGate: v.entry_gate || 'N/A',
+        persons: v.number_of_persons,
+        hasVehicle: v.has_vehicle,
+        vehicleType: v.vehicle_type,
+        vehicleNumber: v.vehicle_number,
+        personToMeet: v.person_to_meet_name || 'N/A',
+        department: v.department_to_visit || 'N/A',
+      }));
+
+      const refundStatsData = {
+        totalRefunds: refundStats._count,
+        totalRefundAmount: refundStats._sum.refund_amount || 0,
+        totalOriginalAmount: refundStats._sum.original_amount || 0,
+        totalCancellationFees: refundStats._sum.cancellation_fee_amount || 0,
+      };
+
       // Return comprehensive analytics
       return {
         overview: {
@@ -2286,6 +2774,11 @@ class GatePassService {
         dailyTrend,
         recentActivity: activityLog,
         topCreators,
+        guestHouseStats: guestHouseStatsData,
+        topGuestHouses: topGuestHousesData,
+        recentBookings: recentBookingsData,
+        refundStats: refundStatsData,
+        checkedInVisitors: checkedInVisitorsData,
         filters: {
           dateFrom: dateFrom || null,
           dateTo: dateTo || null,
