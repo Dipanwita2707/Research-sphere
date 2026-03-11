@@ -377,7 +377,7 @@ async function sendPassExtended(pass, newEndDate, reason) {
   const hasHostel      = !!(pass.hostel_booking || pass.hostel_name);
   const hostelName     = pass.hostel_booking?.hostelName || pass.hostel_booking?.room?.hostel?.name || pass.hostel_name || 'Guest House';
   const roomNumber     = pass.hostel_booking?.roomNumber || pass.hostel_booking?.room?.room_number  || pass.room_number || '—';
-  const newCheckout    = pass.hostel_booking?.check_out_date || pass.hostel_booking?.checkOutDate || newEndDate;
+  const newCheckout    = pass.hostel_booking?.check_out_datetime || pass.hostel_booking?.checkOutDate || newEndDate;
   const extensionCount = pass.extension_count || 1;
 
   let extraSection = '';
@@ -437,11 +437,11 @@ async function sendHostelBookingCreated(booking) {
   const hostelName  = room?.hostel?.name || 'Guest House';
   const roomNumber  = room?.room_number  || '—';
   const roomType    = room?.room_type    || room?.type || '';
-  const nights      = Math.ceil(
-    (new Date(booking.check_out_date) - new Date(booking.check_in_date)) / (1000 * 60 * 60 * 24)
+  const nights      = booking.billable_days || Math.ceil(
+    (new Date(booking.check_out_datetime) - new Date(booking.check_in_datetime)) / (1000 * 60 * 60 * 24)
   );
-  const pricePerNight = room?.price_per_night
-    ? `₹${Number(room.price_per_night).toLocaleString('en-IN')}`
+  const pricePerNight = booking.price_per_day || room?.price_per_night
+    ? `₹${Number(booking.price_per_day || room?.price_per_night).toLocaleString('en-IN')}`
     : '—';
   const totalPrice    = booking.total_price
     ? `₹${Number(booking.total_price).toLocaleString('en-IN')}`
@@ -461,21 +461,21 @@ async function sendHostelBookingCreated(booking) {
       ['Hostel / Block', hostelName],
       ['Room Number',    roomNumber],
       ['Room Type',      roomType || '—'],
-      ['Check-In',       formatDateOnly(booking.check_in_date)],
-      ['Check-Out',      formatDateOnly(booking.check_out_date)],
-      ['Duration',       `${nights} night${nights !== 1 ? 's' : ''}`],
+      ['Check-In',       formatDateOnly(booking.check_in_datetime)],
+      ['Check-Out',      formatDateOnly(booking.check_out_datetime)],
+      ['Duration',       `${nights} day${nights !== 1 ? 's' : ''}`],
     ])}
 
     <!-- Payment Details -->
     <p style="margin:16px 0 6px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">💳 Payment Details</p>
     ${infoTable([
-      ['Price / Night',  pricePerNight],
+      ['Price / Day',    pricePerNight],
       ['Total Amount',   `<span style="font-size:16px;font-weight:900;color:#1e40af">${totalPrice}</span>`],
       ['Status',         badge('PAYMENT PENDING', '#d97706')],
       ['Reference',      paymentRef],
     ])}
 
-    ${alertBox('⚠️', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved but <strong>not confirmed yet</strong>. Please complete the payment of <strong>${totalPrice}</strong> using reference <strong>${paymentRef}</strong> to secure your stay from <strong>${formatDateOnly(booking.check_in_date)}</strong> to <strong>${formatDateOnly(booking.check_out_date)}</strong>.`, '#fffbeb', BRAND.warning)}
+    ${alertBox('⚠️', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved but <strong>not confirmed yet</strong>. Please complete the payment of <strong>${totalPrice}</strong> using reference <strong>${paymentRef}</strong> to secure your stay from <strong>${formatDateOnly(booking.check_in_datetime)}</strong> to <strong>${formatDateOnly(booking.check_out_datetime)}</strong>.`, '#fffbeb', BRAND.warning)}
   `, BRAND.warning);
 
   await send({
@@ -495,10 +495,10 @@ async function sendHostelBookingConfirmed(booking) {
   const hostelName  = room?.hostel?.name || 'Guest House';
   const roomNumber  = room?.room_number  || '—';
   const roomType    = room?.room_type    || room?.type || '';
-  const nights      = Math.ceil(
-    (new Date(booking.check_out_date) - new Date(booking.check_in_date)) / (1000 * 60 * 60 * 24)
+  const nights      = booking.billable_days || Math.ceil(
+    (new Date(booking.check_out_datetime) - new Date(booking.check_in_datetime)) / (1000 * 60 * 60 * 24)
   );
-  const pricePerNight = room?.price_per_night
+  const pricePerNight = booking.price_per_day || room?.price_per_night
     ? `₹${Number(room.price_per_night).toLocaleString('en-IN')}`
     : '—';
   const totalPrice    = booking.total_price
@@ -518,9 +518,9 @@ async function sendHostelBookingConfirmed(booking) {
       ['Hostel / Block', hostelName],
       ['Room Number',  roomNumber],
       ['Room Type',    roomType || '—'],
-      ['Check-In',     formatDateOnly(booking.check_in_date)],
-      ['Check-Out',    formatDateOnly(booking.check_out_date)],
-      ['Duration',     `${nights} night${nights !== 1 ? 's' : ''}`],
+      ['Check-In',     formatDateOnly(booking.check_in_datetime)],
+      ['Check-Out',    formatDateOnly(booking.check_out_datetime)],
+      ['Duration',     `${nights} day${nights !== 1 ? 's' : ''}`],
     ])}
 
     <!-- Payment Details -->
@@ -532,7 +532,7 @@ async function sendHostelBookingConfirmed(booking) {
       ['Reference',     booking.payment_reference || '—'],
     ])}
 
-    ${alertBox('🏨', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved for you from <strong>${formatDateOnly(booking.check_in_date)}</strong> to <strong>${formatDateOnly(booking.check_out_date)}</strong>.`, '#eff6ff', BRAND.primary)}
+    ${alertBox('🏨', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved for you from <strong>${formatDateOnly(booking.check_in_datetime)}</strong> to <strong>${formatDateOnly(booking.check_out_datetime)}</strong>.`, '#eff6ff', BRAND.primary)}
   `, BRAND.primary);
 
   await send({

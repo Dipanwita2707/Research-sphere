@@ -1,24 +1,51 @@
 const prisma = require('../../../shared/config/database');
 const QRCode = require('qrcode');
 
-const EXPIRY_HOUR_IST = 18; // 6 PM IST - room checkout time (aligned with QR expiry)
+/**
+ * Guest House Billing Rules:
+ * - Standard checkout: 12:00 PM (noon)
+ * - Grace checkout:    17:00 (5 PM) — no extra charge
+ * - After grace:       extra day charged
+ *
+ * Billable days formula:
+ *   base = calendar days between checkIn.date and checkOut.date
+ *   if checkOut.time > 17:00 → billable_days = base + 1
+ *   else                     → billable_days = base
+ */
+const GRACE_CHECKOUT_HOUR = 17; // 5 PM
 
 /**
- * Get cutoff date for active booking detection.
- * Before 6 PM IST: bookings ending today still active (guest has room)
- * After 6 PM IST: bookings ending today expired (room freed at 6 PM)
+ * Calculate billable days based on Guest House schedule rules.
+ * @param {Date} checkInDatetime  - Full check-in datetime
+ * @param {Date} checkOutDatetime - Full check-out datetime
+ * @returns {{ billableDays: number, checkoutTier: string }}
+ */
+const calculateBillableDays = (checkInDatetime, checkOutDatetime) => {
+  const checkIn  = new Date(checkInDatetime);
+  const checkOut = new Date(checkOutDatetime);
+
+  // Calendar day difference (ignoring time)
+  const checkInDay  = new Date(checkIn.getFullYear(),  checkIn.getMonth(),  checkIn.getDate());
+  const checkOutDay = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+  const baseDays = Math.round((checkOutDay - checkInDay) / (1000 * 60 * 60 * 24));
+
+  const checkOutHour = checkOut.getHours() + checkOut.getMinutes() / 60;
+
+  if (checkOutHour > GRACE_CHECKOUT_HOUR) {
+    // After 5 PM grace → extra day
+    return { billableDays: baseDays + 1, checkoutTier: 'after_grace' };
+  }
+  // Standard (≤ 12 PM) or grace (≤ 5 PM) → no extra
+  return { billableDays: Math.max(baseDays, 1), checkoutTier: checkOutHour <= 12 ? 'standard' : 'grace' };
+};
+
+/**
+ * Get booking cutoff for availability overlap detection.
+ * A booking whose checkout is in the past no longer blocks availability.
  */
 const getBookingCutoffDate = () => {
-  const istOffset = 5.5 * 60 * 60 * 1000;
-  const nowIST = new Date(Date.now() + istOffset);
-  const today = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()));
-
-  if (nowIST.getUTCHours() >= EXPIRY_HOUR_IST) {
-    // After 6 PM IST: today's checkouts expired → cutoff = tomorrow
-    return new Date(today.getTime() + 86400000);
-  }
-  // Before 6 PM IST: today's checkouts still active
-  return today;
+  const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  return new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()));
 };
 
 class HostelBookingService {
@@ -30,6 +57,8 @@ class HostelBookingService {
    */
   async getAvailableHostels(checkInDate, checkOutDate) {
     try {
+      const checkInDt  = new Date(checkInDate);
+      const checkOutDt = new Date(checkOutDate);
       const hostels = await prisma.hostel.findMany({
         where: {
           is_active: true
@@ -44,9 +73,9 @@ class HostelBookingService {
                 where: {
                   booking_status: { in: ['confirmed', 'pending'] },
                   AND: [
-                    { check_out_date: { gte: getBookingCutoffDate() } }, // 6 PM IST room release
-                    { check_in_date: { lt: new Date(checkOutDate) } },   // Overlap: existing start < requested end
-                    { check_out_date: { gte: new Date(checkInDate) } }   // Overlap: existing end >= requested start
+                    { check_out_datetime: { gte: getBookingCutoffDate() } },
+                    { check_in_datetime:  { lt: checkOutDt } },
+                    { check_out_datetime: { gte: checkInDt } }
                   ]
                 }
               }
@@ -87,6 +116,8 @@ class HostelBookingService {
    */
   async getRoomsByHostel(hostelId, checkInDate, checkOutDate) {
     try {
+      const checkInDt  = new Date(checkInDate);
+      const checkOutDt = new Date(checkOutDate);
       const rooms = await prisma.hostelRoom.findMany({
         where: {
           hostel_id: hostelId,
@@ -97,9 +128,9 @@ class HostelBookingService {
             where: {
               booking_status: { in: ['confirmed', 'pending'] },
               AND: [
-                { check_out_date: { gte: getBookingCutoffDate() } }, // 6 PM IST room release
-                { check_in_date: { lt: new Date(checkOutDate) } },   // Overlap: existing start < requested end
-                { check_out_date: { gte: new Date(checkInDate) } }   // Overlap: existing end >= requested start
+                { check_out_datetime: { gte: getBookingCutoffDate() } },
+                { check_in_datetime:  { lt: checkOutDt } },
+                { check_out_datetime: { gte: checkInDt } }
               ]
             }
           }
@@ -165,8 +196,9 @@ class HostelBookingService {
       passId,
       hostelId,
       roomId,
-      checkInDate,
-      checkOutDate,
+      checkInDatetime,
+      checkOutDatetime,
+      checkInRemarks,
       guestCount,
       createdById
     } = bookingData;
@@ -199,6 +231,17 @@ class HostelBookingService {
         throw new Error('This pass already has a hostel booking');
       }
 
+      // Validate datetimes
+      const checkIn  = new Date(checkInDatetime);
+      const checkOut = new Date(checkOutDatetime);
+
+      if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+        throw new Error('Invalid check-in or check-out datetime');
+      }
+      if (checkOut <= checkIn) {
+        throw new Error('Check-out must be after check-in');
+      }
+
       // Check room availability
       const room = await prisma.hostelRoom.findUnique({
         where: { id: roomId },
@@ -207,9 +250,9 @@ class HostelBookingService {
             where: {
               booking_status: { in: ['confirmed', 'pending'] },
               AND: [
-                { check_out_date: { gte: getBookingCutoffDate() } }, // 6 PM IST room release
-                { check_in_date: { lt: new Date(checkOutDate) } },   // Overlap: existing start < requested end
-                { check_out_date: { gte: new Date(checkInDate) } }   // Overlap: existing end >= requested start
+                { check_out_datetime: { gte: getBookingCutoffDate() } },
+                { check_in_datetime:  { lt: checkOut } },
+                { check_out_datetime: { gte: checkIn } }
               ]
             }
           }
@@ -232,30 +275,26 @@ class HostelBookingService {
         throw new Error(`Room can accommodate maximum ${room.max_occupancy} guests`);
       }
 
-      // Calculate number of nights
-      const checkIn = new Date(checkInDate);
-      const checkOut = new Date(checkOutDate);
-      const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-
-      if (nights <= 0) {
-        throw new Error('Check-out date must be after check-in date');
-      }
-
-      // Calculate total price
-      const totalPrice = room.price_per_night * nights;
+      // Calculate billable days using Guest House schedule rules
+      const { billableDays, checkoutTier } = calculateBillableDays(checkIn, checkOut);
+      const pricePerDay = parseFloat(room.price_per_night);
+      const totalPrice  = pricePerDay * billableDays;
 
       // Create booking
       const booking = await prisma.hostelBooking.create({
         data: {
-          gate_pass: { connect: { id: gatePassUUID } },
-          room: { connect: { id: roomId } },
-          check_in_date: checkIn,
-          check_out_date: checkOut,
-          guest_count: guestCountInt, // Use converted integer
-          total_price: totalPrice,
-          booking_status: 'pending',
-          payment_status: 'pending',
-          created_by: { connect: { id: createdById } }
+          gate_pass:        { connect: { id: gatePassUUID } },
+          room:             { connect: { id: roomId } },
+          check_in_datetime:  checkIn,
+          check_out_datetime: checkOut,
+          check_in_remarks:   checkInRemarks || null,
+          guest_count:        guestCountInt,
+          billable_days:      billableDays,
+          price_per_day:      pricePerDay,
+          total_price:        totalPrice,
+          booking_status:     'pending',
+          payment_status:     'pending',
+          created_by:         { connect: { id: createdById } }
         },
         include: {
           room: {

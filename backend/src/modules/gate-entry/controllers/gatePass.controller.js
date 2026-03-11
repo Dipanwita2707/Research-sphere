@@ -608,8 +608,9 @@ class GatePassController {
         passId: req.body.passId,
         hostelId: req.body.hostelId,
         roomId: req.body.roomId,
-        checkInDate: new Date(req.body.checkInDate),
-        checkOutDate: new Date(req.body.checkOutDate),
+        checkInDatetime: req.body.checkInDatetime,
+        checkOutDatetime: req.body.checkOutDatetime,
+        checkInRemarks: req.body.checkInRemarks || null,
         guestCount: req.body.guestCount,
         createdById: userId
       };
