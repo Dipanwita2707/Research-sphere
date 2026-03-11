@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -34,7 +34,10 @@ import {
   Settings,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
+import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Event, OpportunityMode, ParticipationType, EventPrize, PrizeType, EventCustomField, EventFieldType } from '@/features/event-management/types/event.types';
+import { SponsorshipManager } from '@/features/noting-management/components/SponsorshipManager';
+import type { SponsorData } from '@/features/noting-management/components/FestivalForm';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
@@ -179,10 +182,40 @@ export default function ManageEventPage() {
   const [dutyLeaveEligibility, setDutyLeaveEligibility] = useState<string[]>([]);
   const [dutyLeaveRoleType, setDutyLeaveRoleType] = useState<'participants' | 'organizers' | 'both' | null>(null);
   const [hasSponsorship, setHasSponsorship] = useState<boolean | null>(null);
-  const [sponsors, setSponsors] = useState<Array<{ name: string; amount: number; type: string; notes?: string }>>([]);
+  const [sponsors, setSponsors] = useState<any[]>([]);
   const [showSponsorshipPublicly, setShowSponsorshipPublicly] = useState(false);
   const [hasResources, setHasResources] = useState<boolean | null>(null);
   const [resources, setResources] = useState<Array<{ category: string; type: string; description: string; estimatedCost?: number }>>([]);
+
+  // Sponsor receipt upload helper (reuses noting attachment endpoint)
+  const handleSponsorReceiptUpload = useCallback(async (file: File): Promise<{ filePath: string; fileName: string } | null> => {
+    try {
+      const filePath = await notingService.uploadAttachment(file);
+      return { filePath, fileName: file.name };
+    } catch {
+      toast({ type: 'error', message: `Failed to upload receipt: ${file.name}` });
+      return null;
+    }
+  }, [toast]);
+
+  // Sponsor assignment search helper
+  const handleSponsorSearchEmployees = useCallback(async (query: string) => {
+    const results = await notingService.searchEmployees(query);
+    return results.map(u => ({ id: u.id, uid: u.uid, displayName: u.displayName, department: u.department }));
+  }, []);
+
+  // Per-sponsor save: persist savedAt to backend immediately
+  const handleSponsorSaved = useCallback(async (updatedSponsors: any[]) => {
+    if (!event) return;
+    try {
+      const updated = await eventService.updateEvent(eventId, { sponsors: updatedSponsors } as any);
+      setEvent(updated);
+      if (Array.isArray(updated.sponsors)) setSponsors(updated.sponsors);
+      toast({ type: 'success', message: 'Sponsor saved & locked successfully' });
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) });
+    }
+  }, [event, eventId, toast]);
 
   useEffect(() => {
     loadEvent();
@@ -627,6 +660,8 @@ export default function ManageEventPage() {
       }
       
       setEvent(updated);
+      // Re-sync sponsors from API response to persist savedAt/originalSnapshot
+      if (Array.isArray(updated.sponsors)) setSponsors(updated.sponsors);
       toast({ type: 'success', message: 'Event saved successfully' });
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
@@ -687,8 +722,10 @@ export default function ManageEventPage() {
 
   // --- Design tokens (matching Noting UI) ---
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">{children}</h3>
+    <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">{children}</h3>
   );
+
+  const sectionClass = 'border-t border-slate-200/80 dark:border-gray-700/80 pt-6';
 
   const inputClass = 'w-full px-3 py-2.5 text-sm border border-[#b3cde0] dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-ev-900 dark:text-white focus:ring-1 focus:ring-ev-700 focus:border-ev-700 outline-none';
   const inputErrClass = (field: string) => fieldErrors[field] ? 'border-red-400 dark:border-red-500 focus:ring-red-400 focus:border-red-400' : '';
@@ -722,7 +759,7 @@ export default function ManageEventPage() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-6 px-4">
-      <div className="max-w-[850px] mx-auto">
+      <div className="max-w-[1280px] mx-auto">
         {/* Navigation */}
         <Link
           href="/events/my-events"
@@ -780,13 +817,13 @@ export default function ManageEventPage() {
           </div>
 
           {/* ── Document Body ── */}
-          <div className="px-4 sm:px-8 py-6 space-y-7">
+          <div className="px-4 sm:px-8 lg:px-10 py-6 space-y-0">
 
             {/* ====== STEP 1: Basic Information ====== */}
             {currentStep === 1 && (
               <>
             {/* ====== Locked Fields (from Noting) ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Locked Fields (from Noting)</SectionLabel>
               <div className="bg-gray-50 dark:bg-gray-900/20 rounded-md border border-[#b3cde0] dark:border-gray-700 p-4">
                 <div className="flex items-start gap-2 mb-3">
@@ -842,41 +879,10 @@ export default function ManageEventPage() {
               </div>
             </section>
 
-            {/* ====== Event Branding ====== */}
-            <section>
-              <SectionLabel>Event Branding</SectionLabel>
-              <div className="space-y-4">
-                {/* Banner */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                    Event Banner <span className="text-xs text-gray-400 font-normal">(Recommended: 1200×400px)</span>
-                  </label>
-                  {bannerPreview ? (
-                    <div className="relative group rounded-md overflow-hidden border border-[#b3cde0] dark:border-gray-600">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={bannerPreview} alt="Banner" className="w-full h-40 object-cover" />
-                      <button
-                        onClick={() => handleRemoveImage('banner')}
-                        type="button"
-                        className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-800/90 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity border border-[#b3cde0] dark:border-gray-600"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-[#b3cde0] dark:border-gray-600 rounded-md cursor-pointer hover:border-[#b3cde0] transition-colors">
-                      <Upload className="w-6 h-6 text-gray-300 mb-2" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload banner</p>
-                      <p className="text-xs text-gray-400 mt-0.5">PNG, JPG up to 5MB</p>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('banner', f); }}
-                      />
-                    </label>
-                  )}
-                </div>
+            {/* ====== Event Branding & Description ====== */}
+            <section className={sectionClass}>
+              <SectionLabel>Event Logo & Short Description</SectionLabel>
+              <div className="grid md:grid-cols-2 gap-6">
                 {/* Logo */}
                 <div id="field-logo">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
@@ -908,13 +914,8 @@ export default function ManageEventPage() {
                   )}
                   <FieldError field="logo" />
                 </div>
-              </div>
-            </section>
 
-            {/* ====== Description ====== */}
-            <section>
-              <SectionLabel>Description</SectionLabel>
-              <div className="space-y-4">
+                {/* Short Description */}
                 <div id="field-description">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                     Short Description <span className="text-red-500">*</span>
@@ -935,6 +936,50 @@ export default function ManageEventPage() {
                   </div>
                   <FieldError field="description" />
                 </div>
+              </div>
+            </section>
+
+            {/* ====== Event Banner ====== */}
+            <section className={sectionClass}>
+              <SectionLabel>Event Banner</SectionLabel>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Event Banner <span className="text-xs text-gray-400 font-normal">(Recommended: 1200×400px)</span>
+                  </label>
+                  {bannerPreview ? (
+                    <div className="relative group rounded-md overflow-hidden border border-[#b3cde0] dark:border-gray-600">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={bannerPreview} alt="Banner" className="w-full h-40 object-cover" />
+                      <button
+                        onClick={() => handleRemoveImage('banner')}
+                        type="button"
+                        className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-800/90 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity border border-[#b3cde0] dark:border-gray-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-36 border-2 border-dashed border-[#b3cde0] dark:border-gray-600 rounded-md cursor-pointer hover:border-[#b3cde0] transition-colors">
+                      <Upload className="w-6 h-6 text-gray-300 mb-2" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Click to upload banner</p>
+                      <p className="text-xs text-gray-400 mt-0.5">PNG, JPG up to 5MB</p>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('banner', f); }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* ====== Description ====== */}
+            <section className={sectionClass}>
+              <SectionLabel>Detailed Description</SectionLabel>
+              <div className="space-y-4">
                 <div id="field-longDescription">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                     Detailed Description <span className="text-red-500">*</span>
@@ -959,7 +1004,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== Venue & Capacity ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Venue & Capacity</SectionLabel>
               <div className="space-y-4">
                 <div>
@@ -975,7 +1020,7 @@ export default function ManageEventPage() {
                     required
                   />
                 </div>
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                       Maximum Capacity
@@ -1028,7 +1073,6 @@ export default function ManageEventPage() {
                       {!event.notingId && registrationFee !== '' && Number(registrationFee) < 1 && (
                         <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3 shrink-0" />Participation fee must be at least ₹1.</p>
                       )}
-                      <p className="mt-1 text-xs text-gray-400">Each participant will be charged this fee individually at the time of registration.</p>
                     </div>
                   )}
                   {event.paymentType === 'paid' && participationType === 'team' && (
@@ -1057,7 +1101,6 @@ export default function ManageEventPage() {
                       {!event.notingId && teamRegistrationFee !== '' && Number(teamRegistrationFee) < 1 && (
                         <p className="mt-1 text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3 shrink-0" />Participation fee must be at least ₹1.</p>
                       )}
-                      <p className="mt-1 text-xs text-gray-400">This is the total fee charged per team. It will be split equally among all team members based on the max team size set below.</p>
                     </div>
                   )}
                 </div>
@@ -1065,7 +1108,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== Additional Details (from Noting) ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Additional Details (from Noting)</SectionLabel>
               {event.notingId && (
                 <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
@@ -1153,22 +1196,14 @@ export default function ManageEventPage() {
                         />
                         Show sponsorship to users on event page (creator decides at publish)
                       </label>
-                      {sponsors.map((s, i) => (
-                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-[#b3cde0] dark:border-gray-600 rounded-md min-w-0">
-                          <input value={s.name} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Sponsor name" disabled={!!event.notingId} className={`${inputClass} !w-auto flex-1 min-w-0 disabled:cursor-not-allowed`} />
-                          <select value={s.type} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`}>
-                            <option value="cash">Cash</option>
-                            <option value="in_kind">In-kind</option>
-                          </select>
-                          {s.type === 'cash' ? (
-                            <input type="number" value={s.amount || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, amount: Number(e.target.value) || 0 } : x))} placeholder="Amount (₹)" disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`} />
-                          ) : (
-                            <input type="text" value={s.notes || ''} onChange={(e) => !event.notingId && setSponsors(prev => prev.map((x, j) => j === i ? { ...x, notes: e.target.value } : x))} placeholder="Describe in-kind (e.g. Laptops, Food)" disabled={!!event.notingId} className={`${inputClass} !w-auto flex-1 min-w-[180px] disabled:cursor-not-allowed`} />
-                          )}
-                          {!event.notingId && <button type="button" onClick={() => setSponsors(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
-                        </div>
-                      ))}
-                      {!event.notingId && <button type="button" onClick={() => setSponsors(prev => [...prev, { name: '', amount: 0, type: 'cash' }])} className="text-sm text-ev-700 hover:text-ev-800">+ Add sponsor</button>}
+                      <SponsorshipManager
+                        sponsors={sponsors as SponsorData[]}
+                        onChange={setSponsors}
+                        notingLocked={!!event.notingId}
+                        onUploadReceipt={handleSponsorReceiptUpload}
+                        searchEmployees={handleSponsorSearchEmployees}
+                        onSponsorSaved={handleSponsorSaved}
+                      />
                     </div>
                   )}
                 </div>
@@ -1208,7 +1243,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== Registration Period ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Registration Period</SectionLabel>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div id="field-registrationStartDate">
@@ -1241,7 +1276,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== Contact & Communication ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Contact & Communication</SectionLabel>
               <div className="space-y-4">
                 <div id="field-contactPersonName">
@@ -1270,7 +1305,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== Additional Details ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Additional Details</SectionLabel>
               <div className="space-y-4">
                 <div>
@@ -1290,7 +1325,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== FAQs (Step 1) ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>FAQs (Optional)</SectionLabel>
               {faqs.length > 0 && (
                 <div className="space-y-2 mb-3">
@@ -1313,7 +1348,7 @@ export default function ManageEventPage() {
               <>
             {/* ====== Participation & Capacity ====== */}
             {event.paymentType === 'paid' && (
-              <section>
+              <section className={sectionClass}>
                 <SectionLabel>Participation &amp; Capacity</SectionLabel>
                 <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
                   <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900/20 border-b border-[#b3cde0]/30 dark:border-gray-700 flex items-center justify-between">
@@ -1355,7 +1390,7 @@ export default function ManageEventPage() {
             )}
 
             {/* ====== Participation & Mode ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Participation & Mode</SectionLabel>
               {event.notingId && (
                 <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
@@ -1467,7 +1502,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== Registration Control Settings ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Registration Control Settings</SectionLabel>
               <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -1505,7 +1540,7 @@ export default function ManageEventPage() {
 
             {/* ====== Team Discovery Settings ====== */}
             {participationType === 'team' && (
-              <section>
+              <section className={sectionClass}>
                 <SectionLabel>Team Discovery Settings</SectionLabel>
                 <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 p-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1536,7 +1571,7 @@ export default function ManageEventPage() {
             {currentStep === 3 && (
               <>
             {/* ====== Prize Configuration ====== */}
-            <section>
+            <section className={sectionClass}>
               <div className="flex items-center justify-between mb-3">
                 <SectionLabel>Prize Configuration</SectionLabel>
                 <label className={`flex items-center gap-2 ${isPrizeConfigLocked ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`}>
@@ -1589,7 +1624,7 @@ export default function ManageEventPage() {
             </section>
 
             {/* ====== Custom Registration Questions ====== */}
-            <section>
+            <section className={sectionClass}>
               <SectionLabel>Custom Registration Questions</SectionLabel>
               <div className="rounded-md border border-[#b3cde0] dark:border-gray-700 overflow-hidden">
                 <div className="p-4 border-b border-[#b3cde0] dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30">
@@ -1642,15 +1677,17 @@ export default function ManageEventPage() {
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-2 sm:gap-3">
-                <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-ev-700 text-white text-sm font-medium rounded-md hover:bg-ev-800 disabled:opacity-50 flex items-center gap-2 transition-colors">
-                  {saving ? <Skeleton className="w-4 h-4 rounded-sm" /> : <Save className="w-4 h-4" />}<span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Save</span>
-                </button>
-                <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
-                  {publishing ? <Skeleton className="w-4 h-4 rounded-sm" /> : <CheckCircle className="w-4 h-4" />}
-                  <span className="hidden sm:inline">{event.status === 'published' ? 'Update & Republish' : 'Save & Publish'}</span><span className="sm:hidden">Publish</span>
-                </button>
-              </div>
+              {currentStep === STEPS.length && (
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <button type="button" onClick={handleSave} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-ev-700 text-white text-sm font-medium rounded-md hover:bg-ev-800 disabled:opacity-50 flex items-center gap-2 transition-colors">
+                    {saving ? <Skeleton className="w-4 h-4 rounded-sm" /> : <Save className="w-4 h-4" />}<span className="hidden sm:inline">Save Draft</span><span className="sm:hidden">Save</span>
+                  </button>
+                  <button type="button" onClick={handlePublish} disabled={saving || publishing} className="px-3 sm:px-5 py-2.5 min-h-[44px] bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2 transition-colors">
+                    {publishing ? <Skeleton className="w-4 h-4 rounded-sm" /> : <CheckCircle className="w-4 h-4" />}
+                    <span className="hidden sm:inline">{event.status === 'published' ? 'Update & Republish' : 'Save & Publish'}</span><span className="sm:hidden">Publish</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

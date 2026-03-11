@@ -886,23 +886,33 @@ export default function NotingListPage() {
               const hasApproverActed =
                 approverActions.length > 0 ||
                 (note.history === undefined && (note._count?.history ?? 0) > 1);
-              const canEditOrDelete =
+              // For reverted notes, only the creator can edit (revert sends it back for modifications)
+              // Reverted notes cannot be deleted since they've been through the approval flow
+              const canEdit =
                 filter === "mine" &&
                 note.status !== "approved" &&
                 note.status !== "rejected" &&
+                (note.status === "reverted"
+                  ? note.createdById === currentUserId
+                  : !hasApproverActed);
+              const canDelete =
+                filter === "mine" &&
+                note.status !== "approved" &&
+                note.status !== "rejected" &&
+                note.status !== "reverted" &&
                 !hasApproverActed;
 
               return (
                 <Link
                   key={note.id}
                   href={
-                    note.status === "draft" || note.status === "reverted"
+                    note.status === "draft" || (note.status === "reverted" && note.createdById === currentUserId)
                       ? `/noting/new?draft=${note.id}`
                       : `/noting/${note.id}`
                   }
                   className="group block"
                   onMouseEnter={() => {
-                    if (note.status !== "draft" && note.status !== "reverted") {
+                    if (note.status !== "draft" && !(note.status === "reverted" && note.createdById === currentUserId)) {
                       queryClient.prefetchQuery({
                         queryKey: NOTING_QUERY_KEYS.detail(note.id),
                         queryFn: () => notingService.getById(note.id),
@@ -1005,7 +1015,7 @@ export default function NotingListPage() {
                             className="flex items-center gap-0.5"
                             onClick={(e) => e.preventDefault()}
                           >
-                            {canEditOrDelete &&
+                            {canEdit &&
                               note.status !== "approved" &&
                               note.status !== "rejected" && (
                                 <Link
@@ -1017,7 +1027,7 @@ export default function NotingListPage() {
                                   <Pencil className="w-3.5 h-3.5" />
                                 </Link>
                               )}
-                            {canEditOrDelete && (
+                            {canDelete && (
                               <button
                                 type="button"
                                 onClick={(e) => handleDeleteDraft(e, note)}

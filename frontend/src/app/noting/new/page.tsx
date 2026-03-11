@@ -4,10 +4,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCircle, User, Send, Save, Paperclip, AlertCircle, List, Calendar } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCircle, XCircle, User, Send, Save, Paperclip, AlertCircle, List, Calendar, RotateCcw, ArrowRight, ThumbsUp, ThumbsDown, CornerDownLeft, Copy } from 'lucide-react';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { NotingPermissions } from '@/features/noting-management/services/noting.service';
-import type { NoteConfig, CreatorInfo, CreateNotePayload } from '@/features/noting-management/types/noting.types';
+import type { NoteConfig, CreatorInfo, CreateNotePayload, NoteHistoryEntry } from '@/features/noting-management/types/noting.types';
 import { useNotingPermissions, useNotingConfig, useCreatorInfo } from '@/features/noting-management/hooks/useNoting';
 import {
   EventTypeSelector,
@@ -16,6 +16,8 @@ import {
   defaultVenueForm,
 } from '@/features/noting-management/components';
 import type { NotingEventType, StallConfig, FestivalFormData, VenueFormData } from '@/features/noting-management/components';
+import { defaultEventVisibilityForm } from '@/features/event-management/components/EventSettingsForm';
+import type { EventVisibilityFormData } from '@/features/event-management/components/EventSettingsForm';
 
 // Dynamic imports for MUI-heavy form components (~90 KB DateTimePicker bundle)
 const FestivalForm = dynamic(
@@ -28,6 +30,10 @@ const StallConfigSection = dynamic(
 );
 const EventFormFields = dynamic(
   () => import('@/features/noting-management/components/EventFormFields').then(mod => ({ default: mod.EventFormFields })),
+  { ssr: false },
+);
+const EventSettingsForm = dynamic(
+  () => import('@/features/event-management/components/EventSettingsForm').then(mod => ({ default: mod.EventSettingsForm })),
   { ssr: false },
 );
 import { useToast } from '@/shared/ui-components/Toast';
@@ -54,7 +60,7 @@ const FILE_MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per file
 const AMOUNT_MAX = 10_00_000; // 10 lakh
 
 const DEBOUNCE_SYNC_MS = 400;
-const DEBOUNCE_AUTOSAVE_MS = 2000;
+const DEBOUNCE_AUTOSAVE_MS = 5000;
 
 /** Build event payload from shared VenueFormData (used for venue & stall) */
 function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> {
@@ -71,7 +77,17 @@ function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> 
     eventDutyLeaveEligibility: v.eventDutyLeaveAvailable && v.eventDutyLeaveEligibility.length > 0 ? v.eventDutyLeaveEligibility : null,
     eventDutyLeaveRoleType: v.eventDutyLeaveAvailable ? v.eventDutyLeaveRoleType : null,
     eventHasSponsorship: v.eventHasSponsorship,
-    eventSponsors: v.eventHasSponsorship ? v.eventSponsors.map((s) => ({ ...s, amount: s.amount === '' ? 0 : Number(s.amount) })) : null,
+    eventSponsors: v.eventHasSponsorship ? v.eventSponsors.map((s) => ({
+      ...s,
+      id: s.id || crypto.randomUUID(),
+      originSource: 'noting' as const,
+      cashAmount: s.cashAmount === '' ? 0 : Number(s.cashAmount),
+      inKindItems: (s.inKindItems || []).map((item) => ({
+        ...item,
+        quantity: item.quantity === '' ? 0 : Number(item.quantity),
+        estimatedValue: item.estimatedValue === '' ? 0 : Number(item.estimatedValue),
+      })),
+    })) : null,
     eventHasResources: v.eventHasResources,
     eventResources: v.eventHasResources ? v.eventResources.map((r) => ({
       type: r.type,
@@ -118,7 +134,36 @@ function noteToVenueFormData(note: Record<string, unknown>): VenueFormData {
     eventDutyLeaveEligibility: Array.isArray(note.eventDutyLeaveEligibility) ? ((note.eventDutyLeaveEligibility as string[]).includes('students') ? ['ug', 'pg', 'phd'] : (note.eventDutyLeaveEligibility as string[])) : [],
     eventDutyLeaveRoleType: (note.eventDutyLeaveRoleType as 'participants' | 'organizers' | 'both') || undefined,
     eventHasSponsorship: (note.eventHasSponsorship as boolean | null) ?? null,
-    eventSponsors: sponsors.map((s) => ({ name: s.name || '', amount: s.amount ?? '', type: s.type || 'cash', notes: s.notes || '' })),
+    eventSponsors: sponsors.map((s: any) => ({
+      name: s.name || '',
+      sponsorType: s.sponsorType || 'corporate',
+      contactPerson: s.contactPerson || '',
+      designation: s.designation || '',
+      phone: s.phone || '',
+      email: s.email || '',
+      notes: s.notes || '',
+      contributionType: s.contributionType || (s.type === 'in_kind' ? 'in_kind' : 'cash'),
+      cashAmount: s.cashAmount ?? (s.amount ?? ''),
+      paymentStatus: s.paymentStatus || 'pending',
+      paymentMethod: s.paymentMethod || '',
+      paymentMethodOtherLabel: s.paymentMethodOtherLabel || '',
+      transactionId: s.transactionId || '',
+      receipt: s.receipt || null,
+      sponsorLogo: s.sponsorLogo || null,
+      cashAssignedTo: s.cashAssignedTo || null,
+      // Preserve identity & origin for locking
+      id: s.id || undefined,
+      originSource: s.originSource || undefined,
+      inKindItems: Array.isArray(s.inKindItems) ? s.inKindItems.map((item: any) => ({
+        itemName: item.itemName || '',
+        category: item.category || '',
+        quantity: item.quantity ?? '',
+        estimatedValue: item.estimatedValue ?? '',
+        description: item.description || '',
+        assignedTo: item.assignedTo || null,
+        deliveryStatus: item.deliveryStatus || 'pending',
+      })) : [],
+    })),
     eventHasResources: (note.eventHasResources as boolean | null) ?? null,
     eventResources: resources.map((r) => ({ type: r.type || '', description: r.description || '', pricePerPiece: r.pricePerPiece ?? '', quantity: r.quantity ?? '' })),
     eventCertification: (note.eventCertification as boolean | null) ?? null,
@@ -195,6 +240,7 @@ export default function NewNotePage() {
   const [submitting, setSubmitting] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [isRevertedNote, setIsRevertedNote] = useState(false);
+  const [revertHistory, setRevertHistory] = useState<NoteHistoryEntry[]>([]);
   // Derived from URL — no useState needed; updates instantly when Next.js redirects
   const isEditingExistingDraft = !!draftIdFromUrl;
 
@@ -234,6 +280,8 @@ export default function NewNotePage() {
 
   // Optional club association for event notings
   const [eventClubId, setEventClubId] = useState<string | null>(null);
+  // Event visibility/settings for noting form
+  const [eventVisibilitySettings, setEventVisibilitySettings] = useState<EventVisibilityFormData>({ ...defaultEventVisibilityForm });
   const [facilitatorClubs, setFacilitatorClubs] = useState<import('@/features/noting-management/services/noting.service').FacilitatorClub[]>([]);
   const [facilitatorClubsLoading, setFacilitatorClubsLoading] = useState(false);
 
@@ -304,6 +352,9 @@ export default function NewNotePage() {
 
     const loadDraftIntoForm = (note: Awaited<ReturnType<typeof notingService.getById>>) => {
       setIsRevertedNote(note.status === 'reverted');
+      if (note.status === 'reverted' && note.history) {
+        setRevertHistory(note.history);
+      }
 
       hydrateFromNote({
         category: note.category,
@@ -342,6 +393,10 @@ export default function NewNotePage() {
       if ((note as any).stallConfig) setStallConfig((note as any).stallConfig);
       // Restore club association
       if ((note as any).eventClubId) setEventClubId((note as any).eventClubId);
+      // Restore event visibility/settings
+      if ((note as any).eventVisibilitySettings) {
+        setEventVisibilitySettings({ ...defaultEventVisibilityForm, ...(note as any).eventVisibilitySettings });
+      }
       if ((note as any).festivalMeta || Array.isArray((note as any).subEvents)) {
         setFestivalData((prev) => ({
           ...prev,
@@ -384,6 +439,12 @@ export default function NewNotePage() {
             setDraftLoaded(true);
             return;
           }
+          // Only the creator can edit a reverted note
+          if (note.status === 'reverted' && note.createdById !== user?.id) {
+            toast({ type: 'error', message: 'Only the creator can edit a reverted note' });
+            router.push(`/noting/${note.id}`);
+            return;
+          }
           loadDraftIntoForm(note);
         })
         .catch(() => {
@@ -415,6 +476,7 @@ export default function NewNotePage() {
     setAnnexures([]);
     setVenueFormData({ ...defaultVenueForm });
     setIsRevertedNote(false);
+    setRevertHistory([]);
     setNotingIdPreview('');
     setNotingYearAndSequence(null);
     setDraftLoaded(true);
@@ -567,6 +629,10 @@ export default function NewNotePage() {
             eventPayload.eventPaymentType = 'free';
           }
         }
+        // Add event visibility settings if configured
+        if (eventVisibilitySettings?.visibleToRoles && eventVisibilitySettings.visibleToRoles.length > 0) {
+          eventPayload.eventVisibilitySettings = eventVisibilitySettings;
+        }
       }
 
       // PERF: Compare JSON snapshot to skip no-op autosaves.
@@ -616,7 +682,7 @@ export default function NewNotePage() {
   }, [
     draftLoaded, config, draftId, category, subcategory, description,
     approvalPeriod, recurringFrequency, policyCompliance, amountRequired,
-    amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, setDraftId,
+    amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventVisibilitySettings, setDraftId,
   ]);
 
   // Strip HTML tags and count words for the rich text editor
@@ -646,6 +712,41 @@ export default function NewNotePage() {
     setPointDraggedIndex(null);
     setPointDropTargetIndex(null);
   };
+
+  // ── Sponsor receipt upload helper ──
+  const handleSponsorReceiptUpload = useCallback(async (file: File): Promise<{ filePath: string; fileName: string } | null> => {
+    try {
+      const filePath = await notingService.uploadAttachment(file);
+      return { filePath, fileName: file.name };
+    } catch {
+      toast({ type: 'error', message: `Failed to upload receipt: ${file.name}` });
+      return null;
+    }
+  }, [toast]);
+
+  const handleSponsorLogoUpload = useCallback(async (file: File): Promise<{ filePath: string; fileName: string } | null> => {
+    const isAllowedType = ['image/jpeg', 'image/png'].includes(file.type);
+    const isAllowedName = /\.(jpe?g|png)$/i.test(file.name);
+
+    if (!isAllowedType && !isAllowedName) {
+      toast({ type: 'error', message: 'Only JPG and PNG sponsor logos are allowed.' });
+      return null;
+    }
+
+    try {
+      const filePath = await notingService.uploadAttachment(file);
+      return { filePath, fileName: file.name };
+    } catch {
+      toast({ type: 'error', message: `Failed to upload logo: ${file.name}` });
+      return null;
+    }
+  }, [toast]);
+
+  // ── Sponsor assignment search helper ──
+  const handleSponsorSearchEmployees = useCallback(async (query: string) => {
+    const results = await notingService.searchEmployees(query);
+    return results.map(u => ({ id: u.id, uid: u.uid, displayName: u.displayName, department: u.department }));
+  }, []);
 
   const acceptFile = (file: File) =>
     /\.(pdf|doc|docx|xls|xlsx|txt|zip)$/i.test(file.name) || file.type.startsWith('image/');
@@ -752,6 +853,8 @@ export default function NewNotePage() {
       if (eventClubId) {
         basePayload.eventClubId = eventClubId;
       }
+      // Event visibility/settings
+      (basePayload as any).eventVisibilitySettings = eventVisibilitySettings;
       if (notingEventType === 'festival') {
         (basePayload as any).festivalMeta = {
           name: festivalData.festivalName,
@@ -778,7 +881,13 @@ export default function NewNotePage() {
     }
 
     return basePayload;
-  }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventClubId]);
+  }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventClubId, eventVisibilitySettings]);
+
+  const scrollToSection = (id: string) => {
+    setTimeout(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
 
   const handleSubmit = (asDraft: boolean) => {
     if (!config) return;
@@ -826,109 +935,197 @@ export default function NewNotePage() {
       if (isEventNoting) {
         if (!notingEventType) {
           toast({ type: 'error', message: 'Please select Event Structure: Venue Event, Stall-Based Event, or Fest.' });
-          return;
+          scrollToSection('section-event-details'); return;
         }
         if (notingEventType === 'festival') {
-          if (!festivalData.festivalName?.trim()) { toast({ type: 'error', message: 'Please enter the Festival Name.' }); return; }
-          if (!festivalData.startDate) { toast({ type: 'error', message: 'Please select the Festival Start Date.' }); return; }
-          if (!festivalData.endDate) { toast({ type: 'error', message: 'Please select the Festival End Date.' }); return; }
+          if (!festivalData.festivalName?.trim()) { toast({ type: 'error', message: 'Please enter the Festival Name.' }); scrollToSection('section-event-details'); return; }
+          if (!festivalData.startDate) { toast({ type: 'error', message: 'Please select the Festival Start Date.' }); scrollToSection('section-event-details'); return; }
+          if (!festivalData.endDate) { toast({ type: 'error', message: 'Please select the Festival End Date.' }); scrollToSection('section-event-details'); return; }
           const todayStart = new Date();
           todayStart.setHours(0, 0, 0, 0);
           if (festivalData.startDate && new Date(festivalData.startDate) < todayStart) {
-            toast({ type: 'error', message: 'Festival Start Date cannot be in the past. Please select a future date.' }); return;
+            toast({ type: 'error', message: 'Festival Start Date cannot be in the past. Please select a future date.' }); scrollToSection('section-event-details'); return;
           }
           if (festivalData.startDate && festivalData.endDate && new Date(festivalData.endDate) < new Date(festivalData.startDate)) {
-            toast({ type: 'error', message: 'Festival End Date should be after Start Date. Please correct the dates.' }); return;
+            toast({ type: 'error', message: 'Festival End Date should be after Start Date. Please correct the dates.' }); scrollToSection('section-event-details'); return;
           }
           if (festivalData.subEvents.length === 0) {
-            toast({ type: 'error', message: 'Please add at least one sub-event to the festival.' }); return;
+            toast({ type: 'error', message: 'Please add at least one sub-event to the festival.' }); scrollToSection('section-event-details'); return;
           }
           for (let i = 0; i < festivalData.subEvents.length; i++) {
             const se = festivalData.subEvents[i];
             const v = se.venueFormData;
             const label = `Sub-Event #${i + 1}`;
-            if (!v.eventName?.trim()) { toast({ type: 'error', message: `${label}: Please enter the Event Name.` }); return; }
-            if (!v.eventType) { toast({ type: 'error', message: `${label}: Please select the Event Type.` }); return; }
-            if (!v.eventStartDate) { toast({ type: 'error', message: `${label}: Please select the Start Date.` }); return; }
-            if (!v.eventEndDate) { toast({ type: 'error', message: `${label}: Please select the End Date.` }); return; }
+            if (!v.eventName?.trim()) { toast({ type: 'error', message: `${label}: Please enter the Event Name.` }); scrollToSection('section-event-details'); return; }
+            if (!v.eventType) { toast({ type: 'error', message: `${label}: Please select the Event Type.` }); scrollToSection('section-event-details'); return; }
+            if (!v.eventStartDate) { toast({ type: 'error', message: `${label}: Please select the Start Date.` }); scrollToSection('section-event-details'); return; }
+            if (!v.eventEndDate) { toast({ type: 'error', message: `${label}: Please select the End Date.` }); scrollToSection('section-event-details'); return; }
             const subToday = new Date();
             subToday.setHours(0, 0, 0, 0);
             if (v.eventStartDate && new Date(v.eventStartDate) < subToday) {
-              toast({ type: 'error', message: `${label}: Start Date cannot be in the past. Please select a future date.` }); return;
+              toast({ type: 'error', message: `${label}: Start Date cannot be in the past. Please select a future date.` }); scrollToSection('section-event-details'); return;
             }
             if (v.eventStartDate && v.eventEndDate && new Date(v.eventEndDate) < new Date(v.eventStartDate)) {
-              toast({ type: 'error', message: `${label}: End Date should be after Start Date. Please correct the dates.` }); return;
+              toast({ type: 'error', message: `${label}: End Date should be after Start Date. Please correct the dates.` }); scrollToSection('section-event-details'); return;
+            }
+            if (v.eventApproxCapacity === '' || v.eventApproxCapacity === undefined) { toast({ type: 'error', message: `${label}: Please enter the Approximate Capacity.` }); scrollToSection('section-event-details'); return; }
+            if (v.eventDutyLeaveAvailable === null) {
+              toast({ type: 'error', message: `${label}: Please select Yes or No for Duty Leave Required.` }); scrollToSection('section-event-details'); return;
+            }
+            if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
+              toast({ type: 'error', message: `${label}: Please select Duty Leave eligibility when Duty Leave is enabled.` }); scrollToSection('section-event-details'); return;
+            }
+            if (v.eventHasSponsorship === null) {
+              toast({ type: 'error', message: `${label}: Please select Yes or No for Sponsorship Available.` }); scrollToSection('section-event-details'); return;
             }
             if (v.eventHasSponsorship === true) {
               const valid = (v.eventSponsors || []).filter((s) => s?.name?.trim());
-              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one sponsor with a name when Sponsorship is enabled.` }); return; }
+              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one sponsor with a name when Sponsorship is enabled.` }); scrollToSection('section-event-details'); return; }
+              // Validate all required sponsor information
+              const allSponsors = (v.eventSponsors || []).filter((s) => s?.name?.trim());
+              for (const sponsor of allSponsors) {
+                if (!sponsor.sponsorType) {
+                  toast({ type: 'error', message: `${label}: Sponsor "${sponsor.name}" - Sponsor Type is required.` }); scrollToSection('section-event-details'); return;
+                }
+                if (!sponsor.contactPerson?.trim()) {
+                  toast({ type: 'error', message: `${label}: Sponsor "${sponsor.name}" - Contact Person is required.` }); scrollToSection('section-event-details'); return;
+                }
+                if (!sponsor.designation?.trim()) {
+                  toast({ type: 'error', message: `${label}: Sponsor "${sponsor.name}" - Designation is required.` }); scrollToSection('section-event-details'); return;
+                }
+                if (!sponsor.phone?.trim()) {
+                  toast({ type: 'error', message: `${label}: Sponsor "${sponsor.name}" - Phone number is required.` }); scrollToSection('section-event-details'); return;
+                }
+                if (!sponsor.email?.trim()) {
+                  toast({ type: 'error', message: `${label}: Sponsor "${sponsor.name}" - Email is required.` }); scrollToSection('section-event-details'); return;
+                }
+                const emailRegex = /^\S+@\S+\.\S+$/;
+                if (!emailRegex.test(sponsor.email)) {
+                  toast({ type: 'error', message: `${label}: Sponsor "${sponsor.name}" - Please enter a valid email address.` }); scrollToSection('section-event-details'); return;
+                }
+                if (!sponsor.sponsorLogo?.filePath) {
+                  toast({ type: 'error', message: `${label}: Sponsor "${sponsor.name}" - Logo is required. Please upload a JPG or PNG file.` }); scrollToSection('section-event-details'); return;
+                }
+              }
+            }
+            if (v.eventHasResources === null) {
+              toast({ type: 'error', message: `${label}: Please select Yes or No for Event Resources.` }); scrollToSection('section-event-details'); return;
             }
             if (v.eventHasResources === true) {
               const valid = (v.eventResources || []).filter((r) => (r?.type || '').trim() || (r?.description || '').trim());
-              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one resource when Resources are enabled.` }); return; }
+              if (valid.length === 0) { toast({ type: 'error', message: `${label}: Please add at least one resource when Resources are enabled.` }); scrollToSection('section-event-details'); return; }
             }
-            if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
-              toast({ type: 'error', message: `${label}: Please select Duty Leave eligibility when Duty Leave is enabled.` }); return;
+            if (v.eventCertification === null) {
+              toast({ type: 'error', message: `${label}: Please select Yes or No for Certificates.` }); scrollToSection('section-event-details'); return;
+            }
+            if (v.eventHasPrizes === null) {
+              toast({ type: 'error', message: `${label}: Please select Yes or No for Prizes & Winners.` }); scrollToSection('section-event-details'); return;
+            }
+            if (v.eventHasPrizes === true && (v.eventPrizesAwards || []).length === 0) {
+              toast({ type: 'error', message: `${label}: Please add at least one prize when Prizes & Winners is enabled.` }); scrollToSection('section-event-details'); return;
             }
             if (se.eventType === 'stall' && se.stallConfig) {
               const sc = se.stallConfig;
               if (sc.enableStudentApplied && (sc.maxStudentStalls == null || sc.maxStudentStalls < 1)) {
-                toast({ type: 'error', message: `${label}: Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.` }); return;
+                toast({ type: 'error', message: `${label}: Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.` }); scrollToSection('section-event-details'); return;
               }
               if (sc.enableCreatorMade && (sc.creatorStalls || []).some((cs) => !(cs?.name || '').trim())) {
-                toast({ type: 'error', message: `${label}: Each creator-made stall must have a name.` }); return;
+                toast({ type: 'error', message: `${label}: Each creator-made stall must have a name.` }); scrollToSection('section-event-details'); return;
               }
             }
-            if (!v.eventPaymentType) { toast({ type: 'error', message: `${label}: Please select Payment Type (Free or Paid).` }); return; }
+            if (!v.eventPaymentType) { toast({ type: 'error', message: `${label}: Please select Payment Type (Free or Paid).` }); scrollToSection('section-event-details'); return; }
             if (v.eventPaymentType === 'paid') {
               if (v.eventParticipationType === 'individual' && (v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
-                toast({ type: 'error', message: `${label}: Please enter the Participation Fee (₹) for paid events.` }); return;
+                toast({ type: 'error', message: `${label}: Please enter the Participation Fee (₹) for paid events.` }); scrollToSection('section-event-details'); return;
               }
               if (v.eventParticipationType === 'team' && (v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
-                toast({ type: 'error', message: `${label}: Please enter the Fee per Team (₹) for paid events.` }); return;
+                toast({ type: 'error', message: `${label}: Please enter the Fee per Team (₹) for paid events.` }); scrollToSection('section-event-details'); return;
               }
             }
+          }
+          // Festival-level event visibility settings validation
+          if (eventVisibilitySettings.visibleToRoles.length === 0) {
+            toast({ type: 'error', message: 'Please select at least one role in Audience Visibility settings.' }); scrollToSection('section-event-settings'); return;
           }
         }
         if (notingEventType === 'venue' || notingEventType === 'stall') {
           const v = venueFormData;
-          if (!v.eventName?.trim()) { toast({ type: 'error', message: 'Please enter the Event Name.' }); return; }
-          if (!v.eventType) { toast({ type: 'error', message: 'Please select the Event Type (e.g. Workshop, Seminar).' }); return; }
-          if (!v.eventStartDate) { toast({ type: 'error', message: 'Please select the Event Start Date.' }); return; }
-          if (!v.eventEndDate) { toast({ type: 'error', message: 'Please select the Event End Date.' }); return; }
+          if (!v.eventName?.trim()) { toast({ type: 'error', message: 'Please enter the Event Name.' }); scrollToSection('section-event-details'); return; }
+          if (!v.eventType) { toast({ type: 'error', message: 'Please select the Event Type (e.g. Workshop, Seminar).' }); scrollToSection('section-event-details'); return; }
+          if (!v.eventStartDate) { toast({ type: 'error', message: 'Please select the Event Start Date.' }); scrollToSection('section-event-details'); return; }
+          if (!v.eventEndDate) { toast({ type: 'error', message: 'Please select the Event End Date.' }); scrollToSection('section-event-details'); return; }
           const evtToday = new Date();
           evtToday.setHours(0, 0, 0, 0);
           if (v.eventStartDate && new Date(v.eventStartDate) < evtToday) {
-            toast({ type: 'error', message: 'Event Start Date cannot be in the past. Please select a future date.' }); return;
+            toast({ type: 'error', message: 'Event Start Date cannot be in the past. Please select a future date.' }); scrollToSection('section-event-details'); return;
           }
-          if (new Date(v.eventEndDate) < new Date(v.eventStartDate)) { toast({ type: 'error', message: 'Event End Date should be after Start Date. Please correct the dates.' }); return; }
-          if (!v.eventPaymentType) { toast({ type: 'error', message: 'Please select Payment Type: Free or Paid.' }); return; }
+          if (new Date(v.eventEndDate) < new Date(v.eventStartDate)) { toast({ type: 'error', message: 'Event End Date should be after Start Date. Please correct the dates.' }); scrollToSection('section-event-details'); return; }
+          if (!v.eventPaymentType) { toast({ type: 'error', message: 'Please select Payment Type: Free or Paid.' }); scrollToSection('section-event-details'); return; }
           if (v.eventPaymentType === 'paid') {
             if (v.eventParticipationType === 'individual' && (v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 0)) {
-              toast({ type: 'error', message: 'Please enter the Participation Fee (₹) for paid individual events.' }); return;
+              toast({ type: 'error', message: 'Please enter the Participation Fee (₹) for paid individual events.' }); scrollToSection('section-event-details'); return;
             }
             if (v.eventParticipationType === 'team' && (v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 0)) {
-              toast({ type: 'error', message: 'Please enter the Fee per Team (₹) for paid team events.' }); return;
+              toast({ type: 'error', message: 'Please enter the Fee per Team (₹) for paid team events.' }); scrollToSection('section-event-details'); return;
             }
           }
+          if (v.eventApproxCapacity === '' || v.eventApproxCapacity === undefined) { toast({ type: 'error', message: 'Please enter the Approximate Capacity.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventDutyLeaveAvailable === null) { toast({ type: 'error', message: 'Please select Yes or No for Duty Leave Required.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
+            toast({ type: 'error', message: 'Please select who is eligible for Duty Leave when Duty Leave is enabled.' }); scrollToSection('section-event-details'); return;
+          }
+          if (v.eventHasSponsorship === null) { toast({ type: 'error', message: 'Please select Yes or No for Sponsorship Available.' }); scrollToSection('section-event-details'); return; }
           if (v.eventHasSponsorship === true) {
             const valid = (v.eventSponsors || []).filter((s) => s?.name?.trim());
-            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one sponsor with a name when Sponsorship is enabled.' }); return; }
+            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one sponsor with a name when Sponsorship is enabled.' }); scrollToSection('section-event-details'); return; }
+            // Validate all required sponsor information
+            const allSponsors = (v.eventSponsors || []).filter((s) => s?.name?.trim());
+            for (const sponsor of allSponsors) {
+              if (!sponsor.sponsorType) {
+                toast({ type: 'error', message: `Sponsor "${sponsor.name}" - Sponsor Type is required.` }); scrollToSection('section-event-details'); return;
+              }
+              if (!sponsor.contactPerson?.trim()) {
+                toast({ type: 'error', message: `Sponsor "${sponsor.name}" - Contact Person is required.` }); scrollToSection('section-event-details'); return;
+              }
+              if (!sponsor.designation?.trim()) {
+                toast({ type: 'error', message: `Sponsor "${sponsor.name}" - Designation is required.` }); scrollToSection('section-event-details'); return;
+              }
+              if (!sponsor.phone?.trim()) {
+                toast({ type: 'error', message: `Sponsor "${sponsor.name}" - Phone number is required.` }); scrollToSection('section-event-details'); return;
+              }
+              if (!sponsor.email?.trim()) {
+                toast({ type: 'error', message: `Sponsor "${sponsor.name}" - Email is required.` }); scrollToSection('section-event-details'); return;
+              }
+              const emailRegex = /^\S+@\S+\.\S+$/;
+              if (!emailRegex.test(sponsor.email)) {
+                toast({ type: 'error', message: `Sponsor "${sponsor.name}" - Please enter a valid email address.` }); scrollToSection('section-event-details'); return;
+              }
+              if (!sponsor.sponsorLogo?.filePath) {
+                toast({ type: 'error', message: `Sponsor "${sponsor.name}" - Logo is required. Please upload a JPG or PNG file.` }); scrollToSection('section-event-details'); return;
+              }
+            }
           }
+          if (v.eventHasResources === null) { toast({ type: 'error', message: 'Please select Yes or No for Event Resources.' }); scrollToSection('section-event-details'); return; }
           if (v.eventHasResources === true) {
             const valid = (v.eventResources || []).filter((r) => (r?.type || '').trim() || (r?.description || '').trim());
-            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one resource when Resources are enabled.' }); return; }
+            if (valid.length === 0) { toast({ type: 'error', message: 'Please add at least one resource when Resources are enabled.' }); scrollToSection('section-event-details'); return; }
           }
-          if (v.eventDutyLeaveAvailable === true && !v.eventDutyLeaveRoleType) {
-            toast({ type: 'error', message: 'Please select who is eligible for Duty Leave when Duty Leave is enabled.' }); return;
+          if (v.eventCertification === null) { toast({ type: 'error', message: 'Please select Yes or No for Certificates.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventHasPrizes === null) { toast({ type: 'error', message: 'Please select Yes or No for Prizes & Winners.' }); scrollToSection('section-event-details'); return; }
+          if (v.eventHasPrizes === true && (v.eventPrizesAwards || []).length === 0) {
+            toast({ type: 'error', message: 'Please add at least one prize when Prizes & Winners is enabled.' }); scrollToSection('section-event-details'); return;
           }
           if (notingEventType === 'stall' && stallConfig) {
             if (stallConfig.enableStudentApplied && (stallConfig.maxStudentStalls == null || stallConfig.maxStudentStalls < 1)) {
-              toast({ type: 'error', message: 'Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.' }); return;
+              toast({ type: 'error', message: 'Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.' }); scrollToSection('section-event-details'); return;
             }
             if (stallConfig.enableCreatorMade && (stallConfig.creatorStalls || []).some((cs) => !(cs?.name || '').trim())) {
-              toast({ type: 'error', message: 'Each creator-made stall must have a name.' }); return;
+              toast({ type: 'error', message: 'Each creator-made stall must have a name.' }); scrollToSection('section-event-details'); return;
             }
+          }
+          // Event visibility settings validation
+          if (eventVisibilitySettings.visibleToRoles.length === 0) {
+            toast({ type: 'error', message: 'Please select at least one role in Audience Visibility settings.' }); scrollToSection('section-event-settings'); return;
           }
         }
       }
@@ -980,6 +1177,10 @@ export default function NewNotePage() {
           updatePayload.eventType = 'fest';
           updatePayload.eventPaymentType = 'free';
         }
+      }
+      // Add event visibility settings
+      if (eventVisibilitySettings?.visibleToRoles && eventVisibilitySettings.visibleToRoles.length > 0) {
+        updatePayload.eventVisibilitySettings = eventVisibilitySettings;
       }
     }
 
@@ -1118,10 +1319,10 @@ export default function NewNotePage() {
             {/* Document Header */}
             <div className="border-b border-[#b3cde0]/30 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5">
               <h1 className="text-xl font-bold text-[#011f4b] dark:text-white">
-                {isEditingExistingDraft ? 'Edit Draft Note' : 'Create New Note'}
+                {isRevertedNote ? 'Edit Reverted Note' : isEditingExistingDraft ? 'Edit Draft Note' : 'Create New Note'}
               </h1>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                {isEditingExistingDraft ? 'Update your draft and submit when ready.' : 'Fill in the details below. All actions are logged and auditable.'}
+                {isRevertedNote ? 'This note was returned for modifications. Review remarks, make changes, and resubmit.' : isEditingExistingDraft ? 'Update your draft and submit when ready.' : 'Fill in the details below. All actions are logged and auditable.'}
               </p>
               {notingIdPreview && (
                 <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#b3cde0]/20 dark:bg-[#005b96]/10 border border-[#b3cde0]/40 dark:border-[#005b96]/30">
@@ -1413,7 +1614,7 @@ export default function NewNotePage() {
 
               {/* ===== Event Details (Conditional) ===== */}
               {isEventNoting && (
-                <section>
+                <section id="section-event-details">
                   <SectionLabel>Event Details <span className="text-red-500">*</span></SectionLabel>
 
                   {/* ── EventTypeSelector GATE ── */}
@@ -1432,7 +1633,6 @@ export default function NewNotePage() {
                       }
                       if (t !== 'venue' && t !== 'stall') setVenueFormData({ ...defaultVenueForm });
                     }}
-                    disabled={isEditingExistingDraft}
                   />
 
 
@@ -1442,8 +1642,10 @@ export default function NewNotePage() {
                     <FestivalForm
                       data={festivalData}
                       onChange={setFestivalData}
-                      disabled={isEditingExistingDraft}
                       coordinatorReadOnly={true}
+                      onUploadReceipt={handleSponsorReceiptUpload}
+                      onUploadSponsorLogo={handleSponsorLogoUpload}
+                      searchEmployees={handleSponsorSearchEmployees}
                     />
                   )}
 
@@ -1457,9 +1659,11 @@ export default function NewNotePage() {
                         <EventFormFields
                           data={venueFormData}
                           onChange={setVenueFormData}
-                          disabled={isEditingExistingDraft}
                           showCapacityFixed={true}
                           fieldsetPrefix="venue"
+                          onUploadReceipt={handleSponsorReceiptUpload}
+                          onUploadSponsorLogo={handleSponsorLogoUpload}
+                          searchEmployees={handleSponsorSearchEmployees}
                         />
                       </div>
                       {notingEventType === 'stall' && (
@@ -1467,12 +1671,27 @@ export default function NewNotePage() {
                           <StallConfigSection
                             config={stallConfig}
                             onChange={setStallConfig}
-                            disabled={isEditingExistingDraft}
                           />
                         </div>
                       )}
                     </>
                   )}
+                </section>
+              )}
+
+              {/* ===== Event Visibility & Settings ===== */}
+              {isEventNoting && notingEventType && (
+                <section id="section-event-settings" className="space-y-5 mt-5">
+                  <div className="flex items-center gap-2.5 pb-2 border-b border-[#b3cde0]/30 dark:border-gray-700">
+                    <h3 className="text-base font-semibold text-gray-800 dark:text-gray-200">Event Visibility & Settings</h3>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Configure who can see this event and extra pass settings. These will be <strong>locked</strong> after noting approval.
+                  </p>
+                  <EventSettingsForm
+                    data={eventVisibilitySettings}
+                    onChange={setEventVisibilitySettings}
+                  />
                 </section>
               )}
 
@@ -1618,6 +1837,119 @@ export default function NewNotePage() {
               )}
             </div>
 
+            {/* Approval Trail for Reverted Notes */}
+            {isRevertedNote && revertHistory.length > 0 && (
+              <div className="px-4 sm:px-8 py-4 sm:py-6">
+                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                  <span className="inline-block w-8 h-px bg-gradient-to-r from-[#005b96] to-transparent" />
+                  Approval Trail
+                  <span className="text-[10px] font-normal text-gray-300 dark:text-gray-600 ml-1">
+                    ({revertHistory.length} {revertHistory.length === 1 ? 'entry' : 'entries'})
+                  </span>
+                </h3>
+                <div className="max-h-[400px] overflow-y-auto pr-1 scrollbar-thin">
+                  {revertHistory.map((h, idx) => {
+                    let iconColor = 'bg-gray-400';
+                    let badgeBg = 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+                    let lineColor = '#d1d5db';
+                    let Icon: React.ElementType = Clock;
+                    const action = h.action.toLowerCase();
+
+                    if (action.includes('submit')) {
+                      Icon = Send; iconColor = 'bg-gradient-to-br from-[#005b96] to-[#011f4b]'; lineColor = '#005b96';
+                      badgeBg = 'bg-[#b3cde0]/20 text-[#005b96] dark:bg-[#005b96]/10 dark:text-[#b3cde0] ring-1 ring-[#b3cde0]/40';
+                    } else if (action.includes('approve')) {
+                      Icon = CheckCircle; iconColor = 'bg-gradient-to-br from-emerald-400 to-emerald-600'; lineColor = '#10b981';
+                      badgeBg = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 ring-1 ring-emerald-200';
+                    } else if (action === 'recommended') {
+                      Icon = ThumbsUp; iconColor = 'bg-gradient-to-br from-blue-400 to-blue-600'; lineColor = '#3b82f6';
+                      badgeBg = 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 ring-1 ring-blue-200';
+                    } else if (action === 'not_recommended') {
+                      Icon = ThumbsDown; iconColor = 'bg-gradient-to-br from-rose-400 to-rose-600'; lineColor = '#f43f5e';
+                      badgeBg = 'bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 ring-1 ring-rose-200';
+                    } else if (action.includes('reject')) {
+                      Icon = XCircle; iconColor = 'bg-gradient-to-br from-red-400 to-red-600'; lineColor = '#ef4444';
+                      badgeBg = 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300 ring-1 ring-red-200';
+                    } else if (action.includes('revert')) {
+                      Icon = RotateCcw; iconColor = 'bg-gradient-to-br from-orange-400 to-orange-600'; lineColor = '#f97316';
+                      badgeBg = 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 ring-1 ring-orange-200';
+                    } else if (action.includes('forward')) {
+                      Icon = ArrowRight; iconColor = 'bg-gradient-to-br from-[#6497b1] to-[#005b96]'; lineColor = '#005b96';
+                      badgeBg = 'bg-[#b3cde0]/20 text-[#005b96] dark:bg-[#005b96]/10 dark:text-[#b3cde0] ring-1 ring-[#b3cde0]/40';
+                    } else if (action === 'copy_sent') {
+                      Icon = Copy; iconColor = 'bg-gradient-to-br from-indigo-400 to-indigo-600'; lineColor = '#6366f1';
+                      badgeBg = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 ring-1 ring-indigo-200';
+                    }
+
+                    const isLast = idx === revertHistory.length - 1;
+                    const actionLabel = h.action.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+
+                    return (
+                      <div key={h.id} className="flex group" style={{ animation: `fadeInUp 0.4s ease-out ${idx * 0.08}s both` }}>
+                        <div className="flex flex-col items-center flex-shrink-0" style={{ width: '32px' }}>
+                          <div className="relative z-10">
+                            <div className={`h-7 w-7 rounded-full ${iconColor} shadow-lg flex items-center justify-center ring-[3px] ring-white dark:ring-gray-800`}>
+                              <Icon className="w-3.5 h-3.5 text-white drop-shadow-sm" />
+                            </div>
+                          </div>
+                          {!isLast && (
+                            <div className="w-[2px] flex-1 rounded-full my-1" style={{ backgroundColor: lineColor, opacity: 0.3 }} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 pb-5 pl-3">
+                          <div className={`rounded-xl border transition-all duration-300 ${
+                            isLast ? 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm' : 'bg-gray-50/80 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700/40'
+                          }`}>
+                            <div className="p-3.5">
+                              <div className="flex items-center justify-between gap-2 mb-1.5">
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${badgeBg}`}>
+                                  <Icon className="w-3 h-3" />
+                                  {actionLabel}
+                                </span>
+                                <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums whitespace-nowrap">
+                                  {new Date(h.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[12px] text-gray-600 dark:text-gray-300">
+                                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center flex-shrink-0">
+                                  <User className="w-2.5 h-2.5 text-gray-500 dark:text-gray-400" />
+                                </div>
+                                <span className="font-medium truncate">
+                                  {h.performedBy?.employeeDetails?.displayName || h.performedBy?.uid || '—'}
+                                </span>
+                                {h.performedBy?.uid && (
+                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded">
+                                    {h.performedBy.uid}
+                                  </span>
+                                )}
+                              </div>
+                              {h.remarks && (
+                                <div className="mt-2.5 pl-3 py-1.5 border-l-2 border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/20 rounded-r-md">
+                                  <p className="text-[12px] text-gray-600 dark:text-gray-300 italic leading-relaxed">
+                                    &ldquo;{h.remarks}&rdquo;
+                                  </p>
+                                </div>
+                              )}
+                              {h.nextHolder && (
+                                <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#b3cde0]/20 dark:bg-[#005b96]/10 text-[#005b96] dark:text-[#b3cde0]">
+                                    <CornerDownLeft className="w-3 h-3" />
+                                    <span className="text-[11px] font-semibold">
+                                      Assigned: {h.nextHolder.employeeDetails?.displayName || h.nextHolder.uid || '—'}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Document Footer — Action Buttons */}
             <div className="border-t border-[#b3cde0]/30 dark:border-gray-700 px-4 sm:px-8 py-4 bg-[#f8fafc] dark:bg-gray-900/20">
               <div className="flex flex-wrap items-center gap-3">
@@ -1640,7 +1972,7 @@ export default function NewNotePage() {
                   <Save className="w-4 h-4" />
                   Save as Draft
                 </button>
-                {(draftId || category || subcategory || description.trim() || points.some((p) => p.trim())) && (
+                {!isRevertedNote && (draftId || category || subcategory || description.trim() || points.some((p) => p.trim())) && (
                   <button
                     type="button"
                     onClick={handleDiscardDraft}

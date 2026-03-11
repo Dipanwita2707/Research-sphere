@@ -388,7 +388,7 @@ export default function EventManagementPage() {
           />
         )}
         {activeTab === 'settings' && (
-          <EventSettings eventId={event.id} onToast={toast} />
+          <EventSettings eventId={event.id} onToast={toast} isFromNoting={!!event.notingId} />
         )}
         {activeTab === 'coupons' && (
           <CouponManagement

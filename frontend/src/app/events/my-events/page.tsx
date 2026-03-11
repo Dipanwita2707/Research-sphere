@@ -3,13 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar, MapPin, Users, Edit, CheckCircle, AlertCircle, Eye, Trash2, QrCode, Settings, BarChart3, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Calendar, MapPin, Users, Edit, CheckCircle, AlertCircle, Eye, Trash2, QrCode, Settings, BarChart3, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 import { useMyCreatedEvents } from '@/features/event-management/hooks/useEvents';
 import { EVENT_TYPE_LABELS } from '@/features/event-management/constants';
 import type { Event } from '@/features/event-management/types/event.types';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /** Status → icon mapping (page-specific) */
 const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -153,118 +157,156 @@ export default function MyCreatedEventsPage() {
   const totalRegistrations = allEvents.reduce((sum, e) => sum + (e.currentRegistrations || 0), 0);
 
   return (
-    <div className="ev-page">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-ev-900 mb-2">My Created Events</h1>
-          <p className="text-ev-400">Events you organized through approved noting requests</p>
-        </div>
+    <div className="ev-page relative overflow-hidden pb-16">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 overflow-hidden">
+        <div className="absolute -left-20 top-0 h-56 w-56 rounded-full bg-sky-200/30 blur-3xl" />
+        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-indigo-200/20 blur-3xl" />
+      </div>
 
-        {/* Stats Cards - compact */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
-          <div className="ev-stat flex items-center gap-3">
-            <AlertCircle className="h-6 w-6 text-ev-400 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-ev-400 uppercase tracking-wide">Drafts</p>
-              <p className="text-lg font-bold text-ev-900">{draftCount}</p>
-            </div>
-          </div>
-          <div className="ev-stat flex items-center gap-3">
-            <CheckCircle className="h-6 w-6 text-ev-700 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-ev-400 uppercase tracking-wide">Published</p>
-              <p className="text-lg font-bold text-ev-900">{publishedCount}</p>
-            </div>
-          </div>
-          <div className="ev-stat flex items-center gap-3">
-            <Users className="h-6 w-6 text-ev-700 shrink-0" />
-            <div className="min-w-0">
-              <p className="text-[11px] text-ev-400 uppercase tracking-wide">Registrations</p>
-              <p className="text-lg font-bold text-ev-900">{totalRegistrations}</p>
-            </div>
-          </div>
-        </div>
+      <div className="relative mx-auto max-w-[1450px] px-4 pt-0 sm:px-6 sm:pt-0 lg:px-8 lg:pt-0">
+        <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/92 shadow-[0_24px_70px_-48px_rgba(1,31,75,0.35)] backdrop-blur-xl">
+          <div className="space-y-5 px-5 pb-5 pt-2 sm:px-8 sm:pb-7 sm:pt-3 lg:px-10 lg:pb-10 lg:pt-3">
+            <Card className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(1,31,75,0.98),rgba(23,76,150,0.96))] py-0 text-white shadow-[0_18px_50px_-36px_rgba(1,31,75,0.48)]">
+              <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="border border-white/12 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-100">
+                        Events
+                      </Badge>
+                      <Badge className="border border-emerald-300/20 bg-emerald-300/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-100">
+                        {publishedCount} live now
+                      </Badge>
+                    </div>
+                    <CardTitle className="mt-3 text-2xl font-black tracking-[-0.04em] text-white sm:text-[2rem]">
+                      Manage drafts, published events, and festival-linked events.
+                    </CardTitle>
+                    <CardDescription className="mt-2 max-w-2xl text-sm leading-6 text-white/72">
+                      Review the events you created, finish incomplete drafts, open event management, and handle updates or QR scanning from one workspace.
+                    </CardDescription>
+                  </div>
 
-        {/* Tabs */}
-        <div className="mb-4 border-b border-ev-200 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <nav className="-mb-px flex space-x-4 min-w-max">
-            <button
-              onClick={() => setActiveTab('published')}
-              className={`ev-tab ${activeTab === 'published' ? 'ev-tab-active' : ''}`}
-            >
-              Published
-            </button>
-            <button
-              onClick={() => setActiveTab('draft')}
-              className={`ev-tab ${activeTab === 'draft' ? 'ev-tab-active' : ''}`}
-            >
-              Drafts {draftCount > 0 && `(${draftCount})`}
-            </button>
-            <button
-              onClick={() => setActiveTab('past')}
-              className={`ev-tab ${activeTab === 'past' ? 'ev-tab-active' : ''}`}
-            >
-              Past Events {pastCount > 0 && `(${pastCount})`}
-            </button>
-          </nav>
-        </div>
+                  <div className="grid grid-cols-3 gap-3 sm:min-w-[360px]">
+                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Drafts</p>
+                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{draftCount}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Published</p>
+                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{publishedCount}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Registrations</p>
+                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{totalRegistrations}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-        {/* Expand / Collapse All */}
-        {!loading && festivalIds.length > 0 && (
-          <div className="flex justify-end mb-2">
-            <button
-              type="button"
-              onClick={toggleAll}
-              className="ev-btn-outline text-xs !py-1.5 !px-3"
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as 'draft' | 'published' | 'past')}
+              className="flex-col gap-5"
             >
-              {allExpanded ? (
-                <><ChevronDown className="h-3.5 w-3.5" /> Collapse All</>
-              ) : (
-                <><ChevronRight className="h-3.5 w-3.5" /> Expand All</>
-              )}
-            </button>
-          </div>
-        )}
+              <Card className="mx-auto w-full max-w-[1120px] overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff,rgba(248,250,252,0.96))] py-0 shadow-[0_16px_40px_-38px_rgba(1,31,75,0.14)]">
+                <CardContent className="px-4 py-4 sm:px-5">
+                  <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:items-center xl:gap-4">
+                    <div className="shrink-0">
+                      <CardTitle className="text-base font-bold tracking-[-0.03em] text-slate-900 sm:text-lg">
+                        Browse events
+                      </CardTitle>
+                    </div>
 
-        {/* Events List */}
-        {loading ? (
-          <PageSkeleton message="Loading events..." />
-        ) : events.length === 0 ? (
-          <div className="text-center py-12">
+                    <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-[0.95rem] bg-slate-100/80 p-1.5 xl:w-full xl:justify-center">
+                      <TabsTrigger
+                        value="published"
+                        className="rounded-xl px-4 py-2 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                      >
+                        Published
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="draft"
+                        className="rounded-xl px-4 py-2 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                      >
+                        Drafts {draftCount > 0 ? `(${draftCount})` : ''}
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="past"
+                        className="rounded-xl px-4 py-2 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                      >
+                        Past events {pastCount > 0 ? `(${pastCount})` : ''}
+                      </TabsTrigger>
+                    </TabsList>
+
+                    <div className="flex flex-wrap items-center gap-2 xl:shrink-0">
+                      <Badge className="border border-sky-100 bg-sky-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-sky-700">
+                        {events.length} in view
+                      </Badge>
+                      {festivalIds.length > 0 ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="default"
+                          onClick={toggleAll}
+                          className="rounded-full border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900"
+                        >
+                          {allExpanded ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
+                          {allExpanded ? 'Collapse festivals' : 'Expand festivals'}
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Events List */}
+              {loading ? (
+                <PageSkeleton message="Loading events..." />
+              ) : events.length === 0 ? (
+                <Card className="rounded-[1.5rem] border border-slate-200/80 bg-white/92 py-0 text-center shadow-[0_18px_50px_-40px_rgba(1,31,75,0.18)]">
+                  <CardContent className="px-6 py-14">
             {activeTab === 'draft' ? (
               <>
-                <AlertCircle className="h-12 w-12 text-ev-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-ev-900 mb-2">No draft events</h3>
-                <p className="text-ev-400 mb-4">
+                <AlertCircle className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-slate-900 mb-2">No draft events</h3>
+                <p className="text-slate-500 mb-4">
                   All your events are published or you haven't created any events yet.
                 </p>
               </>
             ) : (
               <>
-                <Calendar className="h-12 w-12 text-ev-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-ev-900 mb-2">No events yet</h3>
-                <p className="text-ev-400 mb-6">
+                <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-slate-900 mb-2">No events yet</h3>
+                <p className="mx-auto max-w-xl text-slate-500 mb-6">
                   Events are automatically created when your noting requests (with event category) are approved.
                 </p>
-                <div className="max-w-md mx-auto p-4 ev-card">
-                  <p className="text-sm text-ev-900 mb-3">
-                    <strong>📝 How to Create an Event?</strong>
-                  </p>
-                  <ol className="text-xs text-ev-800 text-left space-y-2">
-                    <li>1. Create a <Link href="/noting/new" className="underline font-semibold text-ev-700">noting request</Link> with event details</li>
-                    <li>2. Wait for approval from authorities</li>
-                    <li>3. Event appears here as a <strong>DRAFT</strong></li>
-                    <li>4. Add venue & registration dates</li>
-                    <li>5. Publish to make it live!</li>
-                  </ol>
-                </div>
+                <Card className="mx-auto max-w-lg rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 py-0 text-left shadow-none">
+                  <CardContent className="px-5 py-5">
+                    <p className="text-sm font-semibold text-slate-900 mb-3">How event creation flows</p>
+                    <ol className="space-y-2.5 text-sm text-slate-600">
+                      <li>1. Create a noting request with event details.</li>
+                      <li>2. Wait for the approval chain to complete.</li>
+                      <li>3. The event appears here as a draft.</li>
+                      <li>4. Add venue and registration dates.</li>
+                      <li>5. Publish when the event is ready to go live.</li>
+                    </ol>
+                    <div className="mt-5 flex justify-start">
+                      <Button asChild size="lg" className="rounded-full px-5">
+                        <Link href="/noting/new">
+                          Create noting request
+                          <ArrowRight data-icon="inline-end" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               </>
             )}
-          </div>
-        ) : (
-          <>
-            <div className="space-y-4 mb-8">
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="mb-8 space-y-5">
               {groupedItems.map((item) => {
                 if (item.type === 'festival') {
                   const isExpanded = expandedFestivals.has(item.festivalNotingId);
@@ -273,41 +315,45 @@ export default function MyCreatedEventsPage() {
                   const summaryStatus = allDraft ? 'draft' : allPublished ? 'published' : 'mixed';
 
                   return (
-                    <div key={`festival-${item.festivalNotingId}`} className="ev-card overflow-hidden">
+                    <Card key={`festival-${item.festivalNotingId}`} className="overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.18)]">
                       {/* Festival Header — always visible */}
                       <button
                         type="button"
                         onClick={() => toggleFestival(item.festivalNotingId)}
-                        className="w-full flex items-center gap-3 px-5 py-4 bg-ev-50 hover:bg-[#e2ecf3] transition-colors text-left"
+                        className="w-full flex items-start gap-3 bg-[linear-gradient(180deg,#ffffff,rgba(247,249,252,0.96))] px-5 py-4 text-left transition-colors hover:bg-[linear-gradient(180deg,#ffffff,rgba(244,246,248,0.98))]"
                       >
                         {isExpanded
-                          ? <ChevronDown className="h-5 w-5 text-ev-700 shrink-0" />
-                          : <ChevronRight className="h-5 w-5 text-ev-700 shrink-0" />}
-                        <Sparkles className="h-5 w-5 text-ev-700 shrink-0" />
+                          ? <ChevronDown className="h-5 w-5 text-sky-700 shrink-0" />
+                          : <ChevronRight className="h-5 w-5 text-sky-700 shrink-0" />}
+                        <Sparkles className="h-5 w-5 text-sky-700 shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-base font-bold text-ev-900 truncate">
-                              🎪 {item.meta.name}
+                            <h3 className="text-lg font-bold tracking-[-0.03em] text-slate-900 truncate">
+                              {item.meta.name}
                             </h3>
-                            <span className="ev-badge bg-ev-50 text-ev-800 text-[10px] uppercase tracking-wider">
+                            <Badge className="border border-fuchsia-100 bg-fuchsia-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-fuchsia-700">
                               Festival
-                            </span>
-                            <span className={`ev-badge text-[10px] uppercase tracking-wider ${
-                              summaryStatus === 'draft' ? 'bg-gray-100 text-gray-600' : summaryStatus === 'published' ? 'bg-ev-50 text-ev-700' : 'bg-amber-50 text-amber-700'
+                            </Badge>
+                            <Badge className={`px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${
+                              summaryStatus === 'draft'
+                                ? 'border border-slate-200 bg-slate-100 text-slate-700'
+                                : summaryStatus === 'published'
+                                  ? 'border border-sky-100 bg-sky-50 text-sky-700'
+                                  : 'border border-amber-100 bg-amber-50 text-amber-700'
                             }`}>
                               {summaryStatus === 'mixed' ? 'Partial' : summaryStatus}
-                            </span>
+                            </Badge>
                           </div>
-                          <div className="flex items-center gap-4 mt-1 text-xs text-ev-400">
+                          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
                             <span className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5" />
+                              <Calendar className="h-3.5 w-3.5 text-sky-600" />
                               {formatDate(item.meta.startDate)} – {formatDate(item.meta.endDate)}
                             </span>
-                            <span className="font-medium text-ev-700">
+                            <span className="font-medium text-sky-700">
                               {item.events.length} sub-event{item.events.length !== 1 ? 's' : ''}
                             </span>
                             {item.meta.coordinator && (
-                              <span className="text-ev-400">Coordinator: {item.meta.coordinator}</span>
+                              <span className="text-slate-400">Coordinator: {item.meta.coordinator}</span>
                             )}
                           </div>
                         </div>
@@ -315,22 +361,24 @@ export default function MyCreatedEventsPage() {
 
                       {/* Sub-Events — collapsible */}
                       {isExpanded && (
-                        <div className="divide-y divide-ev-200 border-t border-ev-200">
+                        <div className="divide-y divide-slate-200 border-t border-slate-200">
                           {item.events.map((event) => (
                             <EventCard key={event.id} event={event} formatDate={formatDate} getDraftCompletionStatus={getDraftCompletionStatus} nested />
                           ))}
                         </div>
                       )}
-                    </div>
+                    </Card>
                   );
                 }
 
                 // Standalone event
                 return <EventCard key={item.event.id} event={item.event} formatDate={formatDate} getDraftCompletionStatus={getDraftCompletionStatus} />;
               })}
-            </div>
-          </>
-        )}
+                </div>
+              )}
+            </Tabs>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -355,14 +403,14 @@ function EventCard({
     <div
       className={
         nested
-          ? 'p-5 hover:bg-ev-50 transition-colors'
-          : 'ev-card ev-card-hover p-6'
+          ? 'p-5 transition-colors hover:bg-slate-50/80'
+          : 'rounded-[1.35rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.18)] transition duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-[0_22px_52px_-42px_rgba(1,31,75,0.22)] sm:p-6'
       }
     >
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         {/* Event Info */}
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 flex flex-wrap items-center gap-2.5">
             {/* Status Badge */}
             <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full ${STATUS_BADGE[event.status]?.color}`}>
               <StatusIcon className="h-3.5 w-3.5" />
@@ -378,7 +426,7 @@ function EventCard({
             )}
 
             {/* Event Type */}
-            <span className="text-xs text-gray-600 dark:text-gray-400">
+            <span className="text-xs font-medium text-slate-500">
               {EVENT_TYPE_LABELS[event.eventType]}
             </span>
 
@@ -395,20 +443,20 @@ function EventCard({
           </div>
 
           {/* Event Name */}
-          <h3 className={`font-semibold text-ev-900 mb-2 ${nested ? 'text-base' : 'text-lg'}`}>
+          <h3 className={`font-bold tracking-[-0.03em] text-slate-900 mb-2 ${nested ? 'text-base' : 'text-xl'}`}>
             {event.name}
           </h3>
 
           {/* Date & Venue */}
-          <div className="space-y-2 mb-3">
-            <div className="flex items-center gap-2 text-sm text-ev-800">
-              <Calendar className="h-4 w-4" />
+          <div className="mb-3 space-y-2">
+            <div className="flex items-start gap-2 text-sm text-slate-700">
+              <Calendar className="h-4 w-4 text-sky-600" />
               <span>{formatDate(event.startDate)} - {formatDate(event.endDate)}</span>
             </div>
 
             {event.venue ? (
-              <div className="flex items-center gap-2 text-sm text-ev-800">
-                <MapPin className="h-4 w-4" />
+              <div className="flex items-start gap-2 text-sm text-slate-700">
+                <MapPin className="h-4 w-4 text-sky-600" />
                 <span>{event.venue}</span>
               </div>
             ) : (
@@ -420,20 +468,16 @@ function EventCard({
           </div>
 
           {/* Registrations */}
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2 text-ev-800">
-              <Users className="h-4 w-4" />
-              <span className="font-medium">
-                {event.currentRegistrations || 0}
-                {event.maxCapacity && ` / ${event.maxCapacity}`}
-              </span>
-              <span className="text-ev-400">registered</span>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <div className="flex items-center gap-2 text-slate-700">
+              <Users className="h-4 w-4 text-sky-600" />
+              <span className="text-slate-500">Few seats left</span>
             </div>
 
-            <div className={`px-2 py-1 text-xs font-medium rounded-full ${
+            <div className={`px-2.5 py-1 text-xs font-medium rounded-full ${
               event.paymentType === 'free'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-ev-100 text-ev-800'
+                ? 'border border-emerald-100 bg-emerald-50 text-emerald-700'
+                : 'border border-sky-100 bg-sky-50 text-sky-700'
             }`}>
               {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
             </div>
@@ -455,49 +499,44 @@ function EventCard({
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col gap-2 ml-4">
-          <Link
-            href={`/events/${event.id}`}
-            className="ev-btn text-sm"
-          >
-            <Eye className="h-4 w-4" />
-            View
-          </Link>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:w-[320px] xl:grid-cols-1">
+          <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">
+            <Link href={`/events/${event.id}`}>
+              <Eye className="h-4 w-4" />
+              View
+            </Link>
+          </Button>
 
           {event.status === 'draft' && (
-            <Link
-              href={`/events/${event.id}/manage`}
-              className="ev-btn-outline text-sm"
-            >
-              <Edit className="h-4 w-4" />
-              Complete & Publish
-            </Link>
+            <Button asChild variant="default" size="default" className="w-full justify-start">
+              <Link href={`/events/${event.id}/manage`}>
+                <Edit className="h-4 w-4" />
+                Complete & Publish
+              </Link>
+            </Button>
           )}
 
-          <Link
-            href={`/events/${event.id}/management`}
-            className="ev-btn text-sm"
-          >
-            <BarChart3 className="h-4 w-4" />
-            Event Management
-          </Link>
+          <Button asChild variant="default" size="default" className="w-full justify-start rounded-lg bg-slate-900 text-white shadow-sm hover:bg-slate-800">
+            <Link href={`/events/${event.id}/management`}>
+              <BarChart3 className="h-4 w-4" />
+              Event Management
+            </Link>
+          </Button>
 
           {event.status !== 'draft' && (
             <>
-              <Link
-                href={`/events/${event.id}/manage`}
-                className="ev-btn-outline text-sm"
-              >
-                <Settings className="h-4 w-4" />
-                Event Update
-              </Link>
-              <Link
-                href={`/events/${event.id}/scan`}
-                className="ev-btn-outline text-sm"
-              >
-                <QrCode className="h-4 w-4" />
-                QR Scan
-              </Link>
+              <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">
+                <Link href={`/events/${event.id}/manage`}>
+                  <Settings className="h-4 w-4" />
+                  Event Update
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">
+                <Link href={`/events/${event.id}/scan`}>
+                  <QrCode className="h-4 w-4" />
+                  QR Scan
+                </Link>
+              </Button>
             </>
           )}
         </div>

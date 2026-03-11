@@ -78,6 +78,7 @@ model UserLogin {
   iprReviews                                        IprReview[]                          @relation("IprReviews")
   iprStatusChanges                                  IprStatusHistory[]                   @relation("IprStatusChanges")
   iprStatusUpdates                                  IprStatusUpdate[]                    @relation("IprStatusUpdates")
+  sponsorFulfillmentChanges                         SponsorFulfillmentHistory[]           @relation("SponsorFulfillmentChangedBy")
   notesCreated                                      Note[]                               @relation("NoteCreatedBy")
   notesHeld                                         Note[]                               @relation("NoteCurrentHolder")
   noteHistoryNextHolder                             NoteHistory[]                        @relation("NoteHistoryNextHolder")
@@ -1885,12 +1886,14 @@ model Note {
   eventDutyLeaveEligibility Json?                  @map("event_duty_leave_eligibility") // Deprecated: only students eligible. Kept for backward compat.
   eventDutyLeaveRoleType   String?                 @map("event_duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
   eventHasSponsorship Boolean?                    @map("event_has_sponsorship")
-  eventSponsors       Json?                       @map("event_sponsors") // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  eventSponsors       Json?                       @map("event_sponsors") // Advanced: [{name, sponsorType, contactPerson, contributionType, cashAmount, paymentStatus, inKindItems, ...}] or legacy [{name, amount, type}]
   eventHasResources   Boolean?                    @map("event_has_resources")
   eventResources      Json?                       @map("event_resources") // [{type, description, pricePerPiece, quantity, cost, totalCost}]
   eventCertification  Boolean?                    @map("event_certification") // Certificate milega ya nahi
   eventCapacityFixed  Int?                        @map("event_capacity_fixed") // Internal capacity fixed (different from approx)
-  eventPrizesAwards   Json?                       @map("event_prizes_awards") // [{position, rank, title, prizeType, prizeAmount?, additionalPerks?, sortOrder}] - matches EventPrize
+  eventPrizesAwards                 Json?                       @map("event_prizes_awards") // [{position, rank, title, prizeType, prizeAmount?, additionalPerks?, sortOrder}] - matches EventPrize
+  // Event Visibility / Settings (copied to EventVisibility on approval)
+  eventVisibilitySettings           Json?                       @map("event_visibility_settings") // {visibleToRoles, studentFilterType, allowedSchoolIds, allowedDepartmentIds, allowedProgramIds, allowedBatchYears, allowedSectionIds, allowExtraPasses, maxExtraPassesPerUser}
   // Stall & Festival Noting Fields
   notingEventType     String?                     @map("noting_event_type") @db.VarChar(32) // venue | stall | festival
   stallConfig         Json?                       @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[]}
@@ -2232,7 +2235,7 @@ model Event {
   dutyLeaveEligibility        Json?                       @map("duty_leave_eligibility") // Deprecated: only students eligible
   dutyLeaveRoleType           String?                     @map("duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
   hasSponsorship             Boolean?                    @map("has_sponsorship")
-  sponsors                   Json?                       // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  sponsors                   Json?                       // Advanced: [{name, sponsorType, contactPerson, contributionType, cashAmount, paymentStatus, inKindItems, ...}] or legacy [{name, amount, type}]
   showSponsorshipPublicly    Boolean?            @default(false)  @map("show_sponsorship_publicly")  // Creator decides at publish: show sponsorship to users
   hasResources               Boolean?                    @map("has_resources")
   resources                  Json?
@@ -2312,6 +2315,7 @@ model Event {
   EventCoupon                EventCoupon[]
   EventCertificateTemplate   EventCertificateTemplate[]
   EventCertificateLog        EventCertificateLog[]
+  SponsorFulfillmentHistory SponsorFulfillmentHistory[]
 
   @@index([createdById])
   @@index([eventId])
@@ -2323,6 +2327,28 @@ model Event {
   @@index([status, startDate], map: "event_status_startDate_idx")
   @@index([opportunityMode])
   @@index([participationType])
+}
+
+// ============================================
+// Sponsor Fulfillment History
+// ============================================
+model SponsorFulfillmentHistory {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId          String   @map("event_id")
+  sponsorId        String   @map("sponsor_id")         // stable sponsor.id from JSON
+  changeType       String   @map("change_type") @db.VarChar(32) // status_change | amount_change | payment_update | delivery_update
+  previousSnapshot Json?    @map("previous_snapshot")   // relevant fields before change
+  newSnapshot      Json?    @map("new_snapshot")        // relevant fields after change
+  summary          String?                              // human-readable e.g. "₹5000 → ₹4000"
+  changedById      String   @map("changed_by_id") @db.Uuid
+  changedAt        DateTime @default(now()) @map("changed_at") @db.Timestamptz(6)
+
+  event            Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  changedBy        UserLogin @relation("SponsorFulfillmentChangedBy", fields: [changedById], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([sponsorId])
+  @@map("sponsor_fulfillment_history")
 }
 
 // ============================================

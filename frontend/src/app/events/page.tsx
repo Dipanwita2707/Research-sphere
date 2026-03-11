@@ -3,7 +3,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Calendar, MapPin, Users, Search, Filter, X, Calendar as CalendarIcon, Eye, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  Calendar,
+  Calendar as CalendarIcon,
+  ChevronDown,
+  ChevronRight,
+  Filter,
+  MapPin,
+  Search,
+  Users,
+  WalletCards,
+  X,
+} from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEvents, EVENT_QUERY_KEYS } from '@/features/event-management/hooks/useEvents';
 import { eventService } from '@/features/event-management/services/event.service';
@@ -11,45 +23,89 @@ import type { Event, EventFilters } from '@/features/event-management/types/even
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { useDebounce } from '@/shared/hooks/useDebounce';
-import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
+import { CardSkeleton, PageHeaderSkeleton } from '@/components/skeletons';
 import { EVENT_TYPE_LABELS, STATUS_CONFIG } from '@/features/event-management/constants';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useMyClubs } from '@/features/dsw/hooks';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
-/** Browse-page grouped item */
-type BrowseGroupedItem =
-  | { type: 'standalone'; event: Event }
-  | { type: 'festival'; festivalNotingId: string; meta: { name: string; startDate: string; endDate: string; description?: string; coordinator?: string }; events: Event[] };
+interface BrowseGroupedItem {
+  type: 'standalone' | 'festival';
+  event?: Event;
+  festivalNotingId?: string;
+  meta?: {
+    name: string;
+    startDate: string;
+    endDate: string;
+    description?: string;
+    coordinator?: string;
+  };
+  events?: Event[];
+}
 
-/** Group events by festivalNotingId */
 function groupBrowseEvents(eventList: Event[]): BrowseGroupedItem[] {
   const festivalMap: Record<string, Event[]> = {};
   const standalone: Event[] = [];
 
-  for (const e of eventList) {
-    if (e.festivalNotingId) {
-      if (!festivalMap[e.festivalNotingId]) festivalMap[e.festivalNotingId] = [];
-      festivalMap[e.festivalNotingId].push(e);
+  for (const event of eventList) {
+    if (event.festivalNotingId) {
+      if (!festivalMap[event.festivalNotingId]) festivalMap[event.festivalNotingId] = [];
+      festivalMap[event.festivalNotingId].push(event);
     } else {
-      standalone.push(e);
+      standalone.push(event);
     }
   }
 
   const items: BrowseGroupedItem[] = [];
 
-  for (const fid of Object.keys(festivalMap)) {
-    const fevents = festivalMap[fid];
-    const meta = fevents[0]?.festivalMeta;
+  for (const festivalNotingId of Object.keys(festivalMap)) {
+    const grouped = festivalMap[festivalNotingId];
+    const meta = grouped[0]?.festivalMeta;
     items.push({
       type: 'festival',
-      festivalNotingId: fid,
-      meta: meta || { name: 'Festival', startDate: fevents[0]?.startDate || '', endDate: fevents[0]?.endDate || '' },
-      events: fevents,
+      festivalNotingId,
+      meta: meta || {
+        name: 'Festival',
+        startDate: grouped[0]?.startDate || '',
+        endDate: grouped[0]?.endDate || '',
+      },
+      events: grouped,
     });
   }
 
-  for (const e of standalone) {
-    items.push({ type: 'standalone', event: e });
+  for (const event of standalone) {
+    items.push({ type: 'standalone', event });
   }
 
   return items;
@@ -66,14 +122,15 @@ export default function EventsPage() {
   const [filters, setFilters] = useState<EventFilters>({});
   const debouncedSearch = useDebounce(searchInput, 300);
   const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
-  const { data: myClubsData, isLoading: isMyClubsLoading } = useMyClubs();
-  const isClubChairperson = !!(isStudent && user?.id && myClubsData?.data?.some(
-    club => club.chairpersonId === user.id && club.status === 'active'
-  ));
+  const { data: myClubsData } = useMyClubs();
+  const isClubChairperson = !!(
+    isStudent &&
+    user?.id &&
+    myClubsData?.data?.some((club) => club.chairpersonId === user.id && club.status === 'active')
+  );
   const canBrowseEvents = true;
   const isAccessCheckLoading = false;
 
-  /** Prefetch event detail on card hover so navigation is instant */
   const handlePrefetch = useCallback(
     (eventId: string) => {
       queryClient.prefetchQuery({
@@ -101,24 +158,54 @@ export default function EventsPage() {
   const pagination = result?.pagination ?? { page: 1, limit: 20, total: 0, totalPages: 0 };
   const lastErrorRef = useRef<string | null>(null);
 
-  // Group events by festival
-  const groupedItems = React.useMemo(() => groupBrowseEvents(events), [events]);
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+
+  const isEventUpcoming = (event: Event) => new Date(event.startDate) > new Date();
+
+  const isEventOngoing = (event: Event) => {
+    const now = new Date();
+    return new Date(event.startDate) <= now && new Date(event.endDate) >= now;
+  };
+
+  const prioritizedEvents = React.useMemo(() => {
+    return [...events].sort((left, right) => {
+      const leftLive = isEventOngoing(left);
+      const rightLive = isEventOngoing(right);
+
+      if (leftLive !== rightLive) return leftLive ? -1 : 1;
+
+      const leftUpcoming = isEventUpcoming(left);
+      const rightUpcoming = isEventUpcoming(right);
+
+      if (leftUpcoming !== rightUpcoming) return leftUpcoming ? -1 : 1;
+
+      return new Date(left.startDate).getTime() - new Date(right.startDate).getTime();
+    });
+  }, [events]);
+
+  const groupedItems = React.useMemo(() => groupBrowseEvents(prioritizedEvents), [prioritizedEvents]);
   const [expandedFestivals, setExpandedFestivals] = useState<Set<string>>(new Set());
-  const toggleFestival = (fid: string) => {
+
+  const toggleFestival = (festivalNotingId: string) => {
     setExpandedFestivals((prev) => {
       const next = new Set(prev);
-      if (next.has(fid)) next.delete(fid);
-      else next.add(fid);
+      if (next.has(festivalNotingId)) next.delete(festivalNotingId);
+      else next.add(festivalNotingId);
       return next;
     });
   };
 
-  // All festival IDs on the current page
   const festivalIds = React.useMemo(
-    () => groupedItems.filter((g) => g.type === 'festival').map((g) => (g as { festivalNotingId: string }).festivalNotingId),
+    () => groupedItems.filter((item) => item.type === 'festival' && item.festivalNotingId).map((item) => item.festivalNotingId as string),
     [groupedItems],
   );
   const allExpanded = festivalIds.length > 0 && festivalIds.every((id) => expandedFestivals.has(id));
+
   const toggleAll = () => {
     if (allExpanded) {
       setExpandedFestivals(new Set());
@@ -129,10 +216,10 @@ export default function EventsPage() {
 
   useEffect(() => {
     if (error) {
-      const msg = getErrorMessage(error);
-      if (lastErrorRef.current !== msg) {
-        lastErrorRef.current = msg;
-        toast({ type: 'error', message: msg });
+      const message = getErrorMessage(error);
+      if (lastErrorRef.current !== message) {
+        lastErrorRef.current = message;
+        toast({ type: 'error', message });
       }
     } else {
       lastErrorRef.current = null;
@@ -141,37 +228,28 @@ export default function EventsPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Debounce drives filter updates; prevent form reload
   };
 
   const resetFilters = () => {
     setSearchInput('');
     setFilters({});
     setPage(1);
-    // Debounce will sync filters.search; clearing filters immediately for responsive UX
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
-  const isEventUpcoming = (event: Event) => {
-    return new Date(event.startDate) > new Date();
-  };
-
-  const isEventOngoing = (event: Event) => {
-    const now = new Date();
-    return new Date(event.startDate) <= now && new Date(event.endDate) >= now;
-  };
+  const liveCount = events.filter(isEventOngoing).length;
+  const upcomingCount = events.filter((event) => event.status === 'published' && isEventUpcoming(event)).length;
+  const freeCount = events.filter((event) => event.paymentType === 'free').length;
+  const activeFilterCount = [filters.status, filters.eventType, filters.search].filter(Boolean).length;
+  const paginationWindowStart = Math.max(1, Math.min(page - 2, Math.max(1, pagination.totalPages - 4)));
+  const visiblePages = Array.from(
+    { length: Math.min(5, pagination.totalPages) },
+    (_, index) => paginationWindowStart + index,
+  );
 
   if (isAccessCheckLoading || !canBrowseEvents) {
     return (
       <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
           <PageHeaderSkeleton />
           <div className="mt-6">
             <CardSkeleton />
@@ -182,258 +260,410 @@ export default function EventsPage() {
   }
 
   return (
-    <div className="ev-page">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-ev-900 mb-2">Browse Events</h1>
-          <p className="text-ev-400">Discover and join university events - workshops, seminars, competitions, and more</p>
-        </div>
+    <div className="ev-page relative overflow-hidden pb-16">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 overflow-hidden">
+        <div className="absolute -left-20 top-0 h-52 w-52 rounded-full bg-sky-200/35 blur-3xl" />
+        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-indigo-200/25 blur-3xl" />
+      </div>
 
-        {/* Info Banner */}
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 ev-card border-ev-200">
-          <div className="flex items-start gap-2 sm:gap-3">
-            <svg className="w-5 h-5 text-ev-700 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1">
-              <p className="text-sm font-medium text-ev-900 mb-1">
-                📝 Want to organize an event?
-              </p>
-              <p className="text-xs text-ev-800">
-                Create a <Link href="/noting/new" className="underline font-semibold text-ev-700">noting request</Link> with event details. Once approved, your event will appear in <Link href="/events/my-events" className="underline font-semibold text-ev-700">My Created Events</Link> as a draft. Add venue and registration details, then publish to make it live!
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Search and Filters */}
-        <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <form onSubmit={handleSearch} className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-ev-400" />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search events..."
-                className="ev-input pl-10"
-              />
-            </div>
-          </form>
-          
-          <div className="flex gap-2 flex-shrink-0">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="ev-btn-outline flex items-center gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              Filters
-            </button>
-            
-            {(filters.status || filters.eventType || filters.search) && (
-              <button
-                onClick={resetFilters}
-                className="ev-btn-outline flex items-center gap-2"
-              >
-                <X className="h-4 w-4" />
-                Clear
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filter Panel */}
-        {showFilters && (
-          <div className="mb-6 p-4 ev-card">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="ev-label">
-                  Status
-                </label>
-                <select
-                  value={filters.status || ''}
-                  onChange={(e) => {
-                    setFilters((prev) => ({ ...prev, status: (e.target.value || undefined) as EventFilters['status'] }));
-                    setPage(1);
-                  }}
-                  className="ev-input"
-                >
-                  <option value="">All</option>
-                  <option value="published">Published (Upcoming)</option>
-                  <option value="ongoing">Ongoing (Live Now)</option>
-                  <option value="completed">Completed (Past)</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="ev-label">
-                  Event Type
-                </label>
-                <select
-                  value={filters.eventType || ''}
-                  onChange={(e) => {
-                    setFilters((prev) => ({ ...prev, eventType: (e.target.value || undefined) as EventFilters['eventType'] }));
-                    setPage(1);
-                  }}
-                  className="ev-input"
-                >
-                  <option value="">All Types</option>
-                  {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Expand / Collapse All */}
-        {!isLoading && festivalIds.length > 0 && (
-          <div className="flex justify-end mb-2">
-            <button
-              type="button"
-              onClick={toggleAll}
-              className="ev-btn-outline text-xs !py-1.5 !px-3"
-            >
-              {allExpanded ? (
-                <><ChevronDown className="h-3.5 w-3.5" /> Collapse All</>
-              ) : (
-                <><ChevronRight className="h-3.5 w-3.5" /> Expand All</>
-              )}
-            </button>
-          </div>
-        )}
-
-        {/* Events Grid */}
-        {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <CardSkeleton className="w-full max-w-sm" />
-          </div>
-        ) : events.length === 0 ? (
-          <div className="ev-empty py-12">
-            <CalendarIcon className="h-12 w-12 text-ev-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-ev-900 mb-2">No events found</h3>
-            <p className="text-ev-400 mb-4">
-              No events match your search criteria. Try adjusting your filters.
-            </p>
-            <button
-              onClick={resetFilters}
-              className="text-ev-700 hover:underline text-sm font-semibold"
-            >
-              Clear all filters
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-6 mb-6 sm:mb-8">
-              {/* Render festivals and standalone events. Consecutive standalone events are batched into a grid. */}
-              {(() => {
-                const elements: React.ReactNode[] = [];
-                let standaloneBuffer: Event[] = [];
-
-                const flushStandalone = () => {
-                  if (standaloneBuffer.length === 0) return;
-                  elements.push(
-                    <div key={`standalone-${standaloneBuffer[0].id}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {standaloneBuffer.map((event) => (
-                        <BrowseEventCard key={event.id} event={event} formatDate={formatDate} isEventUpcoming={isEventUpcoming} isEventOngoing={isEventOngoing} handlePrefetch={handlePrefetch} />
-                      ))}
+      <div className="relative mx-auto max-w-[1450px] px-4 pt-0 sm:px-6 sm:pt-0 lg:px-8 lg:pt-0">
+        <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/92 shadow-[0_24px_70px_-48px_rgba(1,31,75,0.35)] backdrop-blur-xl">
+          <div className="space-y-5 px-5 pb-5 pt-2 sm:px-8 sm:pb-7 sm:pt-3 lg:px-10 lg:pb-10 lg:pt-3">
+            <Card className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(1,31,75,0.98),rgba(23,76,150,0.96))] py-0 text-white shadow-[0_18px_50px_-36px_rgba(1,31,75,0.48)]">
+              <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge className="border border-white/12 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-100">
+                        Events
+                      </Badge>
+                      {liveCount > 0 ? (
+                        <Badge className="border border-emerald-300/20 bg-emerald-300/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-100">
+                          {liveCount} live now
+                        </Badge>
+                      ) : null}
                     </div>
-                  );
-                  standaloneBuffer = [];
-                };
 
-                for (const item of groupedItems) {
-                  if (item.type === 'standalone') {
-                    standaloneBuffer.push(item.event);
-                  } else {
-                    flushStandalone();
-                    const isExpanded = expandedFestivals.has(item.festivalNotingId);
-                    elements.push(
-                      <div key={`festival-${item.festivalNotingId}`} className="ev-card overflow-hidden">
-                        {/* Festival Header */}
-                        <button
-                          type="button"
-                          onClick={() => toggleFestival(item.festivalNotingId)}
-                          className="w-full flex items-center gap-3 px-5 py-4 bg-ev-50 hover:bg-[#e2ecf3] transition-colors text-left"
+                    <CardTitle className="mt-3 text-2xl font-black tracking-[-0.04em] text-white sm:text-[2rem]">
+                      Find live, upcoming, and open campus events in one place.
+                    </CardTitle>
+                    <CardDescription className="mt-2 max-w-2xl text-sm leading-6 text-white/72">
+                      Browse published events, search quickly, apply filters, and open event details or festival lineups without extra steps.
+                    </CardDescription>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Upcoming</p>
+                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{upcomingCount}</p>
+                    </div>
+                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Free</p>
+                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{freeCount}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff,rgba(248,250,252,0.96))] py-0 shadow-[0_18px_50px_-40px_rgba(1,31,75,0.22)]">
+              <CardHeader className="gap-3 border-b border-slate-200/80 px-5 py-3 sm:px-6">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <CardTitle className="text-lg font-bold tracking-[-0.03em] text-slate-900 sm:text-xl">
+                      Browse events
+                    </CardTitle>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="border border-sky-100 bg-sky-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-sky-700">
+                      {pagination.total} total
+                    </Badge>
+                    {activeFilterCount > 0 ? (
+                      <Badge className="border border-amber-100 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-700">
+                        {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
+                      </Badge>
+                    ) : null}
+                    {isClubChairperson ? (
+                      <Badge className="border border-fuchsia-100 bg-fuchsia-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-fuchsia-700">
+                        Club chairperson
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-3 px-5 py-4 sm:px-6">
+                <form onSubmit={handleSearch} className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      type="text"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      placeholder="Search events"
+                      className="h-10 rounded-lg border-slate-200 bg-white pl-10 pr-4 text-sm shadow-sm"
+                    />
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={() => setShowFilters((prev) => !prev)}
+                    className="h-10 rounded-lg border-slate-200 px-4 text-sm"
+                  >
+                    <Filter data-icon="inline-start" />
+                    {showFilters ? 'Hide filters' : 'Filters'}
+                  </Button>
+
+                  {activeFilterCount > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="lg"
+                      onClick={resetFilters}
+                      className="h-10 rounded-lg px-4 text-slate-600 hover:text-slate-900 text-sm"
+                    >
+                      <X data-icon="inline-start" />
+                      Clear all
+                    </Button>
+                  ) : null}
+                </form>
+
+                <Collapsible open={showFilters} onOpenChange={setShowFilters}>
+                  <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                    <div className="grid gap-3 rounded-lg border border-slate-200/80 bg-slate-50/70 p-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                          Status
+                        </label>
+                        <Select
+                          value={filters.status || 'all'}
+                          onValueChange={(value) => {
+                            setFilters((prev) => ({
+                              ...prev,
+                              status: value === 'all' ? undefined : (value as EventFilters['status']),
+                            }));
+                            setPage(1);
+                          }}
                         >
-                          {isExpanded
-                            ? <ChevronDown className="h-5 w-5 text-ev-700 shrink-0" />
-                            : <ChevronRight className="h-5 w-5 text-ev-700 shrink-0" />}
-                          <Sparkles className="h-5 w-5 text-ev-700 shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-base font-bold text-ev-900 truncate">
-                                🎪 {item.meta.name}
-                              </h3>
-                              <span className="ev-badge bg-ev-50 text-ev-800 text-[10px] uppercase tracking-wider">
-                                Festival
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-4 mt-1 text-xs text-ev-400">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3.5 w-3.5" />
-                                {formatDate(item.meta.startDate)} – {formatDate(item.meta.endDate)}
-                              </span>
-                              <span className="font-medium text-ev-700">
-                                {item.events.length} event{item.events.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-
-                        {/* Sub-events grid — collapsible */}
-                        {isExpanded && (
-                          <div className="border-t border-ev-200 p-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {item.events.map((event) => (
-                                <BrowseEventCard key={event.id} event={event} formatDate={formatDate} isEventUpcoming={isEventUpcoming} isEventOngoing={isEventOngoing} handlePrefetch={handlePrefetch} />
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                          <SelectTrigger className="h-10 w-full rounded-lg border-slate-200 bg-white px-4 text-sm">
+                            <SelectValue placeholder="All statuses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All statuses</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
+                            <SelectItem value="ongoing">Ongoing</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    );
-                  }
-                }
-                flushStandalone();
-                return elements;
-              })()}
-            </div>
 
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-              <div className="flex justify-center items-center gap-3">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="ev-btn-outline min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                
-                <span className="text-sm font-medium text-ev-800">
-                  Page {pagination.page} of {pagination.totalPages}
-                </span>
-                
-                <button
-                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                  disabled={page === pagination.totalPages}
-                  className="ev-btn-outline min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                          Event type
+                        </label>
+                        <Select
+                          value={filters.eventType || 'all'}
+                          onValueChange={(value) => {
+                            setFilters((prev) => ({
+                              ...prev,
+                              eventType: value === 'all' ? undefined : (value as EventFilters['eventType']),
+                            }));
+                            setPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="h-10 w-full rounded-lg border-slate-200 bg-white px-4 text-sm">
+                            <SelectValue placeholder="All event types" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All event types</SelectItem>
+                            {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>
+                                {label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+
+              </CardContent>
+            </Card>
+
+            
+
+            {isLoading ? (
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <CardSkeleton key={index} className="h-[280px]" />
+                ))}
               </div>
+            ) : events.length === 0 ? (
+              <Card className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 py-0 text-center shadow-[0_24px_60px_-42px_rgba(1,31,75,0.22)]">
+                <CardContent className="px-6 py-14">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-sky-50 text-sky-700">
+                    <CalendarIcon className="h-8 w-8" />
+                  </div>
+                  <h3 className="mt-5 text-2xl font-black tracking-[-0.04em] text-slate-900">
+                    No events found
+                  </h3>
+                  <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-500">
+                    No events match the current search or filter combination. Reset the filters and try a broader query.
+                  </p>
+                  <div className="mt-6 flex justify-center">
+                    <Button onClick={resetFilters} size="lg" className="rounded-full px-5">
+                      Reset filters
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-600">
+                      Event feed
+                    </p>
+                    <h2 className="mt-1 text-xl font-bold tracking-[-0.03em] text-slate-900 sm:text-2xl">
+                      {pagination.total} result{pagination.total === 1 ? '' : 's'} available
+                    </h2>
+                  </div>
+
+                  {festivalIds.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      onClick={toggleAll}
+                      className="rounded-full border-slate-200 px-4"
+                    >
+                      {allExpanded ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
+                      {allExpanded ? 'Collapse festivals' : 'Expand festivals'}
+                    </Button>
+                  ) : null}
+                </div>
+
+                <div className="space-y-6">
+                  {(() => {
+                    const elements: React.ReactNode[] = [];
+                    let standaloneBuffer: Event[] = [];
+
+                    const flushStandalone = () => {
+                      if (standaloneBuffer.length === 0) return;
+
+                      elements.push(
+                        <div key={`standalone-${standaloneBuffer[0].id}`} className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                          {standaloneBuffer.map((event) => (
+                            <BrowseEventCard
+                              key={event.id}
+                              event={event}
+                              formatDate={formatDate}
+                              isEventUpcoming={isEventUpcoming}
+                              isEventOngoing={isEventOngoing}
+                              handlePrefetch={handlePrefetch}
+                            />
+                          ))}
+                        </div>
+                      );
+                      standaloneBuffer = [];
+                    };
+
+                    for (const item of groupedItems) {
+                      if (item.type === 'standalone') {
+                        if (item.event) {
+                          standaloneBuffer.push(item.event);
+                        }
+                        continue;
+                      }
+
+                      flushStandalone();
+
+                      if (!item.festivalNotingId) {
+                        continue;
+                      }
+
+                      const festivalId = item.festivalNotingId;
+                      const isExpanded = expandedFestivals.has(festivalId);
+                      elements.push(
+                        <Collapsible
+                          key={`festival-${festivalId}`}
+                          open={isExpanded}
+                          onOpenChange={() => toggleFestival(festivalId)}
+                        >
+                          <Card className="overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.18)]">
+                            <CollapsibleTrigger asChild>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-4 bg-[linear-gradient(180deg,#ffffff,rgba(247,249,252,0.96))] px-5 py-5 text-left transition hover:bg-[linear-gradient(180deg,#ffffff,rgba(241,246,250,0.96))] sm:px-6"
+                              >
+                                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                                  {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-lg font-bold tracking-[-0.03em] text-slate-900 sm:text-xl">
+                                      {item.meta?.name}
+                                    </h3>
+                                    <Badge className="border border-fuchsia-100 bg-fuchsia-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-fuchsia-700">
+                                      Festival
+                                    </Badge>
+                                  </div>
+                                  <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <Calendar className="h-4 w-4 text-sky-600" />
+                                      {formatDate(item.meta?.startDate || '')} - {formatDate(item.meta?.endDate || '')}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <Users className="h-4 w-4 text-sky-600" />
+                                      {item.events?.length} linked event{(item.events?.length || 0) > 1 ? 's' : ''}
+                                    </span>
+                                  </p>
+                                  {item.meta?.description ? (
+                                    <p className="mt-3 line-clamp-2 max-w-3xl text-sm leading-6 text-slate-500">
+                                      {item.meta.description}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </button>
+                            </CollapsibleTrigger>
+
+                            <CollapsibleContent>
+                              <Separator className="bg-slate-200/80" />
+                              <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
+                                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                                  {item.events?.map((event) => (
+                                    <BrowseEventCard
+                                      key={event.id}
+                                      event={event}
+                                      formatDate={formatDate}
+                                      isEventUpcoming={isEventUpcoming}
+                                      isEventOngoing={isEventOngoing}
+                                      handlePrefetch={handlePrefetch}
+                                    />
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </CollapsibleContent>
+                          </Card>
+                        </Collapsible>
+                      );
+                    }
+
+                    flushStandalone();
+                    return elements;
+                  })()}
+                </div>
+
+                {pagination.totalPages > 1 ? (
+                  <Card className="rounded-[1.35rem] border border-slate-200/80 bg-white/88 py-0 shadow-[0_18px_40px_-36px_rgba(1,31,75,0.18)]">
+                    <CardContent className="px-4 py-4 sm:px-6">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-slate-500">
+                          Page {pagination.page} of {pagination.totalPages}
+                        </p>
+
+                        <Pagination className="mx-0 w-auto justify-start sm:justify-end">
+                          <PaginationContent>
+                            <PaginationItem>
+                              <PaginationPrevious
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (page > 1) setPage((current) => Math.max(1, current - 1));
+                                }}
+                                className={page === 1 ? 'pointer-events-none opacity-50' : ''}
+                              />
+                            </PaginationItem>
+
+                            {visiblePages.map((pageNumber) => {
+                              return (
+                                <PaginationItem key={pageNumber}>
+                                  <PaginationLink
+                                    href="#"
+                                    isActive={page === pageNumber}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      setPage(pageNumber);
+                                    }}
+                                  >
+                                    {pageNumber}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              );
+                            })}
+
+                            <PaginationItem>
+                              <PaginationNext
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  if (page < pagination.totalPages) {
+                                    setPage((current) => Math.min(pagination.totalPages, current + 1));
+                                  }
+                                }}
+                                className={page === pagination.totalPages ? 'pointer-events-none opacity-50' : ''}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : null}
+              </>
             )}
-          </>
-        )}
+          </div>
+        </section>
       </div>
     </div>
   );
 }
 
-/** Reusable card for browse events page */
 function BrowseEventCard({
   event,
   formatDate,
@@ -447,82 +677,129 @@ function BrowseEventCard({
   isEventOngoing: (e: Event) => boolean;
   handlePrefetch: (id: string) => void;
 }) {
+  const publicRegistrationCount = event.currentRegistrations || 0;
+  const shouldRevealRegistrationCount = publicRegistrationCount >= 100;
+  const remainingSeats = event.maxCapacity
+    ? Math.max(0, event.maxCapacity - publicRegistrationCount)
+    : null;
+  const registrationHeadline = shouldRevealRegistrationCount
+    ? event.maxCapacity
+      ? `${publicRegistrationCount}/${event.maxCapacity} joined`
+      : `${publicRegistrationCount}+ joined`
+    : 'Few seats left';
+  const registrationSubline = shouldRevealRegistrationCount
+    ? remainingSeats !== null
+      ? `${remainingSeats} spots left`
+      : 'Unlimited capacity'
+    : event.maxCapacity
+      ? `Capacity ${event.maxCapacity}`
+      : 'Unlimited capacity';
+  const totalPrizePool = event.prizes?.reduce((sum, prize) => sum + (prize.prizeAmount || 0), 0) || 0;
+
   return (
-    <Link
-      href={`/events/${event.id}`}
-      onMouseEnter={() => handlePrefetch(event.id)}
-      className="block ev-card ev-card-hover"
-    >
-      <div className="p-4 sm:p-5 pt-4">
-        {/* Status Badge */}
-        <div className="flex items-center justify-between mb-3">
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${STATUS_CONFIG[event.status]?.color}`}>
-            {STATUS_CONFIG[event.status]?.label}
-          </span>
-          {isEventUpcoming(event) && event.status === 'published' && (
-            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-              Upcoming
-            </span>
-          )}
-          {isEventOngoing(event) && (
-            <span className="px-2 py-1 text-xs font-medium rounded-full bg-amber-100 text-amber-800">
-              Live
-            </span>
-          )}
-        </div>
+    <Link href={`/events/${event.id}`} onMouseEnter={() => handlePrefetch(event.id)} className="block">
+      <Card className="h-full rounded-[1.25rem] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff,rgba(248,250,252,0.96))] py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.2)] transition duration-200 hover:-translate-y-1 hover:border-sky-200 hover:shadow-[0_24px_56px_-40px_rgba(1,31,75,0.24)]">
+        <CardHeader className="px-5 pt-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <Badge className={`${STATUS_CONFIG[event.status]?.color || 'bg-slate-100 text-slate-700'} border-0 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]`}>
+                {STATUS_CONFIG[event.status]?.label || event.status}
+              </Badge>
+              {isEventUpcoming(event) && event.status === 'published' ? (
+                <Badge className="border border-emerald-100 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700">
+                  Upcoming
+                </Badge>
+              ) : null}
+              {isEventOngoing(event) ? (
+                <Badge className="border border-amber-100 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">
+                  Live now
+                </Badge>
+              ) : null}
+            </div>
 
-        {/* Event Name */}
-        <h3 className="text-lg font-semibold text-ev-900 mb-2 line-clamp-2">
-          {event.name}
-        </h3>
-
-        {/* Event Type */}
-        <p className="text-sm text-ev-400 mb-4">
-          {EVENT_TYPE_LABELS[event.eventType]}
-        </p>
-
-        {/* Date */}
-        <div className="flex items-center gap-2 text-sm text-ev-800 mb-2">
-          <Calendar className="h-4 w-4" />
-          <span>{formatDate(event.startDate)}</span>
-          {event.startDate !== event.endDate && (
-            <>
-              <span>-</span>
-              <span>{formatDate(event.endDate)}</span>
-            </>
-          )}
-        </div>
-
-        {/* Venue */}
-        {event.venue && (
-          <div className="flex items-center gap-2 text-sm text-ev-800 mb-2">
-            <MapPin className="h-4 w-4" />
-            <span className="line-clamp-1">{event.venue}</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+              <Calendar className="h-4 w-4" />
+            </div>
           </div>
-        )}
 
-        {/* Registrations */}
-        <div className="flex items-center gap-2 text-sm text-ev-800 mb-4">
-          <Users className="h-4 w-4" />
-          <span>
-            {event.currentRegistrations}
-            {event.maxCapacity && ` / ${event.maxCapacity}`} registered
-          </span>
-        </div>
+          <CardTitle className="mt-2.5 line-clamp-2 text-[1.7rem] font-black leading-[1.05] tracking-[-0.045em] text-slate-900">
+            {event.name}
+          </CardTitle>
+          <CardDescription className="mt-2 flex flex-wrap items-center gap-2 text-[1rem] font-medium text-slate-500">
+            <span className="text-slate-600">{EVENT_TYPE_LABELS[event.eventType]}</span>
+            {event.festivalMeta?.name ? (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="text-slate-500">{event.festivalMeta.name}</span>
+              </>
+            ) : null}
+          </CardDescription>
+        </CardHeader>
 
-        {/* Payment Type */}
-        <div className="flex items-center justify-between">
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-            event.paymentType === 'free'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-ev-100 text-ev-800'
-          }`}>
-            {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
-          </span>
-          
-          <Eye className="h-4 w-4 text-ev-400" />
-        </div>
-      </div>
+        <CardContent className="space-y-4 px-5 pb-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-slate-200/80 bg-white/85 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Timeline</p>
+              <p className="mt-2 text-[1.05rem] font-bold leading-tight text-slate-900">{formatDate(event.startDate)}</p>
+              <p className="mt-1 text-sm leading-5 text-slate-500">
+                {event.startDate !== event.endDate ? `to ${formatDate(event.endDate)}` : 'Single day event'}
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200/80 bg-white/85 p-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Availability</p>
+              <p className="mt-2 text-[1.05rem] font-bold leading-tight text-slate-900">{registrationHeadline}</p>
+              <p className="mt-1 text-sm leading-5 text-slate-500">{registrationSubline}</p>
+            </div>
+          </div>
+
+          <div className="space-y-3 text-[1.02rem] text-slate-600">
+            <div className="flex items-start gap-2.5">
+              <MapPin className="mt-0.5 h-4.5 w-4.5 shrink-0 text-sky-600" />
+              <span className="line-clamp-1 leading-6">{event.venue || 'Venue update soon'}</span>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <Users className="mt-0.5 h-4.5 w-4.5 shrink-0 text-sky-600" />
+              <span className="capitalize leading-6">
+                {event.participationType}
+                {event.participationType === 'team' ? ` • ${event.minTeamSize}-${event.maxTeamSize} members` : ' registration'}
+              </span>
+            </div>
+            <div className="flex items-start gap-2.5">
+              <WalletCards className="mt-0.5 h-4.5 w-4.5 shrink-0 text-sky-600" />
+              <span className="leading-6">
+                {totalPrizePool > 0
+                  ? `Prize pool ₹${totalPrizePool.toLocaleString()}`
+                  : event.certificateAvailable
+                    ? 'Certificate reward included'
+                    : 'Reward details soon'}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+
+        <CardFooter className="mt-auto flex items-center justify-between border-t border-slate-200/80 px-5 py-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={`px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${
+              event.paymentType === 'free'
+                ? 'border border-emerald-100 bg-emerald-50 text-emerald-700'
+                : 'border border-sky-100 bg-sky-50 text-sky-700'
+            }`}>
+              {event.paymentType === 'free' ? 'Free entry' : `₹${event.registrationFee}`}
+            </Badge>
+            {event.certificateAvailable ? (
+              <Badge className="border border-amber-100 bg-amber-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-700">
+                Certificate
+              </Badge>
+            ) : null}
+          </div>
+
+          <div className="inline-flex items-center gap-1 text-base font-bold text-sgt-700">
+            View event
+            <ArrowRight className="h-4 w-4" />
+          </div>
+        </CardFooter>
+      </Card>
     </Link>
   );
 }

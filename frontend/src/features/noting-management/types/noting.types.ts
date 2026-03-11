@@ -62,7 +62,39 @@ export interface Note {
   eventDutyLeaveEligibility?: string[] | null;
   eventDutyLeaveRoleType?: 'participants' | 'organizers' | 'both' | null;
   eventHasSponsorship?: boolean | null;
-  eventSponsors?: { name: string; amount: number; type: 'cash' | 'in_kind'; notes?: string }[] | null;
+  eventSponsors?: Array<{
+    id?: string;
+    name: string;
+    originSource?: 'noting' | 'event';
+    // New format fields
+    sponsorType?: 'corporate' | 'individual' | 'organization' | 'other';
+    contactPerson?: string;
+    designation?: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    contributionType?: 'cash' | 'in_kind' | 'both';
+    cashAmount?: number;
+    paymentStatus?: 'received' | 'pending' | 'partial' | 'not_received';
+    paymentMethod?: 'cash' | 'upi' | 'card' | 'net_banking' | 'other';
+    paymentMethodOtherLabel?: string;
+    transactionId?: string;
+    receipt?: { filePath: string; fileName: string } | null;
+    sponsorLogo?: { filePath: string; fileName: string } | null;
+    cashAssignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    inKindItems?: Array<{
+      itemName: string;
+      category?: string;
+      quantity?: number;
+      estimatedValue?: number;
+      description?: string;
+      deliveryStatus?: 'pending' | 'received' | 'not_received';
+      assignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    }>;
+    // Old format fields (backward compat)
+    amount?: number;
+    type?: 'cash' | 'in_kind';
+  }> | null;
   eventHasResources?: boolean | null;
   eventResources?: { category?: string; type: string; description?: string; estimatedCost?: number; pricePerPiece?: number; quantity?: number }[] | null;
   eventCertification?: boolean | null;
@@ -77,6 +109,17 @@ export interface Note {
     applicationDeadline?: string;
     enableCreatorMade: boolean;
     creatorStalls: { name: string; description: string; capacity: number }[];
+  } | null;
+  eventVisibilitySettings?: {
+    visibleToRoles?: string[];
+    studentFilterType?: 'all' | 'custom';
+    allowedSchoolIds?: string[];
+    allowedDepartmentIds?: string[];
+    allowedProgramIds?: string[];
+    allowedBatchYears?: number[];
+    allowedSectionIds?: string[];
+    allowExtraPasses?: boolean;
+    maxExtraPassesPerUser?: number;
   } | null;
   festivalMeta?: { name: string; startDate: string; endDate: string; description?: string; coordinator?: string } | null;
   subEvents?: Array<{
@@ -96,7 +139,7 @@ export interface Note {
       eventDutyLeaveEligibility?: string[] | null;
       eventDutyLeaveRoleType?: string | null;
       eventHasSponsorship?: boolean | null;
-      eventSponsors?: { name: string; amount: number; type: string; notes?: string }[] | null;
+      eventSponsors?: any[] | null;
       eventHasResources?: boolean | null;
       eventResources?: { type: string; description?: string; pricePerPiece?: number; quantity?: number }[] | null;
       eventCertification?: boolean | null;

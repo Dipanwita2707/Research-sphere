@@ -7,7 +7,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 
-import type { VenueFormData, SubEventPrize } from './FestivalForm';
+import type { VenueFormData, SubEventPrize, SponsorData } from './FestivalForm';
+import { SponsorshipManager } from './SponsorshipManager';
 
 
 type PrizeType = 'cash' | 'certificate' | 'trophy' | 'internship' | 'scholarship' | 'voucher' | 'merchandise' | 'custom';
@@ -50,6 +51,24 @@ const radioLabelCls = (active: boolean) =>
     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800/50'
   }`;
 
+// Yes/No radio-button group — null = nothing selected
+const YesNoRadio = ({ value, onYes, onNo, disabled = false, name, error = false }: {
+  value: boolean | null; onYes: () => void; onNo: () => void; disabled?: boolean; name: string; error?: boolean;
+}) => {
+  const base = 'px-4 py-2 text-xs font-semibold rounded-lg border-2 transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2';
+  const active = 'border-sgt-500 bg-sgt-50 dark:bg-sgt-900/30 text-sgt-700 dark:text-sgt-300 shadow-sm';
+  const inactive = error && value === null 
+    ? 'border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-900/20 text-gray-500 dark:text-gray-400'
+    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600';
+  const dis = disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer';
+  return (
+    <div className="inline-flex gap-2 shrink-0">
+      <button type="button" role="radio" aria-checked={value === true} name={name} onClick={() => !disabled && onYes()} disabled={disabled} className={`${base} ${value === true ? active : inactive} ${dis}`}>Yes</button>
+      <button type="button" role="radio" aria-checked={value === false} name={name} onClick={() => !disabled && onNo()} disabled={disabled} className={`${base} ${value === false ? active : inactive} ${dis}`}>No</button>
+    </div>
+  );
+};
+
 export interface EventFormFieldsProps {
   data: VenueFormData;
   onChange: (d: VenueFormData) => void;
@@ -58,6 +77,9 @@ export interface EventFormFieldsProps {
   fieldsetPrefix?: string;
   festivalStartDate?: string;
   festivalEndDate?: string;
+  onUploadReceipt?: (file: File) => Promise<{ filePath: string; fileName: string } | null>;
+  onUploadSponsorLogo?: (file: File) => Promise<{ filePath: string; fileName: string } | null>;
+  searchEmployees?: (query: string) => Promise<Array<{ id: string; uid: string; displayName: string; department?: string }>>;
 }
 
 export const EventFormFields: React.FC<EventFormFieldsProps> = ({
@@ -68,6 +90,9 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
   fieldsetPrefix = 'evt',
   festivalStartDate,
   festivalEndDate,
+  onUploadReceipt,
+  onUploadSponsorLogo,
+  searchEmployees,
 }) => {
   const dataRef = useRef(data);
   dataRef.current = data;
@@ -82,11 +107,7 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
   }, []);
   const ns = useCallback((n: string) => `${fieldsetPrefix}-${n}`, [fieldsetPrefix]);
 
-  const addSponsor = useCallback(() => set('eventSponsors', [...dataRef.current.eventSponsors, { name: '', amount: '', type: 'cash', notes: '' }]), [set]);
-  const removeSponsor = useCallback((i: number) => set('eventSponsors', dataRef.current.eventSponsors.filter((_, idx) => idx !== i)), [set]);
-  const updateSponsor = useCallback((i: number, field: string, val: string | number) => {
-    const next = [...dataRef.current.eventSponsors]; next[i] = { ...next[i], [field]: val }; set('eventSponsors', next);
-  }, [set]);
+  const setSponsor = useCallback((sponsors: SponsorData[]) => set('eventSponsors', sponsors), [set]);
 
   const addResource = useCallback(() => set('eventResources', [...dataRef.current.eventResources, { type: '', description: '', pricePerPiece: '', quantity: '' }]), [set]);
   const removeResource = useCallback((i: number) => set('eventResources', dataRef.current.eventResources.filter((_, idx) => idx !== i)), [set]);
@@ -391,11 +412,10 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
               {/* Duty Leave */}
               <div className="space-y-4">
                 <div className="flex justify-between items-start gap-4">
-                  <label className={labelCls}>Duty Leave Required?</label>
-                  <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
-                    <button type="button" onClick={() => !disabled && setMany({ eventDutyLeaveAvailable: true, eventDutyLeaveEligibility: dataRef.current.eventDutyLeaveEligibility.length ? dataRef.current.eventDutyLeaveEligibility : ['ug', 'pg', 'phd'], eventDutyLeaveRoleType: dataRef.current.eventDutyLeaveRoleType || 'participants' })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventDutyLeaveAvailable ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                    <button type="button" onClick={() => !disabled && setMany({ eventDutyLeaveAvailable: false, eventDutyLeaveEligibility: [], eventDutyLeaveRoleType: undefined })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventDutyLeaveAvailable ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
-                  </div>
+                  <label className={labelCls}>Duty Leave Required? <span className="text-red-500 font-bold">*</span></label>
+                  <YesNoRadio name={ns('dutyLeave')} value={data.eventDutyLeaveAvailable} disabled={disabled}
+                    onYes={() => setMany({ eventDutyLeaveAvailable: true, eventDutyLeaveEligibility: dataRef.current.eventDutyLeaveEligibility.length ? dataRef.current.eventDutyLeaveEligibility : ['ug', 'pg', 'phd'], eventDutyLeaveRoleType: dataRef.current.eventDutyLeaveRoleType || 'participants' })}
+                    onNo={() => setMany({ eventDutyLeaveAvailable: false, eventDutyLeaveEligibility: [], eventDutyLeaveRoleType: undefined })} />
                 </div>
 
                 {data.eventDutyLeaveAvailable && (
@@ -432,55 +452,20 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
               {/* Sponsorship */}
               <div className="space-y-4">
                 <div className="flex justify-between items-start gap-4">
-                  <label className={labelCls}>Sponsorship Available?</label>
-                  <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
-                    <button type="button" onClick={() => !disabled && set('eventHasSponsorship', true)} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventHasSponsorship ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                    <button type="button" onClick={() => !disabled && setMany({ eventHasSponsorship: false, eventSponsors: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasSponsorship ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
-                  </div>
+                  <label className={labelCls}>Sponsorship Available? <span className="text-red-500 font-bold">*</span></label>
+                  <YesNoRadio name={ns('sponsorship')} value={data.eventHasSponsorship} disabled={disabled}
+                    onYes={() => set('eventHasSponsorship', true)}
+                    onNo={() => setMany({ eventHasSponsorship: false, eventSponsors: [] })} />
                 </div>
 
                 {data.eventHasSponsorship && (
-                  <div className="space-y-4 animate-in fade-in slide-in-from-top-1">
-                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_8rem_1fr] gap-2 px-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                      <span>Sponsor Name</span>
-                      <span>Type</span>
-                      <span>Amount / Details</span>
-                    </div>
-                    {data.eventSponsors.map((sp, i) => (
-                      <div key={i} className="flex flex-col sm:flex-row gap-3 p-3 bg-gray-50 dark:bg-gray-700/30 rounded-xl border border-gray-200 dark:border-gray-600 transition-all hover:border-gray-300 dark:hover:border-gray-500">
-                        <div className="flex-1">
-                          <input type="text" disabled={disabled} value={sp.name} onChange={(e) => updateSponsor(i, 'name', e.target.value)} placeholder="e.g. ABC Corp, XYZ Ltd" className={inputCls} />
-                        </div>
-                        <div className="sm:w-32">
-                          <select disabled={disabled} value={sp.type} onChange={(e) => updateSponsor(i, 'type', e.target.value)} className={inputCls}>
-                            <option value="cash">Cash</option>
-                            <option value="in_kind">In-kind</option>
-                          </select>
-                        </div>
-                        <div className="flex-1">
-                          {sp.type === 'cash' ? (
-                            <div className="relative">
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">₹</span>
-                              <input type="number" min={0} disabled={disabled} value={sp.amount} onChange={(e) => updateSponsor(i, 'amount', e.target.value === '' ? '' : Number(e.target.value))} placeholder="Amount" className={`${inputCls} pl-6`} />
-                            </div>
-                          ) : (
-                            <input type="text" disabled={disabled} value={sp.notes} onChange={(e) => updateSponsor(i, 'notes', e.target.value)} placeholder="Items (e.g. food)" className={inputCls} />
-                          )}
-                        </div>
-                        <button type="button" disabled={disabled} onClick={() => removeSponsor(i)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors self-start sm:self-center"><Trash2 className="w-5 h-5" /></button>
-                      </div>
-                    ))}
-
-                    <button type="button" disabled={disabled} onClick={addSponsor} className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-500 hover:text-sgt-600 hover:border-sgt-400 hover:bg-sgt-50/70 dark:hover:bg-sgt-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
-                      <Plus className="w-4 h-4" /> Add Sponsor
-                    </button>
-                  </div>
+                  <SponsorshipManager sponsors={data.eventSponsors as SponsorData[]} onChange={setSponsor} disabled={disabled} onUploadReceipt={onUploadReceipt} onUploadSponsorLogo={onUploadSponsorLogo} searchEmployees={searchEmployees} />
                 )}
               </div>
             </div>
           </div>
         </>
-      ), [data.eventDutyLeaveAvailable, data.eventDutyLeaveEligibility, data.eventDutyLeaveRoleType, data.eventHasSponsorship, data.eventSponsors, disabled, ns, updateSponsor, removeSponsor, set, addSponsor])}
+      ), [data.eventDutyLeaveAvailable, data.eventDutyLeaveEligibility, data.eventDutyLeaveRoleType, data.eventHasSponsorship, data.eventSponsors, disabled, ns, setSponsor, set, setMany])}
 
       {useMemo(() => (
         <>
@@ -493,11 +478,10 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
 
             <div className="space-y-4">
               <div className="flex justify-between items-start gap-4">
-                <label className={labelCls}>Are any resources required?</label>
-                <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
-                  <button type="button" onClick={() => !disabled && set('eventHasResources', true)} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventHasResources ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                  <button type="button" onClick={() => !disabled && setMany({ eventHasResources: false, eventResources: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasResources ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
-                </div>
+                <label className={labelCls}>Are any resources required? <span className="text-red-500 font-bold">*</span></label>
+                <YesNoRadio name={ns('resources')} value={data.eventHasResources} disabled={disabled}
+                  onYes={() => set('eventHasResources', true)}
+                  onNo={() => setMany({ eventHasResources: false, eventResources: [] })} />
               </div>
 
               {data.eventHasResources && (
@@ -587,24 +571,22 @@ export const EventFormFields: React.FC<EventFormFieldsProps> = ({
               {/* Certificate Toggle */}
               <div className="flex justify-between items-center py-1 gap-4">
                 <div>
-                  <label className={labelCls + " mb-0"}>Participants receive certificates?</label>
+                  <label className={labelCls + " mb-0"}>Participants receive certificates? <span className="text-red-500 font-bold">*</span></label>
                   <p className={helperTextCls}>Locked after event approval</p>
                 </div>
-                <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
-                  <button type="button" onClick={() => !disabled && set('eventCertification', true)} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventCertification ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                  <button type="button" onClick={() => !disabled && set('eventCertification', false)} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventCertification ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
-                </div>
+                <YesNoRadio name={ns('certification')} value={data.eventCertification} disabled={disabled}
+                  onYes={() => set('eventCertification', true)}
+                  onNo={() => set('eventCertification', false)} />
               </div>
 
               <div className="h-px bg-gray-100 dark:bg-gray-700" />
 
               {/* Prizes Toggle */}
               <div className="flex justify-between items-start gap-4">
-                <label className={labelCls}>Prizes & Winners</label>
-                <div className="inline-flex p-0.5 rounded-full bg-gray-100 dark:bg-gray-700 shrink-0">
-                  <button type="button" onClick={() => !disabled && setMany({ eventHasPrizes: true })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${data.eventHasPrizes ? 'bg-white dark:bg-gray-600 text-sgt-600 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>Yes</button>
-                  <button type="button" onClick={() => !disabled && setMany({ eventHasPrizes: false, eventPrizesAwards: [] })} disabled={disabled} className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-sgt-500 focus-visible:ring-offset-2 ${disabled ? 'opacity-60 cursor-not-allowed' : ''} ${!data.eventHasPrizes ? 'bg-white dark:bg-gray-600 text-gray-700 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>No</button>
-                </div>
+                <label className={labelCls}>Prizes & Winners <span className="text-red-500 font-bold">*</span></label>
+                <YesNoRadio name={ns('prizes')} value={data.eventHasPrizes} disabled={disabled}
+                  onYes={() => setMany({ eventHasPrizes: true })}
+                  onNo={() => setMany({ eventHasPrizes: false, eventPrizesAwards: [] })} />
               </div>
 
               {/* Prizes Grid — shown only when Yes */}

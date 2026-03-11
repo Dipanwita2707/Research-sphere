@@ -66,6 +66,26 @@ async function invalidateNoteCaches(noteId) {
   ]);
 }
 
+/**
+ * Lightweight cache invalidation for draft autosave.
+ * Clears the detail cache synchronously (so an immediate GET sees fresh data)
+ * but defers the expensive wildcard SCAN patterns to run async.
+ * This shaves ~50-100ms off the autosave response time.
+ *
+ * @param {string} noteId
+ */
+async function invalidateDraftCache(noteId) {
+  // Synchronous: only the specific key that a subsequent getById would hit
+  await cache.del(`noting:detail:${noteId}`);
+  // Fire-and-forget: list/counts caches will catch up shortly
+  Promise.all([
+    cache.del(`noting:copies:${noteId}`),
+    cache.delPattern('noting:counts:*'),
+    cache.delPattern('noting:list:*'),
+    cache.delPattern('noting:mycopies:*'),
+  ]).catch(() => {}); // swallow errors — these are best-effort
+}
+
 // ── Note Lifecycle Guards ───────────────────────────────────────────────────
 
 /**
@@ -171,6 +191,7 @@ module.exports = {
   // Helpers
   getManagerOrThrow,
   invalidateNoteCaches,
+  invalidateDraftCache,
 
   // Re-exports for convenience
   NOTE_STATUS,

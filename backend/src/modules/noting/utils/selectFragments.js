@@ -171,6 +171,7 @@ const noteFieldsForDetail = {
   festivalMeta: true,
   subEvents: true,
   eventClubId: true,
+  eventVisibilitySettings: true,
   // Club fields
   clubName: true,
   clubCategoryId: true,

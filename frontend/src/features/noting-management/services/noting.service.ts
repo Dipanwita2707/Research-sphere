@@ -160,6 +160,17 @@ export const notingService = {
         fileName: string;
         fileDescription?: string | null;
       }[];
+      eventVisibilitySettings?: {
+        visibleToRoles?: string[];
+        studentFilterType?: 'all' | 'custom';
+        allowedSchoolIds?: string[];
+        allowedDepartmentIds?: string[];
+        allowedProgramIds?: string[];
+        allowedBatchYears?: number[];
+        allowedSectionIds?: string[];
+        allowExtraPasses?: boolean;
+        maxExtraPassesPerUser?: number;
+      } | null;
     },
   ) =>
     api

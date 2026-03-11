@@ -20,7 +20,7 @@ const { ValidationError } = require("../../../shared/utils/AppError");
 
 const { generateNotingId } = require("../services/notingId.service");
 const approvalFlowService = require("../services/approvalFlow.service");
-const { invalidateNoteCaches } = require("../services/noting.service");
+const { invalidateNoteCaches, invalidateDraftCache } = require("../services/noting.service");
 const notingNotification = require("../services/notingNotification.service");
 
 const { NOTE_STATUS, NOTE_ACTIONS } = require("../constants/noting.constants");
@@ -105,10 +105,9 @@ const create = asyncHandler(async (req, res) => {
     subEvents,
     // Optional club association for event notings
     eventClubId,
+    // Event visibility/settings
+    eventVisibilitySettings,
   } = req.body;
-
-  // Validate category and subcategory
-  validateCategory(category, subcategory);
 
   // ── Chairperson restriction: students can only create event notings ─────
   if (req.user.role === "student") {
@@ -357,6 +356,8 @@ const create = asyncHandler(async (req, res) => {
     subEvents: Array.isArray(subEvents) ? subEvents : null,
     // Optional club association for event notings
     eventClubId: eventClubId || null,
+    // Event visibility/settings (JSON blob)
+    eventVisibilitySettings: eventVisibilitySettings || null,
     status,
     createdById: userId,
     currentHolderId: submit && preValidatedManagerId ? preValidatedManagerId : currentHolderId,
@@ -406,6 +407,11 @@ const create = asyncHandler(async (req, res) => {
   // Trigger notification: the assigned approver is informed the note is pending review
   if (submit && finalNote.currentHolderId) {
     notingNotification.notifyAssigned(finalNote, finalNote.currentHolderId);
+  }
+
+  // Trigger notification: sponsor-assigned users are informed of their duties
+  if (submit && finalNote.eventHasSponsorship && Array.isArray(finalNote.eventSponsors)) {
+    notingNotification.notifySponsorAssigned(finalNote, finalNote.eventSponsors);
   }
 
   return ApiResponse.created(
@@ -470,6 +476,8 @@ const updateDraft = asyncHandler(async (req, res) => {
     subEvents,
     // Optional club association for event notings
     eventClubId,
+    // Event visibility/settings
+    eventVisibilitySettings,
   } = req.body;
 
   // Load note with history to check if approver has acted
@@ -661,12 +669,44 @@ const updateDraft = asyncHandler(async (req, res) => {
   // Optional club association
   if (eventClubId !== undefined)
     updateData.eventClubId = eventClubId || null;
+  // Event visibility/settings
+  if (eventVisibilitySettings !== undefined)
+    updateData.eventVisibilitySettings = eventVisibilitySettings || null;
+
+  // ── PERF: Detect no-op child-table changes ─────────────────────────────
+  // The note is already loaded above with points & attachments.  Compare
+  // incoming data with existing rows to skip expensive deleteMany+createMany
+  // roundtrips when nothing actually changed (common during autosave).
+  const pointsChanged = Array.isArray(points) && (() => {
+    if (validPoints.length !== (note.points || []).length) return true;
+    const existing = (note.points || []).map(p => `${p.sortOrder}|${p.content}`).sort();
+    const incoming = validPoints.map(p => `${p.sortOrder}|${p.content}`).sort();
+    return JSON.stringify(existing) !== JSON.stringify(incoming);
+  })();
+
+  const attachmentsChanged = (attachmentsPayload !== undefined) && (() => {
+    if (validAttachments.length !== (note.attachments || []).length) return true;
+    const existing = (note.attachments || []).map(a => `${a.filePath}|${a.fileName}|${a.fileDescription || ''}`).sort();
+    const incoming = validAttachments.map(a => `${a.filePath}|${a.fileName}|${a.fileDescription || ''}`).sort();
+    return JSON.stringify(existing) !== JSON.stringify(incoming);
+  })();
+
+  const hasNoteUpdates = Object.keys(updateData).length > 0;
+
+  // ── PERF: Skip entire transaction if nothing changed ──────────────────
+  if (!pointsChanged && !attachmentsChanged && !hasNoteUpdates) {
+    return ApiResponse.success(res, { id, ...note }, "Draft updated successfully (no changes)");
+  }
 
   // PERF FIX: Return updated note from inside the transaction instead of
   // doing a separate findUnique afterward. Saves one DB round-trip (~100ms).
+  // When only note scalar fields changed (no points/attachments), skip the
+  // expensive findUnique entirely — return a minimal confirmation.
+  const needsFullRefetch = pointsChanged || attachmentsChanged;
+
   const updated = await prisma.$transaction(async (tx) => {
-    // Update points if provided
-    if (Array.isArray(points)) {
+    // Update points only if changed
+    if (pointsChanged) {
       await tx.notePoint.deleteMany({ where: { noteId: id } });
       if (validPoints.length) {
         await tx.notePoint.createMany({
@@ -675,8 +715,8 @@ const updateDraft = asyncHandler(async (req, res) => {
       }
     }
 
-    // Update attachments if provided
-    if (attachmentsPayload !== undefined) {
+    // Update attachments only if changed
+    if (attachmentsChanged) {
       await tx.noteAttachment.deleteMany({ where: { noteId: id } });
       if (validAttachments.length) {
         await tx.noteAttachment.createMany({
@@ -686,26 +726,45 @@ const updateDraft = asyncHandler(async (req, res) => {
     }
 
     // Update note
-    if (Object.keys(updateData).length) {
+    if (hasNoteUpdates) {
       await tx.note.update({ where: { id }, data: updateData });
     }
 
-    // Return the updated note with includes from inside the transaction
+    // Only do the expensive findUnique when child rows changed
+    if (needsFullRefetch) {
+      return tx.note.findUnique({
+        where: { id },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              uid: true,
+              employeeDetails: { select: { displayName: true } },
+            },
+          },
+          points: { orderBy: { sortOrder: "asc" } },
+          attachments: true,
+        },
+      });
+    }
+    // Lightweight: just return the updated scalar data
     return tx.note.findUnique({
       where: { id },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            uid: true,
-            employeeDetails: { select: { displayName: true } },
-          },
-        },
-        points: { orderBy: { sortOrder: "asc" } },
-        attachments: true,
+      select: {
+        id: true,
+        eventHasSponsorship: true,
+        eventSponsors: true,
       },
     });
   });
+
+  // PERF: Lightweight cache bust — detail key sync, wildcard patterns async
+  await invalidateDraftCache(id);
+
+  // Trigger notification: sponsor-assigned users are informed of their duties on update
+  if (eventSponsors !== undefined && updated.eventHasSponsorship && Array.isArray(updated.eventSponsors)) {
+    notingNotification.notifySponsorAssigned(updated, updated.eventSponsors);
+  }
 
   return ApiResponse.success(res, updated, "Draft updated successfully");
 });

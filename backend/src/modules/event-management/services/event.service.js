@@ -168,7 +168,13 @@ const createEventFromNoting = async (noteId, userId) => {
               : null,
             dutyLeaveRoleType: v.eventDutyLeaveRoleType ?? null,
             hasSponsorship: v.eventHasSponsorship ?? null,
-            sponsors: Array.isArray(v.eventSponsors) ? v.eventSponsors : null,
+            sponsors: Array.isArray(v.eventSponsors)
+              ? v.eventSponsors.map(s => ({
+                  ...s,
+                  id: s.id || require('crypto').randomUUID(),
+                  originSource: s.originSource || 'noting',
+                }))
+              : null,
             hasResources: v.eventHasResources ?? null,
             resources: Array.isArray(v.eventResources) ? v.eventResources : null,
             certificateAvailable: v.eventCertification ?? false,
@@ -236,6 +242,44 @@ const createEventFromNoting = async (noteId, userId) => {
       }
     }
 
+    // ── Seed EventVisibility for all festival sub-events from noting settings ──
+    const festVs = noting.eventVisibilitySettings;
+    if (festVs && typeof festVs === "object" && createdEvents.length > 0) {
+      try {
+        const VALID_ROLES = ["student", "faculty", "staff", "admin", "parent", "superadmin"];
+        const roles = Array.isArray(festVs.visibleToRoles)
+          ? festVs.visibleToRoles.filter((r) => VALID_ROLES.includes(r))
+          : ["student", "faculty", "staff", "admin", "superadmin", "parent"];
+
+        const visibilityRows = createdEvents.map((ev) => ({
+          eventId: ev.id,
+          isActive: true,
+          visibleToRoles: roles,
+          studentFilterType: festVs.studentFilterType === "custom" ? "custom" : "all",
+          allowedSchoolIds: Array.isArray(festVs.allowedSchoolIds) ? festVs.allowedSchoolIds : [],
+          allowedDepartmentIds: Array.isArray(festVs.allowedDepartmentIds) ? festVs.allowedDepartmentIds : [],
+          allowedProgramIds: Array.isArray(festVs.allowedProgramIds) ? festVs.allowedProgramIds : [],
+          allowedBatchYears: Array.isArray(festVs.allowedBatchYears) ? festVs.allowedBatchYears : [],
+          allowedSectionIds: Array.isArray(festVs.allowedSectionIds) ? festVs.allowedSectionIds : [],
+        }));
+        await prisma.eventVisibility.createMany({ data: visibilityRows });
+
+        if (festVs.allowExtraPasses) {
+          const eventIds = createdEvents.map((ev) => ev.id);
+          await prisma.event.updateMany({
+            where: { id: { in: eventIds } },
+            data: {
+              allowExtraPasses: true,
+              maxExtraPassesPerUser: Number(festVs.maxExtraPassesPerUser) || 1,
+            },
+          });
+        }
+        log.ok(`Seeded EventVisibility from noting settings for ${createdEvents.length} festival sub-events`);
+      } catch (err) {
+        log.error(`Failed to seed EventVisibility for festival sub-events: ${err.message}`);
+      }
+    }
+
     return { isFestival: true, events: createdEvents };
   }
 
@@ -286,7 +330,13 @@ const createEventFromNoting = async (noteId, userId) => {
       dutyLeaveEligibility: noting.eventDutyLeaveEligibility ?? null,
       dutyLeaveRoleType: noting.eventDutyLeaveRoleType ?? null,
       hasSponsorship: noting.eventHasSponsorship ?? null,
-      sponsors: noting.eventSponsors ?? null,
+      sponsors: Array.isArray(noting.eventSponsors)
+        ? noting.eventSponsors.map(s => ({
+            ...s,
+            id: s.id || require('crypto').randomUUID(),
+            originSource: s.originSource || 'noting',
+          }))
+        : noting.eventSponsors ?? null,
       hasResources: noting.eventHasResources ?? null,
       resources: noting.eventResources ?? null,
       certificateAvailable: noting.eventCertification ?? false,
@@ -360,6 +410,44 @@ const createEventFromNoting = async (noteId, userId) => {
     } catch (err) {
       // Don't fail event creation if volunteer assignment fails (e.g. duplicate)
       log.error(`Failed to auto-grant chairperson permissions: ${err.message}`);
+    }
+  }
+
+  // ── Seed EventVisibility from noting's event settings ────────────────────
+  const vs = noting.eventVisibilitySettings;
+  if (vs && typeof vs === "object") {
+    try {
+      const VALID_ROLES = ["student", "faculty", "staff", "admin", "parent", "superadmin"];
+      const roles = Array.isArray(vs.visibleToRoles)
+        ? vs.visibleToRoles.filter((r) => VALID_ROLES.includes(r))
+        : ["student", "faculty", "staff", "admin", "superadmin", "parent"];
+
+      await prisma.eventVisibility.create({
+        data: {
+          eventId: event.id,
+          isActive: true,
+          visibleToRoles: roles,
+          studentFilterType: vs.studentFilterType === "custom" ? "custom" : "all",
+          allowedSchoolIds: Array.isArray(vs.allowedSchoolIds) ? vs.allowedSchoolIds : [],
+          allowedDepartmentIds: Array.isArray(vs.allowedDepartmentIds) ? vs.allowedDepartmentIds : [],
+          allowedProgramIds: Array.isArray(vs.allowedProgramIds) ? vs.allowedProgramIds : [],
+          allowedBatchYears: Array.isArray(vs.allowedBatchYears) ? vs.allowedBatchYears : [],
+          allowedSectionIds: Array.isArray(vs.allowedSectionIds) ? vs.allowedSectionIds : [],
+        },
+      });
+      // Set extra pass fields on event
+      if (vs.allowExtraPasses) {
+        await prisma.event.update({
+          where: { id: event.id },
+          data: {
+            allowExtraPasses: true,
+            maxExtraPassesPerUser: Number(vs.maxExtraPassesPerUser) || 1,
+          },
+        });
+      }
+      log.ok(`Seeded EventVisibility from noting settings for event ${event.eventId}`);
+    } catch (err) {
+      log.error(`Failed to seed EventVisibility from noting: ${err.message}`);
     }
   }
 
@@ -659,7 +747,8 @@ const updateEvent = async (eventId, userId, updateData) => {
     "isPaid",
     "notingId",
   ];
-  // When event is from noting, also lock: fee fields, sponsorship, duty leave, resources. Capacity (approxCapacity) stays editable.
+  // When event is from noting, also lock: fee fields, duty leave, resources. Capacity (approxCapacity) stays editable.
+  // Sponsors are NOT fully locked — fulfillment-only updates are allowed (handled separately below).
   if (event.notingId) {
     lockedFields.push(
       "registrationFee",
@@ -668,7 +757,6 @@ const updateEvent = async (eventId, userId, updateData) => {
       "dutyLeaveEligibility",
       "dutyLeaveRoleType",
       "hasSponsorship",
-      "sponsors",
       "hasResources",
       "resources",
       "certificateAvailable",
@@ -733,6 +821,94 @@ const updateEvent = async (eventId, userId, updateData) => {
         : sanitizeSponsors(updateData.sponsors || []);
   }
 
+  // ── Sponsor field-level enforcement for noting-origin sponsors ──
+  // For noting-backed events: noting-origin sponsors can only have fulfillment fields updated.
+  // Base fields (name, type, contact, contribution type, etc.) are preserved from the existing data.
+  const sponsorHistoryEntries = [];
+  if (event.notingId && updateData.sponsors && Array.isArray(updateData.sponsors)) {
+    const existingSponsors = Array.isArray(event.sponsors) ? event.sponsors : [];
+    const existingById = {};
+    for (const s of existingSponsors) {
+      if (s.id) existingById[s.id] = s;
+    }
+
+    updateData.sponsors = updateData.sponsors.map((incoming) => {
+      if (!incoming.id || !existingById[incoming.id]) return incoming; // new sponsor or no match
+      const existing = existingById[incoming.id];
+
+      // Saved (locked) sponsors are completely immutable — return existing data unchanged
+      if (existing.savedAt) {
+        return existing;
+      }
+
+      // Generate history for any fulfillment changes
+      const changes = [];
+      if (existing.paymentStatus !== incoming.paymentStatus) {
+        changes.push({ field: 'paymentStatus', from: existing.paymentStatus, to: incoming.paymentStatus });
+      }
+      if (existing.cashAmount !== incoming.cashAmount) {
+        changes.push({ field: 'cashAmount', from: existing.cashAmount, to: incoming.cashAmount });
+      }
+      if (existing.paymentMethod !== incoming.paymentMethod) {
+        changes.push({ field: 'paymentMethod', from: existing.paymentMethod, to: incoming.paymentMethod });
+      }
+      if (existing.transactionId !== incoming.transactionId) {
+        changes.push({ field: 'transactionId', from: existing.transactionId, to: incoming.transactionId });
+      }
+      // In-kind delivery status changes
+      if (Array.isArray(incoming.inKindItems) && Array.isArray(existing.inKindItems)) {
+        for (let k = 0; k < incoming.inKindItems.length && k < existing.inKindItems.length; k++) {
+          if (existing.inKindItems[k].deliveryStatus !== incoming.inKindItems[k].deliveryStatus) {
+            changes.push({ field: `inKindItems[${k}].deliveryStatus`, from: existing.inKindItems[k].deliveryStatus, to: incoming.inKindItems[k].deliveryStatus });
+          }
+        }
+      }
+
+      if (changes.length > 0) {
+        const summaryParts = changes.map(c => `${c.field}: ${c.from || 'none'} → ${c.to || 'none'}`);
+        sponsorHistoryEntries.push({
+          eventId: event.id,
+          sponsorId: incoming.id,
+          changeType: changes.some(c => c.field === 'paymentStatus' || c.field.includes('deliveryStatus')) ? 'status_change' : 'payment_update',
+          previousSnapshot: existing,
+          newSnapshot: incoming,
+          summary: summaryParts.join('; '),
+          changedById: userId,
+        });
+      }
+
+      // If noting-origin, enforce base field immutability
+      if (existing.originSource === 'noting') {
+        return {
+          ...existing,
+          // Allow fulfillment-only fields to be updated
+          cashAmount: incoming.cashAmount !== undefined ? incoming.cashAmount : existing.cashAmount,
+          paymentStatus: incoming.paymentStatus || existing.paymentStatus,
+          paymentMethod: incoming.paymentMethod,
+          paymentMethodOtherLabel: incoming.paymentMethodOtherLabel,
+          transactionId: incoming.transactionId,
+          receipt: incoming.receipt !== undefined ? incoming.receipt : existing.receipt,
+          cashAssignedTo: incoming.cashAssignedTo !== undefined ? incoming.cashAssignedTo : existing.cashAssignedTo,
+          // Preserve save/lock state from incoming
+          savedAt: incoming.savedAt || existing.savedAt,
+          originalSnapshot: incoming.originalSnapshot || existing.originalSnapshot,
+          inKindItems: incoming.inKindItems !== undefined ? incoming.inKindItems.map((item, idx) => {
+            const existingItem = existing.inKindItems && existing.inKindItems[idx];
+            if (!existingItem) return item; // new item additions are allowed
+            return {
+              ...existingItem,
+              // Allow fulfillment fields only
+              deliveryStatus: item.deliveryStatus || existingItem.deliveryStatus,
+              assignedTo: item.assignedTo !== undefined ? item.assignedTo : existingItem.assignedTo,
+            };
+          }) : existing.inKindItems,
+        };
+      }
+
+      return incoming; // event-origin sponsors: fully editable
+    });
+  }
+
   // Prisma rejects null for required Boolean fields - omit them so existing value is kept
   const requiredBooleanFields = [
     "lookingForTeammatesEnabled",
@@ -750,12 +926,15 @@ const updateEvent = async (eventId, userId, updateData) => {
     if (updateData[key] === null) delete updateData[key];
   });
 
-  // Validate merged event data (existing + updates) has all required fields
+  // Validate merged event data only when event is already published (for re-saves)
+  // Draft events skip validation — it runs at publish time instead
   const merged = { ...event, ...updateData };
-  validateEventRequiredFields(merged);
+  if (event.status === 'published') {
+    validateEventRequiredFields(merged);
+  }
 
-  // Update event
-  const updatedEvent = await prisma.event.update({
+  // Update event (+ sponsor history if any)
+  const updatePayload = {
     where: { id: eventId },
     data: {
       ...updateData,
@@ -778,7 +957,18 @@ const updateEvent = async (eventId, userId, updateData) => {
       },
       note: true,
     },
-  });
+  };
+
+  let updatedEvent;
+  if (sponsorHistoryEntries.length > 0) {
+    updatedEvent = await prisma.$transaction(async (tx) => {
+      const result = await tx.event.update(updatePayload);
+      await tx.sponsorFulfillmentHistory.createMany({ data: sponsorHistoryEntries });
+      return result;
+    });
+  } else {
+    updatedEvent = await prisma.event.update(updatePayload);
+  }
 
   await invalidateEventCaches(eventId);
   return updatedEvent;

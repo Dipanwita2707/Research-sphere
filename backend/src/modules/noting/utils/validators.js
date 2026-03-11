@@ -202,6 +202,31 @@ function validateNoteForSubmission(note) {
       if (validSponsors.length === 0) {
         throw new ValidationError('Please add at least one sponsor with a name when Sponsorship is enabled.');
       }
+      // Validate all required sponsor information
+      for (const sponsor of validSponsors) {
+        if (!sponsor.sponsorType || String(sponsor.sponsorType).trim() === '') {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Sponsor Type is required.`);
+        }
+        if (!sponsor.contactPerson || !String(sponsor.contactPerson).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Contact Person is required.`);
+        }
+        if (!sponsor.designation || !String(sponsor.designation).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Designation is required.`);
+        }
+        if (!sponsor.phone || !String(sponsor.phone).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Phone number is required.`);
+        }
+        if (!sponsor.email || !String(sponsor.email).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Email is required.`);
+        }
+        const emailRegex = /^\S+@\S+\.\S+$/;
+        if (!emailRegex.test(String(sponsor.email).trim())) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Please enter a valid email address.`);
+        }
+        if (!sponsor.sponsorLogo || !sponsor.sponsorLogo.filePath) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Logo is required. Please upload a JPG or PNG file for sponsor identification.`);
+        }
+      }
     }
     if (eventHasResources === true) {
       const resources = Array.isArray(eventResources) ? eventResources : [];
@@ -278,6 +303,31 @@ function validateNoteForSubmission(note) {
         const sponsors = Array.isArray(v.eventSponsors) ? v.eventSponsors : [];
         const validSponsors = sponsors.filter((s) => s && String(s.name || '').trim());
         if (validSponsors.length === 0) throw new ValidationError(`${label}: Please add at least one sponsor with a name when Sponsorship is enabled.`);
+        // Validate all required sponsor information
+        for (const sponsor of validSponsors) {
+          if (!sponsor.sponsorType || String(sponsor.sponsorType).trim() === '') {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Sponsor Type is required.`);
+          }
+          if (!sponsor.contactPerson || !String(sponsor.contactPerson).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Contact Person is required.`);
+          }
+          if (!sponsor.designation || !String(sponsor.designation).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Designation is required.`);
+          }
+          if (!sponsor.phone || !String(sponsor.phone).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Phone number is required.`);
+          }
+          if (!sponsor.email || !String(sponsor.email).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Email is required.`);
+          }
+          const emailRegex = /^\S+@\S+\.\S+$/;
+          if (!emailRegex.test(String(sponsor.email).trim())) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Please enter a valid email address.`);
+          }
+          if (!sponsor.sponsorLogo || !sponsor.sponsorLogo.filePath) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Logo is required. Please upload a JPG or PNG file for sponsor identification.`);
+          }
+        }
       }
       if (v.eventHasResources === true) {
         const resources = Array.isArray(v.eventResources) ? v.eventResources : [];

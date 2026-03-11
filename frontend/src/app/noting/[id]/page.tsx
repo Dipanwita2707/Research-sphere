@@ -483,12 +483,19 @@ export default function NoteDetailPage() {
 
   const approverActions =
     note.history?.filter((h) => h.performedById !== note.createdById) || [];
-  const canEditOrDelete =
+  const canEdit =
     note.createdById === currentUserId &&
     (note.status === "reverted" ||
       (approverActions.length === 0 &&
         note.status !== "approved" &&
         note.status !== "rejected"));
+  // Reverted notes cannot be deleted — they've already been through the approval flow
+  const canDelete =
+    note.createdById === currentUserId &&
+    note.status !== "reverted" &&
+    approverActions.length === 0 &&
+    note.status !== "approved" &&
+    note.status !== "rejected";
 
   const StatusIcon = STATUS_ICONS[note.status] || Clock;
 
@@ -504,7 +511,7 @@ export default function NoteDetailPage() {
             <ArrowLeft className="w-4 h-4" />
             Back to Noting
           </Link>
-          {canEditOrDelete && (
+          {canEdit && (
             <div className="flex items-center gap-2">
               <Link
                 href={`/noting/new?draft=${id}`}
@@ -513,6 +520,7 @@ export default function NoteDetailPage() {
                 <Pencil className="w-3.5 h-3.5" />
                 Edit
               </Link>
+              {canDelete && (
               <button
                 onClick={() => {
                   if (
@@ -534,6 +542,7 @@ export default function NoteDetailPage() {
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
               </button>
+              )}
             </div>
           )}
         </div>

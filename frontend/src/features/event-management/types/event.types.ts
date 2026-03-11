@@ -150,7 +150,38 @@ export interface Event {
   dutyLeaveEligibility?: string[];
   dutyLeaveRoleType?: 'participants' | 'organizers' | 'both';
   hasSponsorship?: boolean;
-  sponsors?: Array<{ name: string; amount: number; type: string; notes?: string }>;
+  sponsors?: Array<{
+    id?: string;
+    name: string;
+    originSource?: 'noting' | 'event';
+    // New advanced format
+    sponsorType?: 'corporate' | 'individual' | 'organization' | 'other';
+    contactPerson?: string;
+    designation?: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    contributionType?: 'cash' | 'in_kind' | 'both';
+    cashAmount?: number;
+    paymentStatus?: 'received' | 'pending' | 'partial' | 'not_received';
+    paymentMethod?: 'cash' | 'upi' | 'card' | 'net_banking' | 'other';
+    paymentMethodOtherLabel?: string;
+    transactionId?: string;
+    receipt?: { filePath: string; fileName: string } | null;
+    cashAssignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    inKindItems?: Array<{
+      itemName: string;
+      category?: string;
+      quantity?: number;
+      estimatedValue?: number;
+      description?: string;
+      deliveryStatus?: 'pending' | 'received' | 'not_received';
+      assignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    }>;
+    // Legacy format fields (backward compat)
+    amount?: number;
+    type?: string;
+  }>;
   showSponsorshipPublicly?: boolean;  // Creator decides at publish: show sponsorship to users
   hasResources?: boolean;
   resources?: Array<{ category: string; type: string; description: string; estimatedCost?: number }>;

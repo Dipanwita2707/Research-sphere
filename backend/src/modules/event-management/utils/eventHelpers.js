@@ -413,6 +413,11 @@ const resolveSponsorData = (event, note) => {
 
   const sponsors = rawSponsors.map((s) => {
     const name = String(s?.name ?? s?.company ?? s?.sponsorName ?? '').trim();
+    // New-format sponsors (have contributionType) — pass through all fields
+    if (s && s.contributionType) {
+      return { ...s, name };
+    }
+    // Legacy sponsors — convert to minimal shape
     return {
       name,
       amount: typeof s?.amount === 'number' ? s.amount : Number(s?.amount) || 0,
