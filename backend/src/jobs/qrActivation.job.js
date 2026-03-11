@@ -8,7 +8,8 @@ const prisma = require('../shared/config/database');
  * 2. Expire QR codes at 6 PM IST on end date (room also freed at same time)
  */
 
-const EXPIRY_HOUR_IST = 18; // 6 PM IST - QR expires & room frees
+// Passes expire at 23:59 on their end date —
+// the first job run on the next day (any time) marks them expired.
 
 // IST timezone helper
 const getISTDate = () => {
@@ -152,17 +153,10 @@ const activateQRCodes = async () => {
     }
 
     // ============ EXPIRE PASSES ============
-    // Expire QR codes at 6 PM IST on end date (room also freed at same time)
-    // Before 6 PM: only expire past-date passes
-    // After 6 PM: also expire today's passes (6 PM cutoff reached)
-    
-    const currentISTHour = now.getUTCHours(); // getUTCHours on IST-shifted date = IST hour
-    
-    // After 6 PM IST: expire today and past dates (lte)
-    // Before 6 PM IST: only expire past dates (lt)
-    const dateComparison = currentISTHour >= EXPIRY_HOUR_IST
-      ? { lte: todayIST }
-      : { lt: todayIST };
+    // Passes are valid for the entire end date (until 23:59).
+    // Use { lt: todayIST } so a pass whose end_date IS today stays active
+    // all day and is only expired on the first job run tomorrow.
+    const dateComparison = { lt: todayIST };
     
     // Find passes to expire (exclude multi-day daily passes that are checked_out and still within date range)
     const passesToExpire = await prisma.gate_pass.findMany({
@@ -200,7 +194,7 @@ const activateQRCodes = async () => {
         },
         data: {
           qr_status: 'expired',
-          pass_status: 'completed'
+          pass_status: 'expired'
         }
       });
 

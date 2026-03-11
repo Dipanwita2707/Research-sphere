@@ -260,8 +260,8 @@ function transformBooking(booking: any): HostelBooking {
     id: booking.id,
     linkedPassId: booking.linked_pass_id || booking.linkedPassId,
     roomId: booking.room_id || booking.roomId,
-    checkInDate: booking.check_in_date || booking.checkInDate,
-    checkOutDate: booking.check_out_date || booking.checkOutDate,
+    checkInDate: booking.check_in_datetime || booking.check_in_date || booking.checkInDate,
+    checkOutDate: booking.check_out_datetime || booking.check_out_date || booking.checkOutDate,
     guestCount: booking.guest_count || booking.guestCount,
     totalPrice: booking.total_price || booking.totalPrice,
     bookingStatus: booking.booking_status || booking.bookingStatus,
@@ -285,8 +285,8 @@ function transformPass(pass: any): GatePass {
   const hostelBooking = pass.hostel_booking;
   const hostelName = hostelBooking?.room?.hostel?.name || pass.hostel_name || null;
   const roomNumber = hostelBooking?.room?.room_number || pass.room_number || null;
-  const checkInDate = hostelBooking?.check_in_date || pass.check_in_date || null;
-  const checkOutDate = hostelBooking?.check_out_date || pass.check_out_date || null;
+  const checkInDate = hostelBooking?.check_in_datetime || hostelBooking?.check_in_date || pass.check_in_date || null;
+  const checkOutDate = hostelBooking?.check_out_datetime || hostelBooking?.check_out_date || pass.check_out_date || null;
   
   return {
     id: pass.id,
@@ -325,8 +325,8 @@ function transformPass(pass: any): GatePass {
       hostelName: hostelBooking.room?.hostel?.name || hostelBooking.hostelName || hostelName,
       bookingStatus: hostelBooking.booking_status || hostelBooking.bookingStatus,
       paymentStatus: hostelBooking.payment_status || hostelBooking.paymentStatus,
-      checkInDate: hostelBooking.check_in_date || checkInDate,
-      checkOutDate: hostelBooking.check_out_date || checkOutDate,
+      checkInDate: hostelBooking.check_in_datetime || hostelBooking.check_in_date || checkInDate,
+      checkOutDate: hostelBooking.check_out_datetime || hostelBooking.check_out_date || checkOutDate,
     } : undefined,
     numberOfPersons: pass.number_of_persons,
     specialInstructions: pass.special_instructions,
@@ -579,8 +579,9 @@ class GateEntryService {
     passId: string;
     hostelId: string;
     roomId: string;
-    checkInDate: string;
-    checkOutDate: string;
+    checkInDatetime: string;
+    checkOutDatetime: string;
+    checkInRemarks?: string;
     guestCount: number;
   }): Promise<{ success: boolean; booking: HostelBooking; message: string }> {
     const response = await api.post<any>(

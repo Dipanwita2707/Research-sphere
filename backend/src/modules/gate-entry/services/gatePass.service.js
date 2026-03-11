@@ -18,11 +18,11 @@ class GatePassService {
     
     console.log(`[TRANSFORM INPUT] Pass ${pass.pass_id}: extension_count=${pass.extension_count}, extension_reason="${pass.extension_reason}"`);
     
-    // For multiday passes with hostel booking, use check_out_date as visitEndDate
+    // For multiday passes with hostel booking, use check_out_datetime as visitEndDate
     let visitEndDate = pass.visit_end_date;
-    if (pass.hostel_booking?.check_out_date) {
-      visitEndDate = pass.hostel_booking.check_out_date;
-      console.log(`[TRANSFORM] Pass ${pass.pass_id}: Using hostel check_out_date ${visitEndDate} instead of visit_end_date ${pass.visit_end_date}`);
+    if (pass.hostel_booking?.check_out_datetime) {
+      visitEndDate = pass.hostel_booking.check_out_datetime;
+      console.log(`[TRANSFORM] Pass ${pass.pass_id}: Using hostel check_out_datetime ${visitEndDate} instead of visit_end_date ${pass.visit_end_date}`);
     }
     
     // Format dates to ISO string for consistent frontend handling
@@ -44,7 +44,7 @@ class GatePassService {
       purposeOfVisit: pass.purpose_of_visit,
       purposeOther: pass.purpose_other,
       visitDate: formatDateForFrontend(pass.visit_date),
-      visitEndDate: formatDateForFrontend(visitEndDate), // Use hostel check_out_date if available
+      visitEndDate: formatDateForFrontend(visitEndDate), // Use hostel check_out_datetime if available
       expectedEntryTime: pass.expected_entry_time,
       expectedExitTime: pass.expected_exit_time,
       entryTime: pass.entry_time,
@@ -64,8 +64,8 @@ class GatePassService {
       vehicleType: pass.vehicle_type,
       vehicleModel: pass.vehicle_model,
       stayRequired: pass.stay_required,
-      checkInDate: formatDateForFrontend(pass.check_in_date || pass.hostel_booking?.check_in_date),
-      checkOutDate: formatDateForFrontend(pass.check_out_date || pass.hostel_booking?.check_out_date),
+      checkInDate: formatDateForFrontend(pass.check_in_date || pass.hostel_booking?.check_in_datetime),
+      checkOutDate: formatDateForFrontend(pass.check_out_date || pass.hostel_booking?.check_out_datetime),
       hostelName: pass.hostel_booking?.room?.hostel?.name,
       roomNumber: pass.hostel_booking?.room?.room_number,
       createdAt: formatDateForFrontend(pass.created_at),
@@ -77,8 +77,8 @@ class GatePassService {
       checkoutQr: pass.checkout_qr,
       hostelBooking: pass.hostel_booking ? {
         ...pass.hostel_booking,
-        check_in_date: formatDateForFrontend(pass.hostel_booking.check_in_date),
-        check_out_date: formatDateForFrontend(pass.hostel_booking.check_out_date),
+        check_in_datetime: formatDateForFrontend(pass.hostel_booking.check_in_datetime),
+        check_out_datetime: formatDateForFrontend(pass.hostel_booking.check_out_datetime),
         totalPrice: pass.hostel_booking.total_price,
         bookingStatus: pass.hostel_booking.booking_status,
         paymentStatus: pass.hostel_booking.payment_status,
@@ -689,8 +689,10 @@ class GatePassService {
             hostel_booking: {
               select: {
                 id: true,
-                check_in_date: true,
-                check_out_date: true,
+                check_in_datetime: true,
+                check_out_datetime: true,
+                billable_days: true,
+                price_per_day: true,
                 total_price: true,
                 booking_status: true,
                 payment_status: true,
@@ -1279,7 +1281,7 @@ class GatePassService {
 
           // Dynamic refund calculation based on time before check-in
           const now = new Date();
-          const checkInDate = new Date(hostelBooking.check_in_date);
+          const checkInDate = new Date(hostelBooking.check_in_datetime);
           
           // Calculate hours until check-in
           const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
@@ -1490,7 +1492,7 @@ class GatePassService {
       if (hostelBooking && hostelBooking.booking_status !== 'cancelled') {
         // After check-in: calculate refund based on same slab policy
         const now = new Date();
-        const checkInDate = new Date(hostelBooking.check_in_date);
+        const checkInDate = new Date(hostelBooking.check_in_datetime);
         const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
         const hoursUntilCheckIn = timeUntilCheckIn / (1000 * 60 * 60);
         const daysUntilCheckIn = hoursUntilCheckIn / 24;
@@ -1902,17 +1904,17 @@ class GatePassService {
 
         logger.info(`Gate pass updated: ${pass.pass_id}, new end date: ${visit_end_date.toISOString()}`);
 
-        // If pass has hostel booking, update check_out_date too
+        // If pass has hostel booking, update check_out_datetime too
         if (pass.hostel_booking) {
           const updatedBooking = await tx.hostelBooking.update({
             where: { id: pass.hostel_booking.id },
             data: {
-              check_out_date: visit_end_date,
+              check_out_datetime: visit_end_date,
               updated_at: new Date()
             }
           });
           
-          logger.info(`✅ Hostel booking updated in transaction: ${pass.hostel_booking.id}, new check_out_date: ${visit_end_date.toISOString()}`);
+          logger.info(`✅ Hostel booking updated in transaction: ${pass.hostel_booking.id}, new check_out_datetime: ${visit_end_date.toISOString()}`);
           logger.info(`Updated booking data:`, updatedBooking);
         } else {
           logger.info(`No hostel booking found for pass: ${pass.pass_id}`);
@@ -2436,8 +2438,10 @@ class GatePassService {
             id: true,
             hostel_name: true,
             room_number: true,
-            check_in_date: true,
-            check_out_date: true,
+            check_in_datetime: true,
+            check_out_datetime: true,
+            billable_days: true,
+            price_per_day: true,
             total_price: true,
             booking_status: true,
             payment_status: true,
@@ -2704,8 +2708,8 @@ class GatePassService {
         id: b.id,
         guestHouse: b.hostel_name || b.room?.hostel?.name || 'N/A',
         roomNumber: b.room_number || b.room?.room_number || 'N/A',
-        checkIn: b.check_in_date,
-        checkOut: b.check_out_date,
+        checkIn: b.check_in_datetime,
+        checkOut: b.check_out_datetime,
         visitorName: b.gate_pass?.visitor_name || 'N/A',
         visitorPhone: b.gate_pass?.mobile_number || '',
         passId: b.gate_pass?.pass_id || 'N/A',

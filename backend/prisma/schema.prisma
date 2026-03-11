@@ -2756,9 +2756,12 @@ model HostelBooking {
   room_number         String?            @db.VarChar(50)
   hostel_name         String?            @db.VarChar(100)
   guest_count         Int                @default(1)
-  check_in_date       DateTime?          @db.Date
-  check_out_date      DateTime?          @db.Date
+  check_in_datetime   DateTime?          @db.Timestamptz(6)
+  check_out_datetime  DateTime?          @db.Timestamptz(6)
+  billable_days       Int                @default(1)
+  check_in_remarks    String?            @db.Text
   total_price         Decimal?           @db.Decimal(10, 2)
+  price_per_day       Decimal?           @db.Decimal(10, 2)
   payment_status      String?            @default("pending") @db.VarChar(32)
   payment_qr_code     String?            @db.Text
   payment_reference   String?            @db.VarChar(100)
@@ -2769,17 +2772,17 @@ model HostelBooking {
   created_at          DateTime           @default(now()) @db.Timestamptz(6)
   updated_at          DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
 
-  gate_pass                gate_pass                   @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  gate_pass           gate_pass          @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
   room                HostelRoom?        @relation(fields: [room_id], references: [id])
-  verified_by              UserLogin?                  @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
-  created_by               UserLogin                   @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
-  refund_transactions  RefundTransaction[]
+  verified_by         UserLogin?         @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
+  created_by          UserLogin          @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  refund_transactions RefundTransaction[]
 
   @@index([gate_pass_id])
   @@index([room_id])
   @@index([booking_status])
-  @@index([check_in_date])
-  @@index([check_out_date])
+  @@index([check_in_datetime])
+  @@index([check_out_datetime])
   @@index([verified_by_id])
   @@index([created_by_id])
   @@map("hostel_booking")
