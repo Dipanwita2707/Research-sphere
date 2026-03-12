@@ -212,6 +212,27 @@ router.post('/bookings/:bookingId/confirm-payment', checkGateEntryAccess(), gate
 router.get('/bookings/:passId', checkGateEntryAccess(), gatePassController.getBookingByPass);
 
 /**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/early-checkin
+ * @desc Request early check-in (before 10 AM) for a guest house booking
+ * @access Private (Creator)
+ */
+router.post('/bookings/:bookingId/early-checkin', checkGateEntryAccess(), gatePassController.requestEarlyCheckin);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/approve-checkin
+ * @desc Approve early check-in request (admin/guard only)
+ * @access Private (Admin, Guards - Verify permission required)
+ */
+router.post('/bookings/:bookingId/approve-checkin', canVerifyPass, gatePassController.approveEarlyCheckin);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/reject-checkin
+ * @desc Reject early check-in request (admin/guard only)
+ * @access Private (Admin, Guards - Verify permission required)
+ */
+router.post('/bookings/:bookingId/reject-checkin', canVerifyPass, gatePassController.rejectEarlyCheckin);
+
+/**
  * @route GET /api/v1/gate-entry/check-in-history
  * @desc Get check-in history (for guards)
  * @access Private (Admin, Guards only - Verify permission required)

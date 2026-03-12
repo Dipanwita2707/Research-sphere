@@ -74,6 +74,7 @@ export interface GatePass {
   hostelName?: string;
   roomNumber?: string;
   hostelBooking?: {
+    id?: string;
     totalPrice?: number;
     roomNumber?: string;
     hostelName?: string;
@@ -81,6 +82,9 @@ export interface GatePass {
     paymentStatus?: string;
     checkInDate?: string;
     checkOutDate?: string;
+    requestedCheckinTime?: string;
+    checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    checkinRequestRejectReason?: string;
   };
   numberOfPersons?: number;
   specialInstructions?: string;
@@ -204,6 +208,11 @@ export interface HostelBooking {
   room?: HostelRoom;
   createdAt: string;
   updatedAt: string;
+  // Early check-in request fields
+  requestedCheckinTime?: string;
+  checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+  checkinRequestRejectReason?: string;
+  checkinRequestReviewedAt?: string;
 }
 
 // Helper function to convert snake_case keys to camelCase
@@ -272,6 +281,11 @@ function transformBooking(booking: any): HostelBooking {
     room: booking.room ? transformRoom(booking.room) : undefined,
     createdAt: booking.created_at || booking.createdAt,
     updatedAt: booking.updated_at || booking.updatedAt,
+    // Early check-in request fields
+    requestedCheckinTime: booking.requested_checkin_time || booking.requestedCheckinTime,
+    checkinRequestStatus: booking.checkin_request_status || booking.checkinRequestStatus || null,
+    checkinRequestRejectReason: booking.checkin_request_reject_reason || booking.checkinRequestRejectReason,
+    checkinRequestReviewedAt: booking.checkin_request_reviewed_at || booking.checkinRequestReviewedAt,
   };
 }
 
@@ -320,6 +334,7 @@ function transformPass(pass: any): GatePass {
     roomNumber: roomNumber,
     // Include full hostelBooking object for refund calculation
     hostelBooking: hostelBooking ? {
+      id: hostelBooking.id,
       totalPrice: hostelBooking.total_price || hostelBooking.totalPrice,
       roomNumber: hostelBooking.room?.room_number || hostelBooking.roomNumber || roomNumber,
       hostelName: hostelBooking.room?.hostel?.name || hostelBooking.hostelName || hostelName,
@@ -327,6 +342,9 @@ function transformPass(pass: any): GatePass {
       paymentStatus: hostelBooking.payment_status || hostelBooking.paymentStatus,
       checkInDate: hostelBooking.check_in_datetime || hostelBooking.check_in_date || checkInDate,
       checkOutDate: hostelBooking.check_out_datetime || hostelBooking.check_out_date || checkOutDate,
+      requestedCheckinTime: hostelBooking.requested_checkin_time || hostelBooking.requestedCheckinTime,
+      checkinRequestStatus: hostelBooking.checkin_request_status || hostelBooking.checkinRequestStatus || null,
+      checkinRequestRejectReason: hostelBooking.checkin_request_reject_reason || hostelBooking.checkinRequestRejectReason,
     } : undefined,
     numberOfPersons: pass.number_of_persons,
     specialInstructions: pass.special_instructions,
@@ -673,6 +691,53 @@ class GateEntryService {
     }
     const response = await api.get<any>('/gate-entry/analytics', { params });
     return response.data;
+  }
+
+  /**
+   * Request early check-in for a guest house booking
+   */
+  async requestEarlyCheckin(bookingId: string, requestedTime: string): Promise<{ success: boolean; booking: HostelBooking; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/bookings/${bookingId}/early-checkin`,
+      { requestedTime }
+    );
+    const rawBooking = response.data?.data?.booking;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      booking: rawBooking ? transformBooking(rawBooking) : null as any
+    };
+  }
+
+  /**
+   * Approve early check-in request (admin only)
+   */
+  async approveEarlyCheckin(bookingId: string): Promise<{ success: boolean; booking: HostelBooking; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/bookings/${bookingId}/approve-checkin`
+    );
+    const rawBooking = response.data?.data?.booking;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      booking: rawBooking ? transformBooking(rawBooking) : null as any
+    };
+  }
+
+  /**
+   * Reject early check-in request (admin only)
+   */
+  async rejectEarlyCheckin(bookingId: string, reason: string): Promise<{ success: boolean; booking: HostelBooking; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/bookings/${bookingId}/reject-checkin`,
+      { reason }
+    );
+    const rawBooking = response.data?.data?.booking;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      booking: rawBooking ? transformBooking(rawBooking) : null as any
+    };
   }
 }
 

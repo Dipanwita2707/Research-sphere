@@ -51,17 +51,39 @@ const getBookingCutoffDate = () => {
 class HostelBookingService {
   /**
    * Get all available hostels with their rooms for a given date range
+   * Filters by student nationality: national students see 'national' guest houses,
+   * international students see 'international' guest houses.
    * @param {Date} checkInDate
    * @param {Date} checkOutDate
+   * @param {string|null} userId - UserLogin ID to determine nationality filter
    * @returns {Promise<Array>}
    */
-  async getAvailableHostels(checkInDate, checkOutDate) {
+  async getAvailableHostels(checkInDate, checkOutDate, userId = null) {
     try {
       const checkInDt  = new Date(checkInDate);
       const checkOutDt = new Date(checkOutDate);
+
+      // Determine hostel category filter based on student nationality
+      let categoryFilter = undefined;
+      if (userId) {
+        try {
+          const student = await prisma.studentDetails.findFirst({
+            where: { userLoginId: userId },
+            select: { isInternational: true }
+          });
+          if (student) {
+            categoryFilter = student.isInternational ? 'international' : 'national';
+          }
+        } catch (err) {
+          // If student lookup fails (e.g. admin user), show all hostels
+          console.warn('[getAvailableHostels] Student lookup failed, showing all hostels:', err.message);
+        }
+      }
+
       const hostels = await prisma.hostel.findMany({
         where: {
-          is_active: true
+          is_active: true,
+          ...(categoryFilter && { hostel_category: categoryFilter })
         },
         include: {
           rooms: {
@@ -551,6 +573,216 @@ class HostelBookingService {
       console.error('Error linking existing booking:', error);
       throw error;
     }
+  }
+
+  /**
+   * Request early check-in (before standard 10 AM) for a guest house booking.
+   * @param {string} bookingId - HostelBooking UUID
+   * @param {Date}   requestedTime - Desired check-in datetime (must be before 10 AM)
+   * @param {string} userId - Requesting user's ID
+   */
+  async createEarlyCheckinRequest(bookingId, requestedTime, userId) {
+    const booking = await prisma.hostelBooking.findUnique({
+      where: { id: bookingId },
+      include: { gate_pass: true, room: { include: { hostel: true } } }
+    });
+
+    if (!booking) throw new Error('Booking not found');
+    if (booking.booking_status === 'cancelled') throw new Error('Cannot request early check-in for a cancelled booking');
+    if (booking.checkin_request_status === 'pending') throw new Error('An early check-in request is already pending');
+
+    const reqTime = new Date(requestedTime);
+    const reqHour = reqTime.getHours();
+    if (reqHour >= 10) throw new Error('Early check-in requests must be for times before 10:00 AM');
+
+    const updated = await prisma.hostelBooking.update({
+      where: { id: bookingId },
+      data: {
+        requested_checkin_time: reqTime,
+        checkin_request_status: 'pending'
+      },
+      include: { gate_pass: true, room: { include: { hostel: true } } }
+    });
+
+    // Notify all admin users about the request
+    const admins = await prisma.userLogin.findMany({
+      where: { role: { in: ['admin', 'superadmin'] }, status: 'active' },
+      select: { id: true }
+    });
+
+    for (const admin of admins) {
+      await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          type: 'early_checkin_request',
+          title: 'Early Check-in Request',
+          message: `${booking.gate_pass?.visitor_name || 'A visitor'} has requested early check-in at ${reqTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} for room ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'}.`,
+          referenceType: 'hostel_booking',
+          referenceId: bookingId,
+          metadata: {
+            actionUrl: `/admin/gate-entry?reviewBooking=${bookingId}`,
+            actionLabel: 'Review Request'
+          }
+        }
+      });
+    }
+
+    return updated;
+  }
+
+  /**
+   * Approve an early check-in request.
+   * @param {string} bookingId - HostelBooking UUID
+   * @param {string} reviewerId - Admin user who approves
+   */
+  async approveCheckinRequest(bookingId, reviewerId) {
+    const booking = await prisma.hostelBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        gate_pass: {
+          include: {
+            user_login_gate_pass_created_by_idTouser_login: {
+              include: {
+                studentLogin: {
+                  include: {
+                    parents: { where: { isPrimaryContact: true }, take: 1 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        room: { include: { hostel: true } }
+      }
+    });
+
+    if (!booking) throw new Error('Booking not found');
+    if (booking.checkin_request_status !== 'pending') throw new Error('No pending early check-in request to approve');
+
+    const updated = await prisma.hostelBooking.update({
+      where: { id: bookingId },
+      data: {
+        checkin_request_status: 'approved',
+        checkin_request_reviewed_by_id: reviewerId,
+        checkin_request_reviewed_at: new Date()
+      },
+      include: { gate_pass: true, room: { include: { hostel: true } } }
+    });
+
+    // Notify the student
+    const studentId = booking.gate_pass?.created_by_id;
+    if (studentId) {
+      await prisma.notification.create({
+        data: {
+          userId: studentId,
+          type: 'early_checkin_approved',
+          title: 'Early Check-in Approved',
+          message: `Your early check-in request for room ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'} has been approved for ${new Date(booking.requested_checkin_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}.`,
+          referenceType: 'hostel_booking',
+          referenceId: bookingId,
+          metadata: {
+            actionUrl: `/admin/gate-entry?reviewBooking=${bookingId}`,
+            actionLabel: 'View Booking'
+          }
+        }
+      });
+    }
+
+    // Email parent
+    const emailService = require('../../../shared/utils/emailService');
+    const parent = booking.gate_pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
+    if (parent?.email) {
+      emailService.sendCheckinRequestApproved({
+        parentEmail: parent.email,
+        parentName: `${parent.firstName || ''} ${parent.lastName || ''}`.trim() || 'Parent',
+        visitorName: booking.gate_pass.visitor_name,
+        passId: booking.gate_pass.pass_id,
+        roomNumber: booking.room?.room_number || '—',
+        hostelName: booking.room?.hostel?.name || 'Guest House',
+        requestedTime: booking.requested_checkin_time
+      }).catch(err => console.error('[EarlyCheckin] Approve email error:', err));
+    }
+
+    return updated;
+  }
+
+  /**
+   * Reject an early check-in request.
+   * @param {string} bookingId - HostelBooking UUID
+   * @param {string} reviewerId - Admin user who rejects
+   * @param {string} reason - Rejection reason
+   */
+  async rejectCheckinRequest(bookingId, reviewerId, reason) {
+    const booking = await prisma.hostelBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        gate_pass: {
+          include: {
+            user_login_gate_pass_created_by_idTouser_login: {
+              include: {
+                studentLogin: {
+                  include: {
+                    parents: { where: { isPrimaryContact: true }, take: 1 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        room: { include: { hostel: true } }
+      }
+    });
+
+    if (!booking) throw new Error('Booking not found');
+    if (booking.checkin_request_status !== 'pending') throw new Error('No pending early check-in request to reject');
+
+    const updated = await prisma.hostelBooking.update({
+      where: { id: bookingId },
+      data: {
+        checkin_request_status: 'rejected',
+        checkin_request_reject_reason: reason,
+        checkin_request_reviewed_by_id: reviewerId,
+        checkin_request_reviewed_at: new Date()
+      },
+      include: { gate_pass: true, room: { include: { hostel: true } } }
+    });
+
+    // Notify the student
+    const studentId = booking.gate_pass?.created_by_id;
+    if (studentId) {
+      await prisma.notification.create({
+        data: {
+          userId: studentId,
+          type: 'early_checkin_rejected',
+          title: 'Early Check-in Declined',
+          message: `Your early check-in request for room ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'} was declined. Reason: ${reason || 'Not specified'}. Standard check-in is at 10:00 AM.`,
+          referenceType: 'hostel_booking',
+          referenceId: bookingId,
+          metadata: {
+            actionUrl: `/admin/gate-entry?reviewBooking=${bookingId}`,
+            actionLabel: 'View Booking'
+          }
+        }
+      });
+    }
+
+    // Email parent
+    const emailService = require('../../../shared/utils/emailService');
+    const parent = booking.gate_pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
+    if (parent?.email) {
+      emailService.sendCheckinRequestRejected({
+        parentEmail: parent.email,
+        parentName: `${parent.firstName || ''} ${parent.lastName || ''}`.trim() || 'Parent',
+        visitorName: booking.gate_pass.visitor_name,
+        passId: booking.gate_pass.pass_id,
+        roomNumber: booking.room?.room_number || '—',
+        hostelName: booking.room?.hostel?.name || 'Guest House',
+        requestedTime: booking.requested_checkin_time,
+        reason
+      }).catch(err => console.error('[EarlyCheckin] Reject email error:', err));
+    }
+
+    return updated;
   }
 }
 

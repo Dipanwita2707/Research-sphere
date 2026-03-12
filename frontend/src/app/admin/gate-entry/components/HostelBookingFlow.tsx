@@ -52,6 +52,7 @@ export default function HostelBookingFlow({
   const [checkInTime, setCheckInTime] = useState('10:00');
   const [checkOutTime, setCheckOutTime] = useState('12:00');
   const [checkInRemarks, setCheckInRemarks] = useState('');
+  const [requestEarlyCheckin, setRequestEarlyCheckin] = useState(false);
 
   // Derived datetime objects
   const checkInDatetime  = new Date(`${checkInDate}T${checkInTime}:00`);
@@ -152,6 +153,20 @@ export default function HostelBookingFlow({
         setBooking(response.booking);
         setStep('payment');
         showSuccess('Booking created. Please complete payment.');
+
+        // Submit early check-in request if toggled on
+        if (requestEarlyCheckin && parseInt(checkInTime.split(':')[0]) < 10) {
+          try {
+            await gateEntryService.requestEarlyCheckin(
+              response.booking.id,
+              checkInDatetime.toISOString()
+            );
+            showInfo('Early check-in request submitted for admin approval.');
+          } catch (err: any) {
+            console.error('Early check-in request error:', err);
+            showWarning('Booking created, but early check-in request failed: ' + (err.response?.data?.message || err.message));
+          }
+        }
       } else {
         showError('Failed to create booking');
       }
@@ -324,6 +339,31 @@ export default function HostelBookingFlow({
             className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
+
+        {/* Early check-in request (before 10 AM) */}
+        {parseInt(checkInTime.split(':')[0]) < 10 && (
+          <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-600 text-lg">⏰</span>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-amber-800">
+                  Standard check-in is at 10:00 AM. Your selected time ({checkInTime}) is before standard hours.
+                </p>
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={requestEarlyCheckin}
+                    onChange={e => setRequestEarlyCheckin(e.target.checked)}
+                    className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-amber-700 font-medium">
+                    Request early check-in (requires admin approval)
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Billing summary */}
         <div className={`mt-3 text-xs px-2 py-1.5 rounded border ${checkoutTierNote.color}`}>

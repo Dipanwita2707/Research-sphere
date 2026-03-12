@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Search, Filter, Download, RefreshCw, Eye, X, Send, 
   CheckCircle, XCircle, Clock, AlertCircle, Calendar, User, Phone, QrCode, Car, Loader2, FileText
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { gateEntryService, type GatePass } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
@@ -51,11 +52,15 @@ interface Pass {
   verificationCode?: string;
   checkoutVerificationCode?: string;
   hostelBooking?: {
+    id?: string;
     totalPrice?: number;
     roomNumber?: string;
     hostelName?: string;
     bookingStatus?: string;
     paymentStatus?: string;
+    requestedCheckinTime?: string;
+    checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    checkinRequestRejectReason?: string;
   };
   createdAt: string;
   createdBy?: {
@@ -94,6 +99,8 @@ function AllPassesPageContent() {
   const { user } = useAuthStore();
   const toast = useToast();
   const { t } = useLanguage(); // Get translation function
+  const searchParams = useSearchParams();
+  const reviewBookingId = searchParams.get('reviewBooking');
 
   // Helper: get translated status label
   const getStatusLabel = (status: string): string => {
@@ -143,6 +150,10 @@ function AllPassesPageContent() {
   const [cancellingPass, setCancellingPass] = useState(false);
   const [refundPreview, setRefundPreview] = useState<any>(null);
   const [loadingRefund, setLoadingRefund] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null);
+  const [processingCheckin, setProcessingCheckin] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,      // Active Today
@@ -201,6 +212,56 @@ function AllPassesPageContent() {
       });
     }
   }, [selectedPass]);
+
+  // Auto-open pass detail modal when navigating from notification with reviewBooking param
+  useEffect(() => {
+    if (reviewBookingId && passes.length > 0 && !selectedPass) {
+      const matchingPass = passes.find(
+        (p) => p.hostelBooking?.id === reviewBookingId
+      );
+      if (matchingPass) {
+        setSelectedPass(matchingPass);
+      }
+    }
+  }, [reviewBookingId, passes]);
+
+  // Early check-in approve handler
+  const handleApproveCheckin = useCallback(async (bookingId: string) => {
+    setProcessingCheckin(true);
+    try {
+      await gateEntryService.approveEarlyCheckin(bookingId);
+      toast.success('Early check-in request approved successfully', 'Approved');
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to approve request', 'Error');
+    } finally {
+      setProcessingCheckin(false);
+    }
+  }, []);
+
+  // Early check-in reject handler
+  const handleRejectCheckin = useCallback(async () => {
+    if (!rejectingBookingId) return;
+    if (!rejectReason.trim()) {
+      toast.error('Please provide a reason for rejection', 'Reason Required');
+      return;
+    }
+    setProcessingCheckin(true);
+    try {
+      await gateEntryService.rejectEarlyCheckin(rejectingBookingId, rejectReason.trim());
+      toast.success('Early check-in request rejected', 'Rejected');
+      fetchPasses();
+      setSelectedPass(null);
+      setShowRejectModal(false);
+      setRejectReason('');
+      setRejectingBookingId(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reject request', 'Error');
+    } finally {
+      setProcessingCheckin(false);
+    }
+  }, [rejectingBookingId, rejectReason]);
 
   const fetchPasses = async () => {
     try {
@@ -1112,6 +1173,111 @@ function AllPassesPageContent() {
                     </div>
                   )}
 
+                  {/* Early Check-in Request Section */}
+                  {selectedPass.hostelBooking?.checkinRequestStatus && (
+                    <div className="md:col-span-2">
+                      <div className={`border-2 rounded-lg p-5 ${
+                        selectedPass.hostelBooking.checkinRequestStatus === 'pending'
+                          ? 'border-amber-300 bg-amber-50'
+                          : selectedPass.hostelBooking.checkinRequestStatus === 'approved'
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-red-300 bg-red-50'
+                      }`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h5 className={`font-semibold text-lg flex items-center gap-2 ${
+                            selectedPass.hostelBooking.checkinRequestStatus === 'pending'
+                              ? 'text-amber-800'
+                              : selectedPass.hostelBooking.checkinRequestStatus === 'approved'
+                                ? 'text-green-800'
+                                : 'text-red-800'
+                          }`}>
+                            <Clock className="w-5 h-5" />
+                            Early Check-in Request
+                          </h5>
+                          <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide ${
+                            selectedPass.hostelBooking.checkinRequestStatus === 'pending'
+                              ? 'bg-amber-200 text-amber-800'
+                              : selectedPass.hostelBooking.checkinRequestStatus === 'approved'
+                                ? 'bg-green-200 text-green-800'
+                                : 'bg-red-200 text-red-800'
+                          }`}>
+                            {selectedPass.hostelBooking.checkinRequestStatus}
+                          </span>
+                        </div>
+
+                        {/* Request details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Visitor Name</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.visitorName}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Requested Check-in Time</p>
+                            <p className="font-semibold text-gray-900">
+                              {selectedPass.hostelBooking.requestedCheckinTime
+                                ? new Date(selectedPass.hostelBooking.requestedCheckinTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                                : '—'}
+                            </p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Guest House</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.hostelBooking.hostelName || selectedPass.hostelName || '—'}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Room Number</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.hostelBooking.roomNumber || selectedPass.roomNumber || '—'}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Pass ID</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.passId}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Mobile Number</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.mobileNumber || '—'}</p>
+                          </div>
+                        </div>
+
+                        {selectedPass.hostelBooking.checkinRequestStatus === 'rejected' && selectedPass.hostelBooking.checkinRequestRejectReason && (
+                          <div className="bg-red-100 border border-red-200 rounded-lg p-3 mb-4">
+                            <p className="text-sm font-medium text-red-800">
+                              Rejection Reason: <span className="font-normal">{selectedPass.hostelBooking.checkinRequestRejectReason}</span>
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Admin approve/reject buttons for pending requests - only visible to admin/superadmin */}
+                        {selectedPass.hostelBooking.checkinRequestStatus === 'pending' && selectedPass.hostelBooking.id && ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()) && (
+                          <div className="flex gap-3 mt-2 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => handleApproveCheckin(selectedPass.hostelBooking!.id!)}
+                              disabled={processingCheckin}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              {processingCheckin ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-5 h-5" />
+                              )}
+                              Accept Request
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRejectingBookingId(selectedPass.hostelBooking!.id!);
+                                setRejectReason('');
+                                setShowRejectModal(true);
+                              }}
+                              disabled={processingCheckin}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              <XCircle className="w-5 h-5" />
+                              Reject Request
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {selectedPass.checkoutQrCode && (
                     <div className="md:col-span-2">
                       <div className="border-2 border-orange-300 rounded-lg p-4 bg-orange-50">
@@ -1265,6 +1431,73 @@ function AllPassesPageContent() {
               }
             }}
           />
+        )}
+
+        {/* Reject Early Check-in Modal */}
+        {showRejectModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-red-800 flex items-center gap-2">
+                  <XCircle className="w-5 h-5" />
+                  Reject Early Check-in
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectReason('');
+                    setRejectingBookingId(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <p className="text-sm text-gray-600 mb-4">
+                  Please provide a reason for rejecting this early check-in request. The student and their parent will be notified.
+                </p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rejection Reason <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="e.g., Room is not ready before standard check-in time..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    rows={3}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowRejectModal(false);
+                      setRejectReason('');
+                      setRejectingBookingId(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                    disabled={processingCheckin}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRejectCheckin}
+                    disabled={!rejectReason.trim() || processingCheckin}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingCheckin ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    Confirm Rejection
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Cancel Pass Confirmation Modal */}
@@ -1496,7 +1729,9 @@ function AllPassesPageContent() {
 export default function AllPassesPage() {
   return (
     <LanguageProvider>
-      <AllPassesPageContent />
+      <React.Suspense fallback={<DashboardShimmer />}>
+        <AllPassesPageContent />
+      </React.Suspense>
     </LanguageProvider>
   );
 }

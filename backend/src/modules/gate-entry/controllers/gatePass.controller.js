@@ -549,7 +549,8 @@ class GatePassController {
 
       const hostels = await hostelBookingService.getAvailableHostels(
         new Date(checkIn),
-        new Date(checkOut)
+        new Date(checkOut),
+        req.user?.id || null
       );
 
       return res.status(200).json(
@@ -721,6 +722,92 @@ class GatePassController {
       logger.error('Get booking error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to fetch booking', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Request early check-in for a guest house booking (before 10 AM)
+   * POST /api/v1/gate-entry/bookings/:bookingId/early-checkin
+   */
+  async requestEarlyCheckin(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { requestedTime } = req.body;
+
+      if (!requestedTime) {
+        return res.status(400).json(
+          formatResponse(false, 'Requested check-in time is required')
+        );
+      }
+
+      const booking = await hostelBookingService.createEarlyCheckinRequest(
+        bookingId, requestedTime, req.user.id
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Early check-in request submitted successfully', { booking })
+      );
+    } catch (error) {
+      logger.error('Early check-in request error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to submit early check-in request')
+      );
+    }
+  }
+
+  /**
+   * Approve early check-in request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/approve-checkin
+   */
+  async approveEarlyCheckin(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+
+      const booking = await hostelBookingService.approveCheckinRequest(
+        bookingId, req.user.id
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Early check-in request approved', { booking })
+      );
+    } catch (error) {
+      logger.error('Approve early check-in error:', error);
+      const message = error.code?.startsWith?.('P') 
+        ? 'Failed to approve early check-in request. Please try again.' 
+        : (error.message || 'Failed to approve early check-in request');
+      return res.status(400).json(
+        formatResponse(false, message)
+      );
+    }
+  }
+
+  /**
+   * Reject early check-in request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/reject-checkin
+   */
+  async rejectEarlyCheckin(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { reason } = req.body;
+
+      const booking = await hostelBookingService.rejectCheckinRequest(
+        bookingId, req.user.id, reason || ''
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Early check-in request rejected', { booking })
+      );
+    } catch (error) {
+      logger.error('Reject early check-in error:', error);
+      const message = error.code?.startsWith?.('P') 
+        ? 'Failed to reject early check-in request. Please try again.' 
+        : (error.message || 'Failed to reject early check-in request');
+      return res.status(400).json(
+        formatResponse(false, message)
       );
     }
   }
