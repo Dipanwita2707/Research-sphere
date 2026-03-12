@@ -83,7 +83,10 @@ class GatePassService {
         bookingStatus: pass.hostel_booking.booking_status,
         paymentStatus: pass.hostel_booking.payment_status,
         hostelName: pass.hostel_booking.room?.hostel?.name,
-        roomNumber: pass.hostel_booking.room?.room_number
+        roomNumber: pass.hostel_booking.room?.room_number,
+        requestedCheckinTime: pass.hostel_booking.requested_checkin_time ? formatDateForFrontend(pass.hostel_booking.requested_checkin_time) : null,
+        checkinRequestStatus: pass.hostel_booking.checkin_request_status || null,
+        checkinRequestRejectReason: pass.hostel_booking.checkin_request_reject_reason || null
       } : null,
       // Multi-day daily check-in/check-out data
       // All passes support unlimited in/out cycling
@@ -166,7 +169,7 @@ class GatePassService {
             mode: 'insensitive' // Case-insensitive match
           },
           pass_status: {
-            notIn: ['cancelled', 'expired', 'checked_out']
+            notIn: ['cancelled', 'expired', 'checked_out', 'completed']
           },
           // Date overlap check:
           // Conflicts if: (existing_start <= new_end) AND (existing_end >= new_start)
@@ -696,6 +699,9 @@ class GatePassService {
                 total_price: true,
                 booking_status: true,
                 payment_status: true,
+                requested_checkin_time: true,
+                checkin_request_status: true,
+                checkin_request_reject_reason: true,
                 room: {
                   select: {
                     id: true,

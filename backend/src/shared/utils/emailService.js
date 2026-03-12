@@ -542,6 +542,90 @@ async function sendHostelBookingConfirmed(booking) {
   });
 }
 
+/**
+ * 10. Checkout Reminder — sent to parent at 4 PM (1 hour before 5 PM grace deadline)
+ */
+async function sendCheckoutReminder({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, checkOutDatetime }) {
+  const html = shell('Checkout Reminder ⏰', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      This is a reminder that the guest house checkout for <strong>${visitorName}</strong> is scheduled for <strong>5:00 PM today</strong>.
+      Checkout after 5:00 PM will result in an additional day's charge.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',     passId],
+      ['Guest House', hostelName],
+      ['Room',        roomNumber],
+      ['Checkout By', '5:00 PM today'],
+      ['Scheduled',   formatDate(checkOutDatetime)],
+    ])}
+
+    ${alertBox('⏰', `Please ensure <strong>${visitorName}</strong> checks out of room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> before <strong>5:00 PM</strong> to avoid extra charges.`, '#fffbeb', BRAND.warning)}
+  `, BRAND.warning);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Guest House Checkout Reminder (5 PM Deadline)`,
+    html,
+  });
+}
+
+/**
+ * 11. Early Check-in Request Approved — sent to parent
+ */
+async function sendCheckinRequestApproved({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, requestedTime }) {
+  const html = shell('Early Check-in Approved ✅', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The early check-in request for <strong>${visitorName}</strong> has been <strong>approved</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',        passId],
+      ['Guest House',    hostelName],
+      ['Room',           roomNumber],
+      ['Approved Time',  formatDate(requestedTime)],
+    ])}
+
+    ${alertBox('✅', `<strong>${visitorName}</strong> can check in at <strong>${formatDate(requestedTime)}</strong> to room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong>.`, '#f0fdf4', BRAND.success)}
+  `, BRAND.success);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Early Check-in Request Approved`,
+    html,
+  });
+}
+
+/**
+ * 12. Early Check-in Request Rejected — sent to parent
+ */
+async function sendCheckinRequestRejected({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, requestedTime, reason }) {
+  const html = shell('Early Check-in Request Declined', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The early check-in request for <strong>${visitorName}</strong> has been <strong>declined</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',          passId],
+      ['Guest House',      hostelName],
+      ['Room',             roomNumber],
+      ['Requested Time',   formatDate(requestedTime)],
+      ['Reason',           reason || '—'],
+    ])}
+
+    ${alertBox('❌', `The early check-in request was declined. Standard check-in time is <strong>10:00 AM</strong>. Reason: <strong>${reason || 'Not specified'}</strong>.`, '#fef2f2', BRAND.danger)}
+  `, BRAND.danger);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Early Check-in Request Declined`,
+    html,
+  });
+}
+
 module.exports = {
   send,
   sendPassCreated,
@@ -553,4 +637,7 @@ module.exports = {
   sendPassExtended,
   sendHostelBookingCreated,
   sendHostelBookingConfirmed,
+  sendCheckoutReminder,
+  sendCheckinRequestApproved,
+  sendCheckinRequestRejected,
 };

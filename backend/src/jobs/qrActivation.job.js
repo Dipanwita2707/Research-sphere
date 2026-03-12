@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const prisma = require('../shared/config/database');
+const emailService = require('../shared/utils/emailService');
 
 /**
  * QR Activation Cron Job
@@ -211,12 +212,123 @@ const activateQRCodes = async () => {
 };
 
 /**
+ * Send 4 PM checkout reminders (1 hour before 5 PM grace deadline).
+ * Runs inside the 15-minute cron; only fires when IST hour = 16.
+ */
+const sendCheckoutReminders = async () => {
+  try {
+    const now = getISTDate();
+    const istHour = now.getUTCHours(); // already shifted to IST
+
+    // Only run between 4:00 PM and 4:14 PM IST (first cron tick of the 4 PM hour)
+    if (istHour !== 16) return;
+
+    console.log(`[Checkout Reminder] Running at IST ${now.toISOString()}`);
+
+    // Today's date range in IST
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayEnd   = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    // Find confirmed bookings checking out today that haven't been reminded
+    const bookings = await prisma.hostelBooking.findMany({
+      where: {
+        booking_status: 'confirmed',
+        checkout_reminder_sent: false,
+        check_out_datetime: {
+          gte: todayStart,
+          lt:  todayEnd
+        }
+      },
+      include: {
+        gate_pass: {
+          include: {
+            created_by: {
+              include: {
+                studentDetails: {
+                  include: {
+                    parentDetails: {
+                      where: { isPrimaryContact: true },
+                      take: 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        room: {
+          include: { hostel: true }
+        }
+      }
+    });
+
+    if (bookings.length === 0) {
+      console.log(`[Checkout Reminder] No bookings to remind`);
+      return;
+    }
+
+    let sentCount = 0;
+    for (const booking of bookings) {
+      const pass = booking.gate_pass;
+      const student = pass?.created_by;
+      const parentDetails = student?.studentDetails?.[0]?.parentDetails?.[0];
+
+      // 1) Send notification to student's dashboard
+      if (student?.id) {
+        await prisma.notification.create({
+          data: {
+            userId: student.id,
+            type: 'checkout_reminder',
+            title: 'Checkout Reminder – 5 PM Deadline',
+            message: `Guest house checkout is at 5:00 PM today. Room: ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'}. Checkout after 5 PM will incur an extra day charge.`,
+            referenceType: 'hostel_booking',
+            referenceId: booking.id,
+            metadata: {
+              actionUrl: '/admin/gate-entry',
+              actionLabel: 'View Booking'
+            }
+          }
+        });
+      }
+
+      // 2) Send email to parent (fire-and-forget)
+      if (parentDetails?.email) {
+        emailService.sendCheckoutReminder({
+          parentEmail: parentDetails.email,
+          parentName: parentDetails.fatherName || parentDetails.motherName || 'Parent',
+          visitorName: pass.visitor_name,
+          passId: pass.pass_id,
+          roomNumber: booking.room?.room_number || '—',
+          hostelName: booking.room?.hostel?.name || 'Guest House',
+          checkOutDatetime: booking.check_out_datetime
+        }).catch(err => console.error(`[Checkout Reminder] Email error for booking ${booking.id}:`, err));
+      }
+
+      // 3) Mark as reminded
+      await prisma.hostelBooking.update({
+        where: { id: booking.id },
+        data: { checkout_reminder_sent: true }
+      });
+
+      sentCount++;
+    }
+
+    console.log(`[Checkout Reminder] ✅ Sent ${sentCount} reminders`);
+  } catch (error) {
+    console.error(`[Checkout Reminder] ❌ Error:`, error);
+  }
+};
+
+/**
  * Start the cron job
  * Schedule: Every 15 minutes
  */
 const startQRActivationJob = () => {
   // Run every 15 minutes: */15 * * * *
-  cron.schedule('*/15 * * * *', activateQRCodes, {
+  cron.schedule('*/15 * * * *', async () => {
+    await activateQRCodes();
+    await sendCheckoutReminders();
+  }, {
     timezone: 'Asia/Kolkata'
   });
 
@@ -224,9 +336,11 @@ const startQRActivationJob = () => {
   
   // Run immediately on startup
   activateQRCodes();
+  sendCheckoutReminders();
 };
 
 module.exports = {
   startQRActivationJob,
-  activateQRCodes
+  activateQRCodes,
+  sendCheckoutReminders
 };

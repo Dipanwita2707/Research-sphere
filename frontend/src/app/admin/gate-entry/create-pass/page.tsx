@@ -1147,7 +1147,7 @@ function CreatePassPageContent() {
                       <div className="mt-4">
                         <button
                           type="button"
-                          onClick={() => router.push('/admin/gate-entry/all-passes')}
+                          onClick={() => router.push('/admin/gate-entry')}
                           className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-bold rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
                           <FileText className="w-4 h-4" />
