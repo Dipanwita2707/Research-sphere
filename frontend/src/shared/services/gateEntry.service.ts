@@ -215,6 +215,38 @@ export interface HostelBooking {
   checkinRequestReviewedAt?: string;
 }
 
+export interface ExtendPassOptions {
+  hasHostelBooking: boolean;
+  passId: string;
+  bookingId?: string;
+  currentEndDate: string;
+  proposedEndDate: string;
+  sameRoomAvailable: boolean;
+  requiresPayment: boolean;
+  additionalNights: number;
+  additionalAmount: number;
+  currentRoom: {
+    id?: string;
+    roomId?: string;
+    roomNumber?: string;
+    hostelId?: string;
+    hostelName?: string;
+    pricePerNight?: number;
+  } | null;
+  alternativeHostels: Hostel[];
+}
+
+export interface ConfirmExtendPassResult {
+  hasHostelBooking: boolean;
+  usedSameRoom?: boolean;
+  selectedRoomId?: string;
+  selectedRoomNumber?: string;
+  selectedHostelName?: string;
+  additionalNights: number;
+  additionalAmount: number;
+  requiresPayment: boolean;
+}
+
 // Helper function to convert snake_case keys to camelCase
 function snakeToCamel(str: string): string {
   return str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -537,6 +569,52 @@ class GateEntryService {
       success: response.data.success,
       message: response.data.message,
       pass: rawPass ? transformPass(rawPass) : null as any
+    };
+  }
+
+  /**
+   * Step-1: Check extension options for guest house booking
+   */
+  async checkExtendPassOptions(passId: string, newEndDate: string): Promise<{ success: boolean; options: ExtendPassOptions; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/extend-pass/${passId}/check`,
+      { newEndDate }
+    );
+
+    const options = response.data?.data?.options;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      options: {
+        ...options,
+        alternativeHostels: (options?.alternativeHostels || []).map((h: any) => transformHostel(h))
+      }
+    };
+  }
+
+  /**
+   * Step-2: Confirm extension after room decision
+   */
+  async confirmExtendPass(
+    passId: string,
+    data: {
+      newEndDate: string;
+      extensionReason: string;
+      useSameRoom: boolean;
+      selectedRoomId?: string;
+    }
+  ): Promise<{ success: boolean; pass: GatePass; extension: ConfirmExtendPassResult; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/extend-pass/${passId}/confirm`,
+      data
+    );
+
+    const rawPass = response.data?.data?.pass;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      pass: rawPass ? transformPass(rawPass) : null as any,
+      extension: response.data?.data?.extension
     };
   }
 
