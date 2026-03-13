@@ -447,6 +447,75 @@ class GatePassController {
   }
 
   /**
+   * Check extend pass options for guest house bookings
+   * POST /api/v1/gate-entry/extend-pass/:passId/check
+   */
+  async checkExtendPassOptions(req, res) {
+    try {
+      const { passId } = req.params;
+      const { newEndDate } = req.body;
+
+      if (!newEndDate) {
+        return res.status(400).json(
+          formatResponse(false, 'New end date is required')
+        );
+      }
+
+      const options = await gatePassService.getExtendPassOptions(passId, newEndDate);
+
+      return res.status(200).json(
+        formatResponse(true, 'Extension options fetched successfully', { options })
+      );
+    } catch (error) {
+      logger.error('Check extend pass options error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to check extension options')
+      );
+    }
+  }
+
+  /**
+   * Confirm extend pass after room decision
+   * POST /api/v1/gate-entry/extend-pass/:passId/confirm
+   */
+  async confirmExtendPass(req, res) {
+    try {
+      const { passId } = req.params;
+      const { newEndDate, extensionReason, useSameRoom, selectedRoomId } = req.body;
+
+      if (!newEndDate || !extensionReason) {
+        return res.status(400).json(
+          formatResponse(false, 'New end date and extension reason are required')
+        );
+      }
+
+      const result = await gatePassService.confirmExtendPass(
+        passId,
+        newEndDate,
+        extensionReason,
+        { useSameRoom, selectedRoomId }
+      );
+
+      // Send email notification (fire-and-forget)
+      emailService.sendPassExtended(result.pass, newEndDate, extensionReason).catch(e => console.error('[EMAIL] confirmExtendPass failed:', e.message));
+
+      const transformedPass = gatePassService.transformPassToFrontend(result.pass);
+
+      return res.status(200).json(
+        formatResponse(true, 'Pass extension confirmed successfully', {
+          pass: transformedPass,
+          extension: result.extension
+        })
+      );
+    } catch (error) {
+      logger.error('Confirm extend pass error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to confirm pass extension')
+      );
+    }
+  }
+
+  /**
    * Extend pass (modify end date only)
    * POST /api/v1/gate-entry/extend-pass/:passId
    */

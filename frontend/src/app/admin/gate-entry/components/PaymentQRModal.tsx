@@ -5,13 +5,17 @@ import { HostelBooking, gateEntryService } from '@/shared/services/gateEntry.ser
 
 interface PaymentQRModalProps {
   booking: HostelBooking;
+  mode?: 'booking' | 'extension';
+  payableAmount?: number;
   onClose: () => void;
 }
 
-export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps) {
+export default function PaymentQRModal({ booking, mode = 'booking', payableAmount, onClose }: PaymentQRModalProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isExtensionMode = mode === 'extension';
+  const amountToPay = typeof payableAmount === 'number' && payableAmount > 0 ? payableAmount : booking.totalPrice;
 
   // Confirm payment (Test Mode - will be replaced with Razorpay verification later)
   const handleTestModePayment = async () => {
@@ -46,7 +50,10 @@ export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps
           <div className="text-6xl mb-4">✅</div>
           <h3 className="text-2xl font-bold text-green-800 mb-2">Payment Confirmed!</h3>
           <p className="text-green-700">
-            Booking status updated to <strong>Confirmed</strong>
+            {isExtensionMode
+              ? <><strong>Extension payment completed</strong> and booking updated.</>
+              : <>Booking status updated to <strong>Confirmed</strong></>
+            }
           </p>
           <p className="text-sm text-green-600 mt-2">
             Hostel: {booking.hostel?.name} | Room: {booking.room?.roomNumber}
@@ -60,9 +67,13 @@ export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps
   return (
     <div className="space-y-6">
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <h3 className="font-semibold text-green-800 mb-2">✓ Booking Created Successfully</h3>
+        <h3 className="font-semibold text-green-800 mb-2">
+          {isExtensionMode ? '✓ Extension Applied Successfully' : '✓ Booking Created Successfully'}
+        </h3>
         <p className="text-sm text-green-700">
-          Your booking has been created. Please complete the payment to confirm your reservation.
+          {isExtensionMode
+            ? 'Your pass extension is applied. Please complete additional payment to finalize the extended booking.'
+            : 'Your booking has been created. Please complete the payment to confirm your reservation.'}
         </p>
       </div>
 
@@ -103,8 +114,8 @@ export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps
           <div className="text-gray-600">Price/Night:</div>
           <div className="font-medium text-gray-800">₹{booking.room?.pricePerNight || 0}</div>
           
-          <div className="text-gray-600 font-semibold">Total Amount:</div>
-          <div className="font-bold text-blue-600 text-lg">₹{booking.totalPrice}</div>
+          <div className="text-gray-600 font-semibold">{isExtensionMode ? 'Additional Amount:' : 'Total Amount:'}</div>
+          <div className="font-bold text-blue-600 text-lg">₹{amountToPay}</div>
         </div>
       </div>
 
@@ -182,7 +193,7 @@ export default function PaymentQRModal({ booking, onClose }: PaymentQRModalProps
           Booking Status: <span className="font-semibold text-orange-600 capitalize">{booking.bookingStatus || 'Pending'}</span>
         </p>
         <p className="text-xs text-gray-500 mt-1">
-          You will be notified once your payment is verified
+          {isExtensionMode ? 'Extended stay will remain pending until this payment is confirmed' : 'You will be notified once your payment is verified'}
         </p>
       </div>
     </div>

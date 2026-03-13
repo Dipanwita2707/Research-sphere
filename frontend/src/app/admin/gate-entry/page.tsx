@@ -1416,6 +1416,7 @@ function AllPassesPageContent() {
                 ? (selectedPassForExtend.checkOutDate || selectedPassForExtend.visitEndDate || selectedPassForExtend.visitDate)
                 : (selectedPassForExtend.visitEndDate || selectedPassForExtend.visitDate)
             }
+            hasHostelBooking={!!selectedPassForExtend.hostelBooking?.id}
             onClose={() => {
               setShowExtendModal(false);
               setSelectedPassForExtend(null);

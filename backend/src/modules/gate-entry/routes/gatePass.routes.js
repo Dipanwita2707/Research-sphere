@@ -163,6 +163,20 @@ router.post('/record-exit/:passId', canVerifyPass, gatePassController.recordExit
 router.post('/cancel/:passId', canCancelPass, gatePassController.cancelPass);
 
 /**
+ * @route POST /api/v1/gate-entry/extend-pass/:passId/check
+ * @desc Check extension options for guest house booking (same room/alternate room)
+ * @access Private (Creator or Admin only)
+ */
+router.post('/extend-pass/:passId/check', canExtendPass, gatePassController.checkExtendPassOptions);
+
+/**
+ * @route POST /api/v1/gate-entry/extend-pass/:passId/confirm
+ * @desc Confirm pass extension with room decision
+ * @access Private (Creator or Admin only)
+ */
+router.post('/extend-pass/:passId/confirm', canExtendPass, gatePassController.confirmExtendPass);
+
+/**
  * @route POST /api/v1/gate-entry/extend-pass/:passId
  * @desc Extend pass (modify entry time and date)
  * @access Private (Creator or Admin only - Guard cannot extend)

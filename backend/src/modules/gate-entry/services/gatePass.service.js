@@ -9,6 +9,12 @@ const logger = {
   error: (msg, error) => console.error('[ERROR]', msg, error)
 };
 
+// Match hostel booking availability cutoff behavior used in booking creation flow.
+const getBookingCutoffDate = () => {
+  const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  return new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()));
+};
+
 class GatePassService {
   /**
    * Transform snake_case fields to camelCase for frontend
@@ -1847,6 +1853,336 @@ class GatePassService {
   }
 
   /**
+   * Extension billing helper aligned with guest house rules.
+   */
+  calculateExtensionBillableDays(checkInDatetime, checkOutDatetime) {
+    const GRACE_CHECKOUT_HOUR = 17;
+    const checkIn = new Date(checkInDatetime);
+    const checkOut = new Date(checkOutDatetime);
+
+    const checkInDay = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
+    const checkOutDay = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
+    const baseDays = Math.round((checkOutDay - checkInDay) / (1000 * 60 * 60 * 24));
+    const checkOutHour = checkOut.getHours() + checkOut.getMinutes() / 60;
+
+    if (checkOutHour > GRACE_CHECKOUT_HOUR) {
+      return Math.max(baseDays + 1, 1);
+    }
+
+    return Math.max(baseDays, 1);
+  }
+
+  /**
+   * Parse and validate extend date (must be strictly after current end date).
+   */
+  normalizeExtensionDate(newEndDate, currentEndDate) {
+    const endDateRaw = new Date(newEndDate);
+    if (isNaN(endDateRaw.getTime())) {
+      throw new Error('Invalid end date format');
+    }
+
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const visit_end_date = new Date(endDateRaw.getTime() + istOffset);
+    visit_end_date.setUTCHours(0, 0, 0, 0);
+
+    if (visit_end_date <= currentEndDate) {
+      throw new Error('New end date must be after current end date');
+    }
+
+    return visit_end_date;
+  }
+
+  /**
+   * Determine whether a room is free for extension window.
+   */
+  async isRoomAvailableForExtension(roomId, currentBookingId, extensionStart, extensionEnd) {
+    const conflicts = await prisma.hostelBooking.count({
+      where: {
+        room_id: roomId,
+        id: { not: currentBookingId },
+        booking_status: { in: ['confirmed', 'pending'] },
+        AND: [
+          { check_out_datetime: { gte: getBookingCutoffDate() } },
+          { check_in_datetime: { lt: extensionEnd } },
+          { check_out_datetime: { gte: extensionStart } }
+        ]
+      }
+    });
+
+    return conflicts === 0;
+  }
+
+  /**
+   * Step-1 for booked guest house pass extension.
+   */
+  async getExtendPassOptions(pass_id, newEndDate) {
+    const pass = await prisma.gate_pass.findUnique({
+      where: { pass_id },
+      include: {
+        hostel_booking: {
+          include: {
+            room: {
+              include: {
+                hostel: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!pass) {
+      throw new Error('Pass not found');
+    }
+
+    if (pass.status === 'checked_out' || pass.pass_status === 'checked_out') {
+      throw new Error('Cannot extend a pass that has been checked out');
+    }
+
+    if (pass.status === 'cancelled' || pass.pass_status === 'cancelled') {
+      throw new Error('Cannot extend a cancelled pass');
+    }
+
+    if (pass.status === 'expired' || pass.pass_status === 'expired') {
+      throw new Error('Cannot extend an expired pass. The pass has already ended.');
+    }
+
+    const currentEndDate = pass.visit_end_date || pass.visit_date;
+    const visit_end_date = this.normalizeExtensionDate(newEndDate, currentEndDate);
+
+    if (!pass.hostel_booking) {
+      return {
+        hasHostelBooking: false,
+        passId: pass.pass_id,
+        currentEndDate,
+        proposedEndDate: visit_end_date,
+        sameRoomAvailable: true,
+        additionalNights: 0,
+        additionalAmount: 0,
+        requiresPayment: false,
+        currentRoom: null,
+        alternativeHostels: []
+      };
+    }
+
+    const booking = pass.hostel_booking;
+    if (!booking.room_id || !booking.check_in_datetime || !booking.check_out_datetime) {
+      throw new Error('Guest house booking data is incomplete. Please contact admin.');
+    }
+
+    const extensionStart = new Date(booking.check_out_datetime);
+    const sameRoomAvailable = await this.isRoomAvailableForExtension(
+      booking.room_id,
+      booking.id,
+      extensionStart,
+      visit_end_date
+    );
+
+    const hostelBookingService = require('./hostelBooking.service');
+    const availableHostels = await hostelBookingService.getAvailableHostels(
+      extensionStart,
+      visit_end_date,
+      pass.created_by_id
+    );
+
+    const currentBillableDays = booking.billable_days || 1;
+    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, visit_end_date);
+    const additionalNights = Math.max(newBillableDays - currentBillableDays, 0);
+    const pricePerDay = parseFloat(booking.price_per_day || booking.room?.price_per_night || 0);
+    const additionalAmount = Number((additionalNights * pricePerDay).toFixed(2));
+
+    return {
+      hasHostelBooking: true,
+      passId: pass.pass_id,
+      bookingId: booking.id,
+      currentEndDate,
+      proposedEndDate: visit_end_date,
+      sameRoomAvailable,
+      requiresPayment: additionalAmount > 0,
+      additionalNights,
+      additionalAmount,
+      currentRoom: {
+        id: booking.room?.id,
+        roomId: booking.room_id,
+        roomNumber: booking.room?.room_number || booking.room_number,
+        hostelId: booking.room?.hostel_id,
+        hostelName: booking.room?.hostel?.name || booking.hostel_name,
+        pricePerNight: parseFloat(booking.room?.price_per_night || booking.price_per_day || 0)
+      },
+      alternativeHostels: availableHostels
+    };
+  }
+
+  /**
+   * Step-2 confirm extension with same-room or alternate-room decision.
+   */
+  async confirmExtendPass(pass_id, newEndDate, extensionReason, decision = {}) {
+    const pass = await prisma.gate_pass.findUnique({
+      where: { pass_id },
+      include: {
+        hostel_booking: {
+          include: {
+            room: {
+              include: {
+                hostel: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!pass) {
+      throw new Error('Pass not found');
+    }
+
+    if (!pass.hostel_booking) {
+      const updatedPass = await this.extendPass(pass_id, newEndDate, extensionReason);
+      return {
+        pass: updatedPass,
+        extension: {
+          hasHostelBooking: false,
+          additionalNights: 0,
+          additionalAmount: 0,
+          requiresPayment: false
+        }
+      };
+    }
+
+    if (!extensionReason || !extensionReason.trim()) {
+      throw new Error('Extension reason is required');
+    }
+
+    const options = await this.getExtendPassOptions(pass_id, newEndDate);
+    const booking = pass.hostel_booking;
+    const useSameRoom = decision.useSameRoom !== false;
+    const selectedRoomId = decision.selectedRoomId || null;
+    const visit_end_date = new Date(options.proposedEndDate);
+    const checkout_qr_expires_at = new Date(visit_end_date.getTime() + 24 * 60 * 60 * 1000);
+
+    let finalRoomId = booking.room_id;
+    if (useSameRoom) {
+      if (!options.sameRoomAvailable) {
+        throw new Error('Current room is not available for selected extension date. Please choose another room.');
+      }
+    } else {
+      if (!selectedRoomId) {
+        throw new Error('Please select a room for extension.');
+      }
+      finalRoomId = selectedRoomId;
+    }
+
+    const extensionStart = new Date(booking.check_out_datetime);
+    const finalRoom = await prisma.hostelRoom.findUnique({
+      where: { id: finalRoomId },
+      include: {
+        hostel: true
+      }
+    });
+
+    if (!finalRoom || !finalRoom.is_available) {
+      throw new Error('Selected room is not available.');
+    }
+
+    const finalRoomAvailable = await this.isRoomAvailableForExtension(
+      finalRoomId,
+      booking.id,
+      extensionStart,
+      visit_end_date
+    );
+
+    if (!finalRoomAvailable) {
+      throw new Error('Selected room is no longer available for extension period. Please re-check availability.');
+    }
+
+    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, visit_end_date);
+    const newPricePerDay = parseFloat(finalRoom.price_per_night || booking.price_per_day || 0);
+    const newTotalPrice = Number((newBillableDays * newPricePerDay).toFixed(2));
+    const currentTotalPrice = parseFloat(booking.total_price || 0);
+    const additionalAmount = Number(Math.max(newTotalPrice - currentTotalPrice, 0).toFixed(2));
+    const requiresPayment = additionalAmount > 0;
+
+    const hostelBookingService = require('./hostelBooking.service');
+
+    await prisma.$transaction(async (tx) => {
+      await tx.gate_pass.update({
+        where: { pass_id },
+        data: {
+          visit_end_date: visit_end_date,
+          checkout_qr_expires_at: checkout_qr_expires_at,
+          extension_count: { increment: 1 },
+          extension_reason: extensionReason,
+          updated_at: new Date()
+        }
+      });
+
+      const bookingPatch = {
+        room_id: finalRoom.id,
+        room_number: finalRoom.room_number,
+        hostel_name: finalRoom.hostel?.name || booking.hostel_name,
+        check_out_datetime: visit_end_date,
+        billable_days: newBillableDays,
+        price_per_day: newPricePerDay,
+        total_price: newTotalPrice,
+        updated_at: new Date()
+      };
+
+      if (requiresPayment) {
+        const paymentQR = await hostelBookingService.generatePaymentQR(booking.id, additionalAmount);
+        bookingPatch.payment_qr_code = paymentQR;
+        bookingPatch.payment_reference = `EXT-${booking.id.substring(0, 8).toUpperCase()}`;
+        bookingPatch.payment_status = 'pending';
+        bookingPatch.booking_status = 'pending';
+      }
+
+      await tx.hostelBooking.update({
+        where: { id: booking.id },
+        data: bookingPatch
+      });
+    });
+
+    const updatedPass = await prisma.gate_pass.findUnique({
+      where: { pass_id },
+      include: {
+        hostel_booking: {
+          include: {
+            room: {
+              include: {
+                hostel: true
+              }
+            }
+          }
+        },
+        user_login_gate_pass_created_by_idTouser_login: {
+          select: {
+            id: true,
+            uid: true,
+            employeeDetails: {
+              select: {
+                displayName: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return {
+      pass: updatedPass,
+      extension: {
+        hasHostelBooking: true,
+        usedSameRoom: finalRoom.id === booking.room_id,
+        selectedRoomId: finalRoom.id,
+        selectedRoomNumber: finalRoom.room_number,
+        selectedHostelName: finalRoom.hostel?.name || booking.hostel_name,
+        additionalNights: Math.max(newBillableDays - (booking.billable_days || 1), 0),
+        additionalAmount,
+        requiresPayment
+      }
+    };
+  }
+
+  /**
    * Extend pass (modify existing pass with new entry time and date)
    */
   async extendPass(pass_id, newEndDate, extensionReason) {
@@ -1875,19 +2211,11 @@ class GatePassService {
       }
 
       // Parse and normalize new end date
-      const endDateRaw = new Date(newEndDate);
-      if (isNaN(endDateRaw.getTime())) {
-        throw new Error('Invalid end date format');
-      }
-      
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      const visit_end_date = new Date(endDateRaw.getTime() + istOffset);
-      visit_end_date.setUTCHours(0, 0, 0, 0);
-
-      // Validate new end date is after current end date or visit date
       const currentEndDate = pass.visit_end_date || pass.visit_date;
-      if (visit_end_date <= currentEndDate) {
-        throw new Error('New end date must be after current end date');
+      const visit_end_date = this.normalizeExtensionDate(newEndDate, currentEndDate);
+
+      if (pass.hostel_booking) {
+        throw new Error('Guest house booking found. Please use extension check flow before confirming extension.');
       }
 
       // Calculate new checkout QR expiry (midnight of the day AFTER new visit_end_date)
@@ -1910,21 +2238,7 @@ class GatePassService {
 
         logger.info(`Gate pass updated: ${pass.pass_id}, new end date: ${visit_end_date.toISOString()}`);
 
-        // If pass has hostel booking, update check_out_datetime too
-        if (pass.hostel_booking) {
-          const updatedBooking = await tx.hostelBooking.update({
-            where: { id: pass.hostel_booking.id },
-            data: {
-              check_out_datetime: visit_end_date,
-              updated_at: new Date()
-            }
-          });
-          
-          logger.info(`✅ Hostel booking updated in transaction: ${pass.hostel_booking.id}, new check_out_datetime: ${visit_end_date.toISOString()}`);
-          logger.info(`Updated booking data:`, updatedBooking);
-        } else {
-          logger.info(`No hostel booking found for pass: ${pass.pass_id}`);
-        }
+        logger.info(`No hostel booking found for pass: ${pass.pass_id}`);
       });
 
       // Fetch fresh data with updated hostel booking
