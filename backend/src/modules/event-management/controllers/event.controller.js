@@ -8,7 +8,7 @@ const asyncHandler = require('../../../shared/utils/asyncHandler');
 const ApiResponse = require('../../../shared/utils/ApiResponse');
 const prisma = require('../../../shared/config/database');
 const eventService = require('../services/event.service');
-const { formatEventResponse, canManageEvent } = require('../utils/eventHelpers');
+const { formatEventResponse, canManageEvent, isEventManager, formatEventListItem } = require('../utils/eventHelpers');
 const { canUserSeeEvent, assertEventOwner } = require('../services/eventSettings.service');
 const { ForbiddenError } = require('../../../shared/utils/AppError');
 
@@ -53,7 +53,7 @@ const listEvents = asyncHandler(async (req, res) => {
   
   const result = await eventService.listEvents(filters, pagination, userId);
   
-  const formattedEvents = result.events.map(formatEventResponse);
+  const formattedEvents = result.events.map(formatEventListItem);
   
   return ApiResponse.success(res, {
     events: formattedEvents,
@@ -73,25 +73,30 @@ const getEvent = asyncHandler(async (req, res) => {
   
   const event = await eventService.getEventDetails(id, userId);
 
-  // ── Visibility enforcement: check if user is allowed to see this event ──
-  // Event creators and superadmins bypass visibility checks
-  if (event.createdById !== userId && req.user.role !== 'superadmin') {
-    const canSee = await canUserSeeEvent(event.id, userId);
-    if (!canSee) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have access to this event',
-      });
-    }
-  }
-
-  // ── Add canManage flag so frontend can guard manage pages ──
+  // ── Parallelize visibility + manage checks ──────────────────────────────
   const isSuperadmin = req.user.role === 'superadmin';
   const isCreator = event.createdById === userId;
   const hasManageAll = (req.user.centralDeptPermissions || []).some(
     dp => dp.permissions && dp.permissions.event_manage_all === true
   );
-  const canManage = isSuperadmin || isCreator || hasManageAll || await canManageEvent(prisma, event.id, userId);
+
+  // Run canSee + isManager in parallel (both cached, both independent)
+  const needsVisCheck = !isCreator && !isSuperadmin;
+  const needsManagerCheck = !isSuperadmin && !isCreator && !hasManageAll;
+
+  const [canSee, managerResult] = await Promise.all([
+    needsVisCheck ? canUserSeeEvent(event.id, userId) : Promise.resolve(true),
+    needsManagerCheck ? isEventManager(prisma, event.id, userId) : Promise.resolve(false),
+  ]);
+
+  if (!canSee) {
+    return res.status(403).json({
+      success: false,
+      message: 'You do not have access to this event',
+    });
+  }
+
+  const canManage = isSuperadmin || isCreator || hasManageAll || managerResult;
 
   const formatted = formatEventResponse(event);
   formatted.canManage = canManage;

@@ -499,7 +499,7 @@ function EventCard({
         </div>
 
         {/* Actions */}
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:w-[320px] xl:grid-cols-1">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:w-[348px] xl:grid-cols-1">
           <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">
             <Link href={`/events/${event.id}`}>
               <Eye className="h-4 w-4" />
@@ -525,10 +525,10 @@ function EventCard({
 
           {event.status !== 'draft' && (
             <>
-              <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">
+              <Button asChild variant="outline" size="default" className="group w-full justify-start rounded-lg border-slate-300/90 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-ev-300 hover:bg-gradient-to-r hover:from-ev-50 hover:to-cyan-50 hover:text-slate-900 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ev-300 focus-visible:ring-offset-1">
                 <Link href={`/events/${event.id}/manage`}>
-                  <Settings className="h-4 w-4" />
-                  Event Update
+                  <Settings className="h-4 w-4 transition-transform duration-200 group-hover:rotate-12" />
+                  <span className="truncate text-[13px] font-semibold tracking-tight">Event Edit/Publish/Republish</span>
                 </Link>
               </Button>
               <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">

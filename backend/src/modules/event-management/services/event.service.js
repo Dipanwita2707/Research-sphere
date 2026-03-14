@@ -48,6 +48,10 @@ async function invalidateEventCaches(eventId) {
   await Promise.all([
     cache.del(`event:detail:${eventId}`),
     cache.del(`event:stats:${eventId}`),
+    cache.del(`event:regopen:${eventId}`),
+    cache.del(`event:regform:${eventId}`),
+    cache.delPattern('event:list:*'),          // bust all list caches (short TTL anyway)
+    cache.delPattern(`event:canSee:${eventId}:*`), // bust visibility cache for this event
   ]);
 }
 
@@ -459,39 +463,10 @@ const createEventFromNoting = async (noteId, userId) => {
  * Caches the event base data per eventId (user-specific data always fetched fresh).
  */
 const getEventDetails = async (eventId, userId) => {
-  // Try cache for event base data
+  // Try cache for event base data (with stampede protection)
   const cacheKey = `event:detail:${eventId}`;
-  let event = await cache.get(cacheKey);
-
-  if (!event) {
-    // Cache miss — fetch from DB and cache
-    event = await getEventById(prisma, eventId, {
-      EventVolunteer: {
-        take: 20,
-        include: {
-          user_login: {
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              employeeDetails: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                },
-              },
-              studentLogin: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                },
-              },
-            },
-          },
-        },
-      },
+  const { data: event } = await cache.getOrSet(cacheKey, async () => {
+    return await getEventById(prisma, eventId, {
       EventCustomField: {
         where: { isActive: true },
         orderBy: { sortOrder: "asc" },
@@ -523,27 +498,55 @@ const getEventDetails = async (eventId, userId) => {
         },
       },
     });
-    // Cache event base data (2 min TTL)
-    await cache.set(cacheKey, event, 120);
-  }
+  }, 300);
 
-  // User-specific data always fetched fresh (not cached)
-  const [currentRegistrations, userRegistration] = await Promise.all([
-    prisma.eventRegistration.count({
-      where: { eventId, status: "confirmed" },
-    }),
-    prisma.eventRegistration.findFirst({
-      where: { eventId, userId },
-      select: {
-        id: true,
-        registrationId: true,
-        qrCode: true,
-        status: true,
-        hasEntered: true,
-        registeredAt: true,
-      },
-    }),
+  // User-specific data: cache registration count (30s), always fresh user registration
+  const regCountKey = `event:regcount:${eventId}`;
+  const userRegKey = `event:userreg:${eventId}:${userId}`;
+
+  const [cachedRegCount, cachedUserReg] = await Promise.all([
+    cache.get(regCountKey),
+    cache.get(userRegKey),
   ]);
+
+  let currentRegistrations, userRegistration;
+
+  if (cachedRegCount !== null && cachedUserReg !== null) {
+    currentRegistrations = cachedRegCount;
+    userRegistration = cachedUserReg;
+  } else {
+    // Fetch missing values in parallel
+    const promises = [];
+    if (cachedRegCount === null) {
+      promises.push(
+        prisma.eventRegistration.count({
+          where: { eventId, status: "confirmed" },
+        }).then(count => { currentRegistrations = count; cache.set(regCountKey, count, 120); })
+      );
+    } else {
+      currentRegistrations = cachedRegCount;
+    }
+    if (cachedUserReg === null) {
+      promises.push(
+        prisma.eventRegistration.findFirst({
+          where: { eventId, userId },
+          select: {
+            id: true,
+            registrationId: true,
+            qrCode: true,
+            status: true,
+            hasEntered: true,
+            registeredAt: true,
+          },
+        }).then(reg => { userRegistration = reg; cache.set(userRegKey, reg || false, 300); })
+      );
+    } else {
+      userRegistration = cachedUserReg === false ? null : cachedUserReg;
+    }
+    await Promise.all(promises);
+  }
+  // Normalize false back to null for API response
+  if (userRegistration === false) userRegistration = null;
 
   event.currentRegistrations = currentRegistrations;
   event.userRegistration = userRegistration;
@@ -1049,8 +1052,47 @@ const publishEvent = async (eventId, userId) => {
 
 /**
  * List events with filters and pagination
+ * PERF: Results cached for 30s per unique filter+user combination
  */
 const listEvents = async (filters, pagination, userId) => {
+  const { page = 1, limit = 20 } = pagination;
+  const LIST_CACHE_VERSION = 'v2';
+  const {
+    status,
+    eventType,
+    search,
+    myEvents,
+    filter: specialFilter,
+    studentApply,
+  } = filters;
+
+  // ── Cache layer with stampede protection ───────────────────────────────
+  // For public list (myEvents=false), use a shared cache key based on filters + 
+  // visibility hash (same role+program → same cache). This prevents 150 separate 
+  // cache entries for 150 users with identical query results.
+  let cacheKey;
+  if (myEvents) {
+    // My events is user-specific
+    cacheKey = `event:list:${LIST_CACHE_VERSION}:my:${userId}:${JSON.stringify({ page, limit, status, eventType, search })}`;
+  } else {
+    // Public list — build visibility filter first and hash it for the cache key
+    const visFilter = await buildVisibilityFilter(userId);
+    const crypto = require('crypto');
+    const visHash = crypto.createHash('md5').update(JSON.stringify(visFilter)).digest('hex').slice(0, 8);
+    cacheKey = `event:list:${LIST_CACHE_VERSION}:pub:${visHash}:${JSON.stringify({ page, limit, status, eventType, search, specialFilter, studentApply })}`;
+  }
+
+  const { data: result } = await cache.getOrSet(cacheKey, async () => {
+    return await _fetchListFromDB(filters, pagination, userId);
+  }, 120);
+
+  return result;
+};
+
+/**
+ * Internal: fetch event list from database (called on cache miss)
+ */
+const _fetchListFromDB = async (filters, pagination, userId) => {
   const { page = 1, limit = 20 } = pagination;
   const {
     status,
@@ -1073,52 +1115,22 @@ const listEvents = async (filters, pagination, userId) => {
     status: true,
     startDate: true,
     endDate: true,
+    registrationStartDate: true,
+    registrationEndDate: true,
     venue: true,
     paymentType: true,
     registrationFee: true,
-    teamRegistrationFee: true,
     maxCapacity: true,
-    approxCapacity: true,
     createdById: true,
     createdAt: true,
-    updatedAt: true,
     description: true,
     notingId: true,
-    festivalNotingId: true,
-    festivalMeta: true,
-    hasStalls: true,
-    stallConfig: true,
     bannerImageUrl: true,
-    participationType: true,
-    capacityFixed: true,
-    prizesEnabled: true,
-    // Noting-derived fields (duty leave, sponsorship, resources)
-    dutyLeaveAvailable: true,
-    dutyLeaveEligibility: true,
-    dutyLeaveRoleType: true,
-    hasSponsorship: true,
-    sponsors: true,
-    showSponsorshipPublicly: true,
-    hasResources: true,
-    resources: true,
-    certificateAvailable: true,
     logoImageUrl: true,
-    note: {
-      select: {
-        notingId: true,
-        status: true,
-        category: true,
-        subcategory: true,
-        eventSponsors: true,
-        eventResources: true,
-        eventHasSponsorship: true,
-        eventHasResources: true,
-        eventDutyLeaveAvailable: true,
-        eventDutyLeaveEligibility: true,
-        eventDutyLeaveRoleType: true,
-        subEvents: true,
-      },
-    },
+    participationType: true,
+    hasStalls: true,
+    prizesEnabled: true,
+    certificateAvailable: true,
   };
 
   // Special stall-open filter: return events open for student stall applications
@@ -1154,7 +1166,7 @@ const listEvents = async (filters, pagination, userId) => {
       }),
       prisma.event.count({ where }),
     ]);
-    return {
+    const stallResult = {
       events: events.map((e) => ({
         ...e,
         currentRegistrations: 0,
@@ -1167,6 +1179,7 @@ const listEvents = async (filters, pagination, userId) => {
         totalPages: Math.ceil(total / parseInt(limit)),
       },
     };
+    return stallResult;
   }
 
   const where = {};
@@ -1279,7 +1292,7 @@ const listEvents = async (filters, pagination, userId) => {
     currentRegistrations: countMap.get(event.id) ?? 0,
   }));
 
-  return {
+  const listResult = {
     events: eventsWithCount,
     pagination: {
       page,
@@ -1288,6 +1301,7 @@ const listEvents = async (filters, pagination, userId) => {
       totalPages: Math.ceil(total / limit),
     },
   };
+  return listResult;
 };
 
 /**

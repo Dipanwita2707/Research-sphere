@@ -272,7 +272,7 @@ export default function EventManagementPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link
-                href={`/events/${eventId}`}
+                  href="/events/my-events"
                 className="p-2 rounded-lg hover:bg-ev-50 dark:hover:bg-gray-700 transition-colors text-ev-700 dark:text-ev-400"
               >
                 <ArrowLeft className="w-5 h-5" />
