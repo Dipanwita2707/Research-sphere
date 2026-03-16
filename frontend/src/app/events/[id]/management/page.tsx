@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -10,18 +11,8 @@ import {
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event, EventStatistics, EventVolunteer } from '@/features/event-management/types/event.types';
-import EventSettings from '@/features/event-management/components/EventSettings';
-import CouponManagement from '@/features/event-management/components/CouponManagement';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
-
-// ── Tab Components ────────────────────────────────────────────────
-import OverviewTab from './tabs/OverviewTab';
-import RegistrationsTab from './tabs/RegistrationsTab';
-import VolunteersTab from './tabs/VolunteersTab';
-import AnalyticsTab from './tabs/AnalyticsTab';
-import FeedbackTab from './tabs/FeedbackTab';
-import StallsTab from './tabs/StallsTab';
 
 // ── Constants (used for computed pieData) ──────────────────────
 const STATUS_COLORS = {
@@ -33,6 +24,22 @@ const STATUS_COLORS = {
 
 type TabType = 'overview' | 'registrations' | 'volunteers' | 'analytics' | 'stalls' | 'feedback' | 'coupons' | 'settings';
 const VALID_TABS: TabType[] = ['overview', 'registrations', 'volunteers', 'analytics', 'stalls', 'feedback', 'coupons', 'settings'];
+
+const TabLoader = () => (
+  <div className="rounded-2xl border border-[#b3cde0] bg-white p-10 text-center shadow-ev dark:border-gray-700 dark:bg-gray-800">
+    <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-ev-700" />
+    <p className="text-sm text-ev-400 dark:text-gray-400">Loading tab...</p>
+  </div>
+);
+
+const OverviewTab = dynamic(() => import('./tabs/OverviewTab'), { loading: () => <TabLoader /> });
+const RegistrationsTab = dynamic(() => import('./tabs/RegistrationsTab'), { loading: () => <TabLoader /> });
+const VolunteersTab = dynamic(() => import('./tabs/VolunteersTab'), { loading: () => <TabLoader /> });
+const AnalyticsTab = dynamic(() => import('./tabs/AnalyticsTab'), { loading: () => <TabLoader /> });
+const FeedbackTab = dynamic(() => import('./tabs/FeedbackTab'), { loading: () => <TabLoader /> });
+const StallsTab = dynamic(() => import('./tabs/StallsTab'), { loading: () => <TabLoader /> });
+const EventSettings = dynamic(() => import('@/features/event-management/components/EventSettings'), { loading: () => <TabLoader /> });
+const CouponManagement = dynamic(() => import('@/features/event-management/components/CouponManagement'), { loading: () => <TabLoader /> });
 
 export default function EventManagementPage() {
   const params = useParams();

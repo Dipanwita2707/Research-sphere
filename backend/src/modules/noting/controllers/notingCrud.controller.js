@@ -37,6 +37,7 @@ const {
   sanitizePoints,
   parsePolicyCompliance,
   sanitizeEventSponsors,
+  sanitizeEventResources,
 } = require("../utils/validators");
 const {
   getNoteById,
@@ -341,7 +342,9 @@ const create = asyncHandler(async (req, res) => {
       ? sanitizeEventSponsors(eventSponsors)
       : null,
     eventHasResources: eventHasResources != null ? !!eventHasResources : null,
-    eventResources: Array.isArray(eventResources) ? eventResources : null,
+    eventResources: Array.isArray(eventResources)
+      ? sanitizeEventResources(eventResources)
+      : null,
     eventCertification:
       eventCertification != null ? !!eventCertification : null,
     eventCapacityFixed:
@@ -646,7 +649,7 @@ const updateDraft = asyncHandler(async (req, res) => {
       eventHasResources != null ? !!eventHasResources : null;
   if (eventResources !== undefined)
     updateData.eventResources = Array.isArray(eventResources)
-      ? eventResources
+      ? sanitizeEventResources(eventResources)
       : null;
   if (eventCertification !== undefined)
     updateData.eventCertification =

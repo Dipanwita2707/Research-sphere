@@ -6,6 +6,12 @@
 const { ValidationError } = require('../../../shared/utils/AppError');
 const { LIMITS } = require('../constants/noting.constants');
 const { CATEGORIES } = require('../config/noting.config');
+const {
+  sanitizePlainText,
+  sanitizeRichText,
+  sanitizeStringArray,
+  sanitizeUrl,
+} = require('../../../shared/utils/sanitize');
 
 /**
  * Validate description field
@@ -15,7 +21,7 @@ const { CATEGORIES } = require('../config/noting.config');
  * @throws {ValidationError} If validation fails
  */
 function validateDescription(description, required = false) {
-  const desc = String(description || '').trim();
+  const desc = sanitizeRichText(description || '', { maxLength: 50000 });
 
   if (required && !desc) {
     throw new ValidationError('Please add a description explaining your request before submitting.');
@@ -70,14 +76,12 @@ function sanitizeAttachments(attachmentsPayload) {
   return attachmentsPayload
     .filter((a) => a && (a.filePath || a.fileName))
     .map((a) => ({
-      filePath: String(a.filePath || '')
-        .trim()
-        .slice(0, LIMITS.FILE_PATH_MAX_LENGTH),
-      fileName: String(a.fileName || a.filePath || 'attachment')
-        .trim()
-        .slice(0, LIMITS.FILE_NAME_MAX_LENGTH),
+      filePath: sanitizeUrl(a.filePath || '', { maxLength: LIMITS.FILE_PATH_MAX_LENGTH }),
+      fileName: sanitizePlainText(a.fileName || a.filePath || 'attachment', {
+        maxLength: LIMITS.FILE_NAME_MAX_LENGTH,
+      }),
       fileDescription: a.fileDescription
-        ? String(a.fileDescription).trim().slice(0, LIMITS.FILE_DESCRIPTION_MAX_LENGTH)
+        ? sanitizePlainText(a.fileDescription, { maxLength: LIMITS.FILE_DESCRIPTION_MAX_LENGTH })
         : null,
     }))
     .filter((a) => a.filePath);
@@ -93,9 +97,7 @@ function sanitizePoints(points) {
     return [];
   }
 
-  const trimmed = points
-    .map((content) => String(content).trim())
-    .filter(Boolean);
+  const trimmed = sanitizeStringArray(points, { maxLength: 2000 });
 
   // Dedupe while preserving order (defensive against duplicate sends)
   const seen = new Set();
@@ -129,6 +131,38 @@ const { RECURRING_FREQUENCIES, APPROVAL_PERIODS } = require('../constants/noting
 /** Alias for shared sponsor sanitization (Cash: amount, In-kind: notes) */
 function sanitizeEventSponsors(sponsors) {
   return sanitizeSponsors(sponsors);
+}
+
+function sanitizeEventResources(resources) {
+  if (!Array.isArray(resources)) return [];
+
+  return resources
+    .filter((resource) => resource && typeof resource === 'object')
+    .map((resource) => {
+      const pricePerPiece = resource.pricePerPiece != null && resource.pricePerPiece !== ''
+        ? Number(resource.pricePerPiece)
+        : undefined;
+      const quantity = resource.quantity != null && resource.quantity !== ''
+        ? Number(resource.quantity)
+        : undefined;
+      const estimatedCost = resource.estimatedCost != null && resource.estimatedCost !== ''
+        ? Number(resource.estimatedCost)
+        : undefined;
+
+      return {
+        category: sanitizePlainText(resource.category || 'internal', { maxLength: 32 }) || 'internal',
+        type: sanitizePlainText(resource.type || '', { maxLength: 256 }),
+        description: sanitizePlainText(resource.description || '', { maxLength: 2000 }),
+        pricePerPiece: Number.isFinite(pricePerPiece) ? pricePerPiece : undefined,
+        quantity: Number.isFinite(quantity) ? quantity : undefined,
+        estimatedCost: Number.isFinite(estimatedCost)
+          ? estimatedCost
+          : (Number.isFinite(pricePerPiece) && Number.isFinite(quantity)
+            ? pricePerPiece * quantity
+            : undefined),
+      };
+    })
+    .filter((resource) => resource.type || resource.description);
 }
 
 const VALID_RECURRING = Object.values(RECURRING_FREQUENCIES);
@@ -376,4 +410,5 @@ module.exports = {
   sanitizePoints,
   parsePolicyCompliance,
   sanitizeEventSponsors,
+  sanitizeEventResources,
 };

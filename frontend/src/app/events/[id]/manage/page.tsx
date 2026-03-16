@@ -36,12 +36,22 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Event, OpportunityMode, ParticipationType, EventPrize, PrizeType, EventCustomField, EventFieldType } from '@/features/event-management/types/event.types';
+import {
+  sanitizeManageEventInput,
+  validateManageEventForm,
+} from '@/features/event-management/validation/manageEvent.validation';
 import { SponsorshipManager } from '@/features/noting-management/components/SponsorshipManager';
 import type { SponsorData } from '@/features/noting-management/components/FestivalForm';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
+import {
+  sanitizeDigitsInput,
+  sanitizeEmailInput,
+  sanitizePlainTextInput,
+  sanitizeUrlInput,
+} from '@/shared/utils/inputSanitizers';
 
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
 
@@ -49,6 +59,15 @@ interface FAQ {
   question: string;
   answer: string;
 }
+
+type EventResourceRow = {
+  category: string;
+  type: string;
+  description: string;
+  estimatedCost?: number;
+  pricePerPiece?: number;
+  quantity?: number;
+};
 
 // Step configuration
 const STEPS = [
@@ -71,6 +90,8 @@ const PRIZE_TYPE_OPTIONS: { value: PrizeType; label: string; icon: React.ReactNo
 
 // Additional perk options
 const PERK_OPTIONS = ['Certificate', 'Pre-placement Interview', 'Pre-placement Offer', 'Goodies', 'Mentorship'];
+const MAX_DESCRIPTION_WORDS = 10;
+const MAX_CONTACT_MOBILE_DIGITS = 10;
 
 // Custom field type options
 const FIELD_TYPE_OPTIONS: { value: EventFieldType; label: string }[] = [
@@ -185,7 +206,7 @@ export default function ManageEventPage() {
   const [sponsors, setSponsors] = useState<any[]>([]);
   const [showSponsorshipPublicly, setShowSponsorshipPublicly] = useState(false);
   const [hasResources, setHasResources] = useState<boolean | null>(null);
-  const [resources, setResources] = useState<Array<{ category: string; type: string; description: string; estimatedCost?: number }>>([]);
+  const [resources, setResources] = useState<EventResourceRow[]>([]);
 
   // Sponsor receipt upload helper (reuses noting attachment endpoint)
   const handleSponsorReceiptUpload = useCallback(async (file: File): Promise<{ filePath: string; fileName: string } | null> => {
@@ -303,16 +324,6 @@ export default function ManageEventPage() {
       setTeamRegistrationFee(data.teamRegistrationFee ?? '');
       // When event is from noting, locked fields that are null should display as false (No) not as unselected
       const notingLocked = !!data.notingId;
-      console.log('[manage] Noting fields from API:', {
-        dutyLeaveAvailable: data.dutyLeaveAvailable,
-        dutyLeaveEligibility: data.dutyLeaveEligibility,
-        dutyLeaveRoleType: data.dutyLeaveRoleType,
-        hasSponsorship: data.hasSponsorship,
-        sponsors: data.sponsors,
-        hasResources: data.hasResources,
-        resources: data.resources,
-        notingId: data.notingId,
-      });
       setDutyLeaveAvailable(data.dutyLeaveAvailable ?? (notingLocked ? false : null));
       setDutyLeaveEligibility(Array.isArray(data.dutyLeaveEligibility) ? data.dutyLeaveEligibility : []);
       setDutyLeaveRoleType(data.dutyLeaveRoleType ?? null);
@@ -338,6 +349,50 @@ export default function ManageEventPage() {
     reader.readAsDataURL(file);
   };
 
+  const getResourceTotal = (resource: EventResourceRow) => {
+    if (resource.pricePerPiece != null && resource.quantity != null) {
+      return Number(resource.pricePerPiece) * Number(resource.quantity);
+    }
+    return resource.estimatedCost;
+  };
+
+  const updateResourceField = (
+    index: number,
+    field: keyof EventResourceRow,
+    value: string | number | undefined,
+  ) => {
+    setResources((prev) =>
+      prev.map((resource, resourceIndex) => {
+        if (resourceIndex !== index) return resource;
+
+        const nextValue =
+          typeof value === 'string'
+            ? sanitizePlainTextInput(value, {
+                maxLength: field === 'description' ? 300 : 120,
+              })
+            : value;
+        const nextResource = { ...resource, [field]: nextValue };
+        nextResource.estimatedCost = getResourceTotal(nextResource);
+        return nextResource;
+      }),
+    );
+  };
+
+  const removeResourceAt = (index: number) => {
+    setResources((prev) => prev.filter((_, resourceIndex) => resourceIndex !== index));
+  };
+
+  const addResourceRow = () => {
+    setResources((prev) => [
+      ...prev,
+      {
+        category: 'internal',
+        type: '',
+        description: '',
+      },
+    ]);
+  };
+
   const handleRemoveImage = (type: 'banner' | 'logo') => {
     if (type === 'banner') { setBannerPreview(''); setBannerImageUrl(''); }
     else { setLogoPreview(''); setLogoImageUrl(''); }
@@ -345,47 +400,50 @@ export default function ManageEventPage() {
 
   // ──── Validation helpers ────
   const countWords = (str: string) => str.trim().split(/\s+/).filter(Boolean).length;
-  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const clampDescription = (value: string) => {
+    const sanitized = sanitizePlainTextInput(value, { maxLength: 120 });
+    const words = sanitized.trim().split(/\s+/).filter(Boolean);
+    if (words.length <= MAX_DESCRIPTION_WORDS) return sanitized;
+    return words.slice(0, MAX_DESCRIPTION_WORDS).join(' ');
+  };
+  const normalizeContactMobile = (value: string) =>
+    sanitizeDigitsInput(value, { maxLength: MAX_CONTACT_MOBILE_DIGITS });
 
   type FieldErrorMap = Record<string, string>;
 
+  const getValidationInput = (forPublish = false) => ({
+    description,
+    longDescription,
+    venue,
+    maxCapacity,
+    registrationFee,
+    teamRegistrationFee,
+    registrationStartDate,
+    registrationEndDate,
+    logoImageUrl,
+    opportunityMode,
+    participationType,
+    minTeamSize,
+    maxTeamSize,
+    contactPersonName,
+    contactEmail,
+    contactMobile,
+    alternateContact,
+    websiteUrl,
+    socialMediaLinks,
+    eligibilityCriteria,
+    rulesAndGuidelines,
+    prizeDetails,
+    faqs,
+    hasResources,
+    resources,
+    eventPaymentType: event?.paymentType ?? 'free',
+    eventStartDate: event?.startDate,
+    forPublish,
+  });
+
   const runValidation = (forPublish = false): FieldErrorMap => {
-    const errors: FieldErrorMap = {};
-    if (forPublish && !logoImageUrl) {
-      errors.logo = 'Event logo is required before publishing.';
-    }
-    if (!description.trim()) {
-      errors.description = 'Short description is required.';
-    } else if (countWords(description) > 10) {
-      errors.description = `Short description must be 10 words or fewer (currently ${countWords(description)} words).`;
-    }
-    const longDescPlain = longDescription.replace(/<[^>]*>/g, '').trim();
-    if (!longDescPlain) {
-      errors.longDescription = 'Detailed description is required.';
-    }
-    if (!registrationStartDate) {
-      errors.registrationStartDate = 'Registration start date is required.';
-    }
-    if (!registrationEndDate) {
-      errors.registrationEndDate = 'Registration end date is required.';
-    }
-    if (registrationStartDate && registrationEndDate && new Date(registrationEndDate) < new Date(registrationStartDate)) {
-      errors.registrationEndDate = 'End date must be after start date.';
-    }
-    if (!contactPersonName.trim()) {
-      errors.contactPersonName = 'Contact person name is required.';
-    } else if (contactPersonName.trim().length < 2) {
-      errors.contactPersonName = 'Contact person name must be at least 2 characters.';
-    }
-    if (!contactEmail.trim()) {
-      errors.contactEmail = 'Contact email is required.';
-    } else if (!isValidEmail(contactEmail)) {
-      errors.contactEmail = 'Please enter a valid email address.';
-    }
-    if (!opportunityMode) {
-      errors.opportunityMode = 'Please select a mode of opportunity.';
-    }
-    return errors;
+    return validateManageEventForm(getValidationInput(forPublish)).fieldErrors;
   };
 
   const blurField = (fieldName: string, forPublish = false) => {
@@ -403,11 +461,16 @@ export default function ManageEventPage() {
       { field: 'logo', step: 1 },
       { field: 'description', step: 1 },
       { field: 'longDescription', step: 1 },
+      { field: 'registrationFee', step: 1 },
+      { field: 'teamRegistrationFee', step: 1 },
       { field: 'registrationStartDate', step: 1 },
       { field: 'registrationEndDate', step: 1 },
       { field: 'contactPersonName', step: 1 },
       { field: 'contactEmail', step: 1 },
+      { field: 'contactMobile', step: 1 },
       { field: 'opportunityMode', step: 2 },
+      { field: 'minTeamSize', step: 2 },
+      { field: 'maxTeamSize', step: 2 },
     ];
     for (const { field, step } of stepFieldMap) {
       if (errors[field]) {
@@ -423,7 +486,11 @@ export default function ManageEventPage() {
 
   const addFAQ = () => setFaqs([...faqs, { question: '', answer: '' }]);
   const updateFAQ = (i: number, field: 'question' | 'answer', v: string) => {
-    const u = [...faqs]; u[i][field] = v; setFaqs(u);
+    const u = [...faqs];
+    u[i][field] = sanitizePlainTextInput(v, {
+      maxLength: field === 'question' ? 200 : 500,
+    });
+    setFaqs(u);
   };
   const removeFAQ = (i: number) => setFaqs(faqs.filter((_, idx) => idx !== i));
 
@@ -539,27 +606,44 @@ export default function ManageEventPage() {
   };
 
   const buildUpdateData = () => {
+    const sanitized = sanitizeManageEventInput(getValidationInput());
+    const sanitizedFaqs = sanitized.faqs.filter(
+      (faq) => faq.question.trim() && faq.answer.trim(),
+    );
+    const sanitizedSocialMediaLinks = Object.fromEntries(
+      Object.entries(sanitized.socialMediaLinks).filter(([, value]) => value),
+    );
+    const sanitizedResources = sanitized.resources
+      .map((resource) => ({
+        ...resource,
+        estimatedCost: getResourceTotal(resource),
+      }))
+      .filter(
+        (resource) =>
+          resource.type.trim().length > 0 || resource.description.trim().length > 0,
+      );
+
     const updateData: any = {
       // Step 1: Basic Info
-      description: description.trim(),
-      longDescription: longDescription.trim() || null,
-      venue: venue.trim(),
-      maxCapacity: maxCapacity ? Number(maxCapacity) : null,
-      registrationStartDate: registrationStartDate || null,
-      registrationEndDate: registrationEndDate || null,
+      description: sanitized.description.trim(),
+      longDescription: sanitized.longDescription.trim() || null,
+      venue: sanitized.venue.trim(),
+      maxCapacity: sanitized.maxCapacity ? Number(sanitized.maxCapacity) : null,
+      registrationStartDate: sanitized.registrationStartDate || null,
+      registrationEndDate: sanitized.registrationEndDate || null,
       bannerImageUrl: bannerImageUrl || null,
-      logoImageUrl: logoImageUrl || null,
-      contactPersonName: contactPersonName.trim() || null,
-      contactEmail: contactEmail.trim() || null,
-      contactMobile: contactMobile.trim() || null,
-      alternateContact: alternateContact.trim() || null,
-      websiteUrl: websiteUrl.trim() || null,
-      socialMediaLinks: Object.keys(socialMediaLinks).filter(k => socialMediaLinks[k]).length > 0 ? socialMediaLinks : null,
-      eligibilityCriteria: eligibilityCriteria.trim() || null,
-      rulesAndGuidelines: rulesAndGuidelines.trim() || null,
-      prizeDetails: prizeDetails.trim() || null,
+      logoImageUrl: sanitized.logoImageUrl || null,
+      contactPersonName: sanitized.contactPersonName.trim() || null,
+      contactEmail: sanitized.contactEmail.trim() || null,
+      contactMobile: sanitized.contactMobile.trim() || null,
+      alternateContact: sanitized.alternateContact.trim() || null,
+      websiteUrl: sanitized.websiteUrl.trim() || null,
+      socialMediaLinks: Object.keys(sanitizedSocialMediaLinks).length > 0 ? sanitizedSocialMediaLinks : null,
+      eligibilityCriteria: sanitized.eligibilityCriteria.trim() || null,
+      rulesAndGuidelines: sanitized.rulesAndGuidelines.trim() || null,
+      prizeDetails: sanitized.prizeDetails.trim() || null,
       certificateAvailable,
-      faqs: faqs.filter(f => f.question && f.answer).length > 0 ? faqs.filter(f => f.question && f.answer) : null,
+      faqs: sanitizedFaqs.length > 0 ? sanitizedFaqs : null,
 
       // Step 2: Participation & Team Settings
       opportunityMode: opportunityMode as OpportunityMode,
@@ -601,7 +685,7 @@ export default function ManageEventPage() {
       sponsors: hasSponsorship && sponsors.length > 0 ? sponsors : null,
       showSponsorshipPublicly: hasSponsorship && sponsors.length > 0 ? showSponsorshipPublicly : false,
       hasResources: hasResources ?? null,
-      resources: hasResources && resources.length > 0 ? resources : null,
+      resources: hasResources && sanitizedResources.length > 0 ? sanitizedResources : null,
     };
     // Fee is locked when from noting — do NOT override it via update payload
     if (event?.paymentType === 'paid' && !event?.notingId) {
@@ -616,16 +700,16 @@ export default function ManageEventPage() {
 
   const validateForm = (forPublish = false): boolean => {
     setSubmitAttempted(true);
-    // Run inline-error validation
     const errors = runValidation(forPublish);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       scrollToFirstError(errors);
+      const firstMessage = Object.values(errors)[0];
+      if (firstMessage) {
+        toast({ type: 'error', message: firstMessage });
+      }
       return false;
     }
-    // Additional non-inline checks
-    if (!venue.trim()) { toast({ type: 'error', message: 'Venue is required' }); return false; }
-    if (maxCapacity && maxCapacity < 1) { toast({ type: 'error', message: 'Max capacity must be at least 1' }); return false; }
     if (event?.paymentType === 'paid') {
       if (participationType === 'team') {
         const fee = Number(teamRegistrationFee);
@@ -637,13 +721,36 @@ export default function ManageEventPage() {
         if (isNaN(fee) || fee < 1) { toast({ type: 'error', message: 'Participation fee must be at least ₹1.' }); return false; }
       }
     }
-    if (registrationEndDate && event && new Date(registrationEndDate) > new Date(event.startDate)) { toast({ type: 'error', message: 'Registration must close before the event starts' }); return false; }
-    if (registrationStartDate && event && new Date(registrationStartDate) > new Date(event.startDate)) { toast({ type: 'error', message: 'Registration must open before the event starts' }); return false; }
-    if (participationType === 'team') {
-      if (!minTeamSize || !maxTeamSize) { toast({ type: 'error', message: 'Team size is required for team participation' }); return false; }
-      if (Number(minTeamSize) > Number(maxTeamSize)) { toast({ type: 'error', message: 'Min team size cannot be greater than max team size' }); return false; }
-    }
     return true;
+  };
+
+  const handleNextStep = () => {
+    const errors = runValidation(false);
+    const stepFields = currentStep === 1
+      ? ['description', 'longDescription', 'registrationFee', 'teamRegistrationFee', 'registrationStartDate', 'registrationEndDate', 'contactPersonName', 'contactEmail', 'contactMobile']
+      : currentStep === 2
+        ? ['opportunityMode', 'minTeamSize', 'maxTeamSize']
+        : [];
+    const stepErrors = Object.fromEntries(
+      Object.entries(errors).filter(([field]) => stepFields.includes(field))
+    );
+
+    setSubmitAttempted(true);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      for (const field of stepFields) {
+        delete next[field];
+      }
+      return { ...next, ...stepErrors };
+    });
+
+    if (Object.keys(stepErrors).length > 0) {
+      toast({ type: 'error', message: 'Please fill the required fields before going to the next step.' });
+      scrollToFirstError(stepErrors);
+      return;
+    }
+
+    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
   };
 
   const handleSave = async () => {
@@ -924,14 +1031,17 @@ export default function ManageEventPage() {
                   <div className="relative">
                     <textarea
                       value={description}
-                      onChange={(e) => { setDescription(e.target.value); if (submitAttempted) blurField('description'); }}
+                      onChange={(e) => {
+                        setDescription(clampDescription(e.target.value));
+                        if (submitAttempted) blurField('description');
+                      }}
                       onBlur={() => blurField('description')}
                       rows={3}
                       className={`${inputClass} ${inputErrClass('description')}`}
                       placeholder="Brief summary shown in event cards..."
                     />
-                    <span className={`absolute bottom-2 right-2 text-[10px] ${countWords(description) > 10 ? 'text-red-500' : 'text-gray-400'}`}>
-                      {countWords(description)}/10
+                    <span className={`absolute bottom-2 right-2 text-[10px] ${countWords(description) > MAX_DESCRIPTION_WORDS ? 'text-red-500' : 'text-gray-400'}`}>
+                      {countWords(description)}/{MAX_DESCRIPTION_WORDS}
                     </span>
                   </div>
                   <FieldError field="description" />
@@ -1014,7 +1124,13 @@ export default function ManageEventPage() {
                   <input
                     type="text"
                     value={venue}
-                    onChange={(e) => setVenue(e.target.value)}
+                    onChange={(e) =>
+                      setVenue(
+                        sanitizePlainTextInput(e.target.value, {
+                          maxLength: 200,
+                        }),
+                      )
+                    }
                     className={inputClass}
                     placeholder="e.g., Main Auditorium, Seminar Hall 1"
                     required
@@ -1048,7 +1164,7 @@ export default function ManageEventPage() {
                     />
                   </div>
                   {event.paymentType === 'paid' && participationType === 'individual' && (
-                    <div>
+                    <div id="field-registrationFee">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Registration Fee (₹) <span className="text-red-500">*</span>
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
@@ -1076,7 +1192,7 @@ export default function ManageEventPage() {
                     </div>
                   )}
                   {event.paymentType === 'paid' && participationType === 'team' && (
-                    <div>
+                    <div id="field-teamRegistrationFee">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-1.5">
                         Team Registration Fee (₹) <span className="text-red-500">*</span>
                         {event.notingId && <Lock className="w-3.5 h-3.5 text-amber-500" />}
@@ -1222,20 +1338,120 @@ export default function ManageEventPage() {
                     </label>
                   </div>
                   {hasResources && (
-                    <div className="mt-2 space-y-2">
-                      {resources.map((r, i) => (
-                        <div key={i} className="flex flex-wrap sm:flex-nowrap gap-2 items-start p-2 border border-[#b3cde0] dark:border-gray-600 rounded-md min-w-0">
-                          <select value={r.category} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, category: e.target.value } : x))} disabled={!!event.notingId} className={`${inputClass} !w-28 shrink-0 disabled:cursor-not-allowed`}>
-                            <option value="internal">Internal</option>
-                            <option value="external">External</option>
-                          </select>
-                          <input value={r.type} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, type: e.target.value } : x))} placeholder="Type" disabled={!!event.notingId} className={`${inputClass} !w-32 shrink-0 disabled:cursor-not-allowed`} />
-                          <input value={r.description} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Description" disabled={!!event.notingId} className={`${inputClass} !w-auto flex-1 min-w-0 disabled:cursor-not-allowed`} />
-                          <input type="number" value={r.estimatedCost ?? ''} onChange={(e) => !event.notingId && setResources(prev => prev.map((x, j) => j === i ? { ...x, estimatedCost: e.target.value ? Number(e.target.value) : undefined } : x))} placeholder="Cost (₹)" disabled={!!event.notingId} className={`${inputClass} !w-24 shrink-0 disabled:cursor-not-allowed`} />
-                          {!event.notingId && <button type="button" onClick={() => setResources(prev => prev.filter((_, j) => j !== i))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">×</button>}
+                    <div className="mt-4 animate-in fade-in slide-in-from-top-1">
+                      <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm text-left">
+                            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                              <tr>
+                                <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">Resource / Item</th>
+                                <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider">Description</th>
+                                <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider w-32">Price/Unit</th>
+                                <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider w-24">Qty</th>
+                                <th className="px-4 py-3 font-semibold text-gray-600 dark:text-gray-300 text-xs uppercase tracking-wider w-32">Total</th>
+                                <th className="px-4 py-3 w-10"></th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700 bg-white dark:bg-gray-800/50">
+                              {resources.map((resource, index) => {
+                                const computedCost = getResourceTotal(resource);
+                                return (
+                                  <tr key={index} className="group transition-colors even:bg-gray-50/30 hover:bg-gray-50/50 dark:even:bg-gray-800/30 dark:hover:bg-gray-700/20">
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={resource.type}
+                                        onChange={(e) => updateResourceField(index, 'type', e.target.value)}
+                                        placeholder="e.g. Mic, Podium"
+                                        disabled={!!event.notingId}
+                                        className={`${inputClass} disabled:cursor-not-allowed`}
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="text"
+                                        value={resource.description}
+                                        onChange={(e) => updateResourceField(index, 'description', e.target.value)}
+                                        placeholder="Details..."
+                                        disabled={!!event.notingId}
+                                        className={`${inputClass} disabled:cursor-not-allowed`}
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <div className="relative">
+                                        <IndianRupee className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          value={resource.pricePerPiece ?? ''}
+                                          onChange={(e) => updateResourceField(index, 'pricePerPiece', e.target.value === '' ? undefined : Number(e.target.value))}
+                                          placeholder="0"
+                                          disabled={!!event.notingId}
+                                          className={`${inputClass} pl-8 disabled:cursor-not-allowed`}
+                                        />
+                                      </div>
+                                    </td>
+                                    <td className="p-2">
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={resource.quantity ?? ''}
+                                        onChange={(e) => updateResourceField(index, 'quantity', e.target.value === '' ? undefined : Number(e.target.value))}
+                                        placeholder="1"
+                                        disabled={!!event.notingId}
+                                        className={`${inputClass} disabled:cursor-not-allowed`}
+                                      />
+                                    </td>
+                                    <td className="p-2">
+                                      <div className="rounded-lg bg-gray-50 px-3 py-2 text-right text-sm font-semibold text-gray-700 dark:bg-gray-700/50 dark:text-gray-300">
+                                        {computedCost != null ? `Rs. ${Number(computedCost).toLocaleString('en-IN')}` : '-'}
+                                      </div>
+                                    </td>
+                                    <td className="p-2 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => removeResourceAt(index)}
+                                        disabled={!!event.notingId}
+                                        className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-400 dark:hover:bg-red-900/20"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {resources.length === 0 && (
+                                <tr>
+                                  <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400">
+                                    No resources added yet.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                            {resources.length > 0 && (
+                              <tfoot className="border-t border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800/50">
+                                <tr>
+                                  <td colSpan={4} className="px-4 py-3 text-right text-xs font-bold uppercase text-gray-500">
+                                    Total Estimated Cost
+                                  </td>
+                                  <td className="px-4 py-3 text-right text-sm font-bold text-gray-900 dark:text-white">
+                                    Rs. {resources.reduce((sum, resource) => sum + (getResourceTotal(resource) ?? 0), 0).toLocaleString('en-IN')}
+                                  </td>
+                                  <td></td>
+                                </tr>
+                              </tfoot>
+                            )}
+                          </table>
                         </div>
-                      ))}
-                      {!event.notingId && <button type="button" onClick={() => setResources(prev => [...prev, { category: 'internal', type: '', description: '' }])} className="text-sm text-ev-700 hover:text-ev-800">+ Add resource</button>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addResourceRow}
+                        disabled={!!event.notingId}
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-2.5 text-sm font-medium text-gray-500 transition-all hover:border-ev-400 hover:bg-ev-50/70 hover:text-ev-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-700 dark:hover:bg-ev-900/20"
+                      >
+                        <Plus className="h-4 w-4" /> Add Resource
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1282,7 +1498,14 @@ export default function ManageEventPage() {
                 <div id="field-contactPersonName">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contact Person Name <span className="text-red-500">*</span></label>
                   <input type="text" value={contactPersonName}
-                    onChange={(e) => { setContactPersonName(e.target.value); if (submitAttempted) blurField('contactPersonName'); }}
+                    onChange={(e) => {
+                      setContactPersonName(
+                        sanitizePlainTextInput(e.target.value, {
+                          maxLength: 120,
+                        }),
+                      );
+                      if (submitAttempted) blurField('contactPersonName');
+                    }}
                     onBlur={() => blurField('contactPersonName')}
                     className={`${inputClass} ${inputErrClass('contactPersonName')}`} placeholder="Full name of event coordinator" />
                   <FieldError field="contactPersonName" />
@@ -1291,14 +1514,30 @@ export default function ManageEventPage() {
                   <div id="field-contactEmail">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contact Email <span className="text-red-500">*</span></label>
                     <input type="email" value={contactEmail}
-                      onChange={(e) => { setContactEmail(e.target.value); if (submitAttempted) blurField('contactEmail'); }}
+                      onChange={(e) => {
+                        setContactEmail(sanitizeEmailInput(e.target.value));
+                        if (submitAttempted) blurField('contactEmail');
+                      }}
                       onBlur={() => blurField('contactEmail')}
                       className={`${inputClass} ${inputErrClass('contactEmail')}`} placeholder="contact@example.com" />
                     <FieldError field="contactEmail" />
                   </div>
-                  <div>
+                  <div id="field-contactMobile">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contact Mobile</label>
-                    <input type="tel" value={contactMobile} onChange={(e) => setContactMobile(e.target.value)} className={inputClass} placeholder="+91 XXXXX XXXXX" />
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={MAX_CONTACT_MOBILE_DIGITS}
+                      value={contactMobile}
+                      onChange={(e) => {
+                        setContactMobile(normalizeContactMobile(e.target.value));
+                        if (submitAttempted) blurField('contactMobile');
+                      }}
+                      onBlur={() => blurField('contactMobile')}
+                      className={`${inputClass} ${inputErrClass('contactMobile')}`}
+                      placeholder="10 digit mobile number"
+                    />
+                    <FieldError field="contactMobile" />
                   </div>
                 </div>
               </div>
@@ -1310,11 +1549,11 @@ export default function ManageEventPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Eligibility Criteria</label>
-                  <textarea value={eligibilityCriteria} onChange={(e) => setEligibilityCriteria(e.target.value)} rows={2} className={inputClass} placeholder="Who can participate?" />
+                  <textarea value={eligibilityCriteria} onChange={(e) => setEligibilityCriteria(sanitizePlainTextInput(e.target.value, { maxLength: 2000 }))} rows={2} className={inputClass} placeholder="Who can participate?" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Rules & Guidelines</label>
-                  <textarea value={rulesAndGuidelines} onChange={(e) => setRulesAndGuidelines(e.target.value)} rows={2} className={inputClass} placeholder="Event rules..." />
+                  <textarea value={rulesAndGuidelines} onChange={(e) => setRulesAndGuidelines(sanitizePlainTextInput(e.target.value, { maxLength: 4000 }))} rows={2} className={inputClass} placeholder="Event rules..." />
                 </div>
                 <label className={`${checkboxClass(certificateAvailable)} ${event?.notingId ? 'opacity-75 cursor-not-allowed' : ''}`}>
                   <input type="checkbox" checked={certificateAvailable} onChange={(e) => !event?.notingId && setCertificateAvailable(e.target.checked)} disabled={!!event?.notingId} className="w-4 h-4 text-ev-700 rounded focus:ring-ev-700 disabled:cursor-not-allowed" />
@@ -1451,11 +1690,11 @@ export default function ManageEventPage() {
                       Team Configuration
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                      <div>
+                      <div id="field-minTeamSize">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Min Team Size <span className="text-red-500">*</span></label>
                         <input type="number" value={minTeamSize} onChange={(e) => setMinTeamSize(e.target.value ? Number(e.target.value) : '')} min="1" className={inputClass} placeholder="e.g., 2" />
                       </div>
-                      <div>
+                      <div id="field-maxTeamSize">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Max Team Size <span className="text-red-500">*</span></label>
                         <input type="number" value={maxTeamSize} onChange={(e) => setMaxTeamSize(e.target.value ? Number(e.target.value) : '')} min="1" className={inputClass} placeholder="e.g., 5" />
                       </div>
@@ -1672,7 +1911,7 @@ export default function ManageEventPage() {
                   </button>
                 )}
                 {currentStep < STEPS.length && (
-                  <button onClick={() => setCurrentStep(currentStep + 1)} className="px-3 sm:px-4 py-2.5 min-h-[44px] bg-gray-700 dark:bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-800 flex items-center gap-2 transition-colors">
+                  <button onClick={handleNextStep} className="px-3 sm:px-4 py-2.5 min-h-[44px] bg-gray-700 dark:bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-800 flex items-center gap-2 transition-colors">
                     <span className="hidden sm:inline">Next</span><ArrowRight className="w-4 h-4" />
                   </button>
                 )}
@@ -1800,4 +2039,3 @@ export default function ManageEventPage() {
     </div>
   );
 }
-

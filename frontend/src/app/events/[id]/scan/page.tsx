@@ -5,18 +5,25 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, QrCode, CheckCircle, XCircle, Clock, MapPin, AlertCircle, Users } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
-import type { Event } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
+
+type ScanContext = {
+  id: string;
+  eventId: string;
+  name: string;
+  venue?: string;
+  status: string;
+};
 
 export default function QRScannerPage() {
   const params = useParams();
   const eventId = params?.id as string;
   const { toast } = useToast();
   
-  const [event, setEvent] = useState<Event | null>(null);
+  const [event, setEvent] = useState<ScanContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [qrInput, setQrInput] = useState('');
@@ -32,7 +39,7 @@ export default function QRScannerPage() {
   useEffect(() => {
     const fetchEvent = async () => {
       try {
-        const data = await eventService.getEventById(eventId);
+        const data = await eventService.getScanContext(eventId);
         setEvent(data);
       } catch (error: any) {
         toast({ type: 'error', message: getErrorMessage(error) });
@@ -42,7 +49,7 @@ export default function QRScannerPage() {
     };
 
     if (eventId) fetchEvent();
-  }, [eventId]);
+  }, [eventId, toast]);
 
   // Auto-focus on QR input
   useEffect(() => {

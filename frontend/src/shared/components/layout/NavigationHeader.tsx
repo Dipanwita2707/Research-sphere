@@ -327,7 +327,7 @@ export default function NavigationHeader() {
   // Uncomment the block below to re-enable Ticket Management in navigation
   // ============================================
   const tmsChildren: SubMenuItem[] = [];
-  /*
+  
   if (isStudent) {
     tmsChildren.push(
       { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
@@ -345,7 +345,7 @@ export default function NavigationHeader() {
       { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
     );
   }
-  */
+  
 
   const navigationSubItems: SubMenuItem[] = [
     // Academics

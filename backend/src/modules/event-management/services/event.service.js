@@ -18,6 +18,12 @@ const {
   isValidUrl,
 } = require("../../../shared/utils/validators");
 const {
+  sanitizeDigits,
+  sanitizeEmail,
+  sanitizePlainText,
+  sanitizeUrl,
+} = require("../../../shared/utils/sanitize");
+const {
   ERRORS,
   EVENT_STATUS,
   REGISTRATION_STATUS,
@@ -53,6 +59,46 @@ async function invalidateEventCaches(eventId) {
     cache.delPattern('event:list:*'),          // bust all list caches (short TTL anyway)
     cache.delPattern(`event:canSee:${eventId}:*`), // bust visibility cache for this event
   ]);
+}
+
+function sanitizeEventResources(resources) {
+  if (!Array.isArray(resources)) return [];
+
+  return resources
+    .filter((resource) => resource && typeof resource === "object")
+    .map((resource) => {
+      const pricePerPiece =
+        resource.pricePerPiece != null && resource.pricePerPiece !== ""
+          ? Number(resource.pricePerPiece)
+          : undefined;
+      const quantity =
+        resource.quantity != null && resource.quantity !== ""
+          ? Number(resource.quantity)
+          : undefined;
+      const estimatedCost =
+        resource.estimatedCost != null && resource.estimatedCost !== ""
+          ? Number(resource.estimatedCost)
+          : undefined;
+
+      return {
+        category:
+          sanitizePlainText(resource.category || "internal", {
+            maxLength: 32,
+          }) || "internal",
+        type: sanitizePlainText(resource.type || "", { maxLength: 256 }),
+        description: sanitizePlainText(resource.description || "", {
+          maxLength: 2000,
+        }),
+        pricePerPiece: Number.isFinite(pricePerPiece) ? pricePerPiece : undefined,
+        quantity: Number.isFinite(quantity) ? quantity : undefined,
+        estimatedCost: Number.isFinite(estimatedCost)
+          ? estimatedCost
+          : Number.isFinite(pricePerPiece) && Number.isFinite(quantity)
+            ? pricePerPiece * quantity
+            : undefined,
+      };
+    })
+    .filter((resource) => resource.type || resource.description);
 }
 
 /**
@@ -812,8 +858,78 @@ const updateEvent = async (eventId, userId, updateData) => {
   }
 
   // Sanitize HTML in longDescription to prevent XSS
+  if (updateData.description !== undefined) {
+    updateData.description = sanitizePlainText(updateData.description || "", {
+      maxLength: LIMITS.MAX_DESCRIPTION_LENGTH,
+    });
+  }
   if (updateData.longDescription !== undefined) {
     updateData.longDescription = sanitizeHtml(updateData.longDescription || "");
+  }
+  if (updateData.venue !== undefined) {
+    updateData.venue = sanitizePlainText(updateData.venue || "", {
+      maxLength: LIMITS.MAX_VENUE_LENGTH,
+    });
+  }
+  if (updateData.contactPersonName !== undefined) {
+    updateData.contactPersonName = sanitizePlainText(
+      updateData.contactPersonName || "",
+      { maxLength: LIMITS.MAX_CONTACT_NAME_LENGTH || 256 },
+    );
+  }
+  if (updateData.contactEmail !== undefined) {
+    updateData.contactEmail = sanitizeEmail(updateData.contactEmail || "");
+  }
+  if (updateData.contactMobile !== undefined) {
+    updateData.contactMobile = sanitizeDigits(updateData.contactMobile || "", {
+      maxLength: 10,
+    });
+  }
+  if (updateData.alternateContact !== undefined) {
+    updateData.alternateContact = sanitizePlainText(
+      updateData.alternateContact || "",
+      { maxLength: 32 },
+    );
+  }
+  if (updateData.websiteUrl !== undefined) {
+    updateData.websiteUrl = sanitizeUrl(updateData.websiteUrl || "");
+  }
+  if (updateData.eligibilityCriteria !== undefined) {
+    updateData.eligibilityCriteria = sanitizePlainText(
+      updateData.eligibilityCriteria || "",
+      { maxLength: 10000 },
+    );
+  }
+  if (updateData.rulesAndGuidelines !== undefined) {
+    updateData.rulesAndGuidelines = sanitizePlainText(
+      updateData.rulesAndGuidelines || "",
+      { maxLength: 20000 },
+    );
+  }
+  if (updateData.prizeDetails !== undefined) {
+    updateData.prizeDetails = sanitizePlainText(updateData.prizeDetails || "", {
+      maxLength: 10000,
+    });
+  }
+  if (updateData.faqs !== undefined && Array.isArray(updateData.faqs)) {
+    updateData.faqs = updateData.faqs
+      .map((faq) => ({
+        question: sanitizePlainText(faq?.question || "", { maxLength: 500 }),
+        answer: sanitizePlainText(faq?.answer || "", { maxLength: 2000 }),
+      }))
+      .filter((faq) => faq.question && faq.answer);
+  }
+  if (
+    updateData.socialMediaLinks !== undefined &&
+    updateData.socialMediaLinks &&
+    typeof updateData.socialMediaLinks === "object"
+  ) {
+    updateData.socialMediaLinks = Object.fromEntries(
+      Object.entries(updateData.socialMediaLinks)
+        .filter(([, value]) => value)
+        .map(([key, value]) => [key, sanitizeUrl(value)])
+        .filter(([, value]) => value),
+    );
   }
 
   // Sanitize sponsors (Cash: amount, In-kind: notes/description)
@@ -822,6 +938,12 @@ const updateEvent = async (eventId, userId, updateData) => {
       updateData.hasSponsorship === false
         ? null
         : sanitizeSponsors(updateData.sponsors || []);
+  }
+  if (updateData.resources !== undefined) {
+    updateData.resources =
+      updateData.hasResources === false
+        ? null
+        : sanitizeEventResources(updateData.resources || []);
   }
 
   // ── Sponsor field-level enforcement for noting-origin sponsors ──

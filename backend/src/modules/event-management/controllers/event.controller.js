@@ -246,6 +246,277 @@ const scanQRCode = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, entry, `QR code scanned successfully - ${entryType}`);
 });
 
+const REGISTRATION_EXPORT_BATCH_SIZE = 500;
+
+const REGISTRATION_EXPORT_HEADERS = [
+  'Registration ID',
+  'Name',
+  'UID',
+  'Email',
+  'Role',
+  'School / Faculty',
+  'Department',
+  'Program',
+  'Status',
+  'Payment Status',
+  'Amount Paid (INR)',
+  'Discount (INR)',
+  'Original Amount (INR)',
+  'Transaction ID',
+  'Order ID',
+  'Team ID',
+  'Team Name',
+  'Team Leader',
+  'Entered',
+  'Entered At',
+  'Registered At',
+];
+
+const buildRegistrationWhere = (eventId, query) => {
+  const {
+    status,
+    search,
+    role,
+    gender,
+    schoolId,
+    departmentId,
+    programId,
+    passOutYear,
+    uid,
+    empId,
+    paymentStatus,
+    teamSearch,
+  } = query;
+
+  const where = { eventId };
+  if (status && status !== 'all') where.status = status;
+  if (paymentStatus && paymentStatus !== 'all') where.paymentStatus = paymentStatus;
+
+  const userFilter = {};
+
+  if (role) userFilter.role = role;
+
+  if (uid) {
+    const uidSearch = uid.trim();
+    userFilter.OR = [
+      { uid: { contains: uidSearch, mode: 'insensitive' } },
+      { studentLogin: { studentId: { contains: uidSearch, mode: 'insensitive' } } },
+      { studentLogin: { registrationNo: { contains: uidSearch, mode: 'insensitive' } } },
+    ];
+  }
+
+  if (empId) {
+    const empSearch = empId.trim();
+    userFilter.employeeDetails = { empId: { contains: empSearch, mode: 'insensitive' } };
+  }
+
+  if (gender) {
+    if (!userFilter.studentLogin) userFilter.studentLogin = {};
+    userFilter.studentLogin.gender = { equals: gender, mode: 'insensitive' };
+  }
+
+  if (schoolId) {
+    userFilter.OR = [
+      ...(userFilter.OR || []),
+      { studentLogin: { program: { department: { facultyId: schoolId } } } },
+      { employeeDetails: { primarySchoolId: schoolId } },
+    ];
+  }
+
+  if (departmentId) {
+    userFilter.OR = [
+      ...(userFilter.OR || []),
+      { studentLogin: { program: { departmentId } } },
+      { employeeDetails: { primaryDepartmentId: departmentId } },
+    ];
+  }
+
+  if (programId) {
+    if (!userFilter.studentLogin) userFilter.studentLogin = {};
+    userFilter.studentLogin.programId = programId;
+  }
+
+  if (passOutYear) {
+    const year = parseInt(passOutYear, 10);
+    if (!isNaN(year)) {
+      if (!userFilter.studentLogin) userFilter.studentLogin = {};
+      userFilter.studentLogin.graduationDate = {
+        gte: new Date(`${year}-01-01`),
+        lt: new Date(`${year + 1}-01-01`),
+      };
+    }
+  }
+
+  if (search && search.trim()) {
+    const q = search.trim();
+    where.OR = [
+      { registrationId: { contains: q, mode: 'insensitive' } },
+      { user_login: { uid: { contains: q, mode: 'insensitive' } } },
+      { user_login: { email: { contains: q, mode: 'insensitive' } } },
+      { user_login: { studentLogin: { firstName: { contains: q, mode: 'insensitive' } } } },
+      { user_login: { studentLogin: { lastName: { contains: q, mode: 'insensitive' } } } },
+      { user_login: { employeeDetails: { firstName: { contains: q, mode: 'insensitive' } } } },
+      { user_login: { employeeDetails: { lastName: { contains: q, mode: 'insensitive' } } } },
+      { EventTeam: { name: { contains: q, mode: 'insensitive' } } },
+      { EventTeam: { teamId: { contains: q, mode: 'insensitive' } } },
+      { Payment: { some: { razorpayPaymentId: { contains: q, mode: 'insensitive' } } } },
+      { Payment: { some: { razorpayOrderId: { contains: q, mode: 'insensitive' } } } },
+    ];
+  }
+
+  if (teamSearch && teamSearch.trim()) {
+    const q = teamSearch.trim();
+    where.EventTeam = {
+      OR: [
+        { name: { contains: q, mode: 'insensitive' } },
+        { teamId: { contains: q, mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  if (Object.keys(userFilter).length > 0) {
+    where.user_login = userFilter;
+  }
+
+  return where;
+};
+
+const getRegistrationExportSelect = () => ({
+  id: true,
+  registrationId: true,
+  status: true,
+  paymentStatus: true,
+  amountPaid: true,
+  discountAmount: true,
+  originalAmount: true,
+  isTeamLeader: true,
+  hasEntered: true,
+  enteredAt: true,
+  registeredAt: true,
+  user_login: {
+    select: {
+      uid: true,
+      email: true,
+      role: true,
+      employeeDetails: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          primarySchool: { select: { facultyName: true } },
+          primaryDepartment: { select: { departmentName: true } },
+        },
+      },
+      studentLogin: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          program: {
+            select: {
+              programName: true,
+              department: {
+                select: {
+                  departmentName: true,
+                  faculty: { select: { facultyName: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  EventTeam: {
+    select: {
+      teamId: true,
+      name: true,
+    },
+  },
+  Payment: {
+    where: { status: { in: ['captured', 'authorized'] } },
+    select: {
+      razorpayPaymentId: true,
+      razorpayOrderId: true,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 1,
+  },
+});
+
+const escapeCsv = (value) => {
+  const stringValue = String(value ?? '');
+  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+};
+
+const toRegistrationCsvRow = (registration) => {
+  const student = registration.user_login?.studentLogin;
+  const employee = registration.user_login?.employeeDetails;
+  const latestPayment = registration.Payment?.[0] || null;
+  const name = student?.displayName
+    || (student ? `${student.firstName || ''} ${student.lastName || ''}`.trim() : '')
+    || employee?.displayName
+    || (employee ? `${employee.firstName || ''} ${employee.lastName || ''}`.trim() : '')
+    || 'N/A';
+  const school = student?.program?.department?.faculty?.facultyName || employee?.primarySchool?.facultyName || '';
+  const department = student?.program?.department?.departmentName || employee?.primaryDepartment?.departmentName || '';
+  const program = student?.program?.programName || '';
+
+  return [
+    registration.registrationId,
+    name,
+    registration.user_login?.uid || '',
+    registration.user_login?.email || '',
+    registration.user_login?.role || '',
+    school,
+    department,
+    program,
+    registration.status,
+    registration.paymentStatus || '',
+    registration.amountPaid ?? '',
+    registration.discountAmount ?? '',
+    registration.originalAmount ?? '',
+    latestPayment?.razorpayPaymentId || '',
+    latestPayment?.razorpayOrderId || '',
+    registration.EventTeam?.teamId || '',
+    registration.EventTeam?.name || '',
+    registration.isTeamLeader ? 'Yes' : '',
+    registration.hasEntered ? 'Yes' : 'No',
+    registration.enteredAt ? new Date(registration.enteredAt).toLocaleString('en-IN') : '',
+    registration.registeredAt ? new Date(registration.registeredAt).toLocaleString('en-IN') : '',
+  ].map(escapeCsv).join(',');
+};
+
+/**
+ * Get minimal event data for scan operations.
+ *
+ * @route GET /api/events/:id/scan-context
+ * @access Protected (Volunteers only)
+ */
+const getScanContext = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const event = await prisma.event.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      eventId: true,
+      name: true,
+      venue: true,
+      status: true,
+    },
+  });
+
+  if (!event) {
+    return res.status(404).json({ success: false, message: 'Event not found' });
+  }
+
+  return ApiResponse.success(res, event, 'Scan context fetched successfully');
+});
+
 /**
  * Get event registrations (for event creator) — with advanced server-side filters
  * 
@@ -275,9 +546,8 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
   // Lightweight ownership check instead of full getEventDetails
   await assertEventOwner(id, userId, req.user);
   
-  const isExport = req.query.export === 'true';
-  const pageNum = isExport ? 1 : (parseInt(page) || 1);
-  const limitNum = isExport ? undefined : Math.min(parseInt(limit) || 20, 100);
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
 
   // ── Build WHERE clause ──────────────────────────────────────
   const where = { eventId: id };
@@ -479,7 +749,8 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
         { teamId: 'asc' },
         { registeredAt: 'asc' },
       ],
-      ...(isExport ? {} : { skip: (pageNum - 1) * limitNum, take: limitNum }),
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
     }),
     prisma.eventRegistration.count({ where }),
   ]);
@@ -515,11 +786,69 @@ const getEventRegistrations = asyncHandler(async (req, res) => {
     registrations: flatRegistrations,
     pagination: {
       page: pageNum,
-      limit: isExport ? flatRegistrations.length : limitNum,
+      limit: limitNum,
       total,
-      totalPages: isExport ? 1 : Math.ceil(total / limitNum),
+      totalPages: Math.ceil(total / limitNum),
     },
   }, 'Registrations fetched successfully');
+});
+
+/**
+ * Stream event registrations as CSV.
+ *
+ * @route GET /api/events/:id/registrations/export
+ * @access Protected (Event Creator only)
+ */
+const exportEventRegistrationsCsv = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  await assertEventOwner(id, userId, req.user);
+
+  const event = await prisma.event.findUnique({
+    where: { id },
+    select: { name: true },
+  });
+
+  if (!event) {
+    return res.status(404).json({ success: false, message: 'Event not found' });
+  }
+
+  const where = buildRegistrationWhere(id, req.query);
+  const safeEventName = event.name
+    .replace(/[^a-z0-9]+/gi, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase() || 'event';
+  const filename = `${safeEventName}_registrations_${new Date().toISOString().split('T')[0]}.csv`;
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.write('\uFEFF');
+  res.write(`${REGISTRATION_EXPORT_HEADERS.join(',')}\n`);
+
+  let cursor = null;
+
+  while (true) {
+    const registrations = await prisma.eventRegistration.findMany({
+      where,
+      select: getRegistrationExportSelect(),
+      orderBy: { id: 'asc' },
+      take: REGISTRATION_EXPORT_BATCH_SIZE,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+
+    if (registrations.length === 0) {
+      break;
+    }
+
+    for (const registration of registrations) {
+      res.write(`${toRegistrationCsvRow(registration)}\n`);
+    }
+
+    cursor = registrations[registrations.length - 1].id;
+  }
+
+  res.end();
 });
 
 /**
@@ -1131,7 +1460,9 @@ module.exports = {
   assignVolunteer,
   previewQRScan,
   scanQRCode,
+  getScanContext,
   getEventRegistrations,
+  exportEventRegistrationsCsv,
   getRegistrationDetails,
   getRegistrationFilterOptions,
   getEventVolunteers,

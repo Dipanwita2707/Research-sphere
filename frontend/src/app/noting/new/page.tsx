@@ -42,6 +42,18 @@ import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import { useNotingDraftStore } from '@/features/noting-management/stores/notingDraftStore';
 import { useAuthStore } from '@/shared/auth/authStore';
+import {
+  sanitizeAnnexures,
+  sanitizeEventVisibilitySettings,
+  sanitizeFestivalFormData,
+  sanitizeNoteDescription,
+  sanitizeNotePoints,
+  sanitizeStallConfig,
+  sanitizeVenueFormData,
+  validateBaseNoteSubmission,
+  validateFestivalSubmission,
+  validateVenueEventSubmission,
+} from '@/features/noting-management/validation/noting.validation';
 import 'react-quill/dist/quill.snow.css';
 
 // Dynamically import ReactQuill to avoid SSR issues
@@ -64,20 +76,21 @@ const DEBOUNCE_AUTOSAVE_MS = 5000;
 
 /** Build event payload from shared VenueFormData (used for venue & stall) */
 function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> {
-  if (!v.eventName?.trim() || !v.eventType || !v.eventStartDate || !v.eventEndDate || !v.eventPaymentType) return {};
+  const sanitizedVenue = sanitizeVenueFormData(v);
+  if (!sanitizedVenue.eventName?.trim() || !sanitizedVenue.eventType || !sanitizedVenue.eventStartDate || !sanitizedVenue.eventEndDate || !sanitizedVenue.eventPaymentType) return {};
   const payload: Record<string, unknown> = {
-    eventName: v.eventName.trim(),
-    eventType: v.eventType,
-    eventStartDate: v.eventStartDate,
-    eventEndDate: v.eventEndDate,
-    eventPaymentType: v.eventPaymentType,
-    eventParticipationType: v.eventParticipationType,
-    eventApproxCapacity: v.eventApproxCapacity !== '' ? Number(v.eventApproxCapacity) : null,
-    eventDutyLeaveAvailable: v.eventDutyLeaveAvailable,
-    eventDutyLeaveEligibility: v.eventDutyLeaveAvailable && v.eventDutyLeaveEligibility.length > 0 ? v.eventDutyLeaveEligibility : null,
-    eventDutyLeaveRoleType: v.eventDutyLeaveAvailable ? v.eventDutyLeaveRoleType : null,
-    eventHasSponsorship: v.eventHasSponsorship,
-    eventSponsors: v.eventHasSponsorship ? v.eventSponsors.map((s) => ({
+    eventName: sanitizedVenue.eventName.trim(),
+    eventType: sanitizedVenue.eventType,
+    eventStartDate: sanitizedVenue.eventStartDate,
+    eventEndDate: sanitizedVenue.eventEndDate,
+    eventPaymentType: sanitizedVenue.eventPaymentType,
+    eventParticipationType: sanitizedVenue.eventParticipationType,
+    eventApproxCapacity: sanitizedVenue.eventApproxCapacity !== '' ? Number(sanitizedVenue.eventApproxCapacity) : null,
+    eventDutyLeaveAvailable: sanitizedVenue.eventDutyLeaveAvailable,
+    eventDutyLeaveEligibility: sanitizedVenue.eventDutyLeaveAvailable && sanitizedVenue.eventDutyLeaveEligibility.length > 0 ? sanitizedVenue.eventDutyLeaveEligibility : null,
+    eventDutyLeaveRoleType: sanitizedVenue.eventDutyLeaveAvailable ? sanitizedVenue.eventDutyLeaveRoleType : null,
+    eventHasSponsorship: sanitizedVenue.eventHasSponsorship,
+    eventSponsors: sanitizedVenue.eventHasSponsorship ? sanitizedVenue.eventSponsors.map((s) => ({
       ...s,
       id: s.id || crypto.randomUUID(),
       originSource: 'noting' as const,
@@ -88,16 +101,16 @@ function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> 
         estimatedValue: item.estimatedValue === '' ? 0 : Number(item.estimatedValue),
       })),
     })) : null,
-    eventHasResources: v.eventHasResources,
-    eventResources: v.eventHasResources ? v.eventResources.map((r) => ({
+    eventHasResources: sanitizedVenue.eventHasResources,
+    eventResources: sanitizedVenue.eventHasResources ? sanitizedVenue.eventResources.map((r) => ({
       type: r.type,
       description: r.description,
       pricePerPiece: r.pricePerPiece !== '' && r.pricePerPiece != null ? Number(r.pricePerPiece) : null,
       quantity: r.quantity !== '' && r.quantity != null ? Number(r.quantity) : null,
     })) : null,
-    eventCertification: v.eventCertification,
-    eventCapacityFixed: v.eventCapacityFixed !== '' && v.eventCapacityFixed != null ? Number(v.eventCapacityFixed) : null,
-    eventPrizesAwards: (v.eventHasPrizes && v.eventPrizesAwards.length > 0) ? v.eventPrizesAwards.map((p, idx) => ({
+    eventCertification: sanitizedVenue.eventCertification,
+    eventCapacityFixed: sanitizedVenue.eventCapacityFixed !== '' && sanitizedVenue.eventCapacityFixed != null ? Number(sanitizedVenue.eventCapacityFixed) : null,
+    eventPrizesAwards: (sanitizedVenue.eventHasPrizes && sanitizedVenue.eventPrizesAwards.length > 0) ? sanitizedVenue.eventPrizesAwards.map((p, idx) => ({
       position: p.position === '' ? idx + 1 : Number(p.position),
       rank: p.rank,
       title: p.title,
@@ -107,9 +120,9 @@ function venueFormDataToEventPayload(v: VenueFormData): Record<string, unknown> 
       sortOrder: idx,
     })) : null,
   };
-  if (v.eventPaymentType === 'paid') {
-    payload.eventRegistrationFeeIndividual = v.eventParticipationType === 'individual' && v.eventRegistrationFeeIndividual !== '' ? Number(v.eventRegistrationFeeIndividual) : null;
-    payload.eventRegistrationFeeTeam = v.eventParticipationType === 'team' && v.eventRegistrationFeeTeam !== '' ? Number(v.eventRegistrationFeeTeam) : null;
+  if (sanitizedVenue.eventPaymentType === 'paid') {
+    payload.eventRegistrationFeeIndividual = sanitizedVenue.eventParticipationType === 'individual' && sanitizedVenue.eventRegistrationFeeIndividual !== '' ? Number(sanitizedVenue.eventRegistrationFeeIndividual) : null;
+    payload.eventRegistrationFeeTeam = sanitizedVenue.eventParticipationType === 'team' && sanitizedVenue.eventRegistrationFeeTeam !== '' ? Number(sanitizedVenue.eventRegistrationFeeTeam) : null;
   }
   return payload;
 }
@@ -480,7 +493,7 @@ export default function NewNotePage() {
     setNotingIdPreview('');
     setNotingYearAndSequence(null);
     setDraftLoaded(true);
-  }, [config, draftLoaded, draftIdFromUrl, hydrateFromNote, setDraftId, toast, clearDraft, router]);
+  }, [config, draftLoaded, draftIdFromUrl, hydrateFromNote, setDraftId, toast, clearDraft, router, user?.id]);
 
   useEffect(() => {
     if (!category || !subcategory) return;
@@ -545,14 +558,14 @@ export default function NewNotePage() {
       setForm({
         category,
         subcategory,
-        description,
+        description: sanitizeNoteDescription(description),
         approvalPeriod,
         recurringFrequency,
         policyCompliance,
         amountRequired,
         amount,
-        points,
-        attachments: annexures.filter((a) => a.filePath && !a.uploading).map((a) => ({
+        points: sanitizeNotePoints(points),
+        attachments: sanitizeAnnexures(annexures).filter((a) => a.filePath && !a.uploading).map((a) => ({
           filePath: a.filePath,
           fileName: a.fileName.trim() || a.filePath,
           fileDescription: a.fileDescription?.trim() || undefined,
@@ -583,14 +596,14 @@ export default function NewNotePage() {
       const payload = {
         category,
         subcategory,
-        description: description.trim(),
+        description: sanitizeNoteDescription(description).trim(),
         approvalPeriod,
         recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
         policyCompliance: policyCompliance ?? undefined,
         amountRequired,
         amount: amountRequired && amount ? Number(amount) : undefined,
-        points: dedupePoints(points),
-        attachments: annexures
+        points: dedupePoints(sanitizeNotePoints(points)),
+        attachments: sanitizeAnnexures(annexures)
           .filter((a) => a.filePath && !a.uploading)
           .map((a) => ({ filePath: a.filePath, fileName: a.fileName.trim() || a.filePath, fileDescription: a.fileDescription?.trim() || undefined })),
       };
@@ -604,34 +617,35 @@ export default function NewNotePage() {
       if (isEventNoting && notingEventType) {
         eventPayload.notingEventType = notingEventType;
         if (notingEventType === 'stall') {
-          eventPayload.stallConfig = stallConfig;
+          eventPayload.stallConfig = sanitizeStallConfig(stallConfig);
         }
-        if (notingEventType === 'festival') {
+        if (false && notingEventType === 'festival') {
+          const sanitizedFestivalData = sanitizeFestivalFormData(festivalData);
           eventPayload.festivalMeta = {
-            name: festivalData.festivalName,
-            startDate: festivalData.startDate,
-            endDate: festivalData.endDate,
-            description: festivalData.description,
-            coordinator: festivalData.coordinator,
+            name: sanitizedFestivalData.festivalName,
+            startDate: sanitizedFestivalData.startDate,
+            endDate: sanitizedFestivalData.endDate,
+            description: sanitizedFestivalData.description,
+            coordinator: sanitizedFestivalData.coordinator,
           };
-          eventPayload.subEvents = festivalData.subEvents.map((se) => ({
+          eventPayload.subEvents = sanitizedFestivalData.subEvents.map((se) => ({
             id: se.id,
             eventType: se.eventType,
             venueFormData: venueFormDataToEventPayload(se.venueFormData),
             stallConfig: se.stallConfig,
           }));
           // Override event fields with festival meta so backend approval flow works
-          if (festivalData.festivalName && festivalData.startDate && festivalData.endDate) {
-            eventPayload.eventName = festivalData.festivalName;
-            eventPayload.eventStartDate = festivalData.startDate;
-            eventPayload.eventEndDate = festivalData.endDate;
+          if (sanitizedFestivalData.festivalName && sanitizedFestivalData.startDate && sanitizedFestivalData.endDate) {
+            eventPayload.eventName = sanitizedFestivalData.festivalName;
+            eventPayload.eventStartDate = sanitizedFestivalData.startDate;
+            eventPayload.eventEndDate = sanitizedFestivalData.endDate;
             eventPayload.eventType = 'fest';
             eventPayload.eventPaymentType = 'free';
           }
         }
         // Add event visibility settings if configured
         if (eventVisibilitySettings?.visibleToRoles && eventVisibilitySettings.visibleToRoles.length > 0) {
-          eventPayload.eventVisibilitySettings = eventVisibilitySettings;
+          eventPayload.eventVisibilitySettings = sanitizeEventVisibilitySettings(eventVisibilitySettings);
         }
       }
 
@@ -693,13 +707,20 @@ export default function NewNotePage() {
     return temp.textContent || temp.innerText || '';
   };
 
-  const plainTextDescription = typeof window !== 'undefined' ? getPlainTextFromHtml(description) : description.replace(/<[^>]*>/g, '');
+  const plainTextDescription = typeof window !== 'undefined'
+    ? getPlainTextFromHtml(sanitizeNoteDescription(description))
+    : sanitizeNoteDescription(description).replace(/<[^>]*>/g, '');
   const wordCount = plainTextDescription.trim() ? plainTextDescription.trim().split(/\s+/).length : 0;
   const overLimit = wordCount > MAX_WORDS;
 
   const addPoint = () => setPoints((p) => [...p, '']);
   const removePoint = (i: number) => setPoints((p) => p.filter((_, idx) => idx !== i));
-  const updatePoint = (i: number, v: string) => setPoints((p) => { const n = [...p]; n[i] = v; return n; });
+  const updatePoint = (i: number, v: string) =>
+    setPoints((p) => {
+      const n = [...p];
+      n[i] = sanitizeNotePoints([v])[0] || '';
+      return n;
+    });
 
   const movePoint = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
@@ -803,7 +824,7 @@ export default function NewNotePage() {
   const updateAnnexure = (index: number, updates: Partial<AnnexureEntry>) => {
     setAnnexures((prev) => {
       const n = [...prev];
-      n[index] = { ...n[index], ...updates };
+      n[index] = sanitizeAnnexures([{ ...n[index], ...updates }])[0];
       return n;
     });
   };
@@ -824,56 +845,64 @@ export default function NewNotePage() {
   };
 
   const buildPayload = useCallback((): CreateNotePayload => {
+    const sanitizedDescription = sanitizeNoteDescription(description);
+    const sanitizedPoints = dedupePoints(sanitizeNotePoints(points));
+    const sanitizedAnnexures = sanitizeAnnexures(annexures);
+    const sanitizedVenueFormData = sanitizeVenueFormData(venueFormData);
+    const sanitizedFestivalData = sanitizeFestivalFormData(festivalData);
+    const sanitizedVisibilitySettings = sanitizeEventVisibilitySettings(
+      eventVisibilitySettings,
+    );
     const basePayload: CreateNotePayload = {
       category,
       subcategory,
-      description: description.trim(),
+      description: sanitizedDescription.trim(),
       approvalPeriod,
       recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
       policyCompliance: policyCompliance ?? undefined,
       amountRequired,
       amount: amountRequired && amount ? Number(amount) : undefined,
-      points: dedupePoints(points),
-      attachments: annexures
+      points: sanitizedPoints,
+      attachments: sanitizedAnnexures
         .filter((a) => a.filePath && !a.uploading)
         .map((a) => ({ filePath: a.filePath, fileName: a.fileName.trim() || a.filePath, fileDescription: a.fileDescription?.trim() || undefined })),
       submit: false,
     };
 
     if (isEventNoting && (notingEventType === 'venue' || notingEventType === 'stall')) {
-      Object.assign(basePayload, venueFormDataToEventPayload(venueFormData));
+      Object.assign(basePayload, venueFormDataToEventPayload(sanitizedVenueFormData));
     }
     if (isEventNoting) {
       // Stall & Festival type
       (basePayload as any).notingEventType = notingEventType || 'venue';
       if (notingEventType === 'stall') {
-        (basePayload as any).stallConfig = stallConfig;
+        (basePayload as any).stallConfig = sanitizeStallConfig(stallConfig);
       }
       // Optional club association
       if (eventClubId) {
         basePayload.eventClubId = eventClubId;
       }
       // Event visibility/settings
-      (basePayload as any).eventVisibilitySettings = eventVisibilitySettings;
+      (basePayload as any).eventVisibilitySettings = sanitizedVisibilitySettings;
       if (notingEventType === 'festival') {
         (basePayload as any).festivalMeta = {
-          name: festivalData.festivalName,
-          startDate: festivalData.startDate,
-          endDate: festivalData.endDate,
-          description: festivalData.description,
-          coordinator: festivalData.coordinator,
+          name: sanitizedFestivalData.festivalName,
+          startDate: sanitizedFestivalData.startDate,
+          endDate: sanitizedFestivalData.endDate,
+          description: sanitizedFestivalData.description,
+          coordinator: sanitizedFestivalData.coordinator,
         };
-        (basePayload as any).subEvents = festivalData.subEvents.map((se) => ({
+        (basePayload as any).subEvents = sanitizedFestivalData.subEvents.map((se) => ({
           id: se.id,
           eventType: se.eventType,
           venueFormData: venueFormDataToEventPayload(se.venueFormData),
           stallConfig: se.stallConfig,
         }));
         // For festival, use festival meta as the "event" fields (so approval flow works)
-        if (festivalData.festivalName && festivalData.startDate && festivalData.endDate) {
-          (basePayload as any).eventName = festivalData.festivalName;
-          (basePayload as any).eventStartDate = festivalData.startDate;
-          (basePayload as any).eventEndDate = festivalData.endDate;
+        if (sanitizedFestivalData.festivalName && sanitizedFestivalData.startDate && sanitizedFestivalData.endDate) {
+          (basePayload as any).eventName = sanitizedFestivalData.festivalName;
+          (basePayload as any).eventStartDate = sanitizedFestivalData.startDate;
+          (basePayload as any).eventEndDate = sanitizedFestivalData.endDate;
           (basePayload as any).eventType = 'fest';
           (basePayload as any).eventPaymentType = 'free';
         }
@@ -893,7 +922,18 @@ export default function NewNotePage() {
     if (!config) return;
     if (!asDraft) {
       // Collect all base-field validation errors at once
-      const errors: Record<string, string> = {};
+      const baseValidation = validateBaseNoteSubmission({
+        subcategory,
+        description,
+        approvalPeriod,
+        recurringFrequency,
+        policyCompliance,
+        amountRequired,
+        amount,
+        points,
+      });
+      const errors: Record<string, string> = { ...baseValidation.fieldErrors };
+      if (false) {
       if (!subcategory?.trim()) {
         errors.subcategory = 'Please select a subcategory.';
       }
@@ -920,6 +960,7 @@ export default function NewNotePage() {
         errors.amount = 'Amount cannot exceed ₹10,00,000 (10 lakh).';
       }
 
+      }
       if (Object.keys(errors).length > 0) {
         setFieldErrors(errors);
         toast({ type: 'error', message: 'Please fill all required fields.' });
@@ -936,6 +977,29 @@ export default function NewNotePage() {
         if (!notingEventType) {
           toast({ type: 'error', message: 'Please select Event Structure: Venue Event, Stall-Based Event, or Fest.' });
           scrollToSection('section-event-details'); return;
+        }
+        if (notingEventType === 'festival') {
+          const festivalValidation = validateFestivalSubmission(
+            festivalData,
+            eventVisibilitySettings,
+          );
+          if (festivalValidation.message) {
+            toast({ type: 'error', message: festivalValidation.message });
+            scrollToSection(festivalValidation.sectionId || 'section-event-details');
+            return;
+          }
+        }
+        if (false && (notingEventType === 'venue' || notingEventType === 'stall')) {
+          const venueValidation = validateVenueEventSubmission(
+            venueFormData,
+            eventVisibilitySettings,
+            notingEventType === 'stall' ? stallConfig : undefined,
+          );
+          if (venueValidation.message) {
+            toast({ type: 'error', message: venueValidation.message || 'Please review the venue details.' });
+            scrollToSection(venueValidation.sectionId || 'section-event-details');
+            return;
+          }
         }
         if (notingEventType === 'festival') {
           if (!festivalData.festivalName?.trim()) { toast({ type: 'error', message: 'Please enter the Festival Name.' }); scrollToSection('section-event-details'); return; }
@@ -1420,7 +1484,7 @@ export default function NewNotePage() {
                   <ReactQuill
                     theme="snow"
                     value={description}
-                    onChange={setDescription}
+                    onChange={(value) => setDescription(sanitizeNoteDescription(value))}
                     placeholder="Describe your request in detail. Be clear and specific about what you need approval for..."
                     modules={{
                       toolbar: [

@@ -321,15 +321,40 @@ const getTeamDetails = async (teamId, userId) => {
  * Search for users to invite (past teammates, suggested users from same institute)
  */
 const searchUsersToInvite = async (eventId, userId, searchQuery) => {
-  const event = await resolveEvent(eventId);
+  const [event, currentTeamMembership] = await Promise.all([
+    resolveEvent(eventId),
+    prisma.eventTeamMember.findFirst({
+      where: {
+        EventTeam: { eventId },
+        userId,
+        status: 'confirmed',
+      },
+      select: {
+        EventTeam: { select: { id: true } },
+      },
+    }),
+  ]);
 
-  // Search for users
   const whereClause = {
-    id: { not: userId }, // Exclude self
+    id: { not: userId },
     status: 'active',
+    eventTeamMemberships: {
+      none: {
+        status: 'confirmed',
+        EventTeam: { eventId: event.id },
+      },
+    },
   };
 
-  // Add search conditions
+  if (currentTeamMembership?.EventTeam?.id) {
+    whereClause.receivedInvitations = {
+      none: {
+        teamId: currentTeamMembership.EventTeam.id,
+        status: 'pending',
+      },
+    };
+  }
+
   if (searchQuery) {
     whereClause.OR = [
       { uid: { contains: searchQuery, mode: 'insensitive' } },
@@ -354,102 +379,63 @@ const searchUsersToInvite = async (eventId, userId, searchQuery) => {
     ];
   }
 
-  // Parallelize: fetch users, existing team members, current team, and pending invitations
-  const [users, existingTeamMembers, currentTeam] = await Promise.all([
-    prisma.userLogin.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        uid: true,
-        email: true,
-        studentLogin: {
-          select: {
-            firstName: true,
-            lastName: true,
-            displayName: true,
-            registrationNo: true,
-            program: {
-              select: {
-                programName: true,
-                department: {
-                  select: {
-                    departmentName: true,
-                    faculty: {
-                      select: { facultyName: true },
-                    },
+  const users = await prisma.userLogin.findMany({
+    where: whereClause,
+    select: {
+      id: true,
+      uid: true,
+      email: true,
+      studentLogin: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          registrationNo: true,
+          program: {
+            select: {
+              programName: true,
+              department: {
+                select: {
+                  departmentName: true,
+                  faculty: {
+                    select: { facultyName: true },
                   },
                 },
               },
             },
           },
         },
-        employeeDetails: {
-          select: {
-            firstName: true,
-            lastName: true,
-            displayName: true,
-            primaryDepartment: {
-              select: { departmentName: true },
-            },
-            primarySchool: {
-              select: { facultyName: true },
-            },
+      },
+      employeeDetails: {
+        select: {
+          firstName: true,
+          lastName: true,
+          displayName: true,
+          primaryDepartment: {
+            select: { departmentName: true },
+          },
+          primarySchool: {
+            select: { facultyName: true },
           },
         },
       },
-      take: 20,
-    }),
-    // Existing team members for this event (to exclude)
-    prisma.eventTeamMember.findMany({
-      where: {
-        EventTeam: { eventId: event.id },
-        status: 'confirmed',
-      },
-      select: { userId: true },
-    }),
-    // Current user's team (to check pending invitations)
-    prisma.eventTeamMember.findFirst({
-      where: {
-        EventTeam: { eventId: event.id },
-        userId: userId,
-        status: 'confirmed',
-      },
-      include: { EventTeam: true },
-    }),
-  ]);
+    },
+    take: 20,
+  });
 
-  const existingMemberIds = new Set(existingTeamMembers.map(m => m.userId));
-
-  // Filter out users who already have pending invitations from current team
-  let pendingInviteeIds = new Set();
-  if (currentTeam) {
-    const pendingInvitations = await prisma.eventTeamInvitation.findMany({
-      where: {
-        teamId: currentTeam.EventTeam.id,
-        status: 'pending',
-      },
-      select: { inviteeId: true },
-    });
-    pendingInviteeIds = new Set(pendingInvitations.map(i => i.inviteeId));
-  }
-
-  const availableUsers = users
-    .filter(u => !existingMemberIds.has(u.id) && !pendingInviteeIds.has(u.id))
-    .map(user => {
-      const profile = user.studentLogin || user.employeeDetails;
-      return {
-        id: user.id,
-        uid: user.uid,
-        email: user.email,
-        name: profile?.displayName || `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim(),
-        institute: profile?.program?.department?.faculty?.facultyName || profile?.primarySchool?.facultyName || 'SGT University',
-        department: profile?.program?.department?.departmentName || profile?.primaryDepartment?.departmentName,
-        program: user.studentLogin?.program?.programName,
-        userType: user.studentLogin ? 'student' : 'employee',
-      };
-    });
-
-  return availableUsers;
+  return users.map((user) => {
+    const profile = user.studentLogin || user.employeeDetails;
+    return {
+      id: user.id,
+      uid: user.uid,
+      email: user.email,
+      name: profile?.displayName || `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim(),
+      institute: profile?.program?.department?.faculty?.facultyName || profile?.primarySchool?.facultyName || 'SGT University',
+      department: profile?.program?.department?.departmentName || profile?.primaryDepartment?.departmentName,
+      program: user.studentLogin?.program?.programName,
+      userType: user.studentLogin ? 'student' : 'employee',
+    };
+  });
 };
 
 /**
@@ -1523,14 +1509,6 @@ const finalizeTeamRegistration = async (teamId, userId) => {
   // Check if minimum team size requirement is met
   const currentMemberCount = team.EventTeamMember.length;
   const minTeamSize = team.Event.minTeamSize || 1;
-
-  console.log('Finalize Team Debug:', {
-    teamId: team.teamId,
-    currentMemberCount,
-    minTeamSize,
-    eventMinTeamSize: team.Event.minTeamSize,
-    members: team.EventTeamMember.map(m => ({ id: m.id, userId: m.userId })),
-  });
 
   if (currentMemberCount < minTeamSize) {
     throw new ValidationError(

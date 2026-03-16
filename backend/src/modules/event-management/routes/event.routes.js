@@ -11,6 +11,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 const eventController = require('../controllers/event.controller');
 const {
   validateEventUpdate,
@@ -120,10 +121,16 @@ const allowEventScan = async (req, res, next) => {
     const eventId = req.params?.id;
     const userId = user.id;
     if (eventId && userId) {
-      const volunteer = await prisma.eventVolunteer.findFirst({
-        where: { eventId, userId, canScanQr: true },
-      });
-      if (volunteer) return next();
+      const cacheKey = `event:scanperm:${eventId}:${userId}`;
+      const { data: volunteerAllowed } = await cache.getOrSet(cacheKey, async () => {
+        const volunteer = await prisma.eventVolunteer.findFirst({
+          where: { eventId, userId, canScanQr: true },
+          select: { id: true },
+        });
+        return !!volunteer;
+      }, 60);
+
+      if (volunteerAllowed) return next();
     }
 
     return res.status(403).json({
@@ -157,6 +164,8 @@ router.get('/hierarchy/data', eventSettingsController.getHierarchyData);
 // Registration helpers (must be before /:id to avoid being captured as :id param)
 router.get('/profile-data', registrationController.getProfileData);
 router.get('/registration-dashboard', registrationController.getRegistrationDashboard);
+router.get('/:id/payment-context', validateEventId, registrationController.getPaymentContext);
+router.get('/:id/scan-context', validateEventId, allowEventScan, eventController.getScanContext);
 
 // Get event by ID
 router.get('/:id', validateEventId, eventController.getEvent);
@@ -175,6 +184,9 @@ router.get('/:id/statistics', validateEventId, checkAnyPermission(['event_view_r
 
 // Registration filter options
 router.get('/:id/registrations/filter-options', validateEventId, eventManagePerm, eventController.getRegistrationFilterOptions);
+
+// Stream registrations as CSV
+router.get('/:id/registrations/export', validateEventId, eventManagePerm, eventController.exportEventRegistrationsCsv);
 
 // Get event registrations (creator)
 router.get('/:id/registrations', validateEventId, eventManagePerm, eventController.getEventRegistrations);

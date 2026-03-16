@@ -138,6 +138,34 @@ export const eventService = {
     return response.data.data;
   },
 
+  async exportEventRegistrationsCsv(
+    id: string,
+    status?: string,
+    filters?: Record<string, string | number | undefined>
+  ): Promise<{ blob: Blob; filename: string }> {
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.append('status', status);
+
+    if (filters) {
+      for (const [key, val] of Object.entries(filters)) {
+        if (val !== undefined && val !== '' && val !== null) {
+          params.append(key, String(val));
+        }
+      }
+    }
+
+    const response = await api.get(`${BASE_URL}/${id}/registrations/export?${params.toString()}`, {
+      responseType: 'blob',
+    });
+    const disposition = response.headers['content-disposition'] || '';
+    const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+
+    return {
+      blob: response.data,
+      filename: filenameMatch?.[1] || `event_registrations_${new Date().toISOString().split('T')[0]}.csv`,
+    };
+  },
+
   /**
    * Get registration filter options (distinct values from actual registrations)
    */
@@ -237,6 +265,11 @@ export const eventService = {
     return response.data.data;
   },
 
+  async getScanContext(eventId: string): Promise<Pick<Event, 'id' | 'eventId' | 'name' | 'venue' | 'status'>> {
+    const response = await api.get(`${BASE_URL}/${eventId}/scan-context`);
+    return response.data.data;
+  },
+
   /**
    * Cancel registration
    */
@@ -305,6 +338,26 @@ export const eventService = {
    */
   async getRegistrationForm(eventId: string): Promise<any> {
     const response = await api.get(`${BASE_URL}/${eventId}/registration-form`);
+    return response.data.data;
+  },
+
+  async getPaymentContext(eventId: string): Promise<{
+    event: {
+      id: string;
+      name: string;
+      paymentType: string;
+      participationType: string;
+      registrationFee?: number;
+    };
+    existingRegistration: {
+      id: string;
+      registrationId: string;
+      status: string;
+      paymentStatus?: string | null;
+      amountPaid?: number | null;
+    } | null;
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/payment-context`);
     return response.data.data;
   },
 

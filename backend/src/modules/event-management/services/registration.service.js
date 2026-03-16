@@ -153,6 +153,41 @@ const getRegistrationForm = async (eventId, userId) => {
 };
 
 /**
+ * Get minimal payment context for the current user's registration page.
+ */
+const getPaymentContext = async (eventId, userId) => {
+  const [event, existingRegistration] = await Promise.all([
+    resolveEvent(eventId, {
+      select: {
+        id: true,
+        name: true,
+        paymentType: true,
+        participationType: true,
+        registrationFee: true,
+      },
+    }),
+    prisma.eventRegistration.findFirst({
+      where: {
+        eventId,
+        userId,
+      },
+      select: {
+        id: true,
+        registrationId: true,
+        status: true,
+        paymentStatus: true,
+        amountPaid: true,
+      },
+    }),
+  ]);
+
+  return {
+    event,
+    existingRegistration,
+  };
+};
+
+/**
  * Get user profile data for auto-filling registration form
  */
 const getUserProfileData = async (userId) => {
@@ -466,31 +501,28 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
       await applyCouponInTransaction(tx, couponId, reg.id, userId, baseAmount);
     }
 
-    // Save custom field responses
-    for (const field of event.EventCustomField) {
-      if (restFormData[field.fieldName] !== undefined) {
-        await tx.eventFieldResponse.upsert({
-          where: {
-            registrationId_fieldId: {
-              registrationId: reg.id,
-              fieldId: field.id,
-            },
-          },
-          create: {
-            registrationId: reg.id,
-            fieldId: field.id,
-            value: typeof restFormData[field.fieldName] === 'string'
-              ? restFormData[field.fieldName]
-              : JSON.stringify(restFormData[field.fieldName]),
-          },
-          update: {
-            value: typeof restFormData[field.fieldName] === 'string'
-              ? restFormData[field.fieldName]
-              : JSON.stringify(restFormData[field.fieldName]),
-            updatedAt: new Date(),
-          },
-        });
-      }
+    // Replace field responses in bulk to avoid row-by-row upserts.
+    const fieldResponses = event.EventCustomField
+      .filter((field) => restFormData[field.fieldName] !== undefined)
+      .map((field) => ({
+        registrationId: reg.id,
+        fieldId: field.id,
+        value: typeof restFormData[field.fieldName] === 'string'
+          ? restFormData[field.fieldName]
+          : JSON.stringify(restFormData[field.fieldName]),
+      }));
+
+    if (fieldResponses.length > 0) {
+      await tx.eventFieldResponse.deleteMany({
+        where: { registrationId: reg.id },
+      });
+      await tx.eventFieldResponse.createMany({
+        data: fieldResponses,
+      });
+    } else if (existingRegistration) {
+      await tx.eventFieldResponse.deleteMany({
+        where: { registrationId: reg.id },
+      });
     }
 
     return reg;
@@ -776,6 +808,7 @@ const getRegistrationDashboard = async (userId) => {
 
 module.exports = {
   getRegistrationForm,
+  getPaymentContext,
   getUserProfileData,
   submitRegistrationForm,
   createExtraPass,

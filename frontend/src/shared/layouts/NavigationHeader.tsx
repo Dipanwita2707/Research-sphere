@@ -490,9 +490,7 @@ export default function NavigationHeader() {
     description: 'RFID access system',
   });
 
-  // === TMS HIDDEN — Development in progress ===
-  // Uncomment the block below to re-enable Ticket Management in navigation
-  /*
+  // TMS navigation
   {
     const tmsChildren: SubMenuItem[] = [];
     if (isStudent) {
@@ -521,7 +519,6 @@ export default function NavigationHeader() {
       });
     }
   }
-  */
 
   // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
   if (isStudent || isFaculty || isAdmin) {
