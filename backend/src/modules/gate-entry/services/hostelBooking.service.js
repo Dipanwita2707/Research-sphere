@@ -21,11 +21,11 @@ const GRACE_CHECKOUT_HOUR = 17; // 5 PM
  * @returns {{ billableDays: number, checkoutTier: string }}
  */
 const calculateBillableDays = (checkInDatetime, checkOutDatetime) => {
-  const checkIn  = new Date(checkInDatetime);
+  const checkIn = new Date(checkInDatetime);
   const checkOut = new Date(checkOutDatetime);
 
   // Calendar day difference (ignoring time)
-  const checkInDay  = new Date(checkIn.getFullYear(),  checkIn.getMonth(),  checkIn.getDate());
+  const checkInDay = new Date(checkIn.getFullYear(), checkIn.getMonth(), checkIn.getDate());
   const checkOutDay = new Date(checkOut.getFullYear(), checkOut.getMonth(), checkOut.getDate());
   const baseDays = Math.round((checkOutDay - checkInDay) / (1000 * 60 * 60 * 24));
 
@@ -60,7 +60,7 @@ class HostelBookingService {
    */
   async getAvailableHostels(checkInDate, checkOutDate, userId = null) {
     try {
-      const checkInDt  = new Date(checkInDate);
+      const checkInDt = new Date(checkInDate);
       const checkOutDt = new Date(checkOutDate);
 
       // Determine hostel category filter based on student nationality
@@ -96,7 +96,7 @@ class HostelBookingService {
                   booking_status: { in: ['confirmed', 'pending'] },
                   AND: [
                     { check_out_datetime: { gte: getBookingCutoffDate() } },
-                    { check_in_datetime:  { lt: checkOutDt } },
+                    { check_in_datetime: { lt: checkOutDt } },
                     { check_out_datetime: { gte: checkInDt } }
                   ]
                 }
@@ -138,7 +138,7 @@ class HostelBookingService {
    */
   async getRoomsByHostel(hostelId, checkInDate, checkOutDate) {
     try {
-      const checkInDt  = new Date(checkInDate);
+      const checkInDt = new Date(checkInDate);
       const checkOutDt = new Date(checkOutDate);
       const rooms = await prisma.hostelRoom.findMany({
         where: {
@@ -151,7 +151,7 @@ class HostelBookingService {
               booking_status: { in: ['confirmed', 'pending'] },
               AND: [
                 { check_out_datetime: { gte: getBookingCutoffDate() } },
-                { check_in_datetime:  { lt: checkOutDt } },
+                { check_in_datetime: { lt: checkOutDt } },
                 { check_out_datetime: { gte: checkInDt } }
               ]
             }
@@ -244,17 +244,23 @@ class HostelBookingService {
 
       const gatePassUUID = gatePass.id;
 
-      // Check if pass already has a booking
-      const existingBooking = await prisma.hostelBooking.findUnique({
-        where: { gate_pass_id: gatePassUUID }
+      // Allow multiple historical bookings per pass, but only one active booking at a time.
+      const existingBooking = await prisma.hostelBooking.findFirst({
+        where: {
+          gate_pass_id: gatePassUUID,
+          booking_status: { in: ['pending', 'confirmed'] }
+        },
+        orderBy: {
+          created_at: 'desc'
+        }
       });
 
       if (existingBooking) {
-        throw new Error('This pass already has a hostel booking');
+        throw new Error('This pass already has an active hostel booking');
       }
 
       // Validate datetimes
-      const checkIn  = new Date(checkInDatetime);
+      const checkIn = new Date(checkInDatetime);
       const checkOut = new Date(checkOutDatetime);
 
       if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
@@ -273,7 +279,7 @@ class HostelBookingService {
               booking_status: { in: ['confirmed', 'pending'] },
               AND: [
                 { check_out_datetime: { gte: getBookingCutoffDate() } },
-                { check_in_datetime:  { lt: checkOut } },
+                { check_in_datetime: { lt: checkOut } },
                 { check_out_datetime: { gte: checkIn } }
               ]
             }
@@ -300,23 +306,23 @@ class HostelBookingService {
       // Calculate billable days using Guest House schedule rules
       const { billableDays, checkoutTier } = calculateBillableDays(checkIn, checkOut);
       const pricePerDay = parseFloat(room.price_per_night);
-      const totalPrice  = pricePerDay * billableDays;
+      const totalPrice = pricePerDay * billableDays;
 
       // Create booking
       const booking = await prisma.hostelBooking.create({
         data: {
-          gate_pass:        { connect: { id: gatePassUUID } },
-          room:             { connect: { id: roomId } },
-          check_in_datetime:  checkIn,
+          gate_pass: { connect: { id: gatePassUUID } },
+          room: { connect: { id: roomId } },
+          check_in_datetime: checkIn,
           check_out_datetime: checkOut,
-          check_in_remarks:   checkInRemarks || null,
-          guest_count:        guestCountInt,
-          billable_days:      billableDays,
-          price_per_day:      pricePerDay,
-          total_price:        totalPrice,
-          booking_status:     'pending',
-          payment_status:     'pending',
-          created_by:         { connect: { id: createdById } }
+          check_in_remarks: checkInRemarks || null,
+          guest_count: guestCountInt,
+          billable_days: billableDays,
+          price_per_day: pricePerDay,
+          total_price: totalPrice,
+          booking_status: 'pending',
+          payment_status: 'pending',
+          created_by: { connect: { id: createdById } }
         },
         include: {
           room: {
@@ -351,11 +357,11 @@ class HostelBookingService {
           },
           gate_pass: {
             select: {
-              pass_id       : true,
-              visitor_name  : true,
-              mobile_number : true,
-              email         : true,
-              qr_code       : true,
+              pass_id: true,
+              visitor_name: true,
+              mobile_number: true,
+              email: true,
+              qr_code: true,
               verification_code: true
             }
           }
@@ -403,10 +409,10 @@ class HostelBookingService {
         where: { id: verifiedByUserId },
         select: { role: true }
       });
-      
+
       const isAdmin = user?.role?.toLowerCase() === 'admin';
       const isCreator = booking.gate_pass?.created_by_id === verifiedByUserId;
-      
+
       if (!isAdmin && !isCreator) {
         throw new Error('Only the pass creator or admin can confirm payment');
       }
@@ -427,11 +433,11 @@ class HostelBookingService {
           },
           gate_pass: {
             select: {
-              pass_id      : true,
-              visitor_name : true,
+              pass_id: true,
+              visitor_name: true,
               mobile_number: true,
-              email        : true,
-              qr_code      : true,
+              email: true,
+              qr_code: true,
               verification_code: true
             }
           }
@@ -503,8 +509,11 @@ class HostelBookingService {
         return null;
       }
 
-      const booking = await prisma.hostelBooking.findUnique({
+      const booking = await prisma.hostelBooking.findFirst({
         where: { gate_pass_id: gatePass.id },
+        orderBy: {
+          created_at: 'desc'
+        },
         include: {
           room: {
             include: {
@@ -573,6 +582,330 @@ class HostelBookingService {
       console.error('Error linking existing booking:', error);
       throw error;
     }
+  }
+
+  /**
+   * Calculate room cancellation refund slab from check-in date/time.
+   */
+  calculateRoomCancellationRefund(booking) {
+    const now = new Date();
+    const checkInDate = booking?.check_in_datetime ? new Date(booking.check_in_datetime) : null;
+
+    if (!checkInDate || Number.isNaN(checkInDate.getTime())) {
+      return {
+        refundPercent: 0,
+        appliedSlab: 'Check-in date not available',
+        originalAmount: parseFloat(booking?.total_price) || 0,
+        cancellationFeePercent: 100,
+        cancellationFeeAmount: parseFloat(booking?.total_price) || 0,
+        refundAmount: 0
+      };
+    }
+
+    const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
+    const hoursUntilCheckIn = timeUntilCheckIn / (1000 * 60 * 60);
+    const daysUntilCheckIn = hoursUntilCheckIn / 24;
+
+    let refundPercent = 0;
+    let appliedSlab = '';
+
+    if (daysUntilCheckIn >= 3) {
+      refundPercent = 90;
+      appliedSlab = '3+ days before check-in';
+    } else if (daysUntilCheckIn >= 1) {
+      refundPercent = 70;
+      appliedSlab = '1-3 days before check-in';
+    } else if (hoursUntilCheckIn >= 2) {
+      refundPercent = 40;
+      appliedSlab = '2-24 hours before check-in';
+    } else {
+      refundPercent = 0;
+      appliedSlab = 'Less than 2 hours before check-in / after check-in';
+    }
+
+    const originalAmount = parseFloat(booking.total_price) || 0;
+    const cancellationFeePercent = 100 - refundPercent;
+    const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
+    const refundAmount = originalAmount - cancellationFeeAmount;
+
+    return {
+      refundPercent,
+      appliedSlab,
+      originalAmount,
+      cancellationFeePercent,
+      cancellationFeeAmount,
+      refundAmount
+    };
+  }
+
+  /**
+   * Submit room cancellation request (student/creator).
+   */
+  async requestRoomCancellation(bookingId, userId, reason) {
+    const booking = await prisma.hostelBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        gate_pass: true,
+        room: { include: { hostel: true } }
+      }
+    });
+
+    if (!booking) throw new Error('Booking not found');
+    if (booking.booking_status === 'cancelled') throw new Error('Room booking is already cancelled');
+    if (booking.room_cancel_request_status === 'pending') throw new Error('A room cancellation request is already pending');
+
+    const requester = await prisma.userLogin.findUnique({
+      where: { id: userId },
+      select: { id: true, role: true }
+    });
+
+    if (!requester) throw new Error('User not found');
+
+    const isAdmin = ['admin', 'superadmin'].includes((requester.role || '').toLowerCase());
+    const isCreator = booking.gate_pass?.created_by_id === userId;
+
+    if (!isAdmin && !isCreator) {
+      throw new Error('Only pass creator can request room cancellation');
+    }
+
+    const updated = await prisma.hostelBooking.update({
+      where: { id: bookingId },
+      data: {
+        room_cancel_request_status: 'pending',
+        room_cancel_request_reason: reason || null,
+        room_cancel_request_requested_at: new Date(),
+        room_cancel_request_reviewed_by_id: null,
+        room_cancel_request_reviewed_at: null,
+        room_cancel_request_reject_reason: null,
+        updated_at: new Date()
+      },
+      include: {
+        gate_pass: true,
+        room: { include: { hostel: true } }
+      }
+    });
+
+    const admins = await prisma.userLogin.findMany({
+      where: { role: { in: ['admin', 'superadmin'] }, status: 'active' },
+      select: { id: true }
+    });
+
+    for (const admin of admins) {
+      await prisma.notification.create({
+        data: {
+          userId: admin.id,
+          type: 'room_cancellation_request',
+          title: 'Room Cancellation Request',
+          message: `${booking.gate_pass?.visitor_name || 'A visitor'} requested room cancellation for ${booking.room?.hostel?.name || 'Guest House'} room ${booking.room?.room_number || '—'}.`,
+          referenceType: 'hostel_booking',
+          referenceId: bookingId,
+          metadata: {
+            actionUrl: `/admin/gate-entry?reviewRoomCancellation=${bookingId}`,
+            actionLabel: 'Review Room Cancellation'
+          }
+        }
+      });
+    }
+
+    return updated;
+  }
+
+  /**
+   * Approve room cancellation request (admin only).
+   */
+  async approveRoomCancellationRequest(bookingId, reviewerId) {
+    const reviewer = await prisma.userLogin.findUnique({
+      where: { id: reviewerId },
+      select: { role: true }
+    });
+
+    if (!reviewer || !['admin', 'superadmin'].includes((reviewer.role || '').toLowerCase())) {
+      throw new Error('Only admin can approve room cancellation requests');
+    }
+
+    const booking = await prisma.hostelBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        gate_pass: {
+          include: {
+            user_login_gate_pass_created_by_idTouser_login: {
+              include: {
+                studentLogin: {
+                  include: {
+                    parents: { where: { isPrimaryContact: true }, take: 1 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        room: { include: { hostel: true } }
+      }
+    });
+
+    if (!booking) throw new Error('Booking not found');
+    if (booking.room_cancel_request_status !== 'pending') throw new Error('No pending room cancellation request found');
+
+    const refund = this.calculateRoomCancellationRefund(booking);
+    const shouldRefund = booking.payment_status === 'completed' && refund.refundAmount > 0;
+
+    const updated = await prisma.hostelBooking.update({
+      where: { id: bookingId },
+      data: {
+        booking_status: 'cancelled',
+        payment_status: shouldRefund ? 'refunded' : booking.payment_status,
+        room_cancel_request_status: 'approved',
+        room_cancel_request_reviewed_by_id: reviewerId,
+        room_cancel_request_reviewed_at: new Date(),
+        updated_at: new Date()
+      },
+      include: {
+        gate_pass: true,
+        room: { include: { hostel: true } }
+      }
+    });
+
+    if (booking.payment_status === 'completed') {
+      await prisma.refundTransaction.create({
+        data: {
+          booking_id: booking.id,
+          pass_id: booking.gate_pass_id,
+          original_amount: refund.originalAmount,
+          cancellation_fee_percent: refund.cancellationFeePercent,
+          cancellation_fee_amount: refund.cancellationFeeAmount,
+          refund_amount: refund.refundAmount,
+          refund_status: 'processed',
+          processed_by_id: reviewerId,
+          processed_at: new Date(),
+          remarks: `Room cancellation approved. Slab: ${refund.appliedSlab} (${refund.refundPercent}% refund)`
+        }
+      });
+    }
+
+    const studentId = booking.gate_pass?.created_by_id;
+    if (studentId) {
+      await prisma.notification.create({
+        data: {
+          userId: studentId,
+          type: 'room_cancellation_approved',
+          title: 'Room Cancellation Approved',
+          message: `Your room cancellation request for ${booking.room?.hostel?.name || 'Guest House'} room ${booking.room?.room_number || '—'} was approved. Refund: INR ${refund.refundAmount.toFixed(2)}.`,
+          referenceType: 'hostel_booking',
+          referenceId: bookingId,
+          metadata: {
+            actionUrl: '/admin/gate-entry',
+            actionLabel: 'View Details'
+          }
+        }
+      });
+    }
+
+    const emailService = require('../../../shared/utils/emailService');
+    const parent = booking.gate_pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
+    if (parent?.email) {
+      emailService.sendRoomCancellationApproved({
+        parentEmail: parent.email,
+        parentName: `${parent.firstName || ''} ${parent.lastName || ''}`.trim() || 'Parent',
+        visitorName: booking.gate_pass.visitor_name,
+        passId: booking.gate_pass.pass_id,
+        roomNumber: booking.room?.room_number || '—',
+        hostelName: booking.room?.hostel?.name || 'Guest House',
+        refundAmount: refund.refundAmount,
+        refundPercent: refund.refundPercent,
+        appliedSlab: refund.appliedSlab
+      }).catch(err => console.error('[RoomCancel] Approve email error:', err));
+    }
+
+    return {
+      ...updated,
+      room_refund: refund
+    };
+  }
+
+  /**
+   * Reject room cancellation request (admin only).
+   */
+  async rejectRoomCancellationRequest(bookingId, reviewerId, reason) {
+    const reviewer = await prisma.userLogin.findUnique({
+      where: { id: reviewerId },
+      select: { role: true }
+    });
+
+    if (!reviewer || !['admin', 'superadmin'].includes((reviewer.role || '').toLowerCase())) {
+      throw new Error('Only admin can reject room cancellation requests');
+    }
+
+    const booking = await prisma.hostelBooking.findUnique({
+      where: { id: bookingId },
+      include: {
+        gate_pass: {
+          include: {
+            user_login_gate_pass_created_by_idTouser_login: {
+              include: {
+                studentLogin: {
+                  include: {
+                    parents: { where: { isPrimaryContact: true }, take: 1 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        room: { include: { hostel: true } }
+      }
+    });
+
+    if (!booking) throw new Error('Booking not found');
+    if (booking.room_cancel_request_status !== 'pending') throw new Error('No pending room cancellation request found');
+
+    const updated = await prisma.hostelBooking.update({
+      where: { id: bookingId },
+      data: {
+        room_cancel_request_status: 'rejected',
+        room_cancel_request_reject_reason: reason || 'Not specified',
+        room_cancel_request_reviewed_by_id: reviewerId,
+        room_cancel_request_reviewed_at: new Date(),
+        updated_at: new Date()
+      },
+      include: {
+        gate_pass: true,
+        room: { include: { hostel: true } }
+      }
+    });
+
+    const studentId = booking.gate_pass?.created_by_id;
+    if (studentId) {
+      await prisma.notification.create({
+        data: {
+          userId: studentId,
+          type: 'room_cancellation_rejected',
+          title: 'Room Cancellation Rejected',
+          message: `Your room cancellation request for ${booking.room?.hostel?.name || 'Guest House'} room ${booking.room?.room_number || '—'} was rejected. Reason: ${reason || 'Not specified'}.`,
+          referenceType: 'hostel_booking',
+          referenceId: bookingId,
+          metadata: {
+            actionUrl: '/admin/gate-entry',
+            actionLabel: 'View Details'
+          }
+        }
+      });
+    }
+
+    const emailService = require('../../../shared/utils/emailService');
+    const parent = booking.gate_pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
+    if (parent?.email) {
+      emailService.sendRoomCancellationRejected({
+        parentEmail: parent.email,
+        parentName: `${parent.firstName || ''} ${parent.lastName || ''}`.trim() || 'Parent',
+        visitorName: booking.gate_pass.visitor_name,
+        passId: booking.gate_pass.pass_id,
+        roomNumber: booking.room?.room_number || '—',
+        hostelName: booking.room?.hostel?.name || 'Guest House',
+        reason: reason || 'Not specified'
+      }).catch(err => console.error('[RoomCancel] Reject email error:', err));
+    }
+
+    return updated;
   }
 
   /**
