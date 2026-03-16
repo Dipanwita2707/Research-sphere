@@ -904,7 +904,12 @@ function VerifyPassPageContent() {
         toast.success(t('verifyPass.toast.cancelSuccess'), t('verifyPass.toast.cancelSuccessTitle'));
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('verifyPass.toast.cancelFailed'), t('common.error'));
+      const backendMessage = err.response?.data?.message || '';
+      const roomCancelBlocked = backendMessage.toLowerCase().includes('cancel the room');
+      toast.error(
+        roomCancelBlocked ? 'First cancel the room, then only you can cancel the pass.' : (backendMessage || t('verifyPass.toast.cancelFailed')),
+        t('common.error')
+      );
     } finally {
       setCancellingPass(false);
     }

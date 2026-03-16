@@ -226,6 +226,27 @@ router.post('/bookings/:bookingId/confirm-payment', checkGateEntryAccess(), gate
 router.get('/bookings/:passId', checkGateEntryAccess(), gatePassController.getBookingByPass);
 
 /**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/room-cancel-request
+ * @desc Request room cancellation (student/creator)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/room-cancel-request', checkGateEntryAccess(), gatePassController.requestRoomCancellation);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/approve-room-cancel
+ * @desc Approve room cancellation request (admin only enforced in service)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/approve-room-cancel', checkGateEntryAccess(), gatePassController.approveRoomCancellation);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/reject-room-cancel
+ * @desc Reject room cancellation request (admin only enforced in service)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/reject-room-cancel', checkGateEntryAccess(), gatePassController.rejectRoomCancellation);
+
+/**
  * @route POST /api/v1/gate-entry/bookings/:bookingId/early-checkin
  * @desc Request early check-in (before 10 AM) for a guest house booking
  * @access Private (Creator)

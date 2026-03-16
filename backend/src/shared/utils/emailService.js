@@ -374,10 +374,11 @@ async function sendExitRecorded(pass) {
  *    - without hostel booking → simple extension for outside visitor
  */
 async function sendPassExtended(pass, newEndDate, reason) {
-  const hasHostel      = !!(pass.hostel_booking || pass.hostel_name);
-  const hostelName     = pass.hostel_booking?.hostelName || pass.hostel_booking?.room?.hostel?.name || pass.hostel_name || 'Guest House';
-  const roomNumber     = pass.hostel_booking?.roomNumber || pass.hostel_booking?.room?.room_number  || pass.room_number || '—';
-  const newCheckout    = pass.hostel_booking?.check_out_datetime || pass.hostel_booking?.checkOutDate || newEndDate;
+  const latestBooking  = pass.hostel_booking || (Array.isArray(pass.hostel_bookings) ? pass.hostel_bookings[0] : null);
+  const hasHostel      = !!(latestBooking || pass.hostel_name);
+  const hostelName     = latestBooking?.hostelName || latestBooking?.room?.hostel?.name || pass.hostel_name || 'Guest House';
+  const roomNumber     = latestBooking?.roomNumber || latestBooking?.room?.room_number  || pass.room_number || '—';
+  const newCheckout    = latestBooking?.check_out_datetime || latestBooking?.checkOutDate || newEndDate;
   const extensionCount = pass.extension_count || 1;
 
   let extraSection = '';
@@ -626,6 +627,62 @@ async function sendCheckinRequestRejected({ parentEmail, parentName, visitorName
   });
 }
 
+/**
+ * 13. Room Cancellation Request Approved — sent to parent
+ */
+async function sendRoomCancellationApproved({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, refundAmount, refundPercent, appliedSlab }) {
+  const html = shell('Room Cancellation Approved ✅', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The room cancellation request for <strong>${visitorName}</strong> has been <strong>approved</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',        passId],
+      ['Guest House',    hostelName],
+      ['Room',           roomNumber],
+      ['Refund Slab',    appliedSlab || '—'],
+      ['Refund %',       `${refundPercent ?? 0}%`],
+      ['Refund Amount',  `INR ${Number(refundAmount || 0).toFixed(2)}`],
+    ])}
+
+    ${alertBox('✅', `Room cancellation approved. Refund amount: <strong>INR ${Number(refundAmount || 0).toFixed(2)}</strong>. Pass cancellation is now allowed.`, '#f0fdf4', BRAND.success)}
+  `, BRAND.success);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Room Cancellation Approved`,
+    html,
+  });
+}
+
+/**
+ * 14. Room Cancellation Request Rejected — sent to parent
+ */
+async function sendRoomCancellationRejected({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, reason }) {
+  const html = shell('Room Cancellation Request Declined', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The room cancellation request for <strong>${visitorName}</strong> has been <strong>declined</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',      passId],
+      ['Guest House',  hostelName],
+      ['Room',         roomNumber],
+      ['Reason',       reason || 'Not specified'],
+    ])}
+
+    ${alertBox('❌', `Room cancellation request was declined. Reason: <strong>${reason || 'Not specified'}</strong>.`, '#fef2f2', BRAND.danger)}
+  `, BRAND.danger);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Room Cancellation Request Declined`,
+    html,
+  });
+}
+
 module.exports = {
   send,
   sendPassCreated,
@@ -640,4 +697,6 @@ module.exports = {
   sendCheckoutReminder,
   sendCheckinRequestApproved,
   sendCheckinRequestRejected,
+  sendRoomCancellationApproved,
+  sendRoomCancellationRejected,
 };
