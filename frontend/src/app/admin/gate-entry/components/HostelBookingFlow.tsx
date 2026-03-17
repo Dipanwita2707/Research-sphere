@@ -17,6 +17,20 @@ interface HostelBookingFlowProps {
 
 type BookingStep = 'choice' | 'select_hostel' | 'select_room' | 'payment';
 
+/**
+ * Mirror of the backend calculateBillableDays logic.
+ * - Standard (≤ 12:00): no extra charge
+ * - Grace (12:00–17:00): no extra charge
+ * - After 17:00: +1 extra day
+ */
+function calculateBillableDaysPreview(checkInDatetime: Date, checkOutDatetime: Date): number {
+  const checkInDay  = new Date(checkInDatetime.getFullYear(),  checkInDatetime.getMonth(),  checkInDatetime.getDate());
+  const checkOutDay = new Date(checkOutDatetime.getFullYear(), checkOutDatetime.getMonth(), checkOutDatetime.getDate());
+  const baseDays = Math.round((checkOutDay.getTime() - checkInDay.getTime()) / (1000 * 60 * 60 * 24));
+  const checkOutHour = checkOutDatetime.getHours() + checkOutDatetime.getMinutes() / 60;
+  return Math.max(checkOutHour > 17 ? baseDays + 1 : baseDays, 1);
+}
+
 export default function HostelBookingFlow({
   passId,
   checkInDate,
@@ -35,8 +49,24 @@ export default function HostelBookingFlow({
   const [selectedRoom, setSelectedRoom] = useState<HostelRoom | null>(null);
   const [booking, setBooking] = useState<HostelBooking | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [checkInTime, setCheckInTime] = useState('10:00');
+  const [checkOutTime, setCheckOutTime] = useState('12:00');
+  const [checkInRemarks, setCheckInRemarks] = useState('');
+  const [requestEarlyCheckin, setRequestEarlyCheckin] = useState(false);
 
-  const nights = Math.ceil((new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / (1000 * 60 * 60 * 24));
+  // Derived datetime objects
+  const checkInDatetime  = new Date(`${checkInDate}T${checkInTime}:00`);
+  const checkOutDatetime = new Date(`${checkOutDate}T${checkOutTime}:00`);
+  const billableDays = calculateBillableDaysPreview(checkInDatetime, checkOutDatetime);
+  const checkOutHourNum = checkOutDatetime.getHours() + checkOutDatetime.getMinutes() / 60;
+  const checkoutTierNote = checkOutHourNum > 17
+    ? { label: 'After 5 PM — 1 extra day charged', color: 'text-amber-700 bg-amber-50 border-amber-200' }
+    : checkOutHourNum > 12
+      ? { label: 'Grace period (12 PM–5 PM) — no extra charge', color: 'text-green-700 bg-green-50 border-green-200' }
+      : { label: 'Standard checkout (≤ 12 PM) — no extra charge', color: 'text-green-700 bg-green-50 border-green-200' };
+
+  // Keep nights for backwards-compat display
+  const nights = billableDays;
 
   // Load available hostels when step changes to select_hostel
   useEffect(() => {
@@ -91,7 +121,7 @@ export default function HostelBookingFlow({
       onClose();
     } else if (choice === 'existing') {
       // For existing booking, just close - user should provide details in main form
-      showInfo('Please provide your existing hostel details in the form');
+      showInfo('Please provide your existing guest house details in the form');
       onClose();
     } else if (choice === 'new') {
       setStep('select_hostel');
@@ -113,8 +143,9 @@ export default function HostelBookingFlow({
         passId,
         hostelId: selectedHostel!.id,
         roomId: room.id,
-        checkInDate,
-        checkOutDate,
+        checkInDatetime: checkInDatetime.toISOString(),
+        checkOutDatetime: checkOutDatetime.toISOString(),
+        checkInRemarks: checkInRemarks || undefined,
         guestCount
       });
 
@@ -122,6 +153,20 @@ export default function HostelBookingFlow({
         setBooking(response.booking);
         setStep('payment');
         showSuccess('Booking created. Please complete payment.');
+
+        // Submit early check-in request if toggled on
+        if (requestEarlyCheckin && parseInt(checkInTime.split(':')[0]) < 10) {
+          try {
+            await gateEntryService.requestEarlyCheckin(
+              response.booking.id,
+              checkInDatetime.toISOString()
+            );
+            showInfo('Early check-in request submitted for admin approval.');
+          } catch (err: any) {
+            console.error('Early check-in request error:', err);
+            showWarning('Booking created, but early check-in request failed: ' + (err.response?.data?.message || err.message));
+          }
+        }
       } else {
         showError('Failed to create booking');
       }
@@ -260,8 +305,73 @@ export default function HostelBookingFlow({
         <p className="text-sm text-blue-800">
           <span className="font-semibold">{selectedHostel?.name}</span>
         </p>
-        <p className="text-xs text-blue-600 mt-1">
-          {nights} {nights > 1 ? t('hostel.nights') : t('hostel.night')} • {guestCount} {guestCount > 1 ? t('hostel.guests') : t('hostel.guest')}
+
+        {/* Time pickers */}
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label className="block text-xs font-medium text-blue-800 mb-1">Check-in Time</label>
+            <input
+              type="time"
+              value={checkInTime}
+              onChange={e => setCheckInTime(e.target.value)}
+              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-blue-800 mb-1">Check-out Time</label>
+            <input
+              type="time"
+              value={checkOutTime}
+              onChange={e => setCheckOutTime(e.target.value)}
+              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Remarks */}
+        <div className="mt-3">
+          <label className="block text-xs font-medium text-blue-800 mb-1">Remarks (optional)</label>
+          <input
+            type="text"
+            value={checkInRemarks}
+            onChange={e => setCheckInRemarks(e.target.value)}
+            placeholder="e.g. early check-in requested, anniversary stay"
+            className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+
+        {/* Early check-in request (before 10 AM) */}
+        {parseInt(checkInTime.split(':')[0]) < 10 && (
+          <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <span className="text-amber-600 text-lg">⏰</span>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-amber-800">
+                  Standard check-in is at 10:00 AM. Your selected time ({checkInTime}) is before standard hours.
+                </p>
+                <label className="flex items-center gap-2 mt-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={requestEarlyCheckin}
+                    onChange={e => setRequestEarlyCheckin(e.target.checked)}
+                    className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-amber-700 font-medium">
+                    Request early check-in (requires admin approval)
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Billing summary */}
+        <div className={`mt-3 text-xs px-2 py-1.5 rounded border ${checkoutTierNote.color}`}>
+          {checkoutTierNote.label}
+        </div>
+        <p className="text-xs text-blue-600 mt-2">
+          <span className="font-semibold">{billableDays} billable {billableDays === 1 ? 'day' : 'days'}</span>{' '}
+          &bull; {guestCount} {guestCount > 1 ? t('hostel.guests') : t('hostel.guest')}
         </p>
       </div>
 
@@ -277,7 +387,7 @@ export default function HostelBookingFlow({
       ) : (
         <div className="grid gap-3 max-h-96 overflow-y-auto">
           {rooms.map((room) => {
-            const totalPrice = room.pricePerNight * nights;
+            const totalPrice = room.pricePerNight * billableDays;
             return (
               <div
                 key={room.id}
@@ -316,8 +426,8 @@ export default function HostelBookingFlow({
                   </div>
                   <div className="text-right ml-4">
                     <p className="text-lg font-bold text-blue-600">₹{totalPrice}</p>
-                    <p className="text-xs text-gray-500">₹{room.pricePerNight}{t('hostel.pricePerNight')}</p>
-                    <p className="text-xs text-gray-400 mt-1">{nights} {nights > 1 ? t('hostel.nights') : t('hostel.night')}</p>
+                    <p className="text-xs text-gray-500">₹{room.pricePerNight}/day</p>
+                    <p className="text-xs text-gray-400 mt-1">{billableDays} {billableDays === 1 ? 'day' : 'days'}</p>
                   </div>
                 </div>
               </div>

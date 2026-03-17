@@ -165,7 +165,13 @@ const getNavItems = (
     });
   }
   
+<<<<<<< HEAD
+  // Event Management - Not for staff/guard role (gate entry only access) (some items restricted)
+=======
+  // Event Management - Not for staff/guard role (gate entry only access)
+  if (!isStaff) items.push({
   // Event Management - Available for all authenticated users (some items restricted)
+>>>>>>> cc0604855d357b93a99de816e8ea27d790c6c986
   const eventSubItems: NavItem[] = [
     ...(canBrowseEvents ? [{ name: 'Browse Events', href: '/events', icon: List }] : []),
     { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
@@ -181,14 +187,39 @@ const getNavItems = (
   if (hasVolunteerAssignments) {
     eventSubItems.push({ name: 'Volunteer', href: '/events/volunteer', icon: Shield });
   }
+<<<<<<< HEAD
+  if (!isStaff) items.push({
+=======
   items.push({
+>>>>>>> cc0604855d357b93a99de816e8ea27d790c6c986
     name: 'Event Management',
     href: canBrowseEvents ? '/events' : '/events/registrations',
     icon: Calendar,
-    subItems: eventSubItems,
+    subItems: [
+      { name: 'Browse Events', href: '/events', icon: List },
+      { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
+      { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
+      { name: 'Stall Application', href: '/events/stall-opportunities', icon: Store },
+      { name: 'Volunteer', href: '/events/volunteer', icon: Shield },
+      { name: 'Event Feedback Scanner', href: '/event-feedback-scanner', icon: QrCode },
+    ]
   });
   
   
+  // Gate Entry - For staff/guard only (shown as main nav item)
+  if (isStaff) {
+    items.push({
+      name: 'Gate Entry',
+      href: '/admin/gate-entry',
+      icon: Shield,
+      subItems: [
+        { name: 'All Passes', href: '/admin/gate-entry', icon: List },
+        { name: 'Verify Pass', href: '/admin/gate-entry/verify', icon: QrCode },
+        { name: 'Create Pass', href: '/admin/gate-entry/create-pass', icon: Plus },
+      ]
+    });
+  }
+
   // Common items
   items.push(
     { name: 'Notifications', href: '/notifications', icon: Bell },

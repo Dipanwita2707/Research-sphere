@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, CheckCircle, XCircle, User, Calendar, Clock, Car, Building, AlertCircle, Loader2, Camera, X, Shield } from 'lucide-react';
+import { Search, CheckCircle, XCircle, User, Calendar, Clock, Car, Building, AlertCircle, Loader2, Camera, X, Shield, LogOut } from 'lucide-react';
 import { gateEntryService, GatePass } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter } from 'next/navigation';
@@ -9,8 +9,7 @@ import { useToast } from '@/shared/ui-components/Toast';
 import { LanguageProvider, useLanguage } from '../context/LanguageContext';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { VerifyPassShimmer } from '../components/ShimmerUI';
-// @ts-ignore - html5-qrcode doesn't have type definitions
-import { Html5QrcodeScanner } from 'html5-qrcode';
+// html5-qrcode is dynamically imported to avoid SSR issues
 import './qr-scanner.css';
 import '../styles/animations.css';
 
@@ -28,7 +27,7 @@ function VerifyPassPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [scannerInitialized, setScannerInitialized] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerRef = useRef<any>(null);
   const qrReaderRef = useRef<HTMLDivElement>(null);
   
   // Cancelled pass checkout QR states
@@ -42,14 +41,26 @@ function VerifyPassPageContent() {
   const [verificationMethod, setVerificationMethod] = useState<'qr' | 'code' | null>(null);
   const [verificationCodeInput, setVerificationCodeInput] = useState('');
   const verifyQrReaderRef = useRef<HTMLDivElement>(null);
-  const verifyScannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const verifyScannerRef = useRef<any>(null);
 
   // Checkout verification modal states
   const [showCheckoutVerificationModal, setShowCheckoutVerificationModal] = useState(false);
   const [checkoutVerificationMethod, setCheckoutVerificationMethod] = useState<'qr' | 'code' | null>(null);
   const [checkoutVerificationCodeInput, setCheckoutVerificationCodeInput] = useState('');
   const checkoutVerifyQrReaderRef = useRef<HTMLDivElement>(null);
-  const checkoutVerifyScannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const checkoutVerifyScannerRef = useRef<any>(null);
+
+  // Exit verification modal states
+  const [showExitVerificationModal, setShowExitVerificationModal] = useState(false);
+  const [exitVerificationMethod, setExitVerificationMethod] = useState<'qr' | 'code' | null>(null);
+  const [exitVerificationCodeInput, setExitVerificationCodeInput] = useState('');
+  const exitVerifyQrReaderRef = useRef<HTMLDivElement>(null);
+  const exitVerifyScannerRef = useRef<any>(null);
+
+  // Guard against QR scanner double-fire
+  const entryProcessingRef = useRef(false);
+  const checkoutProcessingRef = useRef(false);
+  const exitProcessingRef = useRef(false);
 
   // Cancel first modal
   const [showCancelFirstModal, setShowCancelFirstModal] = useState(false);
@@ -65,57 +76,87 @@ function VerifyPassPageContent() {
     if (!user) return;
     
     const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+    const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
     const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
     const isGuard = userDesignation.includes('guard') || userDesignation.includes('security');
     
-    // Redirect if not Admin or Guard
-    if (!isAdmin && !isGuard) {
+    // Redirect if not Admin, Guard, or Staff (guards are registered as staff role)
+    if (!isAdmin && !isGuard && !isStaff) {
       router.push('/admin/gate-entry');
     }
   }, [user, router]);
 
-  // Initialize QR Scanner when QR tab is active
-  useEffect(() => {
-    if (activeTab === 'qr' && !scannerInitialized) {
-      // Small delay to ensure DOM is ready
-      setTimeout(() => {
-        const scanner = new Html5QrcodeScanner(
-          'qr-reader',
-          { 
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            showTorchButtonIfSupported: true,
-          },
-          /* verbose= */ false
-        );
+  // Initialize QR Scanner when QR tab is active (using Html5Qrcode direct API)
+  const processingQrRef = useRef(false);
 
-        scanner.render(
+  useEffect(() => {
+    if (activeTab !== 'qr' || scannerInitialized) return;
+    
+    let cancelled = false;
+
+    const initScanner = async () => {
+      try {
+        const { Html5Qrcode } = await import('html5-qrcode');
+        
+        if (cancelled) return;
+        
+        // Stop any existing scanner first
+        if (scannerRef.current) {
+          try { await scannerRef.current.stop(); } catch {}
+          scannerRef.current = null;
+        }
+        
+        const scanner = new Html5Qrcode('qr-reader');
+        
+        if (cancelled) return;
+        
+        processingQrRef.current = false;
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
           (decodedText: string) => {
-            // Success callback - QR code scanned
+            if (processingQrRef.current) return;
+            processingQrRef.current = true;
+            console.log('[QR Scanner] Scanned:', decodedText);
             handleQRScan(decodedText);
-            scanner.clear().catch(() => {});
-            setScannerInitialized(false);
+            scanner.stop().catch(() => {});
+            scannerRef.current = null;
+            setTimeout(() => {
+              processingQrRef.current = false;
+              setScannerInitialized(false);
+            }, 2000);
           },
-          (error: any) => {
-            // Error callback - ignore continuous scanning errors
-          }
+          () => {} // Ignore continuous scanning errors
         );
 
         scannerRef.current = scanner;
         setScannerInitialized(true);
-      }, 100);
-    }
-
-    // Cleanup scanner when switching tabs
-    return () => {
-      if (scannerRef.current && activeTab !== 'qr') {
-        scannerRef.current.clear().catch(() => {});
-        scannerRef.current = null;
-        setScannerInitialized(false);
+      } catch (err: any) {
+        console.error('[QR Scanner] Failed to initialize:', err);
+        if (err?.message?.includes('Permission') || err?.message?.includes('NotAllowed') || err?.name === 'NotAllowedError') {
+          toast.error('Camera permission denied. Please allow camera access and refresh.');
+        }
       }
     };
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(initScanner, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [activeTab, scannerInitialized]);
+
+  // Cleanup scanner when switching away from QR tab
+  useEffect(() => {
+    if (activeTab !== 'qr' && scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+      scannerRef.current = null;
+      setScannerInitialized(false);
+    }
+  }, [activeTab]);
 
   // Countdown timer for cancelled pass checkout QR - updates every second
   useEffect(() => {
@@ -160,7 +201,7 @@ function VerifyPassPageContent() {
       let isCheckoutQR = false;
       try {
         const qrData = JSON.parse(scannedData);
-        if (qrData.type === 'CHECKOUT' && qrData.passId) {
+        if (qrData.type === 'CHECKOUT' && qrData.original_pass_id) {
           console.log('[SCAN] Checkout QR detected:', qrData);
           isCheckoutQR = true;
           
@@ -175,18 +216,48 @@ function VerifyPassPageContent() {
             return;
           }
           
-          // Handle cancelled pass response
+          // Handle cancelled pass response — auto-checkout using verification code from QR
           if (response.isCancelled) {
+            setActiveTab('manual');
+            setLoading(false);
+
+            // If the QR contains the checkout verification code, do checkout immediately
+            // (no second scan needed — single scan workflow)
+            if (qrData.checkout_verification_code && passData) {
+              setActionLoading(true);
+              try {
+                const checkoutResult = await gateEntryService.recordCheckout(passData.passId, {
+                  gate: 'Main Gate',
+                  remarks: 'Checkout via cancelled pass QR scan',
+                  verificationCode: qrData.checkout_verification_code
+                });
+                setPass(checkoutResult.pass);
+                setIsCancelledPass(false);
+                toast.success('Checkout recorded successfully! Visitor may exit.', 'Checkout Complete');
+              } catch (err: any) {
+                // Auto-checkout failed — fall back to showing pass for manual checkout
+                setIsCancelledPass(true);
+                setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
+                setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
+                setPass(passData);
+                toast.error(err.response?.data?.message || 'Checkout failed — please try manual code entry.', 'Checkout Error');
+              } finally {
+                setActionLoading(false);
+              }
+              return;
+            }
+
+            // No verification code in QR — show pass for manual checkout
             setIsCancelledPass(true);
             setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
             setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
             setPass(passData);
             toast.warning(response.message || t('verifyPass.toast.cancelledPassWarning'));
-            setLoading(false);
             return;
           }
           
           setPass(passData);
+          setActiveTab('manual');
           setLoading(false);
           return;
         }
@@ -220,6 +291,14 @@ function VerifyPassPageContent() {
         setPass(passData);
         toast.warning(response.message || t('verifyPass.toast.cancelledPassWarning'));
         setLoading(false);
+        return;
+      }
+      
+      // For completed/expired/denied passes, skip time validation - just show info
+      if (passData.passStatus && ['completed', 'expired', 'denied'].includes(passData.passStatus)) {
+        setPass(passData);
+        setLoading(false);
+        setActiveTab('manual');
         return;
       }
       
@@ -343,6 +422,13 @@ function VerifyPassPageContent() {
         return;
       }
       
+      // For completed/expired/denied passes, skip time validation - just show info
+      if (passData.passStatus && ['completed', 'expired', 'denied'].includes(passData.passStatus)) {
+        setPass(passData);
+        setLoading(false);
+        return;
+      }
+      
       // For non-cancelled passes, validate time window (support multi-day passes)
       const now = new Date();
       const visitDate = new Date(passData.visitDate || now);
@@ -420,6 +506,7 @@ function VerifyPassPageContent() {
   const handleAllowEntry = async () => {
     if (!pass) return;
     // Show verification modal instead of directly allowing entry
+    entryProcessingRef.current = false; // Reset guard for new verification attempt
     setShowVerificationModal(true);
     setVerificationMethod(null);
     setVerificationCodeInput('');
@@ -430,63 +517,68 @@ function VerifyPassPageContent() {
     
     if (method === 'qr') {
       // Initialize QR scanner for verification
-      setTimeout(() => {
+      setTimeout(async () => {
         if (verifyScannerRef.current) {
-          verifyScannerRef.current.clear().catch(() => {});
+          try { await verifyScannerRef.current.stop(); } catch {}
         }
         
-        const scanner = new Html5QrcodeScanner(
-          'verify-qr-reader',
-          { 
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            showTorchButtonIfSupported: true,
-          },
-          false
-        );
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const scanner = new Html5Qrcode('verify-qr-reader');
 
-        scanner.render(
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
           (decodedText: string) => {
-            // Success - QR code matches pass
+            // Guard against double-fire: QR scanner can call back multiple times before stop() completes
+            if (entryProcessingRef.current) return;
+            entryProcessingRef.current = true;
             confirmAllowEntry();
-            scanner.clear().catch(() => {});
+            scanner.stop().catch(() => {});
           },
           () => {}
         );
 
         verifyScannerRef.current = scanner;
-      }, 100);
+      }, 200);
     }
   };
   
   const confirmAllowEntry = async (code?: string) => {
     if (!pass) return;
 
+    const currentPassId = pass.passId;
+    let entrySucceeded = false;
     try {
       setActionLoading(true);
-      await gateEntryService.allowEntry(pass.passId, {
+      entryProcessingRef.current = true;
+
+      const allowResult = await gateEntryService.allowEntry(currentPassId, {
         gate: 'Main Gate',
         remarks: 'Entry verified and allowed',
         verificationCode: code || undefined
       });
-      
-      // Close modal and cleanup
-      setShowVerificationModal(false);
-      setVerificationMethod(null);
-      if (verifyScannerRef.current) {
-        verifyScannerRef.current.clear().catch(() => {});
-        verifyScannerRef.current = null;
-      }
-      
-      // Refresh pass data
-      const response = await gateEntryService.verifyPass(pass.passId, 'passId');
-      setPass(response.pass);
+
+      entrySucceeded = true;
       toast.success(t('verifyPass.toast.checkinSuccess'), t('verifyPass.toast.checkinSuccessTitle'));
+      if (allowResult?.pass) {
+        setPass(allowResult.pass);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('verifyPass.toast.checkinFailed'), t('common.error'));
     } finally {
       setActionLoading(false);
+      entryProcessingRef.current = false;
+    }
+
+    // Cleanup and refresh — fully isolated so errors never mask the success toast
+    if (entrySucceeded) {
+      setShowVerificationModal(false);
+      setVerificationMethod(null);
+      try { if (verifyScannerRef.current) { await verifyScannerRef.current.stop(); } } catch {} finally { verifyScannerRef.current = null; }
+      try {
+        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
+        if (response.pass) setPass(response.pass);
+      } catch {}
     }
   };
   
@@ -510,14 +602,23 @@ function VerifyPassPageContent() {
     const reason = prompt(t('verifyPass.prompt.denyReason'));
     if (!reason) return;
 
+    const currentPassId = pass.passId;
     try {
       setActionLoading(true);
-      await gateEntryService.denyEntry(pass.passId, reason);
+      await gateEntryService.denyEntry(currentPassId, reason);
       
-      // Refresh pass data
-      const response = await gateEntryService.verifyPass(pass.passId, 'passId');
-      setPass(response.pass);
+      // Deny succeeded — show toast immediately
       toast.info(t('verifyPass.toast.entryDenied'), t('verifyPass.toast.entryDeniedTitle'));
+      
+      // Refresh pass data (best-effort)
+      try {
+        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
+        if (response.pass) {
+          setPass(response.pass);
+        }
+      } catch (refreshErr) {
+        console.warn('[DENY_ENTRY] Deny succeeded but refresh failed:', refreshErr);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('verifyPass.toast.denyFailed'), t('common.error'));
     } finally {
@@ -528,37 +629,101 @@ function VerifyPassPageContent() {
   const handleRecordExit = async () => {
     if (!pass) return;
 
-    // Check if pass is cancelled - if yes, show verification modal
+    // Check if pass is cancelled - if yes, show verification modal for final checkout
     if (pass.passStatus === 'cancelled' || pass.status === 'cancelled') {
+      checkoutProcessingRef.current = false;
       setShowCheckoutVerificationModal(true);
       setCheckoutVerificationMethod(null);
       setCheckoutVerificationCodeInput('');
       return;
     }
 
-    // If pass is checked_in but not cancelled, must cancel first
-    if (pass.passStatus === 'checked_in' || pass.status === 'checked_in') {
-      setShowCancelFirstModal(true);
-      return;
-    }
+    // For checked_in passes, show exit verification modal (same QR/code flow as entry)
+    exitProcessingRef.current = false;
+    setShowExitVerificationModal(true);
+    setExitVerificationMethod(null);
+    setExitVerificationCodeInput('');
+  };
 
-    // Otherwise, try direct checkout (shouldn't reach here normally)
+  const handleExitVerificationMethodSelect = (method: 'qr' | 'code') => {
+    setExitVerificationMethod(method);
+
+    if (method === 'qr') {
+      setTimeout(async () => {
+        if (exitVerifyScannerRef.current) {
+          try { await exitVerifyScannerRef.current.stop(); } catch {}
+        }
+
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const scanner = new Html5Qrcode('exit-verify-qr-reader');
+
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (decodedText: string) => {
+            if (exitProcessingRef.current) return;
+            exitProcessingRef.current = true;
+            confirmNormalExit();
+            scanner.stop().catch(() => {});
+          },
+          () => {}
+        );
+
+        exitVerifyScannerRef.current = scanner;
+      }, 200);
+    }
+  };
+
+  const confirmNormalExit = async (code?: string) => {
+    if (!pass) return;
+
+    const currentPassId = pass.passId;
+    let exitSucceeded = false;
     try {
       setActionLoading(true);
-      await gateEntryService.recordExit(pass.passId, {
+      exitProcessingRef.current = true;
+
+      const exitResult = await gateEntryService.recordExit(currentPassId, {
         gate: 'Main Gate',
-        remarks: 'Exit recorded'
+        remarks: 'Exit verified and recorded',
+        verificationCode: code || undefined
       });
-      
-      // Refresh pass data
-      const response = await gateEntryService.verifyPass(pass.passId, 'passId');
-      setPass(response.pass);
+
+      exitSucceeded = true;
       toast.success(t('verifyPass.toast.exitSuccess'), t('verifyPass.toast.exitSuccessTitle'));
+      if (exitResult?.pass) {
+        setPass(exitResult.pass);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('verifyPass.toast.exitFailed'), t('common.error'));
     } finally {
       setActionLoading(false);
+      exitProcessingRef.current = false;
     }
+
+    if (exitSucceeded) {
+      setShowExitVerificationModal(false);
+      setExitVerificationMethod(null);
+      try { if (exitVerifyScannerRef.current) { await exitVerifyScannerRef.current.stop(); } } catch {} finally { exitVerifyScannerRef.current = null; }
+      try {
+        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
+        if (response.pass) setPass(response.pass);
+      } catch {}
+    }
+  };
+
+  const handleExitCodeVerification = () => {
+    if (!exitVerificationCodeInput.trim()) {
+      toast.warning(t('verifyPass.toast.codeRequired'), t('verifyPass.toast.codeRequiredTitle'));
+      return;
+    }
+
+    if (exitVerificationCodeInput.trim() !== pass?.verificationCode) {
+      toast.error(t('verifyPass.toast.invalidCode'), t('verifyPass.toast.invalidCodeTitle'));
+      return;
+    }
+
+    confirmNormalExit(exitVerificationCodeInput);
   };
 
   const handleCheckoutVerificationMethodSelect = (method: 'qr' | 'code') => {
@@ -566,66 +731,83 @@ function VerifyPassPageContent() {
     
     if (method === 'qr') {
       // Initialize QR scanner for checkout verification
-      setTimeout(() => {
+      setTimeout(async () => {
         if (checkoutVerifyScannerRef.current) {
-          checkoutVerifyScannerRef.current.clear().catch(() => {});
+          try { await checkoutVerifyScannerRef.current.stop(); } catch {}
         }
         
-        const scanner = new Html5QrcodeScanner(
-          'checkout-verify-qr-reader',
-          { 
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            showTorchButtonIfSupported: true,
-          },
-          false
-        );
+        const { Html5Qrcode } = await import('html5-qrcode');
+        const scanner = new Html5Qrcode('checkout-verify-qr-reader');
 
-        scanner.render(
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
           (decodedText: string) => {
-            // Success - QR code scanned for checkout
-            confirmRecordCheckout();
-            scanner.clear().catch(() => {});
+            // Guard against double-fire
+            if (checkoutProcessingRef.current) return;
+            checkoutProcessingRef.current = true;
+            // Parse checkout QR JSON to extract the new checkout_verification_code.
+            // The original pass QR is a plain string (not JSON) — parsing it will throw,
+            // leaving checkoutCode undefined so the backend rejects it.
+            let checkoutCode: string | undefined;
+            try {
+              const qrData = JSON.parse(decodedText);
+              if (qrData.type === 'CHECKOUT' && qrData.checkout_verification_code) {
+                checkoutCode = qrData.checkout_verification_code;
+              }
+            } catch {}
+            if (!checkoutCode) {
+              checkoutProcessingRef.current = false;
+              toast.error('Invalid QR — please scan the NEW checkout QR generated after cancellation.', 'Wrong QR Code');
+              scanner.stop().catch(() => {});
+              return;
+            }
+            confirmRecordCheckout(checkoutCode);
+            scanner.stop().catch(() => {});
           },
           () => {}
         );
 
         checkoutVerifyScannerRef.current = scanner;
-      }, 100);
+      }, 200);
     }
   };
   
   const confirmRecordExit = async (code?: string) => {
     if (!pass) return;
 
+    const currentPassId = pass.passId;
+    let exitSucceeded = false;
     try {
       setActionLoading(true);
-      await gateEntryService.recordExit(pass.passId, {
+      const exitResult = await gateEntryService.recordExit(currentPassId, {
         gate: 'Main Gate',
         remarks: 'Exit verified and recorded',
         verificationCode: code || undefined
       });
-      
-      // Close modal and cleanup
-      setShowCheckoutVerificationModal(false);
-      setCheckoutVerificationMethod(null);
-      if (checkoutVerifyScannerRef.current) {
-        checkoutVerifyScannerRef.current.clear().catch(() => {});
-        checkoutVerifyScannerRef.current = null;
-      }
-      
-      // Refresh pass data
-      const response = await gateEntryService.verifyPass(pass.passId, 'passId');
-      setPass(response.pass);
-      setIsCancelledPass(false);
-      setCheckoutQRRemaining(0);
-      setCheckoutExpiresAt(null);
+
+      exitSucceeded = true;
       toast.success(t('verifyPass.toast.exitSuccess'), t('verifyPass.toast.exitSuccessTitle'));
+      if (exitResult?.pass) {
+        setPass(exitResult.pass);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('verifyPass.toast.exitFailed'), t('common.error'));
     } finally {
       setActionLoading(false);
+    }
+
+    if (exitSucceeded) {
+      setShowCheckoutVerificationModal(false);
+      setCheckoutVerificationMethod(null);
+      try { if (checkoutVerifyScannerRef.current) { await checkoutVerifyScannerRef.current.stop(); } } catch {} finally { checkoutVerifyScannerRef.current = null; }
+      setIsCancelledPass(false);
+      setCheckoutQRRemaining(0);
+      setCheckoutExpiresAt(null);
+      try {
+        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
+        if (response.pass) setPass(response.pass);
+      } catch {}
     }
   };
   
@@ -633,33 +815,41 @@ function VerifyPassPageContent() {
   const confirmRecordCheckout = async (code?: string) => {
     if (!pass) return;
 
+    const currentPassId = pass.passId;
+    let checkoutSucceeded = false;
     try {
       setActionLoading(true);
-      await gateEntryService.recordCheckout(pass.passId, {
+      checkoutProcessingRef.current = true;
+
+      const checkoutResult = await gateEntryService.recordCheckout(currentPassId, {
         gate: 'Main Gate',
         remarks: 'Checkout verified and recorded',
         verificationCode: code || undefined
       });
-      
-      // Close modal and cleanup
-      setShowCheckoutVerificationModal(false);
-      setCheckoutVerificationMethod(null);
-      if (checkoutVerifyScannerRef.current) {
-        checkoutVerifyScannerRef.current.clear().catch(() => {});
-        checkoutVerifyScannerRef.current = null;
-      }
-      
-      // Refresh pass data
-      const response = await gateEntryService.verifyPass(pass.passId, 'passId');
-      setPass(response.pass);
-      setIsCancelledPass(false);
-      setCheckoutQRRemaining(0);
-      setCheckoutExpiresAt(null);
+
+      checkoutSucceeded = true;
       toast.success(t('verifyPass.toast.exitSuccess'), t('verifyPass.toast.checkoutSuccessTitle'));
+      if (checkoutResult?.pass) {
+        setPass(checkoutResult.pass);
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('verifyPass.toast.checkoutFailed'), t('common.error'));
     } finally {
       setActionLoading(false);
+      checkoutProcessingRef.current = false;
+    }
+
+    if (checkoutSucceeded) {
+      setShowCheckoutVerificationModal(false);
+      setCheckoutVerificationMethod(null);
+      try { if (checkoutVerifyScannerRef.current) { await checkoutVerifyScannerRef.current.stop(); } } catch {} finally { checkoutVerifyScannerRef.current = null; }
+      setIsCancelledPass(false);
+      setCheckoutQRRemaining(0);
+      setCheckoutExpiresAt(null);
+      try {
+        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
+        if (response.pass) setPass(response.pass);
+      } catch {}
     }
   };
   
@@ -684,10 +874,9 @@ function VerifyPassPageContent() {
     try {
       setCancellingPass(true);
       
-      // For after check-in, use a default reason since visitor is already inside
-      const reason = cancelReason.trim() || 'Cancelled after check-in - proceeding to checkout';
+      const reason = cancelReason.trim() || 'Pass cancelled by guard';
       
-      // Cancel the pass first
+      // Cancel the pass
       const cancelResponse = await gateEntryService.cancelPass(pass.passId, reason);
       
       if (cancelResponse.success && cancelResponse.pass) {
@@ -699,18 +888,28 @@ function VerifyPassPageContent() {
         setShowCancelFirstModal(false);
         setCancelReason('');
         
-        // Show checkout credentials popup
-        setCheckoutCredentials({
-          checkoutId: cancelResponse.pass.checkoutUniqueId || '',
-          checkoutCode: cancelResponse.pass.checkoutVerificationCode || '',
-          expiresAt: cancelResponse.pass.checkoutQrExpiresAt || ''
-        });
-        setShowCheckoutCredentialsModal(true);
+        // For after_check_in: show checkout credentials (new QR + code generated)
+        // For from_checked_out: person already outside, no checkout QR needed - just success
+        if (cancelResponse.cancellation_type === 'after_check_in') {
+          const expiresAt = cancelResponse.pass.checkoutQrExpiresAt || '';
+          setCheckoutCredentials({
+            checkoutId: cancelResponse.pass.checkoutUniqueId || '',
+            checkoutCode: cancelResponse.pass.checkoutVerificationCode || '',
+            expiresAt
+          });
+          setCheckoutExpiresAt(expiresAt || null);
+          setShowCheckoutCredentialsModal(true);
+        }
         
         toast.success(t('verifyPass.toast.cancelSuccess'), t('verifyPass.toast.cancelSuccessTitle'));
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('verifyPass.toast.cancelFailed'), t('common.error'));
+      const backendMessage = err.response?.data?.message || '';
+      const roomCancelBlocked = backendMessage.toLowerCase().includes('cancel the room');
+      toast.error(
+        roomCancelBlocked ? 'First cancel the room, then only you can cancel the pass.' : (backendMessage || t('verifyPass.toast.cancelFailed')),
+        t('common.error')
+      );
     } finally {
       setCancellingPass(false);
     }
@@ -723,7 +922,7 @@ function VerifyPassPageContent() {
       active: 'bg-blue-100 text-blue-800',
       checked_in: 'bg-green-100 text-green-800',
       completed: 'bg-gray-100 text-gray-800',
-      checked_out: 'bg-gray-100 text-gray-800',
+      checked_out: 'bg-orange-100 text-orange-800',
       cancelled: 'bg-orange-100 text-orange-800',
       expired: 'bg-red-100 text-red-800',
       denied: 'bg-red-100 text-red-800',
@@ -746,7 +945,8 @@ function VerifyPassPageContent() {
     return labelKeys[status] ? t(labelKeys[status]) : status;
   };
 
-  const canAllowEntry = pass && (pass.qrStatus === 'active' || pass.status === 'active') && (pass.passStatus === 'created' || pass.status === 'pending' || pass.status === 'active'); const canRecordExit = pass && ((pass.passStatus === 'checked_in' || pass.status === 'checked_in'));
+  const canAllowEntry = pass && pass.qrStatus === 'active' && (pass.passStatus === 'created' || pass.passStatus === 'checked_out');
+  const canRecordExit = pass && ((pass.passStatus === 'checked_in' || pass.status === 'checked_in'));
   const canDenyEntry = pass && ['active'].includes(pass.status);
 
   const getQRStatusBadge = (qrStatus?: string) => {
@@ -999,6 +1199,22 @@ function VerifyPassPageContent() {
                   <div className={`px-3 md:px-5 py-1.5 md:py-2 rounded-full ${getStatusColor(pass.passStatus || pass.status)} font-bold text-xs md:text-sm shadow-lg`}>
                     {getStatusLabel(pass.passStatus || pass.status)}
                   </div>
+                  {pass.dailyEntries && pass.dailyEntries.length > 0 && (
+                    <div className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold text-xs shadow">
+                      {t('verifyPass.multiDay.badge')} ({t('verifyPass.multiDay.day')} {pass.dailyEntries.length})
+                    </div>
+                  )}
+                  {/* Currently Inside / Outside Campus indicator */}
+                  {pass.passStatus === 'checked_in' && (
+                    <div className="px-3 py-1 rounded-full bg-green-500 text-white font-semibold text-xs shadow animate-pulse">
+                      🟢 {t('verifyPass.status.insideCampus')}
+                    </div>
+                  )}
+                  {pass.passStatus === 'checked_out' && (
+                    <div className="px-3 py-1 rounded-full bg-orange-400 text-white font-semibold text-xs shadow">
+                      🔵 {t('verifyPass.status.outsideCampus')}
+                    </div>
+                  )}
                   {getQRStatusBadge(pass.qrStatus)}
                 </div>
               </div>
@@ -1293,6 +1509,50 @@ function VerifyPassPageContent() {
                 </div>
               )}
 
+              {/* Entry/Exit History */}
+              {pass.dailyEntries && pass.dailyEntries.length > 0 && (
+                <div className="mt-4 md:mt-6">
+                  <h3 className="font-semibold text-sm md:text-base text-gray-900 mb-3 flex items-center gap-2">
+                    📅 {t('verifyPass.multiDay.historyTitle')}
+                    <span className="ml-2 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">
+                      {pass.dailyEntries.length} {pass.dailyEntries.length === 1 ? 'cycle' : 'cycles'}
+                    </span>
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs md:text-sm">
+                      <thead>
+                        <tr className="bg-purple-50">
+                          <th className="px-3 py-2 text-left font-semibold text-purple-700">#</th>
+                          <th className="px-3 py-2 text-left font-semibold text-purple-700">{t('verifyPass.multiDay.date')}</th>
+                          <th className="px-3 py-2 text-left font-semibold text-purple-700">{t('verifyPass.multiDay.entryTime')}</th>
+                          <th className="px-3 py-2 text-left font-semibold text-purple-700">{t('verifyPass.multiDay.exitTime')}</th>
+                          <th className="px-3 py-2 text-left font-semibold text-purple-700">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pass.dailyEntries.map((entry, idx) => (
+                          <tr key={entry.id} className={`border-b border-gray-100 hover:bg-gray-50 ${!entry.exitTime ? 'bg-green-50' : ''}`}>
+                            <td className="px-3 py-2 font-bold text-purple-700">{idx + 1}</td>
+                            <td className="px-3 py-2">{new Date(entry.entryDate).toLocaleDateString('en-IN', { timeZone: 'UTC' })}</td>
+                            <td className="px-3 py-2 text-green-700 font-medium">
+                              ↓ {entry.entryTime ? new Date(entry.entryTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}
+                            </td>
+                            <td className="px-3 py-2 text-blue-700 font-medium">
+                              {entry.exitTime ? `↑ ${new Date(entry.exitTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : <span className="text-green-600 animate-pulse">Inside</span>}
+                            </td>
+                            <td className="px-3 py-2">
+                              {entry.exitTime
+                                ? <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs">Exited</span>
+                                : <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Inside</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* Guard Action Section */}
               <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t">
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 md:p-4 mb-3 md:mb-4">
@@ -1309,7 +1569,7 @@ function VerifyPassPageContent() {
                     {isCancelledPass && pass.cancellationType === 'after_check_in' && t('verifyPass.guard.checkoutMsg')}
                     {isCancelledPass && pass.cancellationType === 'before_check_in' && 'Pass was cancelled before check-in. No action required.'}
                     {canAllowEntry && !isCancelledPass && t('verifyPass.guard.allowEntryMsg')}
-                    {canRecordExit && !isCancelledPass && t('verifyPass.guard.recordExitMsg')}
+                    {canRecordExit && !isCancelledPass && t('verifyPass.guard.exitOptionsMsg')}
                     {canDenyEntry && !isCancelledPass && t('verifyPass.guard.denyEntryMsg')}
                     {!canAllowEntry && !canRecordExit && !canDenyEntry && !isCancelledPass && t('verifyPass.guard.noActionsMsg')}
                   </p>
@@ -1346,21 +1606,33 @@ function VerifyPassPageContent() {
                     </button>
                   )}
 
-                  {pass.qrStatus === 'inactive' && !isCancelledPass && (
+                  {pass.qrStatus === 'inactive' && !isCancelledPass && pass.passStatus !== 'checked_out' && (
                     <div className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-yellow-50 border-2 border-yellow-400 text-yellow-800 rounded-lg text-center font-semibold text-sm md:text-base">
                       {t('verifyPass.actions.qrWillActivate')}
                     </div>
                   )}
                   
                   {canRecordExit && !isCancelledPass && (
-                    <button
-                      onClick={handleRecordExit}
-                      disabled={actionLoading}
-                      className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all hover:shadow-lg flex items-center justify-center gap-2 md:gap-3 font-bold text-base md:text-lg disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-95"
-                    >
-                      <CheckCircle className="w-5 h-5 md:w-6 md:h-6" />
-                      {actionLoading ? t('verifyPass.actions.processing') : t('verifyPass.actions.recordExit')}
-                    </button>
+                    <>
+                      {/* Normal Exit - temporary, can re-enter */}
+                      <button
+                        onClick={handleRecordExit}
+                        disabled={actionLoading}
+                        className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all hover:shadow-lg flex items-center justify-center gap-2 md:gap-3 font-bold text-base md:text-lg disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-95"
+                      >
+                        <LogOut className="w-5 h-5 md:w-6 md:h-6" />
+                        {actionLoading ? t('verifyPass.actions.processing') : t('verifyPass.actions.normalExit')}
+                      </button>
+                      {/* Cancel Pass & Final Checkout */}
+                      <button
+                        onClick={() => setShowCancelFirstModal(true)}
+                        disabled={actionLoading}
+                        className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all hover:shadow-lg flex items-center justify-center gap-2 md:gap-3 font-bold text-base md:text-lg disabled:bg-gray-400 disabled:cursor-not-allowed active:scale-95"
+                      >
+                        <XCircle className="w-5 h-5 md:w-6 md:h-6" />
+                        {actionLoading ? t('verifyPass.actions.processing') : t('verifyPass.actions.cancelAndCheckout')}
+                      </button>
+                    </>
                   )}
                   
                   {canDenyEntry && !isCancelledPass && (
@@ -1404,7 +1676,7 @@ function VerifyPassPageContent() {
                     setShowVerificationModal(false);
                     setVerificationMethod(null);
                     if (verifyScannerRef.current) {
-                      verifyScannerRef.current.clear().catch(() => {});
+                      verifyScannerRef.current.stop().catch(() => {});
                       verifyScannerRef.current = null;
                     }
                   }}
@@ -1483,7 +1755,7 @@ function VerifyPassPageContent() {
                       onClick={() => {
                         setVerificationMethod(null);
                         if (verifyScannerRef.current) {
-                          verifyScannerRef.current.clear().catch(() => {});
+                          verifyScannerRef.current.stop().catch(() => {});
                           verifyScannerRef.current = null;
                         }
                       }}
@@ -1594,7 +1866,7 @@ function VerifyPassPageContent() {
                     setShowCheckoutVerificationModal(false);
                     setCheckoutVerificationMethod(null);
                     if (checkoutVerifyScannerRef.current) {
-                      checkoutVerifyScannerRef.current.clear().catch(() => {});
+                      checkoutVerifyScannerRef.current.stop().catch(() => {});
                       checkoutVerifyScannerRef.current = null;
                     }
                   }}
@@ -1673,7 +1945,7 @@ function VerifyPassPageContent() {
                       onClick={() => {
                         setCheckoutVerificationMethod(null);
                         if (checkoutVerifyScannerRef.current) {
-                          checkoutVerifyScannerRef.current.clear().catch(() => {});
+                          checkoutVerifyScannerRef.current.stop().catch(() => {});
                           checkoutVerifyScannerRef.current = null;
                         }
                       }}
@@ -1771,6 +2043,185 @@ function VerifyPassPageContent() {
         </div>
       )}
 
+      {/* Normal Exit Verification Modal */}
+      {showExitVerificationModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  {t('verifyPass.exitModal.title')}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowExitVerificationModal(false);
+                    setExitVerificationMethod(null);
+                    try { if (exitVerifyScannerRef.current) { exitVerifyScannerRef.current.stop().catch(() => {}); exitVerifyScannerRef.current = null; } } catch {}
+                  }}
+                  className="text-white hover:bg-white hover:bg-opacity-20 rounded-full p-2 transition"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              <p className="text-blue-100 text-sm mt-1">{t('verifyPass.exitModal.subtitle')}</p>
+            </div>
+
+            <div className="p-6">
+              {!exitVerificationMethod && (
+                <>
+                  <div className="mb-6">
+                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
+                      <div className="flex items-start">
+                        <AlertCircle className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h3 className="font-semibold text-blue-900">{t('verifyPass.exitModal.verificationTitle')}</h3>
+                          <p className="text-sm text-blue-700 mt-1">
+                            {t('verifyPass.exitModal.verificationMsg')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                      onClick={() => handleExitVerificationMethodSelect('qr')}
+                      className="group relative bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-300 hover:border-blue-500 rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
+                    >
+                      <div className="text-center">
+                        <div className="bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                          <Camera className="w-8 h-8" />
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900 mb-2">{t('verifyPass.modal.scanQR')}</h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                          {t('verifyPass.exitModal.scanQRMsg')}
+                        </p>
+                        <div className="bg-blue-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
+                          {t('verifyPass.modal.openCamera')}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => handleExitVerificationMethodSelect('code')}
+                      className="group relative bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 border-2 border-green-300 hover:border-green-500 rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
+                    >
+                      <div className="text-center">
+                        <div className="bg-green-600 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                          <span className="text-2xl font-bold">123</span>
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900 mb-2">{t('verifyPass.modal.enterCode')}</h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                          {t('verifyPass.exitModal.enterCodeMsg')}
+                        </p>
+                        <div className="bg-green-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
+                          {t('verifyPass.modal.enterCode')}
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {exitVerificationMethod === 'qr' && (
+                <div>
+                  <div className="mb-4">
+                    <button
+                      onClick={() => {
+                        setExitVerificationMethod(null);
+                        try { if (exitVerifyScannerRef.current) { exitVerifyScannerRef.current.stop().catch(() => {}); exitVerifyScannerRef.current = null; } } catch {}
+                      }}
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                    >
+                      {t('verifyPass.modal.backToOptions')}
+                    </button>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                      <Camera className="w-5 h-5" />
+                      {t('verifyPass.exitModal.scanVisitorQR')}
+                    </h3>
+                    <p className="text-sm text-blue-700">
+                      {t('verifyPass.exitModal.positionQR')}
+                    </p>
+                  </div>
+
+                  <div id="exit-verify-qr-reader" ref={exitVerifyQrReaderRef} className="mb-4"></div>
+
+                  {actionLoading && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <Loader2 className="w-5 h-5 animate-spin text-green-600" />
+                        <p className="text-green-800 font-medium">{t('verifyPass.exitModal.verifyingExit')}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {exitVerificationMethod === 'code' && (
+                <div>
+                  <div className="mb-4">
+                    <button
+                      onClick={() => setExitVerificationMethod(null)}
+                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                    >
+                      {t('verifyPass.modal.backToOptions')}
+                    </button>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                    <h3 className="font-semibold text-green-900 mb-2">
+                      {t('verifyPass.modal.enter6Digit')}
+                    </h3>
+                    <p className="text-sm text-green-700">
+                      {t('verifyPass.exitModal.ask6Digit')}
+                    </p>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      {t('verifyPass.modal.verificationCode')}
+                    </label>
+                    <input
+                      type="text"
+                      value={exitVerificationCodeInput}
+                      onChange={(e) => setExitVerificationCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder={t('verifyPass.modal.enter6DigitPlaceholder')}
+                      maxLength={6}
+                      className="w-full px-4 py-3 text-2xl font-bold text-center border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 tracking-widest"
+                      autoFocus
+                    />
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      {t('verifyPass.modal.codeHelp')}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleExitCodeVerification}
+                    disabled={actionLoading || exitVerificationCodeInput.length !== 6}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg transition-all hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {actionLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        {t('verifyPass.modal.verifying')}
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="w-5 h-5" />
+                        {t('verifyPass.exitModal.verifyAndExit')}
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cancel First Modal */}
       {showCancelFirstModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -1803,7 +2254,6 @@ function VerifyPassPageContent() {
                       {t('verifyPass.cancelModal.currentlyCheckedIn')}
                     </p>
                     <ol className="text-sm text-orange-700 mt-2 ml-4 list-decimal space-y-1">
-                      <li>{t('verifyPass.cancelModal.step1')}</li>
                       <li>{t('verifyPass.cancelModal.step2')}</li>
                       <li>{t('verifyPass.cancelModal.step3')}</li>
                       <li>{t('verifyPass.cancelModal.step4')}</li>

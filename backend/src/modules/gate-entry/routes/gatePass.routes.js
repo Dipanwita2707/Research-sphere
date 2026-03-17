@@ -64,9 +64,8 @@ router.get('/check-duplicate', async (req, res) => {
       });
     }
     
-    // Import service
-    const GatePassService = require('../services/gatePass.service');
-    const gatePassService = new GatePassService();
+    // Import service (exports an instance, not a class)
+    const gatePassService = require('../services/gatePass.service');
     
     // Check for duplicates
     const result = await gatePassService.checkDuplicatePass(
@@ -164,6 +163,20 @@ router.post('/record-exit/:passId', canVerifyPass, gatePassController.recordExit
 router.post('/cancel/:passId', canCancelPass, gatePassController.cancelPass);
 
 /**
+ * @route POST /api/v1/gate-entry/extend-pass/:passId/check
+ * @desc Check extension options for guest house booking (same room/alternate room)
+ * @access Private (Creator or Admin only)
+ */
+router.post('/extend-pass/:passId/check', canExtendPass, gatePassController.checkExtendPassOptions);
+
+/**
+ * @route POST /api/v1/gate-entry/extend-pass/:passId/confirm
+ * @desc Confirm pass extension with room decision
+ * @access Private (Creator or Admin only)
+ */
+router.post('/extend-pass/:passId/confirm', canExtendPass, gatePassController.confirmExtendPass);
+
+/**
  * @route POST /api/v1/gate-entry/extend-pass/:passId
  * @desc Extend pass (modify entry time and date)
  * @access Private (Creator or Admin only - Guard cannot extend)
@@ -213,11 +226,60 @@ router.post('/bookings/:bookingId/confirm-payment', checkGateEntryAccess(), gate
 router.get('/bookings/:passId', checkGateEntryAccess(), gatePassController.getBookingByPass);
 
 /**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/room-cancel-request
+ * @desc Request room cancellation (student/creator)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/room-cancel-request', checkGateEntryAccess(), gatePassController.requestRoomCancellation);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/approve-room-cancel
+ * @desc Approve room cancellation request (admin only enforced in service)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/approve-room-cancel', checkGateEntryAccess(), gatePassController.approveRoomCancellation);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/reject-room-cancel
+ * @desc Reject room cancellation request (admin only enforced in service)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/reject-room-cancel', checkGateEntryAccess(), gatePassController.rejectRoomCancellation);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/early-checkin
+ * @desc Request early check-in (before 10 AM) for a guest house booking
+ * @access Private (Creator)
+ */
+router.post('/bookings/:bookingId/early-checkin', checkGateEntryAccess(), gatePassController.requestEarlyCheckin);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/approve-checkin
+ * @desc Approve early check-in request (admin/guard only)
+ * @access Private (Admin, Guards - Verify permission required)
+ */
+router.post('/bookings/:bookingId/approve-checkin', canVerifyPass, gatePassController.approveEarlyCheckin);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/reject-checkin
+ * @desc Reject early check-in request (admin/guard only)
+ * @access Private (Admin, Guards - Verify permission required)
+ */
+router.post('/bookings/:bookingId/reject-checkin', canVerifyPass, gatePassController.rejectEarlyCheckin);
+
+/**
  * @route GET /api/v1/gate-entry/check-in-history
  * @desc Get check-in history (for guards)
  * @access Private (Admin, Guards only - Verify permission required)
  */
 router.get('/check-in-history', canVerifyPass, gatePassController.getCheckInHistory);
+
+/**
+ * @route GET /api/v1/gate-entry/daily-entries/:passId
+ * @desc Get daily entry/exit records for a multi-day pass
+ * @access Private (Admin, Guards only - Verify permission required)
+ */
+router.get('/daily-entries/:passId', canVerifyPass, gatePassController.getDailyEntries);
 
 /**
  * @route GET /api/v1/gate-entry/export-excel

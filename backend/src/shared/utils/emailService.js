@@ -374,10 +374,11 @@ async function sendExitRecorded(pass) {
  *    - without hostel booking → simple extension for outside visitor
  */
 async function sendPassExtended(pass, newEndDate, reason) {
-  const hasHostel      = !!(pass.hostel_booking || pass.hostel_name);
-  const hostelName     = pass.hostel_booking?.hostelName || pass.hostel_booking?.room?.hostel?.name || pass.hostel_name || 'Guest House';
-  const roomNumber     = pass.hostel_booking?.roomNumber || pass.hostel_booking?.room?.room_number  || pass.room_number || '—';
-  const newCheckout    = pass.hostel_booking?.check_out_date || pass.hostel_booking?.checkOutDate || newEndDate;
+  const latestBooking  = pass.hostel_booking || (Array.isArray(pass.hostel_bookings) ? pass.hostel_bookings[0] : null);
+  const hasHostel      = !!(latestBooking || pass.hostel_name);
+  const hostelName     = latestBooking?.hostelName || latestBooking?.room?.hostel?.name || pass.hostel_name || 'Guest House';
+  const roomNumber     = latestBooking?.roomNumber || latestBooking?.room?.room_number  || pass.room_number || '—';
+  const newCheckout    = latestBooking?.check_out_datetime || latestBooking?.checkOutDate || newEndDate;
   const extensionCount = pass.extension_count || 1;
 
   let extraSection = '';
@@ -437,11 +438,11 @@ async function sendHostelBookingCreated(booking) {
   const hostelName  = room?.hostel?.name || 'Guest House';
   const roomNumber  = room?.room_number  || '—';
   const roomType    = room?.room_type    || room?.type || '';
-  const nights      = Math.ceil(
-    (new Date(booking.check_out_date) - new Date(booking.check_in_date)) / (1000 * 60 * 60 * 24)
+  const nights      = booking.billable_days || Math.ceil(
+    (new Date(booking.check_out_datetime) - new Date(booking.check_in_datetime)) / (1000 * 60 * 60 * 24)
   );
-  const pricePerNight = room?.price_per_night
-    ? `₹${Number(room.price_per_night).toLocaleString('en-IN')}`
+  const pricePerNight = booking.price_per_day || room?.price_per_night
+    ? `₹${Number(booking.price_per_day || room?.price_per_night).toLocaleString('en-IN')}`
     : '—';
   const totalPrice    = booking.total_price
     ? `₹${Number(booking.total_price).toLocaleString('en-IN')}`
@@ -461,21 +462,21 @@ async function sendHostelBookingCreated(booking) {
       ['Hostel / Block', hostelName],
       ['Room Number',    roomNumber],
       ['Room Type',      roomType || '—'],
-      ['Check-In',       formatDateOnly(booking.check_in_date)],
-      ['Check-Out',      formatDateOnly(booking.check_out_date)],
-      ['Duration',       `${nights} night${nights !== 1 ? 's' : ''}`],
+      ['Check-In',       formatDateOnly(booking.check_in_datetime)],
+      ['Check-Out',      formatDateOnly(booking.check_out_datetime)],
+      ['Duration',       `${nights} day${nights !== 1 ? 's' : ''}`],
     ])}
 
     <!-- Payment Details -->
     <p style="margin:16px 0 6px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px">💳 Payment Details</p>
     ${infoTable([
-      ['Price / Night',  pricePerNight],
+      ['Price / Day',    pricePerNight],
       ['Total Amount',   `<span style="font-size:16px;font-weight:900;color:#1e40af">${totalPrice}</span>`],
       ['Status',         badge('PAYMENT PENDING', '#d97706')],
       ['Reference',      paymentRef],
     ])}
 
-    ${alertBox('⚠️', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved but <strong>not confirmed yet</strong>. Please complete the payment of <strong>${totalPrice}</strong> using reference <strong>${paymentRef}</strong> to secure your stay from <strong>${formatDateOnly(booking.check_in_date)}</strong> to <strong>${formatDateOnly(booking.check_out_date)}</strong>.`, '#fffbeb', BRAND.warning)}
+    ${alertBox('⚠️', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved but <strong>not confirmed yet</strong>. Please complete the payment of <strong>${totalPrice}</strong> using reference <strong>${paymentRef}</strong> to secure your stay from <strong>${formatDateOnly(booking.check_in_datetime)}</strong> to <strong>${formatDateOnly(booking.check_out_datetime)}</strong>.`, '#fffbeb', BRAND.warning)}
   `, BRAND.warning);
 
   await send({
@@ -495,10 +496,10 @@ async function sendHostelBookingConfirmed(booking) {
   const hostelName  = room?.hostel?.name || 'Guest House';
   const roomNumber  = room?.room_number  || '—';
   const roomType    = room?.room_type    || room?.type || '';
-  const nights      = Math.ceil(
-    (new Date(booking.check_out_date) - new Date(booking.check_in_date)) / (1000 * 60 * 60 * 24)
+  const nights      = booking.billable_days || Math.ceil(
+    (new Date(booking.check_out_datetime) - new Date(booking.check_in_datetime)) / (1000 * 60 * 60 * 24)
   );
-  const pricePerNight = room?.price_per_night
+  const pricePerNight = booking.price_per_day || room?.price_per_night
     ? `₹${Number(room.price_per_night).toLocaleString('en-IN')}`
     : '—';
   const totalPrice    = booking.total_price
@@ -518,9 +519,9 @@ async function sendHostelBookingConfirmed(booking) {
       ['Hostel / Block', hostelName],
       ['Room Number',  roomNumber],
       ['Room Type',    roomType || '—'],
-      ['Check-In',     formatDateOnly(booking.check_in_date)],
-      ['Check-Out',    formatDateOnly(booking.check_out_date)],
-      ['Duration',     `${nights} night${nights !== 1 ? 's' : ''}`],
+      ['Check-In',     formatDateOnly(booking.check_in_datetime)],
+      ['Check-Out',    formatDateOnly(booking.check_out_datetime)],
+      ['Duration',     `${nights} day${nights !== 1 ? 's' : ''}`],
     ])}
 
     <!-- Payment Details -->
@@ -532,12 +533,152 @@ async function sendHostelBookingConfirmed(booking) {
       ['Reference',     booking.payment_reference || '—'],
     ])}
 
-    ${alertBox('🏨', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved for you from <strong>${formatDateOnly(booking.check_in_date)}</strong> to <strong>${formatDateOnly(booking.check_out_date)}</strong>.`, '#eff6ff', BRAND.primary)}
+    ${alertBox('🏨', `Your room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> is reserved for you from <strong>${formatDateOnly(booking.check_in_datetime)}</strong> to <strong>${formatDateOnly(booking.check_out_datetime)}</strong>.`, '#eff6ff', BRAND.primary)}
   `, BRAND.primary);
 
   await send({
     to     : pass.email,
     subject: `[Gate Pass] ${pass.pass_id} – Guest House Booking Confirmed at ${hostelName}`,
+    html,
+  });
+}
+
+/**
+ * 10. Checkout Reminder — sent to parent at 4 PM (1 hour before 5 PM grace deadline)
+ */
+async function sendCheckoutReminder({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, checkOutDatetime }) {
+  const html = shell('Checkout Reminder ⏰', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      This is a reminder that the guest house checkout for <strong>${visitorName}</strong> is scheduled for <strong>5:00 PM today</strong>.
+      Checkout after 5:00 PM will result in an additional day's charge.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',     passId],
+      ['Guest House', hostelName],
+      ['Room',        roomNumber],
+      ['Checkout By', '5:00 PM today'],
+      ['Scheduled',   formatDate(checkOutDatetime)],
+    ])}
+
+    ${alertBox('⏰', `Please ensure <strong>${visitorName}</strong> checks out of room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong> before <strong>5:00 PM</strong> to avoid extra charges.`, '#fffbeb', BRAND.warning)}
+  `, BRAND.warning);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Guest House Checkout Reminder (5 PM Deadline)`,
+    html,
+  });
+}
+
+/**
+ * 11. Early Check-in Request Approved — sent to parent
+ */
+async function sendCheckinRequestApproved({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, requestedTime }) {
+  const html = shell('Early Check-in Approved ✅', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The early check-in request for <strong>${visitorName}</strong> has been <strong>approved</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',        passId],
+      ['Guest House',    hostelName],
+      ['Room',           roomNumber],
+      ['Approved Time',  formatDate(requestedTime)],
+    ])}
+
+    ${alertBox('✅', `<strong>${visitorName}</strong> can check in at <strong>${formatDate(requestedTime)}</strong> to room <strong>${roomNumber}</strong> at <strong>${hostelName}</strong>.`, '#f0fdf4', BRAND.success)}
+  `, BRAND.success);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Early Check-in Request Approved`,
+    html,
+  });
+}
+
+/**
+ * 12. Early Check-in Request Rejected — sent to parent
+ */
+async function sendCheckinRequestRejected({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, requestedTime, reason }) {
+  const html = shell('Early Check-in Request Declined', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The early check-in request for <strong>${visitorName}</strong> has been <strong>declined</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',          passId],
+      ['Guest House',      hostelName],
+      ['Room',             roomNumber],
+      ['Requested Time',   formatDate(requestedTime)],
+      ['Reason',           reason || '—'],
+    ])}
+
+    ${alertBox('❌', `The early check-in request was declined. Standard check-in time is <strong>10:00 AM</strong>. Reason: <strong>${reason || 'Not specified'}</strong>.`, '#fef2f2', BRAND.danger)}
+  `, BRAND.danger);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Early Check-in Request Declined`,
+    html,
+  });
+}
+
+/**
+ * 13. Room Cancellation Request Approved — sent to parent
+ */
+async function sendRoomCancellationApproved({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, refundAmount, refundPercent, appliedSlab }) {
+  const html = shell('Room Cancellation Approved ✅', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The room cancellation request for <strong>${visitorName}</strong> has been <strong>approved</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',        passId],
+      ['Guest House',    hostelName],
+      ['Room',           roomNumber],
+      ['Refund Slab',    appliedSlab || '—'],
+      ['Refund %',       `${refundPercent ?? 0}%`],
+      ['Refund Amount',  `INR ${Number(refundAmount || 0).toFixed(2)}`],
+    ])}
+
+    ${alertBox('✅', `Room cancellation approved. Refund amount: <strong>INR ${Number(refundAmount || 0).toFixed(2)}</strong>. Pass cancellation is now allowed.`, '#f0fdf4', BRAND.success)}
+  `, BRAND.success);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Room Cancellation Approved`,
+    html,
+  });
+}
+
+/**
+ * 14. Room Cancellation Request Rejected — sent to parent
+ */
+async function sendRoomCancellationRejected({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, reason }) {
+  const html = shell('Room Cancellation Request Declined', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The room cancellation request for <strong>${visitorName}</strong> has been <strong>declined</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',      passId],
+      ['Guest House',  hostelName],
+      ['Room',         roomNumber],
+      ['Reason',       reason || 'Not specified'],
+    ])}
+
+    ${alertBox('❌', `Room cancellation request was declined. Reason: <strong>${reason || 'Not specified'}</strong>.`, '#fef2f2', BRAND.danger)}
+  `, BRAND.danger);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Room Cancellation Request Declined`,
     html,
   });
 }
@@ -553,4 +694,9 @@ module.exports = {
   sendPassExtended,
   sendHostelBookingCreated,
   sendHostelBookingConfirmed,
+  sendCheckoutReminder,
+  sendCheckinRequestApproved,
+  sendCheckinRequestRejected,
+  sendRoomCancellationApproved,
+  sendRoomCancellationRejected,
 };

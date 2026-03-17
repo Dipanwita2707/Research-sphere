@@ -61,6 +61,45 @@ interface AnalyticsData {
     completed: number;
   };
   topHostels?: Array<{ name: string; bookings: number; revenue: number }>;
+  guestHouseStats?: {
+    totalBookings: number;
+    totalRevenue: number;
+    avgRevenue: number;
+    pending: number;
+    confirmed: number;
+    cancelled: number;
+    completed: number;
+  };
+  topGuestHouses?: Array<{ name: string; bookings: number; revenue: number }>;
+  recentBookings?: Array<{
+    id: string;
+    guestHouse: string;
+    roomNumber: string;
+    checkIn: string;
+    checkOut: string;
+    visitorName: string;
+    visitorPhone: string;
+    passId: string;
+    totalPrice: number;
+    bookingStatus: string;
+    paymentStatus: string;
+    guestCount: number;
+    createdAt: string;
+    refund: {
+      refundAmount: number;
+      refundStatus: string;
+      cancellationFee: number;
+      cancellationFeePercent: number;
+      originalAmount: number;
+      remarks: string | null;
+    } | null;
+  }>;
+  refundStats?: {
+    totalRefunds: number;
+    totalRefundAmount: number;
+    totalOriginalAmount: number;
+    totalCancellationFees: number;
+  };
   extensionStats: {
     totalExtensions: number;
     avgExtensionCount: number;
@@ -88,6 +127,20 @@ interface AnalyticsData {
     creatorName: string;
     department: string;
     passesCreated: number;
+  }>;
+  checkedInVisitors?: Array<{
+    passId: string;
+    visitorName: string;
+    phone: string;
+    purpose: string;
+    entryTime: string;
+    entryGate: string;
+    persons: number;
+    hasVehicle: boolean;
+    vehicleType: string | null;
+    vehicleNumber: string | null;
+    personToMeet: string;
+    department: string;
   }>;
   filters: {
     dateFrom: string | null;
@@ -648,12 +701,223 @@ function GateEntryAnalyticsPageContent() {
           </div>
         </div>
 
-        {/* Hostel & Revenue Section - Disabled for performance optimization */}
-        {/* {analyticsData.hostelStats && analyticsData.hostelStats.totalBookings > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            ... Hostel stats content ...
-          </div>
-        )} */}
+        {/* Guest House Booking Analytics */}
+        {analyticsData.guestHouseStats && analyticsData.guestHouseStats.totalBookings > 0 && (
+          <>
+            {/* Guest House Overview Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-indigo-500 to-purple-500">
+                    <Building2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-indigo-600">{analyticsData.guestHouseStats.totalBookings}</p>
+                    <p className="text-xs font-medium text-gray-600">{t('analytics.gh.totalBookings')}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-green-500 to-emerald-500">
+                    <DollarSign className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(analyticsData.guestHouseStats.totalRevenue)}</p>
+                    <p className="text-xs font-medium text-gray-600">{t('analytics.gh.totalRevenue')}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-blue-500 to-cyan-500">
+                    <DollarSign className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(analyticsData.guestHouseStats.avgRevenue)}</p>
+                    <p className="text-xs font-medium text-gray-600">{t('analytics.gh.avgRevenue')}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-red-500 to-pink-500">
+                    <XCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-red-600">{analyticsData.guestHouseStats.cancelled}</p>
+                    <p className="text-xs font-medium text-gray-600">{t('analytics.gh.cancelledBookings')}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Guest House Booking Status + Top Guest Houses */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Booking Status Breakdown */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-indigo-600" />
+                  {t('analytics.gh.bookingStatus')}
+                </h3>
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: t('analytics.gh.status.pending'), value: analyticsData.guestHouseStats.pending },
+                        { name: t('analytics.gh.status.confirmed'), value: analyticsData.guestHouseStats.confirmed },
+                        { name: t('analytics.gh.status.completed'), value: analyticsData.guestHouseStats.completed },
+                        { name: t('analytics.gh.status.cancelled'), value: analyticsData.guestHouseStats.cancelled },
+                      ].filter(d => d.value > 0)}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={(entry: any) => `${entry.name}: ${entry.value}`}
+                      outerRadius={90}
+                      dataKey="value"
+                    >
+                      <Cell fill="#F59E0B" />
+                      <Cell fill="#22C55E" />
+                      <Cell fill="#6B7280" />
+                      <Cell fill="#EF4444" />
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Top Guest Houses */}
+              {analyticsData.topGuestHouses && analyticsData.topGuestHouses.length > 0 && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-indigo-600" />
+                    {t('analytics.gh.topGuestHouses')}
+                  </h3>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={analyticsData.topGuestHouses}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={60} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px' }}
+                        formatter={(value: any, name: string) => [name === 'revenue' ? formatCurrency(value) : value, name === 'revenue' ? t('analytics.gh.revenue') : t('analytics.gh.bookingsCount')]}
+                      />
+                      <Legend />
+                      <Bar dataKey="bookings" fill="#6366F1" name={t('analytics.gh.bookingsCount')} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            {/* Refund Summary */}
+            {analyticsData.refundStats && analyticsData.refundStats.totalRefunds > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-red-600" />
+                  {t('analytics.gh.refundSummary')}
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{t('analytics.gh.totalRefunds')}</p>
+                    <p className="text-2xl font-bold text-gray-900">{analyticsData.refundStats.totalRefunds}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{t('analytics.gh.refundedAmount')}</p>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(analyticsData.refundStats.totalRefundAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{t('analytics.gh.originalAmount')}</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(analyticsData.refundStats.totalOriginalAmount)}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">{t('analytics.gh.cancellationFees')}</p>
+                    <p className="text-2xl font-bold text-orange-600">{formatCurrency(analyticsData.refundStats.totalCancellationFees)}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Bookings Table */}
+            {analyticsData.recentBookings && analyticsData.recentBookings.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                  {t('analytics.gh.recentBookings')}
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.visitor')}</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.guestHouse')}</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.room')}</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.dates')}</th>
+                        <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.price')}</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.status')}</th>
+                        <th className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.payment')}</th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.gh.table.refund')}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {analyticsData.recentBookings.map((booking, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-3 py-3 text-sm">
+                            <div className="font-medium text-gray-900">{booking.visitorName}</div>
+                            <div className="text-xs text-gray-500">{booking.passId}</div>
+                          </td>
+                          <td className="px-3 py-3 text-sm text-gray-900">{booking.guestHouse}</td>
+                          <td className="px-3 py-3 text-sm text-gray-700">{booking.roomNumber}</td>
+                          <td className="px-3 py-3 text-sm text-gray-700">
+                            {booking.checkIn ? formatDate(booking.checkIn) : '-'} → {booking.checkOut ? formatDate(booking.checkOut) : '-'}
+                          </td>
+                          <td className="px-3 py-3 text-sm font-semibold text-gray-900 text-right">{formatCurrency(booking.totalPrice)}</td>
+                          <td className="px-3 py-3 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              booking.bookingStatus === 'confirmed' ? 'bg-green-100 text-green-800' :
+                              booking.bookingStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
+                              booking.bookingStatus === 'completed' ? 'bg-gray-100 text-gray-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {booking.bookingStatus}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              booking.paymentStatus === 'verified' ? 'bg-green-100 text-green-800' :
+                              booking.paymentStatus === 'failed' ? 'bg-red-100 text-red-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {booking.paymentStatus}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-sm">
+                            {booking.refund ? (
+                              <div>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  booking.refund.refundStatus === 'completed' || booking.refund.refundStatus === 'processed' ? 'bg-green-100 text-green-800' :
+                                  booking.refund.refundStatus === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {formatCurrency(booking.refund.refundAmount)}
+                                </span>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Fee: {booking.refund.cancellationFeePercent}% ({formatCurrency(booking.refund.cancellationFee)})
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Extension Stats */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
@@ -742,48 +1006,67 @@ function GateEntryAnalyticsPageContent() {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        {/* Currently Checked-In Visitors (Inside Campus) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-green-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
-            {t('analytics.chart.recentActivity')}
+            <Eye className="w-5 h-5 text-green-600" />
+            {t('analytics.checkedIn.title')}
+            {analyticsData.checkedInVisitors && (
+              <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800">
+                {analyticsData.checkedInVisitors.length} {t('analytics.checkedIn.inside')}
+              </span>
+            )}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-green-50 border-b border-green-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.table.passId')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.table.visitor')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.table.action')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.table.performedBy')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.table.timestamp')}</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.checkedIn.visitor')}</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.checkedIn.purpose')}</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.checkedIn.entryTime')}</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.checkedIn.gate')}</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.checkedIn.meetingWith')}</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('analytics.checkedIn.vehicle')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {analyticsData.recentActivity.map((activity, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-mono text-blue-600">{activity.passId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{activity.visitorName}</td>
-                    <td className="px-4 py-3 text-sm">
+                {analyticsData.checkedInVisitors && analyticsData.checkedInVisitors.map((visitor, index) => (
+                  <tr key={index} className="hover:bg-green-50">
+                    <td className="px-3 py-3 text-sm">
+                      <div className="font-medium text-gray-900">{visitor.visitorName}</div>
+                      <div className="text-xs text-gray-500">{visitor.phone} · {visitor.passId}</div>
+                    </td>
+                    <td className="px-3 py-3 text-sm">
                       <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {formatAction(activity.action)}
+                        {formatAction(visitor.purpose)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{activity.performedBy}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {new Date(activity.timestamp).toLocaleString('en-IN', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
+                    <td className="px-3 py-3 text-sm text-gray-700">
+                      {visitor.entryTime ? new Date(visitor.entryTime).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                      }) : '-'}
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-700">{visitor.entryGate}</td>
+                    <td className="px-3 py-3 text-sm text-gray-700">
+                      <div>{visitor.personToMeet}</div>
+                      <div className="text-xs text-gray-500">{visitor.department}</div>
+                    </td>
+                    <td className="px-3 py-3 text-sm text-gray-700">
+                      {visitor.hasVehicle ? (
+                        <div>
+                          <span className="text-xs">{visitor.vehicleType?.replace('_', ' ')}</span>
+                          {visitor.vehicleNumber && <div className="text-xs font-mono text-gray-500">{visitor.vehicleNumber}</div>}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                   </tr>
                 ))}
-                {analyticsData.recentActivity.length === 0 && (
+                {(!analyticsData.checkedInVisitors || analyticsData.checkedInVisitors.length === 0) && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                      {t('analytics.empty.noRecentActivity')}
+                    <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                      {t('analytics.checkedIn.noVisitors')}
                     </td>
                   </tr>
                 )}

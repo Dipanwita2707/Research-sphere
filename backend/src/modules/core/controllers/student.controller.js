@@ -34,8 +34,8 @@ async function validateMentorForDepartment(mentorId, studentDepartmentId) {
 const createStudent = async (req, res) => {
   try {
     const {
-      studentId,
-      registrationNo,
+      studentId: rawStudentId,
+      registrationNo: rawRegistrationNo,
       firstName,
       middleName,
       lastName,
@@ -55,11 +55,15 @@ const createStudent = async (req, res) => {
       address,
     } = req.body;
 
+    // Ensure studentId and registrationNo are always the same
+    const studentId = rawStudentId || rawRegistrationNo;
+    const registrationNo = rawRegistrationNo || rawStudentId;
+
     // Validate required fields (sectionId and mentorId are optional)
-    if (!studentId || !firstName || !email || !programId || !registrationNo) {
+    if (!studentId || !firstName || !email || !programId) {
       return res.status(400).json({
         success: false,
-        message: 'Required fields: studentId, firstName, email, programId, registrationNo',
+        message: 'Required fields: studentId (or registrationNo), firstName, email, programId',
       });
     }
 
@@ -151,7 +155,7 @@ const createStudent = async (req, res) => {
       // Create StudentDetails (mentorId and section are now optional)
       const student = await tx.studentDetails.create({
         data: {
-          userLoginId: user.id,
+          userLogin: { connect: { id: user.id } },
           studentId,
           registrationNo,
           firstName,
@@ -160,8 +164,8 @@ const createStudent = async (req, res) => {
           displayName,
           email,
           phone: phone || null,
-          programId,
-          mentorId: mentorId || null,
+          ...(programId && { program: { connect: { id: programId } } }),
+          ...(mentorId && { mentor: { connect: { id: mentorId } } }),
           ...(sectionId && { section: { connect: { id: sectionId } } }),
           currentSemester: currentSemester ? parseInt(currentSemester) : 1,
           admissionDate: admissionDate ? new Date(admissionDate) : null,

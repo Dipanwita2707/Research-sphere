@@ -340,6 +340,8 @@ class GatePassController {
         successMessage = 'Pass cancelled successfully. Emergency checkout QR code sent to visitor (valid for 1 hour).';
       } else if (pass.cancellation_type === 'before_check_in') {
         successMessage = 'Pass cancelled successfully. Visitor has been notified via WhatsApp and email.';
+      } else if (pass.cancellation_type === 'from_checked_out') {
+        successMessage = 'Pass cancelled successfully. Visitor was already outside campus.';
       }
 
       return res.status(200).json(
@@ -362,7 +364,13 @@ class GatePassController {
       } else if (error.message.includes('permission')) {
         userMessage = error.message;
         statusCode = 403;
+      } else if (error.message.includes('cancel the room') || error.message.includes('room cancellation')) {
+        userMessage = error.message;
+        statusCode = 400;
       } else if (error.message.includes('only be cancelled after check-in')) {
+        userMessage = error.message;
+        statusCode = 400;
+      } else if (error.message) {
         userMessage = error.message;
         statusCode = 400;
       }
@@ -399,6 +407,25 @@ class GatePassController {
   }
 
   /**
+   * Get daily entry/exit records for a multi-day pass
+   * GET /api/v1/gate-entry/daily-entries/:passId
+   */
+  async getDailyEntries(req, res) {
+    try {
+      const { passId } = req.params;
+      const data = await gatePassService.getDailyEntries(passId);
+      return res.status(200).json(
+        formatResponse(true, 'Daily entries fetched successfully', data)
+      );
+    } catch (error) {
+      logger.error('Get daily entries error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to fetch daily entries', null, error.message)
+      );
+    }
+  }
+
+  /**
    * Export check-in history to Excel
    * GET /api/v1/gate-entry/export-excel
    */
@@ -421,6 +448,75 @@ class GatePassController {
       logger.error('Export to Excel error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to export to Excel', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Check extend pass options for guest house bookings
+   * POST /api/v1/gate-entry/extend-pass/:passId/check
+   */
+  async checkExtendPassOptions(req, res) {
+    try {
+      const { passId } = req.params;
+      const { newEndDate } = req.body;
+
+      if (!newEndDate) {
+        return res.status(400).json(
+          formatResponse(false, 'New end date is required')
+        );
+      }
+
+      const options = await gatePassService.getExtendPassOptions(passId, newEndDate);
+
+      return res.status(200).json(
+        formatResponse(true, 'Extension options fetched successfully', { options })
+      );
+    } catch (error) {
+      logger.error('Check extend pass options error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to check extension options')
+      );
+    }
+  }
+
+  /**
+   * Confirm extend pass after room decision
+   * POST /api/v1/gate-entry/extend-pass/:passId/confirm
+   */
+  async confirmExtendPass(req, res) {
+    try {
+      const { passId } = req.params;
+      const { newEndDate, extensionReason, useSameRoom, selectedRoomId } = req.body;
+
+      if (!newEndDate || !extensionReason) {
+        return res.status(400).json(
+          formatResponse(false, 'New end date and extension reason are required')
+        );
+      }
+
+      const result = await gatePassService.confirmExtendPass(
+        passId,
+        newEndDate,
+        extensionReason,
+        { useSameRoom, selectedRoomId }
+      );
+
+      // Send email notification (fire-and-forget)
+      emailService.sendPassExtended(result.pass, newEndDate, extensionReason).catch(e => console.error('[EMAIL] confirmExtendPass failed:', e.message));
+
+      const transformedPass = gatePassService.transformPassToFrontend(result.pass);
+
+      return res.status(200).json(
+        formatResponse(true, 'Pass extension confirmed successfully', {
+          pass: transformedPass,
+          extension: result.extension
+        })
+      );
+    } catch (error) {
+      logger.error('Confirm extend pass error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to confirm pass extension')
       );
     }
   }
@@ -528,7 +624,8 @@ class GatePassController {
 
       const hostels = await hostelBookingService.getAvailableHostels(
         new Date(checkIn),
-        new Date(checkOut)
+        new Date(checkOut),
+        req.user?.id || null
       );
 
       return res.status(200).json(
@@ -587,13 +684,17 @@ class GatePassController {
         passId: req.body.passId,
         hostelId: req.body.hostelId,
         roomId: req.body.roomId,
-        checkInDate: new Date(req.body.checkInDate),
-        checkOutDate: new Date(req.body.checkOutDate),
+        checkInDatetime: req.body.checkInDatetime,
+        checkOutDatetime: req.body.checkOutDatetime,
+        checkInRemarks: req.body.checkInRemarks || null,
         guestCount: req.body.guestCount,
         createdById: userId
       };
 
       const booking = await hostelBookingService.createBooking(bookingData);
+
+      // Note: Email will be sent only after payment confirmation (confirmPayment endpoint)
+      // No email sent here as booking is still pending payment
 
       return res.status(201).json(
         formatResponse(true, 'Hostel booking created successfully. Please complete payment.', { booking })
@@ -696,6 +797,183 @@ class GatePassController {
       logger.error('Get booking error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to fetch booking', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Request room cancellation for a booking (student/creator)
+   * POST /api/v1/gate-entry/bookings/:bookingId/room-cancel-request
+   */
+  async requestRoomCancellation(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { reason } = req.body;
+
+      const booking = await hostelBookingService.requestRoomCancellation(
+        bookingId,
+        req.user.id,
+        reason || ''
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Room cancellation request submitted successfully', { booking })
+      );
+    } catch (error) {
+      logger.error('Room cancellation request error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to submit room cancellation request')
+      );
+    }
+  }
+
+  /**
+   * Approve room cancellation request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/approve-room-cancel
+   */
+  async approveRoomCancellation(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+
+      const booking = await hostelBookingService.approveRoomCancellationRequest(
+        bookingId,
+        req.user.id
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Room cancellation request approved', { booking })
+      );
+    } catch (error) {
+      logger.error('Approve room cancellation error:', error);
+      const message = error.code?.startsWith?.('P')
+        ? 'Failed to approve room cancellation request. Please try again.'
+        : (error.message || 'Failed to approve room cancellation request');
+      return res.status(400).json(
+        formatResponse(false, message)
+      );
+    }
+  }
+
+  /**
+   * Reject room cancellation request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/reject-room-cancel
+   */
+  async rejectRoomCancellation(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason || !reason.trim()) {
+        return res.status(400).json(
+          formatResponse(false, 'Rejection reason is required')
+        );
+      }
+
+      const booking = await hostelBookingService.rejectRoomCancellationRequest(
+        bookingId,
+        req.user.id,
+        reason.trim()
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Room cancellation request rejected', { booking })
+      );
+    } catch (error) {
+      logger.error('Reject room cancellation error:', error);
+      const message = error.code?.startsWith?.('P')
+        ? 'Failed to reject room cancellation request. Please try again.'
+        : (error.message || 'Failed to reject room cancellation request');
+      return res.status(400).json(
+        formatResponse(false, message)
+      );
+    }
+  }
+
+  /**
+   * Request early check-in for a guest house booking (before 10 AM)
+   * POST /api/v1/gate-entry/bookings/:bookingId/early-checkin
+   */
+  async requestEarlyCheckin(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { requestedTime } = req.body;
+
+      if (!requestedTime) {
+        return res.status(400).json(
+          formatResponse(false, 'Requested check-in time is required')
+        );
+      }
+
+      const booking = await hostelBookingService.createEarlyCheckinRequest(
+        bookingId, requestedTime, req.user.id
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Early check-in request submitted successfully', { booking })
+      );
+    } catch (error) {
+      logger.error('Early check-in request error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to submit early check-in request')
+      );
+    }
+  }
+
+  /**
+   * Approve early check-in request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/approve-checkin
+   */
+  async approveEarlyCheckin(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+
+      const booking = await hostelBookingService.approveCheckinRequest(
+        bookingId, req.user.id
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Early check-in request approved', { booking })
+      );
+    } catch (error) {
+      logger.error('Approve early check-in error:', error);
+      const message = error.code?.startsWith?.('P') 
+        ? 'Failed to approve early check-in request. Please try again.' 
+        : (error.message || 'Failed to approve early check-in request');
+      return res.status(400).json(
+        formatResponse(false, message)
+      );
+    }
+  }
+
+  /**
+   * Reject early check-in request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/reject-checkin
+   */
+  async rejectEarlyCheckin(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { reason } = req.body;
+
+      const booking = await hostelBookingService.rejectCheckinRequest(
+        bookingId, req.user.id, reason || ''
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Early check-in request rejected', { booking })
+      );
+    } catch (error) {
+      logger.error('Reject early check-in error:', error);
+      const message = error.code?.startsWith?.('P') 
+        ? 'Failed to reject early check-in request. Please try again.' 
+        : (error.message || 'Failed to reject early check-in request');
+      return res.status(400).json(
+        formatResponse(false, message)
       );
     }
   }

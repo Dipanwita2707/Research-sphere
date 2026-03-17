@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   Search, Filter, Download, RefreshCw, Eye, X, Send, 
   CheckCircle, XCircle, Clock, AlertCircle, Calendar, User, Phone, QrCode, Car, Loader2, FileText
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { gateEntryService, type GatePass } from '@/shared/services/gateEntry.service';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useToast } from '@/shared/ui-components/Toast';
@@ -51,20 +52,51 @@ interface Pass {
   verificationCode?: string;
   checkoutVerificationCode?: string;
   hostelBooking?: {
+    id?: string;
     totalPrice?: number;
     roomNumber?: string;
     hostelName?: string;
     bookingStatus?: string;
     paymentStatus?: string;
+    checkInDate?: string;
+    checkOutDate?: string;
+    requestedCheckinTime?: string;
+    checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    checkinRequestRejectReason?: string;
+    roomCancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    roomCancelRequestReason?: string;
+    roomCancelRequestRejectReason?: string;
+    roomCancelRequestedAt?: string;
+    roomCancelReviewedAt?: string;
   };
+  hostelBookings?: Array<{
+    id?: string;
+    totalPrice?: number;
+    roomNumber?: string;
+    hostelName?: string;
+    bookingStatus?: string;
+    paymentStatus?: string;
+    checkInDate?: string;
+    checkOutDate?: string;
+    requestedCheckinTime?: string;
+    checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    checkinRequestRejectReason?: string;
+    roomCancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    roomCancelRequestReason?: string;
+    roomCancelRequestRejectReason?: string;
+    roomCancelRequestedAt?: string;
+    roomCancelReviewedAt?: string;
+  }>;
   createdAt: string;
   createdBy?: {
+    id?: string;
     employeeDetails?: {
       displayName?: string;
     };
     username?: string;
   };
   creator?: {
+    id?: string;
     username: string;
   };
   // Old fields (for backward compatibility - optional)
@@ -94,6 +126,9 @@ function AllPassesPageContent() {
   const { user } = useAuthStore();
   const toast = useToast();
   const { t } = useLanguage(); // Get translation function
+  const searchParams = useSearchParams();
+  const reviewBookingId = searchParams.get('reviewBooking');
+  const reviewRoomCancellationId = searchParams.get('reviewRoomCancellation');
 
   // Helper: get translated status label
   const getStatusLabel = (status: string): string => {
@@ -143,6 +178,15 @@ function AllPassesPageContent() {
   const [cancellingPass, setCancellingPass] = useState(false);
   const [refundPreview, setRefundPreview] = useState<any>(null);
   const [loadingRefund, setLoadingRefund] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null);
+  const [showRoomCancelReasonModal, setShowRoomCancelReasonModal] = useState(false);
+  const [roomCancelReason, setRoomCancelReason] = useState('');
+  const [roomCancelAction, setRoomCancelAction] = useState<'request' | 'reject' | null>(null);
+  const [roomCancelBookingId, setRoomCancelBookingId] = useState<string | null>(null);
+  const [processingCheckin, setProcessingCheckin] = useState(false);
+  const [processingRoomCancel, setProcessingRoomCancel] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,      // Active Today
@@ -202,6 +246,138 @@ function AllPassesPageContent() {
     }
   }, [selectedPass]);
 
+  // Auto-open pass detail modal when navigating from notification with reviewBooking/reviewRoomCancellation param
+  useEffect(() => {
+    const bookingIdToReview = reviewBookingId || reviewRoomCancellationId;
+    if (bookingIdToReview && passes.length > 0 && !selectedPass) {
+      const matchingPass = passes.find(
+        (p) => getPassBookings(p).some((booking) => booking.id === bookingIdToReview)
+      );
+      if (matchingPass) {
+        setSelectedPass(matchingPass);
+      }
+    }
+  }, [reviewBookingId, reviewRoomCancellationId, passes]);
+
+  // Early check-in approve handler
+  const handleApproveCheckin = useCallback(async (bookingId: string) => {
+    setProcessingCheckin(true);
+    try {
+      await gateEntryService.approveEarlyCheckin(bookingId);
+      toast.success('Early check-in request approved successfully', 'Approved');
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to approve request', 'Error');
+    } finally {
+      setProcessingCheckin(false);
+    }
+  }, []);
+
+  // Early check-in reject handler
+  const handleRejectCheckin = useCallback(async () => {
+    if (!rejectingBookingId) return;
+    if (!rejectReason.trim()) {
+      toast.error('Please provide a reason for rejection', 'Reason Required');
+      return;
+    }
+    setProcessingCheckin(true);
+    try {
+      await gateEntryService.rejectEarlyCheckin(rejectingBookingId, rejectReason.trim());
+      toast.success('Early check-in request rejected', 'Rejected');
+      fetchPasses();
+      setSelectedPass(null);
+      setShowRejectModal(false);
+      setRejectReason('');
+      setRejectingBookingId(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reject request', 'Error');
+    } finally {
+      setProcessingCheckin(false);
+    }
+  }, [rejectingBookingId, rejectReason]);
+
+  const handleRequestRoomCancel = useCallback(async (bookingId: string, reason: string) => {
+    setProcessingRoomCancel(true);
+    try {
+      await gateEntryService.requestRoomCancellation(bookingId, reason);
+      toast.success('Room cancellation request sent to admin', 'Submitted');
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to request room cancellation', 'Error');
+    } finally {
+      setProcessingRoomCancel(false);
+    }
+  }, []);
+
+  const handleApproveRoomCancel = useCallback(async (bookingId: string) => {
+    setProcessingRoomCancel(true);
+    try {
+      await gateEntryService.approveRoomCancellationRequest(bookingId);
+      toast.success('Room cancellation approved', 'Approved');
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to approve room cancellation', 'Error');
+    } finally {
+      setProcessingRoomCancel(false);
+    }
+  }, []);
+
+  const handleRejectRoomCancel = useCallback(async (bookingId: string, reason: string) => {
+    if (!reason.trim()) {
+      toast.error('Rejection reason is required', 'Reason Required');
+      return;
+    }
+    setProcessingRoomCancel(true);
+    try {
+      await gateEntryService.rejectRoomCancellationRequest(bookingId, reason.trim());
+      toast.success('Room cancellation rejected', 'Rejected');
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to reject room cancellation', 'Error');
+    } finally {
+      setProcessingRoomCancel(false);
+    }
+  }, []);
+
+  const openRoomCancelReasonModal = useCallback((bookingId: string, action: 'request' | 'reject') => {
+    setRoomCancelBookingId(bookingId);
+    setRoomCancelAction(action);
+    setRoomCancelReason('');
+    setShowRoomCancelReasonModal(true);
+  }, []);
+
+  const closeRoomCancelReasonModal = useCallback(() => {
+    setShowRoomCancelReasonModal(false);
+    setRoomCancelReason('');
+    setRoomCancelAction(null);
+    setRoomCancelBookingId(null);
+  }, []);
+
+  const submitRoomCancelReason = useCallback(async () => {
+    if (!roomCancelBookingId || !roomCancelAction) {
+      closeRoomCancelReasonModal();
+      return;
+    }
+
+    const trimmedReason = roomCancelReason.trim();
+    if (roomCancelAction === 'reject' && !trimmedReason) {
+      toast.error('Rejection reason is required', 'Reason Required');
+      return;
+    }
+
+    if (roomCancelAction === 'request') {
+      await handleRequestRoomCancel(roomCancelBookingId, trimmedReason);
+    } else {
+      await handleRejectRoomCancel(roomCancelBookingId, trimmedReason);
+    }
+
+    closeRoomCancelReasonModal();
+  }, [roomCancelBookingId, roomCancelAction, roomCancelReason, closeRoomCancelReasonModal, handleRequestRoomCancel, handleRejectRoomCancel]);
+
   const fetchPasses = async () => {
     try {
       setLoading(true);
@@ -256,6 +432,18 @@ function AllPassesPageContent() {
     );
   };
 
+  const getPassBookings = (pass: Pass) => {
+    if (Array.isArray(pass.hostelBookings) && pass.hostelBookings.length > 0) {
+      return pass.hostelBookings;
+    }
+    return pass.hostelBooking ? [pass.hostelBooking] : [];
+  };
+
+  const hasAnyActiveRoomBooking = (pass: Pass) => {
+    const bookings = getPassBookings(pass);
+    return bookings.some((booking) => booking.bookingStatus !== 'cancelled');
+  };
+
   // Filter and search logic
   const filteredPasses = useMemo(() => {
     return passes.filter(pass => {
@@ -308,6 +496,12 @@ function AllPassesPageContent() {
   const handleCancelPass = async (passId: string) => {
     const pass = passes.find(p => p.passId === passId);
     if (pass) {
+      if (hasAnyActiveRoomBooking(pass)) {
+        setSelectedPass(pass);
+        toast.warning('Room cancellation is required first. Pass details opened below. Click "Request Room Cancellation".', 'Cancel Room First');
+        return;
+      }
+
       console.log('[CANCEL MODAL] Full pass object:', JSON.stringify(pass, null, 2));
       console.log('[CANCEL MODAL] Pass data:', {
         passId: pass.passId,
@@ -502,7 +696,12 @@ function AllPassesPageContent() {
       await fetchPasses();
     } catch (err: any) {
       console.error('Error cancelling pass:', err);
-      toast.error(err.response?.data?.message || t('allPasses.cancel.failedMsg'), t('common.error'));
+      const backendMessage = err.response?.data?.message || '';
+      const roomCancelBlocked = backendMessage.toLowerCase().includes('cancel the room');
+      toast.error(
+        roomCancelBlocked ? 'First cancel the room, then only you can cancel the pass.' : (backendMessage || t('allPasses.cancel.failedMsg')),
+        t('common.error')
+      );
     } finally {
       setCancellingPass(false);
     }
@@ -875,6 +1074,11 @@ function AllPassesPageContent() {
                                 🏠 {t('allPasses.multiDayStay')} {pass.hostelName}
                               </div>
                             )}
+                            {pass.hostelBooking?.bookingStatus !== 'cancelled' && (
+                              <div className="text-xs text-orange-700 mt-1 font-medium">
+                                Room cancellation required before pass cancellation
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
@@ -942,10 +1146,7 @@ function AllPassesPageContent() {
                              (pass.passStatus !== 'expired' && pass.status !== 'expired') &&
                              canCancelPass(user as any, pass as any) && (
                               <button
-                                onClick={() => {
-                                  setSelectedPass(pass);
-                                  setShowCancelModal(true);
-                                }}
+                                onClick={() => handleCancelPass(pass.passId)}
                                 className="text-red-600 hover:text-red-800"
                                 title={t('allPasses.action.cancelPass')}
                               >
@@ -1097,18 +1298,260 @@ function AllPassesPageContent() {
                   )}
 
                   {selectedPass.stayRequired && (
-                    <div>
+                    <div className="md:col-span-2">
                       <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.stayInfo')}</h5>
-                      <dl className="space-y-2 text-sm">
-                        <div><dt className="text-gray-600">{t('allPasses.detail.checkInDate')}</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkInDate || selectedPass.visitDate)}</dd></div>
-                        <div><dt className="text-gray-600">{t('allPasses.detail.checkOutDate')}</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkOutDate)}</dd></div>
-                        {selectedPass.hostelName && (
-                          <div><dt className="text-gray-600">{t('allPasses.detail.hostel')}</dt><dd className="font-medium">{selectedPass.hostelName}</dd></div>
+                      <div className="space-y-3">
+                        {getPassBookings(selectedPass).map((booking, index) => {
+                          const requestStatus = booking.roomCancelRequestStatus || null;
+                          const isPending = requestStatus === 'pending';
+                          const isApproved = requestStatus === 'approved';
+                          const isRejected = requestStatus === 'rejected';
+                          const canRequest = booking.id
+                            && booking.bookingStatus !== 'cancelled'
+                            && !isPending
+                            && !isApproved
+                            && ((selectedPass.creator?.id && selectedPass.creator.id === (user as any)?.id)
+                              || ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()));
+
+                          return (
+                            <div key={booking.id || index} className="border rounded-lg p-4 bg-gray-50">
+                              <div className="flex items-center justify-between mb-3">
+                                <h6 className="font-semibold text-gray-900">Room Booking {index + 1}</h6>
+                                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                                  booking.bookingStatus === 'cancelled' ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {booking.bookingStatus || 'unknown'}
+                                </span>
+                              </div>
+
+                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                <div><dt className="text-gray-600">Hostel</dt><dd className="font-medium">{booking.hostelName || 'N/A'}</dd></div>
+                                <div><dt className="text-gray-600">Room</dt><dd className="font-medium">{booking.roomNumber || 'N/A'}</dd></div>
+                                <div><dt className="text-gray-600">Check-in</dt><dd className="font-medium">{safeFormatDate(booking.checkInDate || selectedPass.visitDate)}</dd></div>
+                                <div><dt className="text-gray-600">Check-out</dt><dd className="font-medium">{safeFormatDate(booking.checkOutDate)}</dd></div>
+                              </dl>
+
+                              {requestStatus && (
+                                <div className={`mt-3 rounded-md border px-3 py-2 text-sm ${
+                                  isPending ? 'border-amber-300 bg-amber-50 text-amber-800'
+                                    : isApproved ? 'border-green-300 bg-green-50 text-green-800'
+                                      : 'border-red-300 bg-red-50 text-red-800'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold uppercase tracking-wide text-xs">Room Cancellation: {requestStatus}</span>
+                                  </div>
+                                  {booking.roomCancelRequestReason && (
+                                    <p className="mt-1">Request Reason: <span className="font-medium">{booking.roomCancelRequestReason}</span></p>
+                                  )}
+                                  {isRejected && booking.roomCancelRequestRejectReason && (
+                                    <p className="mt-1">Rejection Reason: <span className="font-medium">{booking.roomCancelRequestRejectReason}</span></p>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="mt-3 flex gap-2">
+                                {canRequest && (
+                                  <button
+                                    onClick={() => openRoomCancelReasonModal(booking.id!, 'request')}
+                                    disabled={processingRoomCancel}
+                                    className="px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                                  >
+                                    {processingRoomCancel ? 'Submitting...' : 'Request Room Cancellation'}
+                                  </button>
+                                )}
+
+                                {isPending && booking.id && ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()) && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApproveRoomCancel(booking.id!)}
+                                      disabled={processingRoomCancel}
+                                      className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors disabled:opacity-50"
+                                    >
+                                      {processingRoomCancel ? 'Processing...' : 'Approve'}
+                                    </button>
+                                    <button
+                                      onClick={() => openRoomCancelReasonModal(booking.id!, 'reject')}
+                                      disabled={processingRoomCancel}
+                                      className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors disabled:opacity-50"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Room Cancellation Request Section */}
+                  {selectedPass.hostelBooking?.roomCancelRequestStatus && (
+                    <div className="md:col-span-2">
+                      <div className={`border-2 rounded-lg p-5 ${
+                        selectedPass.hostelBooking.roomCancelRequestStatus === 'pending'
+                          ? 'border-amber-300 bg-amber-50'
+                          : selectedPass.hostelBooking.roomCancelRequestStatus === 'approved'
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-red-300 bg-red-50'
+                      }`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h5 className="font-semibold text-lg flex items-center gap-2 text-gray-800">
+                            <AlertCircle className="w-5 h-5" />
+                            Room Cancellation Request
+                          </h5>
+                          <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide ${
+                            selectedPass.hostelBooking.roomCancelRequestStatus === 'pending'
+                              ? 'bg-amber-200 text-amber-800'
+                              : selectedPass.hostelBooking.roomCancelRequestStatus === 'approved'
+                                ? 'bg-green-200 text-green-800'
+                                : 'bg-red-200 text-red-800'
+                          }`}>
+                            {selectedPass.hostelBooking.roomCancelRequestStatus}
+                          </span>
+                        </div>
+
+                        {selectedPass.hostelBooking.roomCancelRequestReason && (
+                          <p className="text-sm text-gray-700 mb-3">
+                            Request Reason: <span className="font-medium">{selectedPass.hostelBooking.roomCancelRequestReason}</span>
+                          </p>
                         )}
-                        {selectedPass.roomNumber && (
-                          <div><dt className="text-gray-600">{t('allPasses.detail.roomNumber')}</dt><dd className="font-medium">{selectedPass.roomNumber}</dd></div>
+
+                        {selectedPass.hostelBooking.roomCancelRequestStatus === 'rejected' && selectedPass.hostelBooking.roomCancelRequestRejectReason && (
+                          <p className="text-sm text-red-700 mb-3">
+                            Rejection Reason: <span className="font-medium">{selectedPass.hostelBooking.roomCancelRequestRejectReason}</span>
+                          </p>
                         )}
-                      </dl>
+
+                        {selectedPass.hostelBooking.roomCancelRequestStatus === 'pending' &&
+                          selectedPass.hostelBooking.id &&
+                          ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()) && (
+                          <div className="flex gap-3 mt-2 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => handleApproveRoomCancel(selectedPass.hostelBooking!.id!)}
+                              disabled={processingRoomCancel}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              {processingRoomCancel ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                              Approve Room Cancel
+                            </button>
+                            <button
+                              onClick={() => openRoomCancelReasonModal(selectedPass.hostelBooking!.id!, 'reject')}
+                              disabled={processingRoomCancel}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              <XCircle className="w-5 h-5" />
+                              Reject Room Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Early Check-in Request Section */}
+                  {selectedPass.hostelBooking?.checkinRequestStatus && (
+                    <div className="md:col-span-2">
+                      <div className={`border-2 rounded-lg p-5 ${
+                        selectedPass.hostelBooking.checkinRequestStatus === 'pending'
+                          ? 'border-amber-300 bg-amber-50'
+                          : selectedPass.hostelBooking.checkinRequestStatus === 'approved'
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-red-300 bg-red-50'
+                      }`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h5 className={`font-semibold text-lg flex items-center gap-2 ${
+                            selectedPass.hostelBooking.checkinRequestStatus === 'pending'
+                              ? 'text-amber-800'
+                              : selectedPass.hostelBooking.checkinRequestStatus === 'approved'
+                                ? 'text-green-800'
+                                : 'text-red-800'
+                          }`}>
+                            <Clock className="w-5 h-5" />
+                            Early Check-in Request
+                          </h5>
+                          <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide ${
+                            selectedPass.hostelBooking.checkinRequestStatus === 'pending'
+                              ? 'bg-amber-200 text-amber-800'
+                              : selectedPass.hostelBooking.checkinRequestStatus === 'approved'
+                                ? 'bg-green-200 text-green-800'
+                                : 'bg-red-200 text-red-800'
+                          }`}>
+                            {selectedPass.hostelBooking.checkinRequestStatus}
+                          </span>
+                        </div>
+
+                        {/* Request details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Visitor Name</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.visitorName}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Requested Check-in Time</p>
+                            <p className="font-semibold text-gray-900">
+                              {selectedPass.hostelBooking.requestedCheckinTime
+                                ? new Date(selectedPass.hostelBooking.requestedCheckinTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+                                : '—'}
+                            </p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Guest House</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.hostelBooking.hostelName || selectedPass.hostelName || '—'}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Room Number</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.hostelBooking.roomNumber || selectedPass.roomNumber || '—'}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Pass ID</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.passId}</p>
+                          </div>
+                          <div className="bg-white/60 rounded-lg p-3">
+                            <p className="text-xs text-gray-500 mb-1">Mobile Number</p>
+                            <p className="font-semibold text-gray-900">{selectedPass.mobileNumber || '—'}</p>
+                          </div>
+                        </div>
+
+                        {selectedPass.hostelBooking.checkinRequestStatus === 'rejected' && selectedPass.hostelBooking.checkinRequestRejectReason && (
+                          <div className="bg-red-100 border border-red-200 rounded-lg p-3 mb-4">
+                            <p className="text-sm font-medium text-red-800">
+                              Rejection Reason: <span className="font-normal">{selectedPass.hostelBooking.checkinRequestRejectReason}</span>
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Admin approve/reject buttons for pending requests - only visible to admin/superadmin */}
+                        {selectedPass.hostelBooking.checkinRequestStatus === 'pending' && selectedPass.hostelBooking.id && ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()) && (
+                          <div className="flex gap-3 mt-2 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => handleApproveCheckin(selectedPass.hostelBooking!.id!)}
+                              disabled={processingCheckin}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              {processingCheckin ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle className="w-5 h-5" />
+                              )}
+                              Accept Request
+                            </button>
+                            <button
+                              onClick={() => {
+                                setRejectingBookingId(selectedPass.hostelBooking!.id!);
+                                setRejectReason('');
+                                setShowRejectModal(true);
+                              }}
+                              disabled={processingCheckin}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              <XCircle className="w-5 h-5" />
+                              Reject Request
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1250,6 +1693,7 @@ function AllPassesPageContent() {
                 ? (selectedPassForExtend.checkOutDate || selectedPassForExtend.visitEndDate || selectedPassForExtend.visitDate)
                 : (selectedPassForExtend.visitEndDate || selectedPassForExtend.visitDate)
             }
+            hasHostelBooking={!!selectedPassForExtend.hostelBooking?.id}
             onClose={() => {
               setShowExtendModal(false);
               setSelectedPassForExtend(null);
@@ -1265,6 +1709,73 @@ function AllPassesPageContent() {
               }
             }}
           />
+        )}
+
+        {/* Reject Early Check-in Modal */}
+        {showRejectModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-red-800 flex items-center gap-2">
+                  <XCircle className="w-5 h-5" />
+                  Reject Early Check-in
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowRejectModal(false);
+                    setRejectReason('');
+                    setRejectingBookingId(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6">
+                <p className="text-sm text-gray-600 mb-4">
+                  Please provide a reason for rejecting this early check-in request. The student and their parent will be notified.
+                </p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Rejection Reason <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="e.g., Room is not ready before standard check-in time..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    rows={3}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowRejectModal(false);
+                      setRejectReason('');
+                      setRejectingBookingId(null);
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                    disabled={processingCheckin}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRejectCheckin}
+                    disabled={!rejectReason.trim() || processingCheckin}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingCheckin ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    Confirm Rejection
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Cancel Pass Confirmation Modal */}
@@ -1315,6 +1826,34 @@ function AllPassesPageContent() {
               <div className="p-6 pt-4 overflow-y-auto flex-1">
 
               {/* Warning Message - Dynamic based on pass status */}
+              {hasAnyActiveRoomBooking(selectedPass) && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-700 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-amber-900">Room cancellation required first</h4>
+                      <p className="text-sm text-amber-800 mt-1">
+                        You cannot cancel this pass until the guest house room cancellation is requested and approved.
+                      </p>
+                      {(() => {
+                        const actionableBooking = getPassBookings(selectedPass).find(
+                          (booking) => booking.id && booking.bookingStatus !== 'cancelled' && !['pending', 'approved'].includes(booking.roomCancelRequestStatus || '')
+                        );
+                        return actionableBooking ? (
+                        <button
+                          onClick={() => openRoomCancelReasonModal(actionableBooking.id!, 'request')}
+                          disabled={processingRoomCancel}
+                          className="mt-3 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {processingRoomCancel ? 'Submitting...' : 'Request Room Cancellation'}
+                        </button>
+                        ) : null;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <p className="text-sm text-blue-800 font-medium mb-1">
@@ -1464,7 +2003,10 @@ function AllPassesPageContent() {
                 </button>
                 <button
                   onClick={handleCancelPassConfirm}
-                  disabled={(selectedPass.passStatus === 'created' || selectedPass.status === 'created') ? (!cancelReason.trim() || cancellingPass) : cancellingPass}
+                  disabled={
+                    hasAnyActiveRoomBooking(selectedPass) ||
+                    ((selectedPass.passStatus === 'created' || selectedPass.status === 'created') ? (!cancelReason.trim() || cancellingPass) : cancellingPass)
+                  }
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {cancellingPass ? (
@@ -1487,6 +2029,55 @@ function AllPassesPageContent() {
             </div>
           </div>
         )}
+        {showRoomCancelReasonModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
+              <div className="flex justify-between items-center p-5 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {roomCancelAction === 'request' ? 'Request Room Cancellation' : 'Reject Room Cancellation'}
+                </h3>
+                <button
+                  onClick={closeRoomCancelReasonModal}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={processingRoomCancel}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {roomCancelAction === 'request' ? 'Reason (optional)' : 'Rejection Reason'}
+                  {roomCancelAction === 'reject' ? <span className="text-red-500"> *</span> : null}
+                </label>
+                <textarea
+                  value={roomCancelReason}
+                  onChange={(e) => setRoomCancelReason(e.target.value)}
+                  placeholder={roomCancelAction === 'request' ? 'Enter reason for room cancellation request...' : 'Enter rejection reason...'}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                  rows={4}
+                  autoFocus
+                />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={closeRoomCancelReasonModal}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                    disabled={processingRoomCancel}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitRoomCancelReason}
+                    disabled={processingRoomCancel || (roomCancelAction === 'reject' && !roomCancelReason.trim())}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingRoomCancel ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    {roomCancelAction === 'request' ? 'Submit Request' : 'Reject Request'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1496,7 +2087,9 @@ function AllPassesPageContent() {
 export default function AllPassesPage() {
   return (
     <LanguageProvider>
-      <AllPassesPageContent />
+      <React.Suspense fallback={<DashboardShimmer />}>
+        <AllPassesPageContent />
+      </React.Suspense>
     </LanguageProvider>
   );
 }

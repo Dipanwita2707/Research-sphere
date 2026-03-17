@@ -1,12 +1,16 @@
 const cron = require('node-cron');
 const prisma = require('../shared/config/database');
+const emailService = require('../shared/utils/emailService');
 
 /**
  * QR Activation Cron Job
  * Runs every 15 minutes to:
  * 1. Activate QR codes 5 hours before entry time
- * 2. Expire QR codes after end date (23:59)
+ * 2. Expire QR codes at 6 PM IST on end date (room also freed at same time)
  */
+
+// Passes expire at 23:59 on their end date —
+// the first job run on the next day (any time) marks them expired.
 
 // IST timezone helper
 const getISTDate = () => {
@@ -25,13 +29,7 @@ const activateQRCodes = async () => {
     // Get today's date in YYYY-MM-DD format (IST)
     const todayIST = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    // Find passes that need QR activation
-    // Criteria:
-    // 1. qr_status is 'inactive'
-    // 2. pass_status is 'created'
-    // 3. visit_date is today or in the future
-    // 4. entry_time is within the next 5 hours (from visit_date)
-    
+    // ============ ACTIVATE NEW PASSES (status=created) ============
     const passesToActivate = await prisma.gate_pass.findMany({
       where: {
         qr_status: 'inactive',
@@ -110,14 +108,58 @@ const activateQRCodes = async () => {
       }
     }
 
+    // ============ RE-ACTIVATE CHECKED_OUT PASSES (all passes support unlimited in/out) ============
+    // Find checked_out passes that have inactive QR and today is within their date range
+    const passesToReactivate = await prisma.gate_pass.findMany({
+      where: {
+        qr_status: 'inactive',
+        pass_status: 'checked_out',
+        OR: [
+          // Single-day passes: visit_date is today
+          {
+            visit_end_date: null,
+            visit_date: { gte: todayIST, lt: new Date(todayIST.getTime() + 24 * 60 * 60 * 1000) }
+          },
+          // Multi-day passes: today is within date range
+          {
+            visit_end_date: { not: null, gte: todayIST },
+            visit_date: { lte: todayIST }
+          }
+        ]
+      },
+      select: {
+        id: true,
+        pass_id: true,
+        visit_date: true,
+        visit_end_date: true
+      }
+    });
+
+    if (passesToReactivate.length > 0) {
+      const result = await prisma.gate_pass.updateMany({
+        where: {
+          id: { in: passesToReactivate.map(p => p.id) }
+        },
+        data: {
+          qr_status: 'active',
+          qr_activation_time: now
+        }
+      });
+
+      console.log(`[QR Activation Job] 🔄 Re-activated ${result.count} checked_out pass QR codes for re-entry`);
+      passesToReactivate.forEach(pass => {
+        const endDate = pass.visit_end_date ? new Date(pass.visit_end_date).toISOString().split('T')[0] : 'single-day';
+        console.log(`  - Pass ID: ${pass.pass_id}, Visit: ${new Date(pass.visit_date).toISOString().split('T')[0]}, End: ${endDate}`);
+      });
+    }
+
     // ============ EXPIRE PASSES ============
-    // Expire QR codes after end date (23:59)
-    // For single-day passes: expire after visit_date 23:59
-    // For multi-day passes: expire after visit_end_date 23:59
+    // Passes are valid for the entire end date (until 23:59).
+    // Use { lt: todayIST } so a pass whose end_date IS today stays active
+    // all day and is only expired on the first job run tomorrow.
+    const dateComparison = { lt: todayIST };
     
-    const yesterdayIST = new Date(todayIST.getTime() - 24 * 60 * 60 * 1000);
-    
-    // Find passes to expire
+    // Find passes to expire (exclude multi-day daily passes that are checked_out and still within date range)
     const passesToExpire = await prisma.gate_pass.findMany({
       where: {
         qr_status: 'active',
@@ -125,14 +167,14 @@ const activateQRCodes = async () => {
           in: ['created', 'approved', 'active']
         },
         OR: [
-          // Single-day passes: visit_date < today and no visit_end_date
+          // Single-day passes: visit_date expired based on 6 PM rule
           {
-            visit_date: { lt: todayIST },
+            visit_date: dateComparison,
             visit_end_date: null
           },
-          // Multi-day passes: visit_end_date < today
+          // Multi-day passes: visit_end_date expired based on 6 PM rule
           {
-            visit_end_date: { lt: todayIST }
+            visit_end_date: dateComparison
           }
         ]
       },
@@ -153,7 +195,7 @@ const activateQRCodes = async () => {
         },
         data: {
           qr_status: 'expired',
-          pass_status: 'completed'
+          pass_status: 'expired'
         }
       });
 
@@ -170,12 +212,123 @@ const activateQRCodes = async () => {
 };
 
 /**
+ * Send 4 PM checkout reminders (1 hour before 5 PM grace deadline).
+ * Runs inside the 15-minute cron; only fires when IST hour = 16.
+ */
+const sendCheckoutReminders = async () => {
+  try {
+    const now = getISTDate();
+    const istHour = now.getUTCHours(); // already shifted to IST
+
+    // Only run between 4:00 PM and 4:14 PM IST (first cron tick of the 4 PM hour)
+    if (istHour !== 16) return;
+
+    console.log(`[Checkout Reminder] Running at IST ${now.toISOString()}`);
+
+    // Today's date range in IST
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayEnd   = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    // Find confirmed bookings checking out today that haven't been reminded
+    const bookings = await prisma.hostelBooking.findMany({
+      where: {
+        booking_status: 'confirmed',
+        checkout_reminder_sent: false,
+        check_out_datetime: {
+          gte: todayStart,
+          lt:  todayEnd
+        }
+      },
+      include: {
+        gate_pass: {
+          include: {
+            created_by: {
+              include: {
+                studentDetails: {
+                  include: {
+                    parentDetails: {
+                      where: { isPrimaryContact: true },
+                      take: 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        room: {
+          include: { hostel: true }
+        }
+      }
+    });
+
+    if (bookings.length === 0) {
+      console.log(`[Checkout Reminder] No bookings to remind`);
+      return;
+    }
+
+    let sentCount = 0;
+    for (const booking of bookings) {
+      const pass = booking.gate_pass;
+      const student = pass?.created_by;
+      const parentDetails = student?.studentDetails?.[0]?.parentDetails?.[0];
+
+      // 1) Send notification to student's dashboard
+      if (student?.id) {
+        await prisma.notification.create({
+          data: {
+            userId: student.id,
+            type: 'checkout_reminder',
+            title: 'Checkout Reminder – 5 PM Deadline',
+            message: `Guest house checkout is at 5:00 PM today. Room: ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'}. Checkout after 5 PM will incur an extra day charge.`,
+            referenceType: 'hostel_booking',
+            referenceId: booking.id,
+            metadata: {
+              actionUrl: '/admin/gate-entry',
+              actionLabel: 'View Booking'
+            }
+          }
+        });
+      }
+
+      // 2) Send email to parent (fire-and-forget)
+      if (parentDetails?.email) {
+        emailService.sendCheckoutReminder({
+          parentEmail: parentDetails.email,
+          parentName: parentDetails.fatherName || parentDetails.motherName || 'Parent',
+          visitorName: pass.visitor_name,
+          passId: pass.pass_id,
+          roomNumber: booking.room?.room_number || '—',
+          hostelName: booking.room?.hostel?.name || 'Guest House',
+          checkOutDatetime: booking.check_out_datetime
+        }).catch(err => console.error(`[Checkout Reminder] Email error for booking ${booking.id}:`, err));
+      }
+
+      // 3) Mark as reminded
+      await prisma.hostelBooking.update({
+        where: { id: booking.id },
+        data: { checkout_reminder_sent: true }
+      });
+
+      sentCount++;
+    }
+
+    console.log(`[Checkout Reminder] ✅ Sent ${sentCount} reminders`);
+  } catch (error) {
+    console.error(`[Checkout Reminder] ❌ Error:`, error);
+  }
+};
+
+/**
  * Start the cron job
  * Schedule: Every 15 minutes
  */
 const startQRActivationJob = () => {
   // Run every 15 minutes: */15 * * * *
-  cron.schedule('*/15 * * * *', activateQRCodes, {
+  cron.schedule('*/15 * * * *', async () => {
+    await activateQRCodes();
+    await sendCheckoutReminders();
+  }, {
     timezone: 'Asia/Kolkata'
   });
 
@@ -183,9 +336,11 @@ const startQRActivationJob = () => {
   
   // Run immediately on startup
   activateQRCodes();
+  sendCheckoutReminders();
 };
 
 module.exports = {
   startQRActivationJob,
-  activateQRCodes
+  activateQRCodes,
+  sendCheckoutReminders
 };

@@ -372,8 +372,8 @@ function CreatePassPageContent() {
       return false;
     }
     
-    // Multi-day accommodation validation
-    if (isMultiDay) {
+    // Multi-day accommodation validation - only for students creating Parent/Guardian passes
+    if (canBookHostel) {
       if (wantToBook === null) {
         setError(t('createPass.err.accommodationRequired'));
         return false;
@@ -420,9 +420,9 @@ function CreatePassPageContent() {
         vehicleType: formData.hasVehicle ? formData.vehicleType : undefined,
         vehicleNumber: formData.hasVehicle ? formData.vehicleNumber : undefined,
         vehicleModel: formData.hasVehicle ? formData.vehicleModel : undefined,
-        stayRequired: isMultiDay ? true : false,
-        checkInDate: isMultiDay ? formData.visitDate : undefined,
-        checkOutDate: isMultiDay ? formData.visitEndDate : undefined,
+        stayRequired: canBookHostel && wantToBook === true,
+        checkInDate: canBookHostel && wantToBook === true ? formData.visitDate : undefined,
+        checkOutDate: canBookHostel && wantToBook === true ? formData.visitEndDate : undefined,
       };
       
       const response = await gateEntryService.createPass(passData);
@@ -1147,7 +1147,7 @@ function CreatePassPageContent() {
                       <div className="mt-4">
                         <button
                           type="button"
-                          onClick={() => router.push('/admin/gate-entry/all-passes')}
+                          onClick={() => router.push('/admin/gate-entry')}
                           className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-bold rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
                           <FileText className="w-4 h-4" />
