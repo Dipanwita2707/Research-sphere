@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo, useCallback } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   BarChart3, Users, FolderTree, Ticket, TrendingUp, Clock, Star, Eye,
   AlertTriangle, CheckCircle, XCircle, ArrowUpCircle, Layers, ChevronLeft, ChevronRight, FileText,
@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: TmsTicketStatus }) {
 
 export default function TmsAdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<'overview' | 'tickets' | 'employees' | 'categories'>('overview');
+  const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TmsTicketStatus | ''>('');
@@ -81,6 +81,24 @@ export default function TmsAdminPage() {
   const [levelFilter, setLevelFilter] = useState<TmsEscalationLevel | ''>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const tabOptions: { key: 'overview' | 'tickets' | 'employees' | 'categories'; label: string; icon: typeof BarChart3 }[] = [
+    { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
+    { key: 'tickets' as const, label: 'All Tickets', icon: Ticket },
+    { key: 'employees' as const, label: 'Employee Performance', icon: Users },
+    { key: 'categories' as const, label: 'Category Analytics', icon: FolderTree },
+  ];
+  const rawTab = searchParams.get('tab');
+  const tab = rawTab && tabOptions.some((item) => item.key === rawTab) ? rawTab as typeof tabOptions[number]['key'] : 'overview';
+
+  const setActiveTab = useCallback(
+    (nextTab: typeof tabOptions[number]['key']) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('tab', nextTab);
+      router.replace(`?${params.toString()}`, { scroll: false });
+      setPage(1);
+    },
+    [router, searchParams],
+  );
 
   const { data: overview, isLoading: overviewLoading } = useOverviewAnalytics();
   const { data: employees } = useEmployeeAnalytics();
@@ -125,13 +143,6 @@ export default function TmsAdminPage() {
   };
   const { data: allTicketsData, isLoading: ticketsLoading } = useAllTickets(tab === 'tickets' ? ticketParams : undefined);
 
-  const tabs = [
-    { key: 'overview' as const, label: 'Overview', icon: BarChart3 },
-    { key: 'tickets' as const, label: 'All Tickets', icon: Ticket },
-    { key: 'employees' as const, label: 'Employee Performance', icon: Users },
-    { key: 'categories' as const, label: 'Category Analytics', icon: FolderTree },
-  ];
-
   return (
     <div className="min-h-screen bg-[#f8fafc] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -147,12 +158,12 @@ export default function TmsAdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-8 border-b border-[#b3cde0]/30 overflow-x-auto">
-          {tabs.map((t) => {
+          {tabOptions.map((t) => {
             const Icon = t.icon;
             return (
               <button
                 key={t.key}
-                onClick={() => { setTab(t.key); setPage(1); }}
+                onClick={() => setActiveTab(t.key)}
                 className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
                   tab === t.key
                     ? 'border-[#005b96] text-[#005b96]'

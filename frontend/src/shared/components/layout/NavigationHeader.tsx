@@ -86,18 +86,24 @@ export default function NavigationHeader() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
-  const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
-  const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
-  const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
-  const { data: notingPermsData } = useNotingPermissions({ enabled: !!isStudent });
-  const { data: myClubsData } = useMyClubs();
+  const roleName = user?.role?.name || user?.userType || '';
+  const isStudent = roleName === 'student';
+  const isFaculty = roleName === 'faculty';
+  const isStaff = roleName === 'staff';
+  const isAdmin = roleName === 'admin' || roleName === 'superadmin';
+  const { data: notingPermsData } = useNotingPermissions({ enabled: !!user });
+  const { data: myClubsData } = useMyClubs({ enabled: isStudent });
   const isClubChairpersonFromNoting = !!notingPermsData?.isClubChairperson;
+  const canViewNotingAdminDashboard = isAdmin;
   const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
     club => club.chairpersonId === user.id && club.status === 'active'
   ));
   const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
   const canBrowseEvents = true;
+  const canViewEventDashboard =
+    isAdmin ||
+    hasPermission(userPermissions, 'event_view_reports') ||
+    hasPermission(userPermissions, 'event_manage_all');
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
@@ -379,6 +385,24 @@ export default function NavigationHeader() {
       name: '📝 My Created Events',
       href: '/events/my-events',
       description: 'Manage events you organized',
+    });
+  }
+  if (eventsMenu?.children && canViewEventDashboard) {
+    eventsMenu.children.splice(Math.min(eventsMenu.children.length, 2), 0, {
+      name: '📊 Event Dashboard',
+      href: '/events/admin',
+      description: 'Analytics, approval stages, and admin controls',
+    });
+  }
+
+  if (!isStudent) {
+    navigationSubItems.push({
+      name: '📋 Noting & Approval',
+      description: 'Create, monitor, and moderate approval notes',
+      children: [
+        { name: '📝 Noting Workspace', href: '/noting', description: 'Create and track approval notes' },
+        ...(canViewNotingAdminDashboard ? [{ name: '📊 Noting Dashboard', href: '/noting/admin', description: 'Analytics, activity, and moderation overview' }] : []),
+      ],
     });
   }
 

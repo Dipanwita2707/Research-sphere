@@ -556,6 +556,32 @@ const forwardOptionsValidation = validateRequest({
     .strip(),
 });
 
+const adminAnalyticsValidation = validateRequest({
+  query: z
+    .object({
+      startDate: optionalDateString,
+      endDate: optionalDateString,
+    })
+    .strip(),
+});
+
+const adminActivityAnalyticsValidation = validateRequest({
+  query: z
+    .object({
+      startDate: optionalDateString,
+      endDate: optionalDateString,
+      page: z.preprocess((value) => {
+        if (value === undefined || value === null || value === "") return undefined;
+        return Number(value);
+      }, z.number().int().min(1).optional()),
+      limit: z.preprocess((value) => {
+        if (value === undefined || value === null || value === "") return undefined;
+        return Number(value);
+      }, z.number().int().min(1).max(100).optional()),
+    })
+    .strip(),
+});
+
 const sendCopyValidation = validateRequest({
   params: noteIdParamsSchema,
   body: z
@@ -610,6 +636,8 @@ module.exports = {
   listNotesValidation,
   previewIdValidation,
   forwardOptionsValidation,
+  adminAnalyticsValidation,
+  adminActivityAnalyticsValidation,
   sendCopyValidation,
   replyCopyValidation,
   forwardCopyValidation,

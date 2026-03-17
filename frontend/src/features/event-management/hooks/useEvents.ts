@@ -7,15 +7,23 @@
  * - All hooks share EVENT_QUERY_KEYS for targeted invalidation
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { eventService } from '../services/event.service';
-import type { EventFilters } from '../types/event.types';
+import type { EventAdminEventFilters, EventFilters } from '../types/event.types';
 
 export const EVENT_QUERY_KEYS = {
   list: (filters: EventFilters, page: number, limit: number) =>
     ['events', 'list', filters, page, limit],
   detail: (id: string) => ['events', id],
   myCreated: () => ['events', 'my-created'],
+  adminOverview: (params?: { startDate?: string; endDate?: string }) =>
+    ['events', 'admin', 'overview', params] as const,
+  adminUsers: (params?: { startDate?: string; endDate?: string }) =>
+    ['events', 'admin', 'users', params] as const,
+  adminActivity: (params?: { startDate?: string; endDate?: string; page?: number; limit?: number }) =>
+    ['events', 'admin', 'activity', params] as const,
+  adminEvents: (filters: EventAdminEventFilters, page: number, limit: number) =>
+    ['events', 'admin', 'list', filters, page, limit] as const,
 };
 
 /**
@@ -60,5 +68,65 @@ export function useMyCreatedEvents() {
     queryFn: () => eventService.getEvents({ myEvents: true }, 1, 100),
     staleTime: 2 * 60 * 1000,
     select: (data) => data.events,
+  });
+}
+
+export function useEventAdminOverview(
+  params?: { startDate?: string; endDate?: string },
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.adminOverview(params),
+    queryFn: () => eventService.getAdminOverview(params),
+    enabled,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useEventAdminUsers(
+  params?: { startDate?: string; endDate?: string },
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.adminUsers(params),
+    queryFn: () => eventService.getAdminUsers(params),
+    enabled,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useEventAdminActivity(
+  params?: { startDate?: string; endDate?: string; page?: number; limit?: number },
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.adminActivity(params),
+    queryFn: () => eventService.getAdminActivity(params),
+    enabled,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useEventAdminEvents(
+  filters: EventAdminEventFilters = {},
+  page = 1,
+  limit = 20,
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.adminEvents(filters, page, limit),
+    queryFn: () => eventService.getAdminEvents(filters, page, limit),
+    enabled,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 }

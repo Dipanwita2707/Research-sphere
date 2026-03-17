@@ -44,6 +44,7 @@ const {
 } = require("../utils/eventHelpers");
 const { generateQRCode } = require("../utils/qrCodeGenerator");
 const { buildVisibilityFilter, isRegistrationOpen } = require('./eventSettings.service');
+const eventAnalyticsService = require("./eventAnalytics.service");
 const crypto = require("crypto");
 const log = require("../../../shared/utils/logger");
 
@@ -58,6 +59,7 @@ async function invalidateEventCaches(eventId) {
     cache.del(`event:regform:${eventId}`),
     cache.delPattern('event:list:*'),          // bust all list caches (short TTL anyway)
     cache.delPattern(`event:canSee:${eventId}:*`), // bust visibility cache for this event
+    eventAnalyticsService.invalidateEventAnalyticsCaches(),
   ]);
 }
 
@@ -1651,12 +1653,36 @@ const getUserRegistrations = async (userId, filters, pagination) => {
  * Get event statistics (comprehensive)
  * Optimized: Single raw SQL for counts + date grouping, separate query for recent registrations
  */
-const getEventStatistics = async (eventId, userId) => {
+const getEventStatistics = async (eventId, userOrId) => {
   const event = await getEventLean(prisma, eventId);
+  const userId =
+    typeof userOrId === "string" ? userOrId : userOrId?.id;
+  const roleName =
+    typeof userOrId === "string"
+      ? null
+      : userOrId?.role?.name || userOrId?.role || userOrId?.userType || null;
+  const isAdminRole = roleName === "admin";
+  const isSuperadmin = roleName === "superadmin";
+  const hasReportAccess =
+    typeof userOrId === "object" &&
+    (
+      (userOrId?.centralDeptPermissions || []).some(
+        (dp) =>
+          dp.permissions &&
+          (dp.permissions.event_manage_all === true ||
+            dp.permissions.event_view_reports === true),
+      ) ||
+      (userOrId?.schoolDeptPermissions || []).some(
+        (dp) =>
+          dp.permissions &&
+          (dp.permissions.event_manage_all === true ||
+            dp.permissions.event_view_reports === true),
+      )
+    );
 
-  // Verify user is the event creator
-  if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can view statistics");
+  // Allow event creator, superadmin, and admin/report users who already passed route permission.
+  if (event.createdById !== userId && !isAdminRole && !isSuperadmin && !hasReportAccess) {
+    throw new ForbiddenError("You do not have permission to view event statistics");
   }
 
   // Check cache first (1 min TTL — stats change frequently with registrations)

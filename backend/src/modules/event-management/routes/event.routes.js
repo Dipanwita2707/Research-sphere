@@ -32,6 +32,7 @@ const feedbackController = require('../controllers/feedback.controller');
 const paymentController = require('../controllers/payment.controller');
 const registrationController = require('../controllers/registration.controller');
 const customFieldController = require('../controllers/customField.controller');
+const eventAdminController = require('../controllers/eventAdmin.controller');
 const rateLimit = require('express-rate-limit');
 const { PUBLIC_RATE_LIMIT } = require('../constants/event.constants');
 
@@ -56,6 +57,10 @@ const publicEndpointLimiter = rateLimit({
 
 const eventManagePerm = checkAnyPermission(
   ['event_manage_own', 'event_manage_all'],
+  { checkDefaultPermissions: true }
+);
+const eventAnalyticsPerm = checkAnyPermission(
+  ['event_view_reports', 'event_manage_all'],
   { checkDefaultPermissions: true }
 );
 
@@ -164,6 +169,10 @@ router.get('/hierarchy/data', eventSettingsController.getHierarchyData);
 // Registration helpers (must be before /:id to avoid being captured as :id param)
 router.get('/profile-data', registrationController.getProfileData);
 router.get('/registration-dashboard', registrationController.getRegistrationDashboard);
+router.get('/admin/analytics/overview', eventAnalyticsPerm, eventAdminController.getOverviewAnalytics);
+router.get('/admin/analytics/users', eventAnalyticsPerm, eventAdminController.getUserAnalytics);
+router.get('/admin/analytics/activity', eventAnalyticsPerm, eventAdminController.getActivityAnalytics);
+router.get('/admin/events', eventAnalyticsPerm, eventAdminController.listAllEvents);
 router.get('/:id/payment-context', validateEventId, registrationController.getPaymentContext);
 router.get('/:id/scan-context', validateEventId, allowEventScan, eventController.getScanContext);
 

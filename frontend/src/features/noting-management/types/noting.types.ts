@@ -294,3 +294,139 @@ export interface CreateNotePayload {
   /** Optional club association — when set, the club's chairperson auto-receives event management permissions */
   eventClubId?: string | null;
 }
+
+export interface NotingAnalyticsUser {
+  id: string;
+  uid: string | null;
+  role: string | null;
+  displayName: string | null;
+  employeeIdOrStudentId: string | null;
+  department: string | null;
+  school: string | null;
+}
+
+export interface NotingAdminNoteSummary {
+  id: string;
+  notingId: string;
+  category: string;
+  categoryLabel: string;
+  subcategory: string;
+  subcategoryLabel: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  attachmentCount: number;
+  historyCount: number;
+  createdBy: NotingAnalyticsUser | null;
+  currentHolder: {
+    id: string;
+    uid: string;
+    displayName: string;
+  } | null;
+  metadata: {
+    approvalPeriod: string;
+    amountRequired: boolean;
+    amount: number | null;
+    eventName: string | null;
+    notingEventType: string | null;
+    clubName: string | null;
+  };
+}
+
+export interface NotingAdminOverview {
+  summary: {
+    totalNotings: number;
+    notesWithFiles: number;
+    totalAttachments: number;
+    pendingReview: number;
+    approved: number;
+    rejected: number;
+    reverted: number;
+    draft: number;
+  };
+  byStatus: Record<string, number>;
+  byCategory: Array<{
+    key: string;
+    label: string;
+    count: number;
+  }>;
+  bySubcategory: Array<{
+    key: string;
+    category: string;
+    categoryLabel: string;
+    label: string;
+    count: number;
+  }>;
+  createdTimeline: Array<{
+    date: string;
+    count: number;
+  }>;
+  recentNotes: NotingAdminNoteSummary[];
+  moderationQueue: NotingAdminNoteSummary[];
+}
+
+export interface NotingAdminUserStat {
+  user: NotingAnalyticsUser;
+  totalNotings: number;
+  notesWithFiles: number;
+  latestCreatedAt: string | null;
+  byStatus: Record<string, number>;
+}
+
+export interface NotingAdminUserAnalytics {
+  summary: {
+    totalCreators: number;
+    totalNotings: number;
+    averageNotesPerCreator: number;
+    mostRecentCreatedAt: string | null;
+  };
+  creators: NotingAdminUserStat[];
+}
+
+export interface NotingAdminActivityItem {
+  id: string;
+  action: string;
+  remarks?: string | null;
+  createdAt: string;
+  note: {
+    id: string;
+    notingId: string;
+    status: string;
+    category: string;
+    categoryLabel: string;
+    subcategory: string;
+    subcategoryLabel: string;
+    createdAt: string;
+    createdBy: NotingAnalyticsUser | null;
+  };
+  performedBy: NotingAnalyticsUser | null;
+  nextHolder: {
+    id: string;
+    uid: string;
+    displayName: string;
+  } | null;
+}
+
+export interface NotingAdminActivityAnalytics {
+  summary: {
+    totalActivities: number;
+    byAction: Record<string, number>;
+  };
+  items: NotingAdminActivityItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface NotingTabSummary {
+  mine: number;
+  pending: number;
+  handledApproved: number;
+  handledRejected: number;
+  copies: number;
+  pendingPreviewIds: string[];
+  copyPreviewIds: string[];
+}

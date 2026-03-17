@@ -179,9 +179,8 @@ const getMyRegistrations = asyncHandler(async (req, res) => {
  */
 const getEventStatistics = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
   
-  const statistics = await eventService.getEventStatistics(id, userId);
+  const statistics = await eventService.getEventStatistics(id, req.user);
   
   return ApiResponse.success(res, statistics, 'Event statistics fetched successfully');
 });

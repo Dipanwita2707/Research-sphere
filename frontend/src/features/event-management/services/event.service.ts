@@ -15,6 +15,11 @@ import type {
   QRScanData,
   EventFilters,
   EventListResponse,
+  EventAdminOverview,
+  EventAdminUserAnalytics,
+  EventAdminActivityResponse,
+  EventAdminEventFilters,
+  EventAdminEventListResponse,
   EventPrize,
   PrizeFormData,
   StallApplication,
@@ -49,6 +54,52 @@ export const eventService = {
     if (filters.myEvents) params.append('myEvents', 'true');
 
     const response = await api.get(`${BASE_URL}?${params.toString()}`);
+    return response.data.data;
+  },
+
+  async getAdminOverview(params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<EventAdminOverview> {
+    const response = await api.get(`${BASE_URL}/admin/analytics/overview`, { params });
+    return response.data.data;
+  },
+
+  async getAdminUsers(params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<EventAdminUserAnalytics> {
+    const response = await api.get(`${BASE_URL}/admin/analytics/users`, { params });
+    return response.data.data;
+  },
+
+  async getAdminActivity(params?: {
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<EventAdminActivityResponse> {
+    const response = await api.get(`${BASE_URL}/admin/analytics/activity`, { params });
+    return response.data.data;
+  },
+
+  async getAdminEvents(
+    filters: EventAdminEventFilters = {},
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<EventAdminEventListResponse> {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+
+    if (filters.search?.trim()) params.append('search', filters.search.trim());
+    if (filters.status) params.append('status', filters.status);
+    if (filters.createdById) params.append('createdById', filters.createdById);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.approvalStatus) params.append('approvalStatus', filters.approvalStatus);
+
+    const response = await api.get(`${BASE_URL}/admin/events?${params.toString()}`);
     return response.data.data;
   },
 

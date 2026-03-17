@@ -94,17 +94,19 @@ export default function NavigationHeader() {
   const searchRef = useRef<HTMLDivElement>(null);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
-  const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
-  const isStaff = user?.role?.name === 'staff' || user?.userType === 'staff';
-  const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+  const roleName = user?.role?.name || user?.userType || '';
+  const isStudent = roleName === 'student';
+  const isFaculty = roleName === 'faculty';
+  const isStaff = roleName === 'staff';
+  const isAdmin = roleName === 'admin' || roleName === 'superadmin';
 
   // PERF FIX: Use TanStack Query hook instead of raw api.get('/noting/my-permissions').
   // This shares the same query cache as page-level useNotingPermissions() calls,
   // so navigating between pages no longer fires a duplicate permissions request.
-  const { data: notingPermsData } = useNotingPermissions({ enabled: !!isStudent });
-  const { data: myClubsData } = useMyClubs();
+  const { data: notingPermsData } = useNotingPermissions({ enabled: !!user });
+  const { data: myClubsData } = useMyClubs({ enabled: isStudent });
   const hasNotingAccess = !!(notingPermsData?.noting_create);
+  const canViewNotingAdminDashboard = isAdmin;
   const isClubChairpersonFromNoting = !!(notingPermsData?.isClubChairperson);
   const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
     club => club.chairpersonId === user.id && club.status === 'active'
@@ -112,6 +114,10 @@ export default function NavigationHeader() {
   const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
   const canBrowseEvents = true;
   const [hasVolunteerAssignments, setHasVolunteerAssignments] = useState(false);
+  const canViewEventDashboard =
+    isAdmin ||
+    hasPermission(userPermissions, 'event_view_reports') ||
+    hasPermission(userPermissions, 'event_manage_all');
 
   // Gate Entry Access Control based on designation
   const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
@@ -455,11 +461,24 @@ export default function NavigationHeader() {
 
   // Add Noting approval - For Faculty, Staff, Admin only (blocked for all students)
   if (!isStudent) {
-    navigationSubItems.push({
-      name: '📋 Noting & Approval',
-      href: '/noting',
-      description: 'Create and track approval notes',
-    });
+    const notingChildren: SubMenuItem[] = [
+      { name: '📝 Noting Workspace', href: '/noting', description: 'Create and track approval notes' },
+        ...(canViewNotingAdminDashboard ? [{ name: '📊 Noting Dashboard', href: '/noting/admin', description: 'Analytics, activity, and moderation overview' }] : []),
+    ];
+
+    navigationSubItems.push(
+      notingChildren.length === 1
+        ? {
+            name: '📋 Noting & Approval',
+            href: '/noting',
+            description: 'Create and track approval notes',
+          }
+        : {
+            name: '📋 Noting & Approval',
+            description: 'Create, monitor, and moderate approval notes',
+            children: notingChildren,
+          },
+    );
   }
 
   // Add Event Management
@@ -473,6 +492,13 @@ export default function NavigationHeader() {
   ];
   if (canCreateEvent) {
     eventChildren.splice(1, 0, { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' });
+  }
+  if (canViewEventDashboard) {
+    eventChildren.splice(Math.min(eventChildren.length, 2), 0, {
+      name: '📊 Event Dashboard',
+      href: '/events/admin',
+      description: 'Analytics, approval stages, and admin controls',
+    });
   }
   if (hasVolunteerAssignments) {
     eventChildren.push({ name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' });

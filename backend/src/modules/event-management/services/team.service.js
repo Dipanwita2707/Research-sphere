@@ -9,6 +9,7 @@ const { ValidationError, ForbiddenError, NotFoundError } = require('../../../sha
 const crypto = require('crypto');
 const { generateQRCode } = require('../utils/qrCodeGenerator');
 const { resolveEvent } = require('../utils/eventHelpers');
+const { assertEventOwner } = require('./eventSettings.service');
 
 const TEAM_STATUS = {
   FORMING: 'forming',
@@ -176,15 +177,20 @@ const createTeam = async (eventId, userId, teamName) => {
   });
 
   // Get full team data
-  return getTeamDetails(team.id, userId);
+  return getTeamDetails(event.id, team.id, userId);
 };
 
 /**
  * Get team details
  */
-const getTeamDetails = async (teamId, userId) => {
+const getTeamDetails = async (eventId, teamId, userId, user) => {
+  const event = await resolveEvent(eventId, {
+    select: { id: true },
+  });
+
   const team = await prisma.eventTeam.findFirst({
     where: {
+      eventId: event.id,
       OR: [
         { id: teamId },
         { teamId: teamId },
@@ -223,6 +229,23 @@ const getTeamDetails = async (teamId, userId) => {
 
   if (!team) {
     throw new NotFoundError('Team not found');
+  }
+
+  const isLeader = team.leaderId === userId;
+  const isMember = team.EventTeamMember.some((member) => member.userId === userId);
+
+  let canManageEvent = false;
+  if (!isLeader && !isMember && userId && user) {
+    try {
+      await assertEventOwner(event.id, userId, user);
+      canManageEvent = true;
+    } catch (error) {
+      canManageEvent = false;
+    }
+  }
+
+  if (!isLeader && !isMember && !canManageEvent) {
+    throw new ForbiddenError('You do not have access to this team');
   }
 
   // Fetch member details and user's own registration in parallel
@@ -283,9 +306,6 @@ const getTeamDetails = async (teamId, userId) => {
       uid: user?.uid,
     };
   });
-
-  // Check if current user is team leader
-  const isLeader = team.leaderId === userId;
 
   // Calculate team completion - use database value as source of truth
   const confirmedMemberCount = members.length;
@@ -1450,7 +1470,7 @@ const getUserTeamForEvent = async (eventId, userId) => {
   }
 
   // Reuse getTeamDetails for consistent, complete response
-  return getTeamDetails(teamMembership.EventTeam.id, userId);
+  return getTeamDetails(event.id, teamMembership.EventTeam.id, userId);
 };
 
 /**
@@ -1503,7 +1523,7 @@ const finalizeTeamRegistration = async (teamId, userId) => {
 
   // Check if team is already complete
   if (team.isComplete) {
-    return getTeamDetails(team.id, userId); // Return current details instead of error
+    return getTeamDetails(team.Event.id, team.id, userId); // Return current details instead of error
   }
 
   // Check if minimum team size requirement is met
@@ -1573,7 +1593,7 @@ const finalizeTeamRegistration = async (teamId, userId) => {
   });
 
   // Return updated team details
-  return getTeamDetails(team.id, userId);
+  return getTeamDetails(team.Event.id, team.id, userId);
 };
 
 module.exports = {

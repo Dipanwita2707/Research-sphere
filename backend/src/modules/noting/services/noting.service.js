@@ -61,8 +61,10 @@ async function invalidateNoteCaches(noteId) {
     cache.del(`noting:detail:${noteId}`),
     cache.del(`noting:copies:${noteId}`),      // Creator copies view cache
     cache.delPattern('noting:counts:*'),
+    cache.delPattern('noting:tab-summary:*'),
     cache.delPattern('noting:list:*'),
     cache.delPattern('noting:mycopies:*'),
+    cache.delPattern('noting:analytics:*'),
   ]);
 }
 
@@ -81,8 +83,10 @@ async function invalidateDraftCache(noteId) {
   Promise.all([
     cache.del(`noting:copies:${noteId}`),
     cache.delPattern('noting:counts:*'),
+    cache.delPattern('noting:tab-summary:*'),
     cache.delPattern('noting:list:*'),
     cache.delPattern('noting:mycopies:*'),
+    cache.delPattern('noting:analytics:*'),
   ]).catch(() => {}); // swallow errors — these are best-effort
 }
 

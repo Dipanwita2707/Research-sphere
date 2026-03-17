@@ -254,6 +254,12 @@ function getListNoteSelect() {
       currentHolder: {
         select: userBasic,
       },
+      _count: {
+        select: {
+          attachments: true,
+          history: true,
+        },
+      },
     },
   };
 }

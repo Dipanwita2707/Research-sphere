@@ -9,6 +9,7 @@
  *   - getById       GET    /api/noting/:id
  *   - list          GET    /api/noting
  *   - getCounts     GET    /api/noting/counts
+ *   - getTabSummary GET    /api/noting/tab-summary
  */
 
 const { Prisma } = require("@prisma/client");
@@ -16,7 +17,7 @@ const prisma = require("../../../shared/config/database");
 const cache = require("../../../shared/config/redis");
 const asyncHandler = require("../../../shared/utils/asyncHandler");
 const ApiResponse = require("../../../shared/utils/ApiResponse");
-const { ValidationError } = require("../../../shared/utils/AppError");
+const { ValidationError, ForbiddenError } = require("../../../shared/utils/AppError");
 
 const { generateNotingId } = require("../services/notingId.service");
 const approvalFlowService = require("../services/approvalFlow.service");
@@ -1040,6 +1041,7 @@ const getById = asyncHandler(async (req, res) => {
  */
 const list = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  const userRole = req.user.role;
   const {
     filter = "mine",
     status,
@@ -1060,6 +1062,22 @@ const list = asyncHandler(async (req, res) => {
     includeHandledCount === "true" ||
     includeHandledCount === true ||
     filter === "handled";
+
+  const { getDefaultPermissions } = require("../../../shared/config/permissions.config");
+  const defaultPerms = getDefaultPermissions(userRole);
+  const hasViewAll =
+    defaultPerms.noting_view_all === true ||
+    (req.user.centralDeptPermissions || []).some(
+      (dp) => dp.permissions && dp.permissions.noting_view_all === true,
+    );
+
+  if (filter === "all" && !hasViewAll) {
+    throw new ForbiddenError("You do not have permission to view all notings");
+  }
+
+  if (createdById && !hasViewAll && createdById !== userId) {
+    throw new ForbiddenError("You do not have permission to filter by another creator");
+  }
 
   // ── PERF: Cache list results per-user per-params for 30s ────────────────
   // The list endpoint runs 2-5 DB queries (findMany + count + optional counts).
@@ -1097,44 +1115,94 @@ const list = asyncHandler(async (req, res) => {
         NOTE_ACTIONS.NOT_RECOMMENDED,
       ];
     }
-    const actionParams = Prisma.join(actions.map((a) => Prisma.sql`${a}`));
-    const [totalResult, pageRows] = await Promise.all([
-      prisma.$queryRaw(Prisma.sql`SELECT COUNT(*)::int as cnt FROM (
-        SELECT DISTINCT note_id FROM note_history
-        WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
-      ) sub`),
-      prisma.$queryRaw(Prisma.sql`
-        SELECT note_id as "noteId", action, created_at as "performedAt"
-        FROM (
-          SELECT note_id, action, created_at,
-            ROW_NUMBER() OVER (PARTITION BY note_id ORDER BY created_at DESC) as rn
-          FROM note_history
-          WHERE performed_by_id = ${userId}::uuid AND action IN (${actionParams})
-        ) sub
-        WHERE rn = 1
-        ORDER BY "performedAt" DESC
-        LIMIT ${limit} OFFSET ${skip}
-      `),
+    const handledWhere = {
+      history: {
+        some: {
+          performedById: userId,
+          action: { in: actions },
+        },
+      },
+    };
+
+    if (status) handledWhere.status = status;
+    if (category) handledWhere.category = category;
+    if (createdById && hasViewAll) {
+      handledWhere.createdById = createdById;
+    }
+    if (search) {
+      handledWhere.OR = [
+        { notingId: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+    if (startDate || endDate) {
+      handledWhere.createdAt = {};
+      if (startDate) handledWhere.createdAt.gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        handledWhere.createdAt.lte = end;
+      }
+    }
+
+    const cursorArgs = useCursor
+      ? { take: limit, skip: 1, cursor: { id: cursor } }
+      : { skip, take: limit };
+
+    const [fetchedNotes, handledTotal] = await Promise.all([
+      prisma.note.findMany({
+        where: handledWhere,
+        ...listSelectOpts,
+        orderBy: { updatedAt: "desc" },
+        ...cursorArgs,
+      }),
+      useCursor ? null : prisma.note.count({ where: handledWhere }),
     ]);
 
-    total = totalResult?.[0]?.cnt ?? 0;
-    const noteIds = pageRows.map((r) => r.noteId);
+    total = handledTotal;
 
-    if (noteIds.length > 0) {
-      const fetched = await prisma.note.findMany({
-        where: { id: { in: noteIds } },
-        ...listSelectOpts,
-      });
-      const noteMap = new Map(fetched.map((n) => [n.id, n]));
-      notes = pageRows
-        .map(({ noteId, action, performedAt }) => {
-          const note = noteMap.get(noteId);
-          if (!note) return null;
-          return { ...note, myAction: { action, performedAt } };
-        })
-        .filter(Boolean);
-    } else {
+    if (fetchedNotes.length === 0) {
       notes = [];
+    } else {
+      const noteIds = fetchedNotes.map((note) => note.id);
+      const relevantHistory = await prisma.noteHistory.findMany({
+        where: {
+          noteId: { in: noteIds },
+          performedById: userId,
+          action: { in: actions },
+        },
+        select: {
+          noteId: true,
+          action: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const myActionByNoteId = new Map();
+      relevantHistory.forEach((entry) => {
+        if (!myActionByNoteId.has(entry.noteId)) {
+          myActionByNoteId.set(entry.noteId, {
+            action: entry.action,
+            performedAt: entry.createdAt,
+          });
+        }
+      });
+
+      notes = fetchedNotes
+        .map((note) => ({
+          ...note,
+          myAction: myActionByNoteId.get(note.id),
+        }))
+        .sort((a, b) => {
+          const aTs = a.myAction?.performedAt
+            ? new Date(a.myAction.performedAt).getTime()
+            : 0;
+          const bTs = b.myAction?.performedAt
+            ? new Date(b.myAction.performedAt).getTime()
+            : 0;
+          return bTs - aTs;
+        });
     }
   } else {
     // Build where clause
@@ -1152,7 +1220,9 @@ const list = asyncHandler(async (req, res) => {
     // Apply additional filters
     if (status) where.status = status;
     if (category) where.category = category;
-    if (createdById) where.createdById = createdById;
+    if (filter !== "mine" && createdById && hasViewAll) {
+      where.createdById = createdById;
+    }
 
     // Search by notingId or description
     if (search) {
@@ -1311,6 +1381,115 @@ const getCounts = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, counts, "Counts fetched successfully");
 });
 
+/**
+ * Get lightweight badge + preview summary for the noting dashboard tabs.
+ *
+ * Returns:
+ *   - counts for all top-level tabs
+ *   - recent pending note ids (for local "new" badge calculation)
+ *   - recent copy ids (for local "new" badge calculation)
+ *
+ * @route GET /api/noting/tab-summary
+ * @access Protected
+ */
+const getTabSummary = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const summaryCacheKey = `noting:tab-summary:${userId}`;
+  const cached = await cache.get(summaryCacheKey);
+  if (cached) {
+    return ApiResponse.success(res, cached, "Tab summary fetched successfully");
+  }
+
+  const approvedActions = [NOTE_ACTIONS.APPROVED, NOTE_ACTIONS.RECOMMENDED];
+  const rejectedActions = [NOTE_ACTIONS.REJECTED, NOTE_ACTIONS.NOT_RECOMMENDED];
+  const handledActions = [...approvedActions, ...rejectedActions];
+  const approvedParams = Prisma.join(approvedActions.map((a) => Prisma.sql`${a}`));
+  const rejectedParams = Prisma.join(rejectedActions.map((a) => Prisma.sql`${a}`));
+  const handledParams = Prisma.join(handledActions.map((a) => Prisma.sql`${a}`));
+
+  const statusPriority = { pending: 0, replied: 1, completed: 2, forwarded: 3 };
+
+  const [
+    mine,
+    pending,
+    pendingPreview,
+    handledCounts,
+    copies,
+    copyPreview,
+  ] = await Promise.all([
+    prisma.note.count({ where: { createdById: userId } }),
+    prisma.note.count({
+      where: {
+        status: NOTE_STATUS.PENDING,
+        currentHolderId: userId,
+      },
+    }),
+    prisma.note.findMany({
+      where: {
+        status: NOTE_STATUS.PENDING,
+        currentHolderId: userId,
+      },
+      select: { id: true },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+    }),
+    prisma.$queryRaw(Prisma.sql`
+      SELECT
+        COUNT(DISTINCT note_id) FILTER (WHERE action IN (${approvedParams}))::int AS "handledApproved",
+        COUNT(DISTINCT note_id) FILTER (WHERE action IN (${rejectedParams}))::int AS "handledRejected"
+      FROM note_history
+      WHERE performed_by_id = ${userId}::uuid
+        AND action IN (${handledParams})
+    `),
+    prisma.noteCopy.count({
+      where: { assignedToId: userId },
+    }),
+    prisma.noteCopy.findMany({
+      where: { assignedToId: userId },
+      select: {
+        id: true,
+        status: true,
+        rootCopyId: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+    }),
+  ]);
+
+  const byChain = new Map();
+  for (const copy of copyPreview) {
+    const key = copy.rootCopyId || copy.id;
+    const current = byChain.get(key);
+    const currentPriority = current ? (statusPriority[current.status] ?? 4) : 99;
+    const nextPriority = statusPriority[copy.status] ?? 4;
+    if (
+      !current ||
+      nextPriority < currentPriority ||
+      (nextPriority === currentPriority &&
+        new Date(copy.createdAt) > new Date(current.createdAt))
+    ) {
+      byChain.set(key, copy);
+    }
+  }
+
+  const handledSummary = handledCounts?.[0] ?? {};
+  const summary = {
+    mine,
+    pending,
+    handledApproved: handledSummary.handledApproved ?? 0,
+    handledRejected: handledSummary.handledRejected ?? 0,
+    copies,
+    pendingPreviewIds: pendingPreview.map((note) => note.id),
+    copyPreviewIds: Array.from(byChain.values())
+      .slice(0, 20)
+      .map((copy) => copy.id),
+  };
+
+  await cache.set(summaryCacheKey, summary, 60);
+  return ApiResponse.success(res, summary, "Tab summary fetched successfully");
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1323,4 +1502,5 @@ module.exports = {
   getById,
   list,
   getCounts,
+  getTabSummary,
 };
