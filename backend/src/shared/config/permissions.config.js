@@ -687,13 +687,6 @@ const getDefaultPermissions = (role) => {
       dsw_suspend_club: true,
       dsw_approve_club_change: true,
       dsw_view_audit_logs: true,
-      // Noting Permissions
-      noting_view_all: true,
-      noting_approve: true,
-      noting_forward: true,
-      noting_return: true,
-      noting_reject: true,
-      noting_not_recommend: true,
       // Event Permissions
       event_view_all: true,
       event_manage_all: true,
@@ -703,8 +696,8 @@ const getDefaultPermissions = (role) => {
       tms_manage_categories: true,
       tms_view_analytics: true,
       tms_close_ticket: true
-      // Admin does NOT get IPR/Research filing permissions by default
-      // Admin manages users/permissions/analytics, NOT IPR operations
+      // Admin does NOT get noting analytics/approval or IPR/Research filing by default
+      // These require explicit permission assignment
     },
     superadmin: {
       // Superadmin gets all permissions by default

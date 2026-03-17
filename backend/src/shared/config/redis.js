@@ -38,7 +38,7 @@ let isConnected = false;
 let connectionAttempted = false;
 
 // In-memory fallback cache when Redis is unavailable
-const MAX_MEMORY_CACHE_SIZE = 1000; // Prevent unbounded growth
+const MAX_MEMORY_CACHE_SIZE = 5000; // Prevent unbounded growth
 const memoryCache = new Map();
 const memoryCacheTTL = new Map();
 
@@ -58,10 +58,18 @@ function _evictIfNeeded() {
 
 /**
  * Initialize Redis connection
+ * Set CACHE_MODE=memory to force in-memory cache (useful for load testing to avoid Redis latency)
  */
 const initRedis = async () => {
   if (connectionAttempted) return redis;
   connectionAttempted = true;
+
+  // Force memory-only mode for load testing
+  if (process.env.CACHE_MODE === 'memory') {
+    log.ok('Cache mode: in-memory only (CACHE_MODE=memory)');
+    isConnected = false;
+    return null;
+  }
 
   try {
     redis = process.env.REDIS_URL
@@ -175,7 +183,8 @@ const get = async (key) => {
       memoryCacheTTL.delete(key);
       return null;
     }
-    return memoryCache.get(key) || null;
+    const val = memoryCache.get(key);
+    return val !== undefined ? val : null;
   } catch (error) {
     log.error('Cache get error:', error.message);
     return null;
@@ -277,6 +286,19 @@ const flush = async () => {
  * @param {function} fetchFn - Async function to fetch data if not cached
  * @param {number} ttl - TTL in seconds
  */
+/**
+ * In-flight request deduplication (singleflight / cache stampede protection).
+ * When multiple callers request the same cache key simultaneously and it's a miss,
+ * only ONE caller fetches from DB; the others await the same Promise.
+ */
+const _inflight = new Map();
+
+/**
+ * Cache wrapper function - Get or Set pattern with stampede protection
+ * @param {string} key - Cache key
+ * @param {function} fetchFn - Async function to fetch data if not cached
+ * @param {number} ttl - TTL in seconds
+ */
 const getOrSet = async (key, fetchFn, ttl = 300) => {
   try {
     // Try to get from cache first
@@ -284,18 +306,31 @@ const getOrSet = async (key, fetchFn, ttl = 300) => {
     if (cached !== null) {
       return { data: cached, fromCache: true };
     }
-    
-    // Fetch fresh data
-    const data = await fetchFn();
-    
-    // Cache the result
-    if (data !== null && data !== undefined) {
-      await set(key, data, ttl);
+
+    // Singleflight: if another caller is already fetching this key, wait for it
+    if (_inflight.has(key)) {
+      const data = await _inflight.get(key);
+      return { data, fromCache: true };
     }
-    
+
+    // This caller wins the race — fetch and share the result
+    const fetchPromise = fetchFn().then(async (data) => {
+      if (data !== null && data !== undefined) {
+        await set(key, data, ttl);
+      }
+      _inflight.delete(key);
+      return data;
+    }).catch((err) => {
+      _inflight.delete(key);
+      throw err;
+    });
+
+    _inflight.set(key, fetchPromise);
+    const data = await fetchPromise;
     return { data, fromCache: false };
   } catch (error) {
     log.error('Cache getOrSet error:', error.message);
+    _inflight.delete(key);
     // On error, try to fetch directly
     const data = await fetchFn();
     return { data, fromCache: false };

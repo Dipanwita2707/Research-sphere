@@ -389,76 +389,130 @@ export default function TeamManagementPage() {
   // Payment state
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatusResponse | null>(null);
 
+  const applyTeamState = useCallback((team: EventTeam | null) => {
+    setMyTeam(team);
+
+    if (!team) {
+      setEventSettings(null);
+      setPaymentStatus(null);
+      return;
+    }
+
+    setTeamName(team.name);
+
+    if (team.event) {
+      setEventSettings({
+        minTeamSize: team.event.minTeamSize || 1,
+        maxTeamSize: team.event.maxTeamSize || 4,
+        teamRegistrationDeadline: team.event.teamRegistrationDeadline,
+        paymentType: team.event.paymentType,
+        teamRegistrationFee: team.event.teamRegistrationFee,
+        registrationFee: team.event.registrationFee,
+        eventName: team.event.name,
+      });
+    }
+  }, []);
+
+  const refreshPaymentStatus = useCallback(async (team: EventTeam | null) => {
+    if (!team?.event || team.event.paymentType !== 'paid') {
+      setPaymentStatus(null);
+      return null;
+    }
+
+    try {
+      const status = await eventService.getPaymentStatus(eventId, { teamId: team.id });
+      setPaymentStatus(status);
+      return status;
+    } catch {
+      setPaymentStatus(null);
+      return null;
+    }
+  }, [eventId]);
+
+  const refreshTeamState = useCallback(async () => {
+    try {
+      const team = await eventService.getTeamDetails(eventId);
+      applyTeamState(team);
+      await refreshPaymentStatus(team);
+      return team;
+    } catch {
+      applyTeamState(null);
+      return null;
+    }
+  }, [applyTeamState, eventId, refreshPaymentStatus]);
+
+  const refreshInvitations = useCallback(async () => {
+    try {
+      const invitationsData = await eventService.getMyInvitations(eventId);
+      setInvitations(invitationsData.received || []);
+      setSentInvitations(invitationsData.sent || []);
+    } catch {
+      setInvitations([]);
+      setSentInvitations([]);
+    }
+  }, [eventId]);
+
+  const refreshRequests = useCallback(async () => {
+    try {
+      const requestsData = await eventService.getMyRequests(eventId);
+      setRequests(requestsData.received || []);
+      setSentRequests(requestsData.sent || []);
+    } catch {
+      setRequests([]);
+      setSentRequests([]);
+    }
+  }, [eventId]);
+
+  const refreshAvailableTeams = useCallback(async () => {
+    try {
+      const teams = await eventService.getTeamsLookingForMembers(eventId);
+      setAvailableTeams(teams);
+    } catch {
+      setAvailableTeams([]);
+    }
+  }, [eventId]);
+
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      const [teamResult, invitationsResult, requestsResult, teamsResult] = await Promise.allSettled([
+        eventService.getTeamDetails(eventId),
+        eventService.getMyInvitations(eventId),
+        eventService.getMyRequests(eventId),
+        eventService.getTeamsLookingForMembers(eventId),
+      ]);
 
-      // Load team details if user has one
-      try {
-        const team = await eventService.getTeamDetails(eventId);
-        if (team) {
-          setMyTeam(team);
-          setTeamName(team.name);
-          
-          // Set event settings from team data
-          if (team.event) {
-            setEventSettings({
-              minTeamSize: team.event.minTeamSize || 1,
-              maxTeamSize: team.event.maxTeamSize || 4,
-              teamRegistrationDeadline: team.event.teamRegistrationDeadline,
-              paymentType: team.event.paymentType,
-              teamRegistrationFee: team.event.teamRegistrationFee,
-              registrationFee: team.event.registrationFee,
-              eventName: team.event.name,
-            });
-          }
+      const team = teamResult.status === 'fulfilled' ? teamResult.value : null;
+      applyTeamState(team);
+      await refreshPaymentStatus(team);
 
-          // Load payment status for paid events
-          if (team.event?.paymentType === 'paid') {
-            try {
-              const status = await eventService.getPaymentStatus(eventId, { teamId: team.id });
-              setPaymentStatus(status);
-            } catch (e) {
-              // Payment status not available yet
-            }
-          }
-        }
-      } catch (e) {
-        // User doesn't have a team yet
+      if (invitationsResult.status === 'fulfilled') {
+        setInvitations(invitationsResult.value.received || []);
+        setSentInvitations(invitationsResult.value.sent || []);
+      } else {
+        setInvitations([]);
+        setSentInvitations([]);
       }
 
-      // Load invitations
-      try {
-        const invitationsData = await eventService.getMyInvitations(eventId);
-        setInvitations(invitationsData.received || []);
-        setSentInvitations(invitationsData.sent || []);
-      } catch (e) {
-        console.error('Failed to load invitations', e);
+      if (requestsResult.status === 'fulfilled') {
+        setRequests(requestsResult.value.received || []);
+        setSentRequests(requestsResult.value.sent || []);
+      } else {
+        setRequests([]);
+        setSentRequests([]);
       }
 
-      // Load requests
-      try {
-        const requestsData = await eventService.getMyRequests(eventId);
-        setRequests(requestsData.received || []);
-        setSentRequests(requestsData.sent || []);
-      } catch (e) {
-        console.error('Failed to load requests', e);
+      if (teamsResult.status === 'fulfilled') {
+        setAvailableTeams(teamsResult.value);
+      } else {
+        setAvailableTeams([]);
       }
-
-      // Load available teams
-      try {
-        const teams = await eventService.getTeamsLookingForMembers(eventId);
-        setAvailableTeams(teams);
-      } catch (e) {
-        console.error('Failed to load available teams', e);
-      }
-
     } catch (error: any) {
       toast({ type: 'error', message: 'Failed to load team data' });
     } finally {
       setLoading(false);
     }
-  }, [eventId, toast]);
+  }, [applyTeamState, eventId, refreshPaymentStatus, toast]);
 
   useEffect(() => {
     loadData();
@@ -473,10 +527,10 @@ export default function TeamManagementPage() {
     setCreatingTeam(true);
     try {
       const team = await eventService.createTeam(eventId, teamName);
-      setMyTeam(team);
+      applyTeamState(team);
+      await refreshPaymentStatus(team);
+      setAvailableTeams(prev => prev.filter(existing => existing.id !== team.id));
       toast({ type: 'success', message: 'Team created successfully!' });
-      // Reload all data to properly set eventSettings (paymentType) and paymentStatus
-      await loadData();
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
@@ -519,8 +573,14 @@ export default function TeamManagementPage() {
   const handleRespondToInvitation = async (invitationId: string, accept: boolean) => {
     try {
       await eventService.respondToInvitation(eventId, invitationId, accept);
+      setInvitations(prev => prev.filter(invitation => invitation.id !== invitationId));
       toast({ type: 'success', message: accept ? 'Invitation accepted!' : 'Invitation declined' });
-      loadData();
+      await Promise.all([
+        accept ? refreshTeamState() : Promise.resolve(null),
+        refreshInvitations(),
+        refreshRequests(),
+        refreshAvailableTeams(),
+      ]);
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
     }
@@ -542,8 +602,13 @@ export default function TeamManagementPage() {
   const handleRespondToRequest = async (requestId: string, accept: boolean) => {
     try {
       await eventService.respondToJoinRequest(eventId, requestId, accept);
+      setRequests(prev => prev.filter(request => request.id !== requestId));
       toast({ type: 'success', message: accept ? 'Request accepted!' : 'Request declined' });
-      loadData();
+      await Promise.all([
+        refreshTeamState(),
+        refreshRequests(),
+        refreshAvailableTeams(),
+      ]);
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
     }
@@ -555,7 +620,10 @@ export default function TeamManagementPage() {
     try {
       await eventService.removeMemberFromTeam(eventId, myTeam.id, memberId);
       toast({ type: 'success', message: 'Member removed from team' });
-      loadData();
+      await Promise.all([
+        refreshTeamState(),
+        refreshAvailableTeams(),
+      ]);
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
     }
@@ -617,7 +685,7 @@ export default function TeamManagementPage() {
       : undefined,
     onSuccess: () => {
       toast({ type: 'success', message: 'Payment successful! Team registration confirmed.' });
-      loadData(); // Refresh to show paid status
+      refreshTeamState();
       setTimeout(() => router.push(`/events/${eventId}`), 1500);
     },
     onError: (msg) => {
@@ -635,14 +703,6 @@ export default function TeamManagementPage() {
     const currentMembers = myTeam.memberCount?.current || myTeam.members?.length || 0;
     const minRequired = myTeam.memberCount?.min || myTeam.event?.minTeamSize || eventSettings?.minTeamSize || 1;
 
-    console.log('Finalize Check:', {
-      currentMembers,
-      minRequired,
-      teamId: myTeam.teamId,
-      members: myTeam.members,
-      memberCount: myTeam.memberCount,
-    });
-
     if (currentMembers < minRequired) {
       toast({ 
         type: 'error', 
@@ -658,16 +718,15 @@ export default function TeamManagementPage() {
       // For paid events, after finalization -> proceed to payment
       if (isPaidEvent && !isTeamPaid) {
         toast({ type: 'success', message: 'Team finalized! Proceeding to payment...' });
-        await loadData(); // Reload to get updated team status
+        await refreshTeamState();
       } else {
         toast({ type: 'success', message: 'Registration completed successfully!' });
-        await loadData();
+        await refreshTeamState();
         setTimeout(() => {
           router.push(`/events/${eventId}`);
         }, 1500);
       }
     } catch (error: any) {
-      console.error('Finalize error:', error);
       toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setFinalizingTeam(false);

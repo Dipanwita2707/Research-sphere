@@ -36,10 +36,10 @@ const createTeam = asyncHandler(async (req, res) => {
  * @access Protected
  */
 const getTeamDetails = asyncHandler(async (req, res) => {
-  const { teamId } = req.params;
+  const { id, teamId } = req.params;
   const userId = req.user.id;
   
-  const team = await teamService.getTeamDetails(teamId, userId);
+  const team = await teamService.getTeamDetails(id, teamId, userId, req.user);
   
   return ApiResponse.success(res, team, 'Team details fetched successfully');
 });

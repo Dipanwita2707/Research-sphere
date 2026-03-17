@@ -5,6 +5,10 @@ import type {
   Note,
   CreateNotePayload,
   NoteCopy,
+  NotingAdminActivityAnalytics,
+  NotingAdminOverview,
+  NotingAdminUserAnalytics,
+  NotingTabSummary,
 } from "../types/noting.types";
 
 const BASE = "/noting";
@@ -67,6 +71,32 @@ export interface NotingActionPermissions extends NotingPermissions {
   canNotRecommend: boolean;
 }
 
+const toBoolean = (value: unknown): boolean => {
+  if (value === true || value === "true" || value === 1 || value === "1") return true;
+  if (value === false || value === "false" || value === 0 || value === "0") return false;
+  return Boolean(value);
+};
+
+const normalizeNotingPermissions = (
+  raw: Partial<Record<keyof NotingPermissions, unknown>>,
+): NotingPermissions => ({
+  noting_create: toBoolean(raw.noting_create),
+  noting_view_own: toBoolean(raw.noting_view_own),
+  noting_view_department: toBoolean(raw.noting_view_department),
+  noting_view_all: toBoolean(raw.noting_view_all),
+  noting_approve: toBoolean(raw.noting_approve),
+  noting_forward: toBoolean(raw.noting_forward),
+  noting_return: toBoolean(raw.noting_return),
+  noting_add_comment: toBoolean(raw.noting_add_comment),
+  noting_reject: toBoolean(raw.noting_reject),
+  noting_not_recommend: toBoolean(raw.noting_not_recommend),
+  event_approve: toBoolean(raw.event_approve),
+  dsw_approve_noting: toBoolean(raw.dsw_approve_noting),
+  curriculum_approve: toBoolean(raw.curriculum_approve),
+  exam_approve: toBoolean(raw.exam_approve),
+  infrastructure_approve: toBoolean(raw.infrastructure_approve),
+});
+
 export const notingService = {
   /**
    * Fetch the current user's noting permissions from the server.
@@ -76,17 +106,17 @@ export const notingService = {
    */
   getMyNotingPermissions: (): Promise<NotingActionPermissions> =>
     api.get(`${BASE}/my-permissions`).then((res) => {
-      const raw: NotingPermissions = res.data.data;
+      const raw = normalizeNotingPermissions(res.data.data ?? {});
 
       return {
         ...raw,
         // Derived action flags reflect only the Approval Actions section.
-        canApprove: !!raw.noting_approve,
-        canReject: !!raw.noting_reject,
-        canRevert: !!raw.noting_return,
-        canForward: !!raw.noting_forward,
-        canRecommend: !!raw.noting_add_comment,
-        canNotRecommend: !!raw.noting_not_recommend,
+        canApprove: raw.noting_approve,
+        canReject: raw.noting_reject,
+        canRevert: raw.noting_return,
+        canForward: raw.noting_forward,
+        canRecommend: raw.noting_add_comment,
+        canNotRecommend: raw.noting_not_recommend,
       };
     }),
 
@@ -115,8 +145,11 @@ export const notingService = {
   getCounts: (): Promise<{ mine: number; pending: number; handled: number }> =>
     api.get(`${BASE}/counts`).then((res) => res.data.data),
 
+  getTabSummary: (): Promise<NotingTabSummary> =>
+    api.get(`${BASE}/tab-summary`).then((res) => res.data.data),
+
   list: (params?: {
-    filter?: "mine" | "pending" | "handled" | "copies";
+    filter?: "mine" | "pending" | "handled" | "copies" | "all";
     status?: string;
     category?: string;
     search?: string;
@@ -135,7 +168,33 @@ export const notingService = {
       counts: res.data.counts as
         | { mine: number; pending: number; handled: number }
         | undefined,
-    })),
+    })), 
+
+  getAdminOverview: (params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<NotingAdminOverview> =>
+    api
+      .get(`${BASE}/admin/analytics/overview`, { params, timeout: 30000 })
+      .then((res) => res.data.data),
+
+  getAdminUsers: (params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<NotingAdminUserAnalytics> =>
+    api
+      .get(`${BASE}/admin/analytics/users`, { params, timeout: 30000 })
+      .then((res) => res.data.data),
+
+  getAdminActivity: (params?: {
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<NotingAdminActivityAnalytics> =>
+    api
+      .get(`${BASE}/admin/analytics/activity`, { params, timeout: 30000 })
+      .then((res) => res.data.data),
 
   getById: (id: string): Promise<Note> =>
     api.get(`${BASE}/${id}`, { timeout: 30000 }).then((res) => res.data.data),
@@ -160,6 +219,17 @@ export const notingService = {
         fileName: string;
         fileDescription?: string | null;
       }[];
+      eventVisibilitySettings?: {
+        visibleToRoles?: string[];
+        studentFilterType?: 'all' | 'custom';
+        allowedSchoolIds?: string[];
+        allowedDepartmentIds?: string[];
+        allowedProgramIds?: string[];
+        allowedBatchYears?: number[];
+        allowedSectionIds?: string[];
+        allowExtraPasses?: boolean;
+        maxExtraPassesPerUser?: number;
+      } | null;
     },
   ) =>
     api
@@ -210,6 +280,11 @@ export const notingService = {
   getMyCopies: (params?: {
     page?: number;
     limit?: number;
+    search?: string;
+    status?: string;
+    category?: string;
+    startDate?: string;
+    endDate?: string;
   }): Promise<{
     copies: NoteCopy[];
     myManagerId: string | null;

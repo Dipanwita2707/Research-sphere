@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Search, Filter, XCircle, X, Mail, Users, Crown,
   Eye, CreditCard, CheckCircle2, Loader2, Download,
@@ -9,9 +10,6 @@ import {
 import { eventService } from '@/features/event-management/services/event.service';
 import type { Event } from '@/features/event-management/types/event.types';
 import RegistrationFilters from '@/features/event-management/components/RegistrationFilters';
-import RegistrationDetailModal from '@/features/event-management/components/RegistrationDetailModal';
-import EmailSlider from '@/features/event-management/components/EmailSlider';
-import CertificateSlider from '@/features/event-management/components/CertificateSlider';
 import type {
   RegistrationFilterParams,
   RegistrationFilterOptions,
@@ -26,6 +24,19 @@ import {
 } from '@/features/event-management/types/registrationFilter.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { CARD, CARD_HEADER, STATUS_COLORS } from './constants';
+
+const RegistrationDetailModal = dynamic(
+  () => import('@/features/event-management/components/RegistrationDetailModal'),
+  { loading: () => null }
+);
+const EmailSlider = dynamic(
+  () => import('@/features/event-management/components/EmailSlider'),
+  { loading: () => null }
+);
+const CertificateSlider = dynamic(
+  () => import('@/features/event-management/components/CertificateSlider'),
+  { loading: () => null }
+);
 
 // ── Props ────────────────────────────────────────────────────────
 interface RegistrationsTabProps {
@@ -131,57 +142,18 @@ export default function RegistrationsTab({ eventId, event }: RegistrationsTabPro
     toast({ type: 'info', message: 'Preparing CSV, please wait…' });
     try {
       const { search, status, ...advancedFilters } = regFilters;
-      const result = await eventService.getEventRegistrations(
-        eventId, 1, 20, status,
-        { search, ...advancedFilters, export: 'true' } as Record<string, string | number | undefined>,
+      const { blob, filename } = await eventService.exportEventRegistrationsCsv(
+        eventId,
+        status,
+        { search, ...advancedFilters } as Record<string, string | number | undefined>,
       );
-      const all: RegistrationRow[] = result.registrations as RegistrationRow[];
-
-      const esc = (v: unknown) => {
-        const s = String(v ?? '');
-        return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-      };
-
-      const headers = [
-        'Registration ID', 'Name', 'UID', 'Email', 'Role',
-        'School / Faculty', 'Department', 'Program',
-        'Status', 'Payment Status', 'Amount Paid (₹)',
-        'Discount (₹)', 'Original Amount (₹)',
-        'Transaction ID', 'Order ID',
-        'Team ID', 'Team Name', 'Team Leader',
-        'Entered', 'Entered At', 'Registered At',
-      ];
-
-      const rows = all.map((r) => {
-        const u = r.user_login;
-        const s = u?.studentLogin;
-        const e = u?.employeeDetails;
-        const name = s?.displayName || (s ? `${s.firstName} ${s.lastName || ''}`.trim() : '')
-          || e?.displayName || (e ? `${e.firstName} ${e.lastName || ''}`.trim() : '') || 'N/A';
-        const school = s?.program?.department?.faculty?.facultyName || e?.primarySchool?.facultyName || '';
-        const dept = s?.program?.department?.departmentName || e?.primaryDepartment?.departmentName || '';
-        const program = s?.program?.programName || '';
-        return [
-          r.registrationId, name, u?.uid || '', u?.email || '', u?.role || '',
-          school, dept, program, r.status, r.paymentStatus || '',
-          r.amountPaid ?? '', r.discountAmount ?? '', r.originalAmount ?? '',
-          r.latestPayment?.razorpayPaymentId || '', r.latestPayment?.razorpayOrderId || '',
-          r.team?.teamId || '', r.team?.name || '', r.isTeamLeader ? 'Yes' : '',
-          r.hasEntered ? 'Yes' : 'No',
-          r.enteredAt ? new Date(r.enteredAt).toLocaleString('en-IN') : '',
-          r.registeredAt ? new Date(r.registeredAt).toLocaleString('en-IN') : '',
-        ].map(esc);
-      });
-
-      const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${event.name.replace(/\s+/g, '_')}_registrations_${new Date().toISOString().split('T')[0]}.csv`;
+      link.download = filename || `${event.name.replace(/\s+/g, '_')}_registrations_${new Date().toISOString().split('T')[0]}.csv`;
       link.click();
       URL.revokeObjectURL(url);
-      toast({ type: 'success', message: `CSV exported — ${all.length} registrations` });
+      toast({ type: 'success', message: 'CSV export started' });
     } catch {
       toast({ type: 'error', message: 'Failed to export CSV' });
     }

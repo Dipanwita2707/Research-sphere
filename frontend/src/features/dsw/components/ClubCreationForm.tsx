@@ -12,6 +12,16 @@ import {
   Save,
 } from "lucide-react";
 import { useClubFormStore, ClubFormData } from "../stores/useClubFormStore";
+import {
+  flattenClubErrors,
+  clubStepSchemas,
+  sanitizeClubFormData,
+  sanitizeClubFormPatch,
+} from "../validation/club.validation";
+import {
+  sanitizeDigitsInput,
+  sanitizePlainTextInput,
+} from "@/shared/utils/inputSanitizers";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ClubCategory {
@@ -64,29 +74,6 @@ const STEPS = [
   { num: 2, title: "People & Operations", icon: Users },
   { num: 3, title: "Declarations", icon: Shield },
 ];
-
-// ─── Validation Helpers ───────────────────────────────────────────────────────
-/** Strip anything that isn't a printable text character (keeps letters, spaces, punctuation) */
-const sanitizeText = (val: string) => val.replace(/[^\w\s.,\-'&()/:]/g, "");
-
-/** Only allow numeric digits */
-const sanitizePositiveInt = (val: string) => val.replace(/[^0-9]/g, "");
-
-/** Only allow characters valid in an email */
-const sanitizeEmail = (val: string) => val.replace(/[^a-zA-Z0-9._%+\-@]/g, "");
-
-/** Allow alphanumeric + common handle chars for social media */
-const sanitizeSocialHandle = (val: string) =>
-  val.replace(/[^a-zA-Z0-9._\-@/https:]/g, "");
-
-/** Allow alphanumeric + slash for academic session format e.g. 2025-26 or 2025-2026 */
-const sanitizeSession = (val: string) => val.replace(/[^0-9\-/]/g, "");
-
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
-
-const isValidAcademicSession = (session: string) =>
-  /^\d{4}[-/]\d{2,4}$/.test(session.trim());
 
 // ─── Error Field Component ─────────────────────────────────────────────────────
 function FieldError({ msg }: { msg?: string }) {
@@ -182,7 +169,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
   // ── Field updater ──
   const set = useCallback(
     <K extends keyof ClubFormData>(field: K, val: ClubFormData[K]) => {
-      setField(field, val);
+      setField(field, sanitizeClubFormPatch(field, val) as ClubFormData[K]);
       setErrors((prev) => {
         const e = { ...prev };
         delete e[field];
@@ -192,87 +179,18 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
     [setField],
   );
 
-  const addError = (field: string, msg: string) =>
-    setErrors((prev) => ({ ...prev, [field]: msg }));
-
   // ── Step validation ──
   const validateStep = (step: number): boolean => {
-    const errs: Record<string, string> = {};
+    const stepSchema = clubStepSchemas[step as keyof typeof clubStepSchemas];
+    const result = stepSchema.safeParse(sanitizeClubFormData(value));
 
-    if (step === 1) {
-      if (!value.clubName?.trim()) errs.clubName = "Club name is required";
-      else if (value.clubName.trim().length < 3)
-        errs.clubName = "Club name must be at least 3 characters";
-      else if (value.clubName.trim().length > 100)
-        errs.clubName = "Club name must not exceed 100 characters";
-
-      if (!value.clubCategoryId)
-        errs.clubCategoryId = "Please select a specific club category";
-
-      if (!value.purpose?.trim()) errs.purpose = "Purpose is required";
-      else if (value.purpose.trim().length < 50)
-        errs.purpose = `Purpose must be at least 50 characters (currently ${value.purpose.trim().length})`;
-      else if (value.purpose.trim().length > 2000)
-        errs.purpose = "Purpose must not exceed 2000 characters";
-
-      if (!value.academicSession?.trim())
-        errs.academicSession = "Academic session is required";
-      else if (!isValidAcademicSession(value.academicSession))
-        errs.academicSession =
-          "Format must be YYYY-YY or YYYY-YYYY (e.g. 2025-26 or 2025-2026)";
-
-      if (!value.targetStudentGroup?.length)
-        errs.targetStudentGroup = "Select at least one target group";
-
-      if (!value.expectedActivityTypes?.length)
-        errs.expectedActivityTypes = "Select at least one activity type";
+    if (result.success) {
+      setErrors({});
+      return true;
     }
 
-    if (step === 2) {
-      if (!value.facultyFacilitatorId)
-        errs.facultyFacilitatorId = "Faculty Facilitator is required";
-
-      if (!value.initialMembers?.length)
-        errs.initialMembers = "Add at least one initial member";
-      else if (value.initialMembers.length > 50)
-        errs.initialMembers = "Cannot add more than 50 initial members";
-
-      if (!value.meetingFrequency)
-        errs.meetingFrequency = "Meeting frequency is required";
-
-      const count = value.estimatedAnnualActivityCount ?? 0;
-      if (!count || count < 1)
-        errs.estimatedAnnualActivityCount =
-          "Must be at least 1 activity per year";
-      else if (count > 365)
-        errs.estimatedAnnualActivityCount =
-          "Cannot exceed 365 activities per year";
-
-      const strength = value.expectedStudentStrength;
-      if (strength !== null && strength !== undefined && strength < 2)
-        errs.expectedStudentStrength =
-          "If provided, must be at least 2 students";
-      if (strength !== null && strength !== undefined && strength > 10000)
-        errs.expectedStudentStrength = "Cannot exceed 10,000 students";
-    }
-
-    if (step === 3) {
-      if (!value.codeOfConductAccepted)
-        errs.codeOfConductAccepted = "You must accept the Code of Conduct";
-      if (!value.antiDiscriminationAccepted)
-        errs.antiDiscriminationAccepted =
-          "You must accept the Anti-Discrimination declaration";
-
-      if (
-        value.proposedEmail?.trim() &&
-        !isValidEmail(value.proposedEmail.trim())
-      )
-        errs.proposedEmail =
-          "Enter a valid email address (e.g. club@sgtuniversity.org)";
-    }
-
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+    setErrors(flattenClubErrors(result.error));
+    return false;
   };
 
   const handleNext = () => {
@@ -406,7 +324,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 type="text"
                 maxLength={100}
                 value={value.clubName || ""}
-                onChange={(e) => set("clubName", sanitizeText(e.target.value))}
+                onChange={(e) => set("clubName", e.target.value)}
                 disabled={disabled}
                 className={`ev-input ${errors.clubName ? "border-red-400" : "border-[#b3cde0]"}`}
                 placeholder="Enter club name (unique, max 100 chars)"
@@ -482,7 +400,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
               </label>
               <textarea
                 value={value.purpose || ""}
-                onChange={(e) => set("purpose", sanitizeText(e.target.value))}
+                onChange={(e) => set("purpose", e.target.value)}
                 disabled={disabled}
                 maxLength={2000}
                 rows={4}
@@ -511,9 +429,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 type="text"
                 maxLength={9}
                 value={value.academicSession || ""}
-                onChange={(e) =>
-                  set("academicSession", sanitizeSession(e.target.value))
-                }
+                onChange={(e) => set("academicSession", e.target.value)}
                 disabled={disabled}
                 className={`ev-input ${errors.academicSession ? "border-red-400" : "border-[#b3cde0]"}`}
                 placeholder="e.g. 2025-26"
@@ -700,7 +616,11 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                     type="text"
                     value={memberQuery}
                     onChange={(e) =>
-                      setMemberQuery(sanitizeText(e.target.value))
+                      setMemberQuery(
+                        sanitizePlainTextInput(e.target.value, {
+                          maxLength: 100,
+                        }),
+                      )
                     }
                     disabled={disabled}
                     className={`ev-input ${errors.initialMembers ? "border-red-400" : "border-[#b3cde0]"}`}
@@ -816,7 +736,9 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                     maxLength={3}
                     value={value.estimatedAnnualActivityCount || ""}
                     onChange={(e) => {
-                      const raw = sanitizePositiveInt(e.target.value);
+                      const raw = sanitizeDigitsInput(e.target.value, {
+                        maxLength: 3,
+                      });
                       if (raw === "") {
                         set("estimatedAnnualActivityCount", 0);
                         return;
@@ -845,7 +767,9 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                     maxLength={5}
                     value={value.expectedStudentStrength ?? ""}
                     onChange={(e) => {
-                      const raw = sanitizePositiveInt(e.target.value);
+                      const raw = sanitizeDigitsInput(e.target.value, {
+                        maxLength: 5,
+                      });
                       if (raw === "") {
                         set("expectedStudentStrength", null);
                         return;
@@ -945,9 +869,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                 <input
                   type="email"
                   value={value.proposedEmail || ""}
-                  onChange={(e) =>
-                    set("proposedEmail", sanitizeEmail(e.target.value))
-                  }
+                  onChange={(e) => set("proposedEmail", e.target.value)}
                   disabled={disabled}
                   maxLength={100}
                   className={`ev-input text-sm ${errors.proposedEmail ? "border-red-400" : "border-[#b3cde0]"}`}
@@ -975,7 +897,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
                       onChange={(e) =>
                         set("socialMediaHandles", {
                           ...value.socialMediaHandles,
-                          [p]: sanitizeSocialHandle(e.target.value),
+                          [p]: e.target.value,
                         })
                       }
                       disabled={disabled}
@@ -1095,7 +1017,11 @@ function SearchField({
           <input
             type="text"
             value={query}
-            onChange={(e) => onQueryChange(sanitizeText(e.target.value))}
+            onChange={(e) =>
+              onQueryChange(
+                sanitizePlainTextInput(e.target.value, { maxLength: 100 }),
+              )
+            }
             disabled={disabled}
             className={`ev-input pr-10 ${error ? "border-red-400" : "border-gray-300 dark:border-gray-600"}`}
             placeholder={placeholder}

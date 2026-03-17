@@ -9,6 +9,10 @@ import { useToast } from "@/shared/ui-components/Toast";
 import { useClubFormStore } from "@/features/dsw/stores/useClubFormStore";
 import { useMyClubs } from "@/features/dsw/hooks";
 import { useAuthStore } from "@/shared/auth/authStore";
+import {
+  clubFormSchema,
+  sanitizeClubFormData,
+} from "@/features/dsw/validation/club.validation";
 
 export default function CreateClubPage() {
   const router = useRouter();
@@ -26,60 +30,14 @@ export default function CreateClubPage() {
   );
   const isAlreadyChairperson = !!existingChairClub;
 
-  const validateAllSteps = (): { valid: boolean; errors: string[] } => {
-    const clubData = useClubFormStore.getState().data;
-    const errors: string[] = [];
-
-    // Step 1 validation
-    if (!clubData.clubName) errors.push("Club name is required");
-    if (!clubData.clubCategoryId) errors.push("Club category is required");
-    if (!clubData.purpose || clubData.purpose.length < 50)
-      errors.push("Purpose must be at least 50 characters");
-    if (!clubData.academicSession) errors.push("Academic session is required");
-
-    // Step 2 validation
-    if (!clubData.facultyFacilitatorId)
-      errors.push("Faculty Facilitator is required");
-    if (!clubData.initialMembers || clubData.initialMembers.length === 0)
-      errors.push("At least one initial member is required");
-
-    // Step 3 validation (Critical)
-    if (
-      !clubData.targetStudentGroup ||
-      clubData.targetStudentGroup.length === 0
-    )
-      errors.push("At least one target student group is required");
-    if (
-      !clubData.expectedActivityTypes ||
-      clubData.expectedActivityTypes.length === 0
-    )
-      errors.push("At least one activity type is required");
-    if (!clubData.codeOfConductAccepted)
-      errors.push("Code of Conduct must be accepted");
-    if (!clubData.antiDiscriminationAccepted)
-      errors.push("Anti-Discrimination declaration must be accepted");
-
-    // Step 4 validation
-    if (!clubData.meetingFrequency)
-      errors.push("Meeting frequency is required");
-    if (
-      !clubData.estimatedAnnualActivityCount ||
-      clubData.estimatedAnnualActivityCount < 1
-    )
-      errors.push("Annual activity count must be at least 1");
-
-    // Step 5 is optional - no validation
-
-    return { valid: errors.length === 0, errors };
-  };
-
   const handleSubmit = async () => {
-    // Final validation
-    const validation = validateAllSteps();
-    if (!validation.valid) {
-      setError(
-        `Please complete all required fields:\n${validation.errors.join("\n")}`,
+    const clubData = sanitizeClubFormData(useClubFormStore.getState().data);
+    const validation = clubFormSchema.safeParse(clubData);
+    if (!validation.success) {
+      const messages = Array.from(
+        new Set(validation.error.issues.map((issue) => issue.message)),
       );
+      setError(`Please complete all required fields:\n${messages.join("\n")}`);
       return;
     }
 
@@ -94,24 +52,24 @@ export default function CreateClubPage() {
     }
 
     try {
-      const clubData = useClubFormStore.getState().data;
       // Submit club data directly - backend will create noting
       const clubPayload = {
-        name: clubData.clubName,
-        categoryId: clubData.clubCategoryId,
-        purpose: clubData.purpose,
-        academicSession: clubData.academicSession,
-        facultyFacilitatorId: clubData.facultyFacilitatorId,
-        initialMembers: clubData.initialMembers,
-        targetStudentGroup: clubData.targetStudentGroup,
-        expectedActivityTypes: clubData.expectedActivityTypes,
-        codeOfConductAccepted: clubData.codeOfConductAccepted,
-        antiDiscriminationAccepted: clubData.antiDiscriminationAccepted,
-        meetingFrequency: clubData.meetingFrequency,
-        estimatedAnnualActivityCount: clubData.estimatedAnnualActivityCount,
-        proposedEmail: clubData.proposedEmail,
-        socialMediaHandles: clubData.socialMediaHandles,
-        expectedStudentStrength: clubData.expectedStudentStrength,
+        name: validation.data.clubName,
+        categoryId: validation.data.clubCategoryId,
+        purpose: validation.data.purpose,
+        academicSession: validation.data.academicSession,
+        facultyFacilitatorId: validation.data.facultyFacilitatorId,
+        initialMembers: validation.data.initialMembers,
+        targetStudentGroup: validation.data.targetStudentGroup,
+        expectedActivityTypes: validation.data.expectedActivityTypes,
+        codeOfConductAccepted: validation.data.codeOfConductAccepted,
+        antiDiscriminationAccepted: validation.data.antiDiscriminationAccepted,
+        meetingFrequency: validation.data.meetingFrequency,
+        estimatedAnnualActivityCount:
+          validation.data.estimatedAnnualActivityCount,
+        proposedEmail: validation.data.proposedEmail || undefined,
+        socialMediaHandles: validation.data.socialMediaHandles,
+        expectedStudentStrength: validation.data.expectedStudentStrength,
       };
 
       // Use the notingAPI which includes auth token automatically

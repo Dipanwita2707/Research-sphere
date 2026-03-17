@@ -3,13 +3,19 @@ const { PrismaClient } = require("@prisma/client");
 // Singleton pattern to prevent multiple Prisma Client instances
 let prisma;
 
+// Connection pool size: reduced per-worker to accommodate PM2 cluster mode.
+// db.t4g.micro supports ~87 max connections.
+// Cluster with 2 workers: 12 per worker × 2 = 24 total, safe for micro instance.
+const POOL_SIZE = parseInt(process.env.DB_POOL_SIZE, 10) || 12;
+const POOL_TIMEOUT = parseInt(process.env.DB_POOL_TIMEOUT, 10) || 30;
+
 if (process.env.NODE_ENV === "production") {
   // Production: Single instance with connection pooling
   prisma = new PrismaClient({
     log: [{ level: "error", emit: "event" }], // Emit events so $on('error') fires
     datasources: {
       db: {
-        url: process.env.DATABASE_URL + "?connection_limit=25&pool_timeout=30",
+        url: process.env.DATABASE_URL + `?connection_limit=${POOL_SIZE}&pool_timeout=${POOL_TIMEOUT}`,
       },
     },
     transactionOptions: {
@@ -22,18 +28,15 @@ if (process.env.NODE_ENV === "production") {
   // Development: Use global variable to preserve client across HMR with connection pooling
   if (!global.prisma) {
     global.prisma = new PrismaClient({
-      log:
-        process.env.NODE_ENV === "development"
-          ? [
-              "warn",
-              "error",
-              { level: "query", emit: "event" }, // Emit query events for slow-query logging
-            ]
-          : ["error"],
+      log: [
+        "warn",
+        "error",
+        { level: "query", emit: "event" }, // For slow query logging
+      ],
       datasources: {
         db: {
           url:
-            process.env.DATABASE_URL + "?connection_limit=5&pool_timeout=30",
+            process.env.DATABASE_URL + `?connection_limit=${POOL_SIZE}&pool_timeout=${POOL_TIMEOUT}`,
         },
       },
       transactionOptions: {
@@ -42,17 +45,6 @@ if (process.env.NODE_ENV === "production") {
         isolationLevel: "ReadCommitted",
       },
     });
-
-    // Log slow queries in development — threshold configurable via env
-    if (process.env.NODE_ENV === "development") {
-      const log = require("../utils/logger");
-      const slowThreshold = parseInt(process.env.PRISMA_SLOW_QUERY_MS, 10) || 500;
-      global.prisma.$on("query", (e) => {
-        if (e.duration > slowThreshold) {
-          log.slowQuery(e.duration, e.query);
-        }
-      });
-    }
   }
   prisma = global.prisma;
 }
@@ -96,6 +88,18 @@ prisma.$on("error", (e) => {
     connectWithRetry();
   }
 });
+
+// Slow query logging (development only) — log queries > 500ms
+if (process.env.NODE_ENV !== "production") {
+  const SLOW_QUERY_MS = parseInt(process.env.SLOW_QUERY_MS, 10) || 500;
+  prisma.$on("query", (e) => {
+    const duration = e.duration;
+    if (duration >= SLOW_QUERY_MS) {
+      const log = require("../utils/logger");
+      log.slowQuery(duration, e.query);
+    }
+  });
+}
 
 // Handle cleanup on application termination
 // AWS RDS is a persistent server — no keep-alive pings needed.

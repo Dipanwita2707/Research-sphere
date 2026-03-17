@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, checkPermission, checkAnyPermission, requireNotingPermission } = require('../../../shared/middleware/auth');
+const { protect, restrictTo, checkPermission, checkAnyPermission, requireNotingPermission } = require('../../../shared/middleware/auth');
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const validators = require('../validators/noting.validators');
 const { requireDraftNote, requireNoteApprover } = require('../middleware/noteAuth');
@@ -11,6 +11,7 @@ const crudCtrl     = require('../controllers/notingCrud.controller');
 const workflowCtrl = require('../controllers/notingWorkflow.controller');
 const copyCtrl     = require('../controllers/notingCopy.controller');
 const lookupCtrl   = require('../controllers/notingLookup.controller');
+const adminCtrl    = require('../controllers/notingAdmin.controller');
 
 // All subcategory-level approval keys + the super-permission.
 // Any of these means the user can approve at least one subcategory.
@@ -46,6 +47,10 @@ router.get('/my-creator-info',
 router.get('/counts',
   checkAnyPermission(['noting_view_own', 'noting_view_all', ...NOTING_APPROVAL_KEYS], { checkDefaultPermissions: true }),
   crudCtrl.getCounts
+);
+router.get('/tab-summary',
+  checkAnyPermission(['noting_view_own', 'noting_view_all', ...NOTING_APPROVAL_KEYS], { checkDefaultPermissions: true }),
+  crudCtrl.getTabSummary
 );
 
 // Forward options routes - require noting_forward or any approval key
@@ -94,6 +99,29 @@ router.get(
   '/my-facilitator-clubs',
   checkPermission('noting_create', { checkDefaultPermissions: true }),
   lookupCtrl.getMyFacilitatorClubs
+);
+
+// Admin analytics routes - must be before /:id
+router.get(
+  '/admin/analytics/overview',
+  restrictTo('admin', 'superadmin'),
+  checkPermission('noting_view_all', { checkDefaultPermissions: true }),
+  validators.adminAnalyticsValidation,
+  adminCtrl.getOverviewAnalytics
+);
+router.get(
+  '/admin/analytics/users',
+  restrictTo('admin', 'superadmin'),
+  checkPermission('noting_view_all', { checkDefaultPermissions: true }),
+  validators.adminAnalyticsValidation,
+  adminCtrl.getUserAnalytics
+);
+router.get(
+  '/admin/analytics/activity',
+  restrictTo('admin', 'superadmin'),
+  checkPermission('noting_view_all', { checkDefaultPermissions: true }),
+  validators.adminActivityAnalyticsValidation,
+  adminCtrl.getActivityAnalytics
 );
 
 // Note CRUD routes - require noting_create for write, noting_view_own for read
