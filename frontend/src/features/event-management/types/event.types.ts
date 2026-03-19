@@ -150,7 +150,38 @@ export interface Event {
   dutyLeaveEligibility?: string[];
   dutyLeaveRoleType?: 'participants' | 'organizers' | 'both';
   hasSponsorship?: boolean;
-  sponsors?: Array<{ name: string; amount: number; type: string; notes?: string }>;
+  sponsors?: Array<{
+    id?: string;
+    name: string;
+    originSource?: 'noting' | 'event';
+    // New advanced format
+    sponsorType?: 'corporate' | 'individual' | 'organization' | 'other';
+    contactPerson?: string;
+    designation?: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    contributionType?: 'cash' | 'in_kind' | 'both';
+    cashAmount?: number;
+    paymentStatus?: 'received' | 'pending' | 'partial' | 'not_received';
+    paymentMethod?: 'cash' | 'upi' | 'card' | 'net_banking' | 'other';
+    paymentMethodOtherLabel?: string;
+    transactionId?: string;
+    receipt?: { filePath: string; fileName: string } | null;
+    cashAssignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    inKindItems?: Array<{
+      itemName: string;
+      category?: string;
+      quantity?: number;
+      estimatedValue?: number;
+      description?: string;
+      deliveryStatus?: 'pending' | 'received' | 'not_received';
+      assignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    }>;
+    // Legacy format fields (backward compat)
+    amount?: number;
+    type?: string;
+  }>;
   showSponsorshipPublicly?: boolean;  // Creator decides at publish: show sponsorship to users
   hasResources?: boolean;
   resources?: Array<{ category: string; type: string; description: string; estimatedCost?: number }>;
@@ -450,6 +481,201 @@ export interface EventFilters {
 
 export interface EventListResponse {
   events: Event[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface EventAnalyticsUser {
+  id: string;
+  uid: string;
+  role?: string;
+  displayName: string | null;
+  employeeIdOrStudentId?: string | null;
+  department?: string | null;
+  school?: string | null;
+}
+
+export interface EventApprovalStage {
+  id: string;
+  action: string;
+  remarks?: string | null;
+  createdAt: string;
+  performedBy?: {
+    id: string;
+    uid: string;
+    displayName: string | null;
+  } | null;
+  nextHolder?: {
+    id: string;
+    uid: string;
+    displayName: string | null;
+  } | null;
+}
+
+export interface EventApprovalSummary {
+  noteId: string;
+  notingId: string;
+  status: string;
+  category: string;
+  subcategory: string;
+  currentFlowIndex?: number | null;
+  currentLocation?: {
+    id: string;
+    uid: string;
+    displayName: string | null;
+  } | null;
+  attachmentCount: number;
+  historyCount: number;
+  attachments: Array<{
+    id: string;
+    fileName: string;
+    filePath: string;
+    fileDescription?: string | null;
+  }>;
+  reportingChainHistory: Array<Record<string, any>>;
+  recentStages: EventApprovalStage[];
+}
+
+export interface EventAdminEventSummary {
+  id: string;
+  eventId: string;
+  name: string;
+  eventType: EventType;
+  status: EventStatus;
+  lifecycleStage: 'draft' | 'upcoming' | 'ongoing' | 'completed' | 'cancelled' | string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  updatedAt: string;
+  publishedAt?: string | null;
+  venue?: string | null;
+  paymentType: EventPaymentType;
+  participationType?: ParticipationType | null;
+  registrationFee?: number | null;
+  teamRegistrationFee?: number | null;
+  bannerImageUrl?: string | null;
+  logoImageUrl?: string | null;
+  notingId?: string | null;
+  notingEventType?: 'venue' | 'stall' | 'festival' | null;
+  participantCount: number;
+  confirmedParticipantCount: number;
+  volunteerCount: number;
+  prizeCount: number;
+  createdBy?: EventAnalyticsUser | null;
+  approval?: EventApprovalSummary | null;
+}
+
+export interface EventAdminOverview {
+  totalEvents: number;
+  creatorCount: number;
+  totalParticipants: number;
+  confirmedParticipants: number;
+  totalAttachments: number;
+  eventsWithAttachments: number;
+  eventsFromNoting: number;
+  directEvents: number;
+  pendingApprovalCount: number;
+  byStatus: Record<string, number>;
+  byLifecycle: Record<string, number>;
+  byApprovalStatus: Record<string, number>;
+  byType: Array<{
+    key: string;
+    label: string;
+    count: number;
+  }>;
+  createdTimeline: Array<{
+    date: string;
+    count: number;
+  }>;
+  recentEvents: EventAdminEventSummary[];
+  approvalQueue: EventAdminEventSummary[];
+}
+
+export interface EventAdminUserItem {
+  user: EventAnalyticsUser | null;
+  totalEvents: number;
+  totalParticipants: number;
+  totalAttachments: number;
+  totalApprovalActions: number;
+  pendingApprovalCount: number;
+  byStatus: Record<string, number>;
+  byType: Record<string, number>;
+  recentEvents: Array<{
+    id: string;
+    eventId: string;
+    name: string;
+    status: string;
+    eventType: string;
+    createdAt: string;
+    approvalStatus?: string | null;
+  }>;
+  lastCreatedAt?: string | null;
+}
+
+export interface EventAdminUserAnalytics {
+  totalCreators: number;
+  creators: EventAdminUserItem[];
+}
+
+export interface EventAdminActivityItem {
+  id: string;
+  action: string;
+  remarks?: string | null;
+  createdAt: string;
+  performedBy?: {
+    id: string;
+    uid: string;
+    displayName: string | null;
+  } | null;
+  nextHolder?: {
+    id: string;
+    uid: string;
+    displayName: string | null;
+  } | null;
+  note?: {
+    id: string;
+    notingId: string;
+    status: string;
+    currentLocation?: {
+      id: string;
+      uid: string;
+      displayName: string | null;
+    } | null;
+  } | null;
+  relatedEvents: Array<{
+    id: string;
+    eventId: string;
+    name: string;
+    status: string;
+    createdAt: string;
+  }>;
+}
+
+export interface EventAdminActivityResponse {
+  items: EventAdminActivityItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface EventAdminEventFilters {
+  search?: string;
+  status?: EventStatus;
+  createdById?: string;
+  startDate?: string;
+  endDate?: string;
+  approvalStatus?: string;
+}
+
+export interface EventAdminEventListResponse {
+  events: EventAdminEventSummary[];
   pagination: {
     page: number;
     limit: number;

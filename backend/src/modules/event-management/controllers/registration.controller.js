@@ -24,6 +24,21 @@ const getRegistrationForm = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get minimal payment context for an event registration.
+ *
+ * @route GET /api/events/:id/payment-context
+ * @access Protected
+ */
+const getPaymentContext = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const context = await registrationService.getPaymentContext(id, userId);
+
+  return ApiResponse.success(res, context, 'Payment context fetched successfully');
+});
+
+/**
  * Submit registration form
  * 
  * @route POST /api/events/:id/register-with-form
@@ -97,6 +112,7 @@ const getMyExtraPasses = asyncHandler(async (req, res) => {
 
 module.exports = {
   getRegistrationForm,
+  getPaymentContext,
   submitRegistrationForm,
   getRegistrationDashboard,
   getProfileData,

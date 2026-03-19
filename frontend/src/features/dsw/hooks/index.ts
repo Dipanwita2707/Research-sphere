@@ -74,10 +74,12 @@ export function useClub(clubId: string) {
 /**
  * Hook to fetch user's clubs
  */
-export function useMyClubs() {
+export function useMyClubs(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
   return useQuery({
     queryKey: DSW_QUERY_KEYS.myClubs(),
     queryFn: () => dswAPI.clubs.getMyClubs(),
+    enabled,
     staleTime: 2 * 60 * 1000,
     select: (data) => data, // Referential stability — only re-render when data changes
   });

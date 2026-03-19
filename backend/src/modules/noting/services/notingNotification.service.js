@@ -31,6 +31,7 @@ const TYPES = {
   COPY_SENT:       'noting_copy_sent',       // Copy assigned to user
   COPY_REPLY:      'noting_copy_reply',      // Assignee replied → copy sender
   COPY_ESCALATED:  'noting_copy_escalated',  // Escalation triggered → each boss in chain
+  SPONSOR_ASSIGNED: 'noting_sponsor_assigned', // Sponsor responsibility assigned to user
 };
 
 // ── Internal helper ─────────────────────────────────────────────────────────
@@ -302,6 +303,57 @@ async function notifyCopyEscalated(allBosses, copy) {
   }
 }
 
+/**
+ * Notify users who have been assigned sponsor-related responsibilities.
+ * Covers both cash collection assignments and in-kind item pickup assignments.
+ * Deduplicates so each user gets at most one notification listing all their tasks.
+ *
+ * @param {Object}   note     - Note scalar row (needs id, notingId, category, subcategory)
+ * @param {Object[]} sponsors - Sanitized sponsor array from eventSponsors JSON field
+ */
+async function notifySponsorAssigned(note, sponsors) {
+  if (!Array.isArray(sponsors) || sponsors.length === 0) return;
+
+  // Collect tasks per user: { [userId]: string[] }
+  const tasksByUser = {};
+
+  for (const s of sponsors) {
+    const sponsorLabel = s.name || 'Unnamed sponsor';
+
+    // Cash collection assignment
+    if (s.cashAssignedTo && s.cashAssignedTo.id) {
+      const uid = s.cashAssignedTo.id;
+      if (!tasksByUser[uid]) tasksByUser[uid] = [];
+      tasksByUser[uid].push(`Collect cash sponsorship from ${sponsorLabel}`);
+    }
+
+    // In-kind item assignments
+    if (Array.isArray(s.inKindItems)) {
+      for (const item of s.inKindItems) {
+        if (item.assignedTo && item.assignedTo.id) {
+          const uid = item.assignedTo.id;
+          if (!tasksByUser[uid]) tasksByUser[uid] = [];
+          const itemLabel = item.itemName || 'an in-kind item';
+          tasksByUser[uid].push(`Collect ${itemLabel} from ${sponsorLabel}`);
+        }
+      }
+    }
+  }
+
+  for (const [userId, tasks] of Object.entries(tasksByUser)) {
+    const taskList = tasks.join('; ');
+    await _notify(
+      userId,
+      TYPES.SPONSOR_ASSIGNED,
+      'Sponsor Responsibility Assigned',
+      `You have been assigned sponsor duties for Noting ${note.notingId}${_subcatLabel(note)}: ${taskList}.`,
+      'note',
+      note.id,
+      { notingId: note.notingId, category: note.category, subcategory: note.subcategory, tasks },
+    );
+  }
+}
+
 module.exports = {
   notifyAssigned,
   notifyForwarded,
@@ -312,4 +364,5 @@ module.exports = {
   notifyCopySent,
   notifyCopyReply,
   notifyCopyEscalated,
+  notifySponsorAssigned,
 };

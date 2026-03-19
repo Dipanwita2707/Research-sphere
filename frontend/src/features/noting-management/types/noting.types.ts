@@ -62,7 +62,39 @@ export interface Note {
   eventDutyLeaveEligibility?: string[] | null;
   eventDutyLeaveRoleType?: 'participants' | 'organizers' | 'both' | null;
   eventHasSponsorship?: boolean | null;
-  eventSponsors?: { name: string; amount: number; type: 'cash' | 'in_kind'; notes?: string }[] | null;
+  eventSponsors?: Array<{
+    id?: string;
+    name: string;
+    originSource?: 'noting' | 'event';
+    // New format fields
+    sponsorType?: 'corporate' | 'individual' | 'organization' | 'other';
+    contactPerson?: string;
+    designation?: string;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    contributionType?: 'cash' | 'in_kind' | 'both';
+    cashAmount?: number;
+    paymentStatus?: 'received' | 'pending' | 'partial' | 'not_received';
+    paymentMethod?: 'cash' | 'upi' | 'card' | 'net_banking' | 'other';
+    paymentMethodOtherLabel?: string;
+    transactionId?: string;
+    receipt?: { filePath: string; fileName: string } | null;
+    sponsorLogo?: { filePath: string; fileName: string } | null;
+    cashAssignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    inKindItems?: Array<{
+      itemName: string;
+      category?: string;
+      quantity?: number;
+      estimatedValue?: number;
+      description?: string;
+      deliveryStatus?: 'pending' | 'received' | 'not_received';
+      assignedTo?: { id: string; uid: string; displayName: string; department?: string } | null;
+    }>;
+    // Old format fields (backward compat)
+    amount?: number;
+    type?: 'cash' | 'in_kind';
+  }> | null;
   eventHasResources?: boolean | null;
   eventResources?: { category?: string; type: string; description?: string; estimatedCost?: number; pricePerPiece?: number; quantity?: number }[] | null;
   eventCertification?: boolean | null;
@@ -77,6 +109,17 @@ export interface Note {
     applicationDeadline?: string;
     enableCreatorMade: boolean;
     creatorStalls: { name: string; description: string; capacity: number }[];
+  } | null;
+  eventVisibilitySettings?: {
+    visibleToRoles?: string[];
+    studentFilterType?: 'all' | 'custom';
+    allowedSchoolIds?: string[];
+    allowedDepartmentIds?: string[];
+    allowedProgramIds?: string[];
+    allowedBatchYears?: number[];
+    allowedSectionIds?: string[];
+    allowExtraPasses?: boolean;
+    maxExtraPassesPerUser?: number;
   } | null;
   festivalMeta?: { name: string; startDate: string; endDate: string; description?: string; coordinator?: string } | null;
   subEvents?: Array<{
@@ -96,7 +139,7 @@ export interface Note {
       eventDutyLeaveEligibility?: string[] | null;
       eventDutyLeaveRoleType?: string | null;
       eventHasSponsorship?: boolean | null;
-      eventSponsors?: { name: string; amount: number; type: string; notes?: string }[] | null;
+      eventSponsors?: any[] | null;
       eventHasResources?: boolean | null;
       eventResources?: { type: string; description?: string; pricePerPiece?: number; quantity?: number }[] | null;
       eventCertification?: boolean | null;
@@ -250,4 +293,140 @@ export interface CreateNotePayload {
   submit?: boolean;
   /** Optional club association — when set, the club's chairperson auto-receives event management permissions */
   eventClubId?: string | null;
+}
+
+export interface NotingAnalyticsUser {
+  id: string;
+  uid: string | null;
+  role: string | null;
+  displayName: string | null;
+  employeeIdOrStudentId: string | null;
+  department: string | null;
+  school: string | null;
+}
+
+export interface NotingAdminNoteSummary {
+  id: string;
+  notingId: string;
+  category: string;
+  categoryLabel: string;
+  subcategory: string;
+  subcategoryLabel: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  attachmentCount: number;
+  historyCount: number;
+  createdBy: NotingAnalyticsUser | null;
+  currentHolder: {
+    id: string;
+    uid: string;
+    displayName: string;
+  } | null;
+  metadata: {
+    approvalPeriod: string;
+    amountRequired: boolean;
+    amount: number | null;
+    eventName: string | null;
+    notingEventType: string | null;
+    clubName: string | null;
+  };
+}
+
+export interface NotingAdminOverview {
+  summary: {
+    totalNotings: number;
+    notesWithFiles: number;
+    totalAttachments: number;
+    pendingReview: number;
+    approved: number;
+    rejected: number;
+    reverted: number;
+    draft: number;
+  };
+  byStatus: Record<string, number>;
+  byCategory: Array<{
+    key: string;
+    label: string;
+    count: number;
+  }>;
+  bySubcategory: Array<{
+    key: string;
+    category: string;
+    categoryLabel: string;
+    label: string;
+    count: number;
+  }>;
+  createdTimeline: Array<{
+    date: string;
+    count: number;
+  }>;
+  recentNotes: NotingAdminNoteSummary[];
+  moderationQueue: NotingAdminNoteSummary[];
+}
+
+export interface NotingAdminUserStat {
+  user: NotingAnalyticsUser;
+  totalNotings: number;
+  notesWithFiles: number;
+  latestCreatedAt: string | null;
+  byStatus: Record<string, number>;
+}
+
+export interface NotingAdminUserAnalytics {
+  summary: {
+    totalCreators: number;
+    totalNotings: number;
+    averageNotesPerCreator: number;
+    mostRecentCreatedAt: string | null;
+  };
+  creators: NotingAdminUserStat[];
+}
+
+export interface NotingAdminActivityItem {
+  id: string;
+  action: string;
+  remarks?: string | null;
+  createdAt: string;
+  note: {
+    id: string;
+    notingId: string;
+    status: string;
+    category: string;
+    categoryLabel: string;
+    subcategory: string;
+    subcategoryLabel: string;
+    createdAt: string;
+    createdBy: NotingAnalyticsUser | null;
+  };
+  performedBy: NotingAnalyticsUser | null;
+  nextHolder: {
+    id: string;
+    uid: string;
+    displayName: string;
+  } | null;
+}
+
+export interface NotingAdminActivityAnalytics {
+  summary: {
+    totalActivities: number;
+    byAction: Record<string, number>;
+  };
+  items: NotingAdminActivityItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface NotingTabSummary {
+  mine: number;
+  pending: number;
+  handledApproved: number;
+  handledRejected: number;
+  copies: number;
+  pendingPreviewIds: string[];
+  copyPreviewIds: string[];
 }

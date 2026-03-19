@@ -295,6 +295,12 @@ const toggleEventActive = async (eventId, userId, user) => {
  *   - If manuallyOverridden = true → respect admin decision regardless of date.
  */
 const isRegistrationOpen = async (eventId) => {
+  // PERF: Cache registration-open status for 30s to avoid 2 DB queries per call
+  const cache = require('../../../shared/config/redis');
+  const cacheKey = `event:regopen:${eventId}`;
+  const cached = await cache.get(cacheKey);
+  if (cached !== null) return cached;
+
   // Fetch event and visibility in parallel instead of sequentially
   const [event, visibility] = await Promise.all([
     prisma.event.findUnique({
@@ -308,7 +314,10 @@ const isRegistrationOpen = async (eventId) => {
   ]);
 
   // No visibility record → registration open by default (legacy)
-  if (!visibility) return true;
+  if (!visibility) {
+    await cache.set(cacheKey, true, 30);
+    return true;
+  }
 
   // ── Auto-close logic ──────────────────────────────────────────
   // If end date has passed and admin has not manually overridden, auto-off.
@@ -323,9 +332,11 @@ const isRegistrationOpen = async (eventId) => {
       data: { isActive: false, autoClosed: true },
     });
     console.log(`[EventSettings] Auto-closed registration for event ${eventId} — registrationEndDate passed`);
+    await cache.set(cacheKey, false, 30);
     return false;
   }
 
+  await cache.set(cacheKey, visibility.isActive, 30);
   return visibility.isActive;
 };
 
@@ -337,13 +348,26 @@ const isRegistrationOpen = async (eventId) => {
  *
  * This is the CORE enforcement function.
  */
-const canUserSeeEvent = async (eventId, userId) => {
-  // Fetch visibility settings and user in parallel
+const canUserSeeEvent = async (eventId, userId, preloadedUser) => {
+  // PERF: Cache result for 60s — avoids 2 DB queries per GET /events/:id
+  const cache = require('../../../shared/config/redis');
+  const cacheKey = `event:canSee:${eventId}:${userId}`;
+
+  const { data: result } = await cache.getOrSet(cacheKey, async () => {
+    return await _checkCanUserSeeEvent(eventId, userId, preloadedUser);
+  }, 300);
+
+  return result;
+};
+
+const _checkCanUserSeeEvent = async (eventId, userId, preloadedUser) => {
+
+  // Fetch visibility settings (and user only if not pre-loaded)
   const [visibility, user] = await Promise.all([
     prisma.eventVisibility.findUnique({
       where: { eventId },
     }),
-    prisma.userLogin.findUnique({
+    preloadedUser ? Promise.resolve(preloadedUser) : prisma.userLogin.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -374,9 +398,6 @@ const canUserSeeEvent = async (eventId, userId) => {
   // No visibility record → event is visible to everyone (legacy / no config)
   if (!visibility) return true;
 
-  // NOTE: isActive controls registration open/close, NOT event visibility.
-  // So we do NOT check isActive here — event is always visible per role/filter config.
-
   if (!user) return false;
 
   // Superadmin & event creator always see everything
@@ -393,7 +414,7 @@ const canUserSeeEvent = async (eventId, userId) => {
   if (visibility.studentFilterType === 'all') return true;
 
   const student = user.studentLogin;
-  if (!student) return false; // student role but no student record
+  if (!student) return false;
 
   const allowedSchools = toArray(visibility.allowedSchoolIds);
   const allowedDepts = toArray(visibility.allowedDepartmentIds);
@@ -444,9 +465,21 @@ const canUserSeeEvent = async (eventId, userId) => {
  * Build a Prisma WHERE clause that filters events based on visibility for a user.
  * This is used in the event listing query to ensure filtered results at the DB level.
  *
+ * PERF: Cached per user for 2 minutes to avoid the heavy 4-level nested JOIN
+ * on every listing call.
+ *
  * Returns an additional AND condition to merge into the listing where clause.
  */
 const buildVisibilityFilter = async (userId) => {
+  const cache = require('../../../shared/config/redis');
+  const cacheKey = `event:visibility:${userId}`;
+  const { data: result } = await cache.getOrSet(cacheKey, async () => {
+    return await _buildVisibilityFilterFromDB(userId);
+  }, 120);
+  return result;
+};
+
+const _buildVisibilityFilterFromDB = async (userId) => {
   const user = await prisma.userLogin.findUnique({
     where: { id: userId },
     select: {
@@ -474,10 +507,14 @@ const buildVisibilityFilter = async (userId) => {
     },
   });
 
-  if (!user) return { id: 'NONE' }; // block all
+  if (!user) {
+    return { id: 'NONE' };
+  }
 
   // Superadmin sees everything
-  if (user.role === 'superadmin') return {};
+  if (user.role === 'superadmin') {
+    return {};
+  }
 
   // Build filter: either no visibility record (legacy) OR visibility allows this user
   const roleFilter = {
@@ -496,7 +533,9 @@ const buildVisibilityFilter = async (userId) => {
   };
 
   // For non-student users, role check is sufficient
-  if (user.role !== 'student') return roleFilter;
+  if (user.role !== 'student') {
+    return roleFilter;
+  }
 
   // ── Student: add granular filters ─────────────────────────────
   const student = user.studentLogin;
@@ -557,7 +596,7 @@ const buildVisibilityFilter = async (userId) => {
     }
   }
 
-  return {
+  const result = {
     OR: [
       // No visibility config (legacy events)
       { EventVisibility: null },
@@ -565,6 +604,7 @@ const buildVisibilityFilter = async (userId) => {
       ...studentMatchConditions,
     ],
   };
+  return result;
 };
 
 /**

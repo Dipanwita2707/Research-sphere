@@ -583,8 +583,6 @@ const checkPermission = (permissionKey, options = {}) => {
       const CHAIRPERSON_ALLOWED_PERMISSIONS = [
         'noting_create', 'noting_view_own',
         'event_manage_own', 'event_publish', 'event_cancel',
-        'event_view_all', 'event_manage_attendance',
-        'event_assign_volunteers', 'event_view_reports',
       ];
       if (user.role === 'student' && CHAIRPERSON_ALLOWED_PERMISSIONS.includes(permissionKey)) {
         try {
@@ -677,8 +675,6 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
       if (user.role === 'student') {
         const CHAIRPERSON_EVENT_PERMISSIONS = [
           'event_manage_own', 'event_publish', 'event_cancel',
-          'event_view_all', 'event_manage_attendance',
-          'event_assign_volunteers', 'event_view_reports',
         ];
         const hasChairpersonKey = permissionKeys.some(k => CHAIRPERSON_EVENT_PERMISSIONS.includes(k));
         if (hasChairpersonKey) {

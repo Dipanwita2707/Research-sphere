@@ -16,7 +16,7 @@ import type { NoteCopy } from "../types/noting.types";
 import { useAuthStore } from "@/shared/auth/authStore";
 
 export type NotingListParams = {
-  filter?: "mine" | "pending" | "handled" | "copies";
+  filter?: "mine" | "pending" | "handled" | "copies" | "all";
   enabled?: boolean;
   status?: string;
   category?: string;
@@ -35,17 +35,44 @@ export const NOTING_QUERY_KEYS = {
   list: (params: NotingListParams) => ["noting", "list", params],
   detail: (id: string) => ["noting", id],
   counts: () => ["noting", "counts"],
-  /** Copies assigned to the current user — keyed by page so pagination works */
-  myCopies: (page?: number, limit?: number) => [
+  tabSummary: () => ["noting", "tab-summary"],
+  /** Copies assigned to the current user — keyed by page and active filters */
+  myCopies: (params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+    category?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => [
     "noting",
     "my-copies",
-    { page: page ?? "all", limit: limit ?? "all" },
+    {
+      page: params?.page ?? "all",
+      limit: params?.limit ?? "all",
+      search: params?.search ?? "",
+      status: params?.status ?? "",
+      category: params?.category ?? "",
+      startDate: params?.startDate ?? "",
+      endDate: params?.endDate ?? "",
+    },
   ],
   config: () => ["noting", "config"],
   myManager: () => ["noting", "my-manager"],
   creatorInfo: () => ["noting", "creator-info"],
   permissions: (userId?: string | null) => ["noting", "permissions", userId ?? "anonymous"],
   noteCopies: (noteId: string) => ["noting", "copies", noteId],
+  adminOverview: (params?: { startDate?: string; endDate?: string }) =>
+    ["noting", "admin", "overview", params] as const,
+  adminUsers: (params?: { startDate?: string; endDate?: string }) =>
+    ["noting", "admin", "users", params] as const,
+  adminActivity: (params?: {
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }) => ["noting", "admin", "activity", params] as const,
 };
 
 // ─── List ──────────────────────────────────────────────────────────────────────
@@ -63,6 +90,7 @@ export function useNotingList(params: NotingListParams = {}) {
     search,
     status,
     category,
+    createdById,
     startDate,
     endDate,
     includeCounts = true,
@@ -80,6 +108,7 @@ export function useNotingList(params: NotingListParams = {}) {
         search,
         status,
         category,
+        createdById,
         startDate,
         endDate,
         includeCounts,
@@ -101,11 +130,23 @@ export function useNotingList(params: NotingListParams = {}) {
  * @deprecated Counts are now bundled in useNotingList (includeCounts=true).
  *             Use that instead to avoid a separate network round-trip.
  */
-export function useNotingCounts() {
+export function useNotingCounts(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
   return useQuery({
     queryKey: NOTING_QUERY_KEYS.counts(),
     queryFn: () => notingService.getCounts(),
+    enabled,
     staleTime: 30 * 1000, // 30 seconds
+  });
+}
+
+export function useNotingTabSummary(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: NOTING_QUERY_KEYS.tabSummary(),
+    queryFn: () => notingService.getTabSummary(),
+    enabled,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -142,10 +183,24 @@ export function useMyCopies(
   options: {
     page?: number;
     limit?: number;
+    search?: string;
+    status?: string;
+    category?: string;
+    startDate?: string;
+    endDate?: string;
     enabled?: boolean;
   } = {},
 ) {
-  const { page, limit, enabled = true } = options;
+  const {
+    page,
+    limit,
+    search,
+    status,
+    category,
+    startDate,
+    endDate,
+    enabled = true,
+  } = options;
 
   return useQuery<{
     copies: NoteCopy[];
@@ -157,10 +212,34 @@ export function useMyCopies(
       totalPages: number;
     };
   }>({
-    queryKey: NOTING_QUERY_KEYS.myCopies(page, limit),
+    queryKey: NOTING_QUERY_KEYS.myCopies({
+      page,
+      limit,
+      search,
+      status,
+      category,
+      startDate,
+      endDate,
+    }),
     queryFn: async () => {
       const params =
-        page !== undefined && limit !== undefined ? { page, limit } : undefined;
+        page !== undefined ||
+        limit !== undefined ||
+        search ||
+        status ||
+        category ||
+        startDate ||
+        endDate
+          ? {
+            page,
+            limit,
+            search,
+            status,
+            category,
+            startDate,
+            endDate,
+          }
+          : undefined;
       return notingService.getMyCopies(params);
     },
     enabled,
@@ -265,6 +344,46 @@ export function useNoteCopies(
   });
 }
 
+export function useNotingAdminOverview(
+  params?: { startDate?: string; endDate?: string },
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: NOTING_QUERY_KEYS.adminOverview(params),
+    queryFn: () => notingService.getAdminOverview(params),
+    enabled,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useNotingAdminUsers(
+  params?: { startDate?: string; endDate?: string },
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: NOTING_QUERY_KEYS.adminUsers(params),
+    queryFn: () => notingService.getAdminUsers(params),
+    enabled,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useNotingAdminActivity(
+  params?: { startDate?: string; endDate?: string; page?: number; limit?: number },
+  options: { enabled?: boolean } = {},
+) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: NOTING_QUERY_KEYS.adminActivity(params),
+    queryFn: () => notingService.getAdminActivity(params),
+    enabled,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
 // ─── Preview Noting ID (PERF: replaces raw service call in create page) ────────
 
 /**
@@ -326,6 +445,7 @@ function invalidateNoteQueries(
   id: string,
 ) {
   queryClient.invalidateQueries({ queryKey: ["noting", "list"] });
+  queryClient.invalidateQueries({ queryKey: ["noting", "admin"] });
   queryClient.invalidateQueries({ queryKey: NOTING_QUERY_KEYS.detail(id) });
   queryClient.invalidateQueries({ queryKey: NOTING_QUERY_KEYS.counts() });
 }
@@ -338,6 +458,7 @@ export function useDeleteDraft() {
     mutationFn: (id: string) => notingService.deleteDraft(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["noting", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["noting", "admin"] });
       queryClient.removeQueries({ queryKey: NOTING_QUERY_KEYS.detail(id) });
     },
   });
@@ -351,6 +472,7 @@ export function useSubmitDraft() {
     mutationFn: (id: string) => notingService.submitDraft(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["noting", "list"] });
+      queryClient.invalidateQueries({ queryKey: ["noting", "admin"] });
       queryClient.invalidateQueries({ queryKey: NOTING_QUERY_KEYS.detail(id) });
     },
   });
