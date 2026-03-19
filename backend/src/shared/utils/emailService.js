@@ -683,6 +683,65 @@ async function sendRoomCancellationRejected({ parentEmail, parentName, visitorNa
   });
 }
 
+/**
+ * 15. Resend Pass Notification (status-aware snapshot)
+ * Ensures current pass status is clearly reflected in the resent email.
+ */
+async function sendPassStatusUpdate(pass) {
+  const currentStatus = (pass.pass_status || pass.status || 'created').toLowerCase();
+
+  const statusMetaMap = {
+    created: { label: 'CREATED', color: BRAND.primary },
+    pending: { label: 'PENDING', color: BRAND.warning },
+    active: { label: 'ACTIVE', color: BRAND.primary },
+    checked_in: { label: 'CHECKED IN', color: BRAND.success },
+    checked_out: { label: 'CHECKED OUT', color: '#6d28d9' },
+    completed: { label: 'COMPLETED', color: '#6d28d9' },
+    cancelled: { label: 'CANCELLED', color: BRAND.danger },
+    denied: { label: 'DENIED', color: BRAND.danger },
+    expired: { label: 'EXPIRED', color: BRAND.warning },
+  };
+
+  const statusMeta = statusMetaMap[currentStatus] || {
+    label: currentStatus.replace(/_/g, ' ').toUpperCase(),
+    color: BRAND.primary,
+  };
+
+  const qrAttachment = makeQRAttachment(pass.qr_code, 'mainqr');
+  const showQr = !!(pass.qr_code && (currentStatus === 'created' || currentStatus === 'pending' || currentStatus === 'active'));
+
+  const html = shell('Gate Pass Notification (Resent)', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">
+      Hello <strong>${pass.visitor_name}</strong>,
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      As requested, here are your latest gate pass details.
+    </p>
+
+    ${infoTable([
+      ['Pass ID', pass.pass_id],
+      ['Current Status', badge(statusMeta.label, statusMeta.color)],
+      ['Visit Date', formatDateOnly(pass.visit_date)],
+      ['Entry Time', pass.entry_time || pass.expected_entry_time || '—'],
+      ['Mobile', pass.mobile_number || '—'],
+      ['Email', pass.email || '—'],
+      ['Purpose', pass.purpose_of_visit || '—'],
+      ['Last Updated', formatDate(pass.updated_at || new Date())],
+    ])}
+
+    ${showQr ? qrBlock(pass.qr_code, pass.verification_code, 'mainqr', 'Gate Entry QR (Use if still valid)') : ''}
+
+    ${alertBox('ℹ️', 'This is a status update email. Please use only currently valid pass details at the gate.', '#eff6ff', BRAND.primary)}
+  `, statusMeta.color);
+
+  await send({
+    to: pass.email,
+    subject: `[Gate Pass] ${pass.pass_id} – Current status: ${statusMeta.label}`,
+    html,
+    attachments: showQr ? [qrAttachment] : [],
+  });
+}
+
 module.exports = {
   send,
   sendPassCreated,
@@ -699,4 +758,5 @@ module.exports = {
   sendCheckinRequestRejected,
   sendRoomCancellationApproved,
   sendRoomCancellationRejected,
+  sendPassStatusUpdate,
 };

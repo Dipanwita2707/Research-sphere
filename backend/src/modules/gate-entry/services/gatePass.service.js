@@ -447,6 +447,14 @@ class GatePassService {
         throw new Error('Vehicle model is required when vehicle is selected');
       }
 
+      // Backward-compatible purpose normalization:
+      // Some deployed DBs still have legacy visit_purpose_enum without "emergency".
+      // Persist as "other" while preserving semantic meaning in purpose_other.
+      const normalizedPurpose = data.purpose_of_visit === 'emergency' ? 'other' : data.purpose_of_visit;
+      const normalizedPurposeOther = data.purpose_of_visit === 'emergency'
+        ? (data.purpose_other || 'Emergency')
+        : (data.purpose_other || null);
+
       const pass_id = await this.generatePassId();
 
       // Parse and validate date - normalize to midnight IST
@@ -522,8 +530,8 @@ class GatePassService {
           age: data.age ? parseInt(data.age) : null,
 
           // Visit details
-          purpose_of_visit: data.purpose_of_visit,
-          purpose_other: data.purpose_other || null,
+          purpose_of_visit: normalizedPurpose,
+          purpose_other: normalizedPurposeOther,
           department_to_visit: data.department_to_visit || null,
           person_to_meet_name: person_to_meet_name || null,
           visit_date: visit_date,

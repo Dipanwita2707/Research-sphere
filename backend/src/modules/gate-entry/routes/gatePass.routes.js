@@ -163,6 +163,13 @@ router.post('/record-exit/:passId', canVerifyPass, gatePassController.recordExit
 router.post('/cancel/:passId', canCancelPass, gatePassController.cancelPass);
 
 /**
+ * @route POST /api/v1/gate-entry/resend-notification/:passId
+ * @desc Resend pass notification email to visitor
+ * @access Private (Creator/Admin)
+ */
+router.post('/resend-notification/:passId', checkGateEntryAccess(), gatePassController.resendNotification);
+
+/**
  * @route POST /api/v1/gate-entry/extend-pass/:passId/check
  * @desc Check extension options for guest house booking (same room/alternate room)
  * @access Private (Creator or Admin only)

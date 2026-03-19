@@ -583,6 +583,18 @@ class GateEntryService {
   }
 
   /**
+   * Resend pass notification email
+   */
+  async resendNotification(passId: string): Promise<{ success: boolean; message: string; data?: { passId: string; email: string } }> {
+    const response = await api.post<any>(`/gate-entry/resend-notification/${passId}`);
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      data: response.data.data
+    };
+  }
+
+  /**
    * Extend pass (modify entry time and date)
    */
   async extendPass(passId: string, newEndDate: string, extensionReason: string): Promise<{ success: boolean; pass: GatePass; message: string }> {
