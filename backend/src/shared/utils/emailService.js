@@ -573,6 +573,36 @@ async function sendCheckoutReminder({ parentEmail, parentName, visitorName, pass
 }
 
 /**
+ * 10b. Checkout Penalty Applied — sent to parent when 5 PM deadline is missed
+ */
+async function sendCheckoutPenaltyApplied({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, newCheckoutDatetime, additionalAmount }) {
+  const html = shell('Checkout Deadline Missed – Extra Charge Applied ⚠️', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The 5:00 PM checkout deadline for <strong>${visitorName}</strong> was missed.
+      As per guest house rules, an additional one day charge has been applied.
+    </p>
+
+    ${infoTable([
+      ['Pass ID', passId],
+      ['Guest House', hostelName],
+      ['Room', roomNumber],
+      ['Missed Deadline', '5:00 PM'],
+      ['Additional Charge', `INR ${Number(additionalAmount || 0).toFixed(2)}`],
+      ['New Checkout Deadline', formatDate(newCheckoutDatetime)],
+    ])}
+
+    ${alertBox('⚠️', `Please ensure checkout is completed before <strong>${formatDate(newCheckoutDatetime)}</strong> to avoid further additional charges.`, '#fff7ed', BRAND.warning)}
+  `, BRAND.warning);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Extra day charge applied (checkout deadline missed)`,
+    html,
+  });
+}
+
+/**
  * 11. Early Check-in Request Approved — sent to parent
  */
 async function sendCheckinRequestApproved({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, requestedTime }) {
@@ -754,6 +784,7 @@ module.exports = {
   sendHostelBookingCreated,
   sendHostelBookingConfirmed,
   sendCheckoutReminder,
+  sendCheckoutPenaltyApplied,
   sendCheckinRequestApproved,
   sendCheckinRequestRejected,
   sendRoomCancellationApproved,

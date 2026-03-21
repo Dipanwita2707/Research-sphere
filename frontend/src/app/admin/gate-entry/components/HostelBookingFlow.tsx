@@ -31,6 +31,8 @@ function calculateBillableDaysPreview(checkInDatetime: Date, checkOutDatetime: D
   return Math.max(checkOutHour > 17 ? baseDays + 1 : baseDays, 1);
 }
 
+const FIXED_CHECKOUT_TIME = '17:00';
+
 export default function HostelBookingFlow({
   passId,
   checkInDate,
@@ -49,43 +51,70 @@ export default function HostelBookingFlow({
   const [selectedRoom, setSelectedRoom] = useState<HostelRoom | null>(null);
   const [booking, setBooking] = useState<HostelBooking | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [bookingCheckInDate, setBookingCheckInDate] = useState(checkInDate);
+  const [bookingCheckOutDate, setBookingCheckOutDate] = useState(checkOutDate);
   const [checkInTime, setCheckInTime] = useState('10:00');
-  const [checkOutTime, setCheckOutTime] = useState('12:00');
+  const [checkOutTime] = useState(FIXED_CHECKOUT_TIME);
   const [checkInRemarks, setCheckInRemarks] = useState('');
   const [requestEarlyCheckin, setRequestEarlyCheckin] = useState(false);
 
-  // Derived datetime objects
-  const checkInDatetime  = new Date(`${checkInDate}T${checkInTime}:00`);
-  const checkOutDatetime = new Date(`${checkOutDate}T${checkOutTime}:00`);
-  const billableDays = calculateBillableDaysPreview(checkInDatetime, checkOutDatetime);
-  const checkOutHourNum = checkOutDatetime.getHours() + checkOutDatetime.getMinutes() / 60;
-  const checkoutTierNote = checkOutHourNum > 17
-    ? { label: 'After 5 PM — 1 extra day charged', color: 'text-amber-700 bg-amber-50 border-amber-200' }
-    : checkOutHourNum > 12
-      ? { label: 'Grace period (12 PM–5 PM) — no extra charge', color: 'text-green-700 bg-green-50 border-green-200' }
-      : { label: 'Standard checkout (≤ 12 PM) — no extra charge', color: 'text-green-700 bg-green-50 border-green-200' };
+  const passStartDate = checkInDate;
+  const passEndDate = checkOutDate;
 
-  // Keep nights for backwards-compat display
-  const nights = billableDays;
+  // Derived datetime objects
+  const checkInDatetime  = new Date(`${bookingCheckInDate}T${checkInTime}:00`);
+  const checkOutDatetime = new Date(`${bookingCheckOutDate}T${checkOutTime}:00`);
+  const isBookingDateRangeWithinPass =
+    bookingCheckInDate >= passStartDate && bookingCheckOutDate <= passEndDate;
+  const isBookingDateOrderValid = bookingCheckInDate <= bookingCheckOutDate;
+  const isBookingDatetimeOrderValid = checkOutDatetime.getTime() > checkInDatetime.getTime();
+  const bookingDateValidationError = !isBookingDateOrderValid
+    ? t('hostel.errDateOrder')
+    : !isBookingDateRangeWithinPass
+      ? `${t('hostel.errDateBoundsPrefix')} (${passStartDate} to ${passEndDate}).`
+      : null;
+  const bookingDatetimeValidationError =
+    !bookingDateValidationError && !isBookingDatetimeOrderValid
+      ? t('hostel.errDateTimeOrder')
+      : null;
+  const hasBookingValidationError = Boolean(bookingDateValidationError || bookingDatetimeValidationError);
+  const billableDays = calculateBillableDaysPreview(checkInDatetime, checkOutDatetime);
+  const checkoutTierNote = {
+    label: 'Final checkout time is fixed at 5:00 PM on exit date. After 5:00 PM, one extra day charge is added automatically.',
+    color: 'text-amber-700 bg-amber-50 border-amber-200'
+  };
+
+  useEffect(() => {
+    setBookingCheckInDate(checkInDate);
+    setBookingCheckOutDate(checkOutDate);
+  }, [checkInDate, checkOutDate]);
 
   // Load available hostels when step changes to select_hostel
   useEffect(() => {
     if (step === 'select_hostel' && bookingChoice === 'new') {
+      if (hasBookingValidationError) {
+        setHostels([]);
+        return;
+      }
       loadAvailableHostels();
     }
-  }, [step, bookingChoice]);
+  }, [step, bookingChoice, bookingCheckInDate, bookingCheckOutDate, hasBookingValidationError]);
 
   // Load rooms when hostel is selected
   useEffect(() => {
     if (selectedHostel && step === 'select_room') {
+      if (hasBookingValidationError) {
+        setRooms([]);
+        return;
+      }
       loadHostelRooms(selectedHostel.id);
     }
-  }, [selectedHostel, step]);
+  }, [selectedHostel, step, bookingCheckInDate, bookingCheckOutDate, hasBookingValidationError]);
 
   const loadAvailableHostels = async () => {
     setIsLoading(true);
     try {
-      const response = await gateEntryService.getAvailableHostels(checkInDate, checkOutDate);
+      const response = await gateEntryService.getAvailableHostels(bookingCheckInDate, bookingCheckOutDate);
       setHostels(response.hostels);
       if (response.hostels.length === 0) {
         showWarning(t('hostel.noHostels'));
@@ -101,7 +130,7 @@ export default function HostelBookingFlow({
   const loadHostelRooms = async (hostelId: string) => {
     setIsLoading(true);
     try {
-      const response = await gateEntryService.getHostelRooms(hostelId, checkInDate, checkOutDate);
+      const response = await gateEntryService.getHostelRooms(hostelId, bookingCheckInDate, bookingCheckOutDate);
       setRooms(response.rooms);
       if (response.rooms.length === 0) {
         showWarning(t('hostel.noRooms'));
@@ -134,6 +163,16 @@ export default function HostelBookingFlow({
   };
 
   const handleRoomSelect = async (room: HostelRoom) => {
+    if (hasBookingValidationError) {
+      showError(bookingDateValidationError || bookingDatetimeValidationError || t('hostel.errInvalidDates'));
+      return;
+    }
+
+    if (!selectedHostel) {
+      showError(t('hostel.errBookingDetailsProblem'));
+      return;
+    }
+
     setSelectedRoom(room);
     
     // Create booking
@@ -233,6 +272,37 @@ export default function HostelBookingFlow({
         </button>
       </div>
 
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <p className="text-xs text-blue-800 font-medium mb-2">{t('hostel.bookingDates')}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-blue-800 mb-1">{t('hostel.checkInDate')}</label>
+            <input
+              type="date"
+              value={bookingCheckInDate}
+              min={passStartDate}
+              max={passEndDate}
+              onChange={e => setBookingCheckInDate(e.target.value)}
+              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-blue-800 mb-1">{t('hostel.checkOutDate')}</label>
+            <input
+              type="date"
+              value={bookingCheckOutDate}
+              min={bookingCheckInDate || passStartDate}
+              max={passEndDate}
+              onChange={e => setBookingCheckOutDate(e.target.value)}
+              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+        {bookingDateValidationError && (
+          <p className="text-xs text-red-600 mt-2">{bookingDateValidationError}</p>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -306,6 +376,31 @@ export default function HostelBookingFlow({
           <span className="font-semibold">{selectedHostel?.name}</span>
         </p>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+          <div>
+            <label className="block text-xs font-medium text-blue-800 mb-1">{t('hostel.checkInDate')}</label>
+            <input
+              type="date"
+              value={bookingCheckInDate}
+              min={passStartDate}
+              max={passEndDate}
+              onChange={e => setBookingCheckInDate(e.target.value)}
+              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-blue-800 mb-1">{t('hostel.checkOutDate')}</label>
+            <input
+              type="date"
+              value={bookingCheckOutDate}
+              min={bookingCheckInDate || passStartDate}
+              max={passEndDate}
+              onChange={e => setBookingCheckOutDate(e.target.value)}
+              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
         {/* Time pickers */}
         <div className="grid grid-cols-2 gap-3 mt-3">
           <div>
@@ -322,8 +417,8 @@ export default function HostelBookingFlow({
             <input
               type="time"
               value={checkOutTime}
-              onChange={e => setCheckOutTime(e.target.value)}
-              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled
+              className="w-full text-sm border border-blue-300 rounded px-2 py-1 bg-gray-100 text-gray-700 cursor-not-allowed"
             />
           </div>
         </div>
@@ -367,6 +462,12 @@ export default function HostelBookingFlow({
         <div className={`mt-3 text-xs px-2 py-1.5 rounded border ${checkoutTierNote.color}`}>
           {checkoutTierNote.label}
         </div>
+        {bookingDateValidationError && (
+          <p className="text-xs text-red-600 mt-2">{bookingDateValidationError}</p>
+        )}
+        {bookingDatetimeValidationError && (
+          <p className="text-xs text-red-600 mt-1">{bookingDatetimeValidationError}</p>
+        )}
         <p className="text-xs text-blue-600 mt-2">
           <span className="font-semibold">{billableDays} billable {billableDays === 1 ? t('hostel.day') : t('hostel.days')}</span>{' '}
           &bull; {guestCount} {guestCount > 1 ? t('hostel.guests') : t('hostel.guest')}

@@ -284,8 +284,8 @@ const sendCheckoutReminders = async () => {
             referenceType: 'hostel_booking',
             referenceId: booking.id,
             metadata: {
-              actionUrl: '/admin/gate-entry',
-              actionLabel: 'View Booking'
+              actionUrl: '/notifications',
+              actionLabel: 'View Reminder'
             }
           }
         });
@@ -320,6 +320,122 @@ const sendCheckoutReminders = async () => {
 };
 
 /**
+ * Apply one-day extra charge after 5 PM if checkout/cancellation was not completed.
+ * The booking deadline is pushed to next day 5 PM to avoid duplicate charging in same day.
+ */
+const applyCheckoutDeadlineCharges = async () => {
+  try {
+    const now = getISTDate();
+    const istHour = now.getUTCHours(); // already shifted to IST
+    if (istHour < 17) return;
+
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const overdueBookings = await prisma.hostelBooking.findMany({
+      where: {
+        booking_status: 'confirmed',
+        check_out_datetime: {
+          gte: todayStart,
+          lt: todayEnd
+        }
+      },
+      include: {
+        gate_pass: {
+          include: {
+            created_by: {
+              include: {
+                studentDetails: {
+                  include: {
+                    parentDetails: {
+                      where: { isPrimaryContact: true },
+                      take: 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        room: {
+          include: { hostel: true }
+        }
+      }
+    });
+
+    if (overdueBookings.length === 0) {
+      return;
+    }
+
+    let chargedCount = 0;
+
+    for (const booking of overdueBookings) {
+      const currentCheckout = new Date(booking.check_out_datetime);
+      const nextCheckout = new Date(currentCheckout);
+      nextCheckout.setDate(nextCheckout.getDate() + 1);
+      nextCheckout.setHours(17, 0, 0, 0);
+
+      const currentBillableDays = Number(booking.billable_days || 1);
+      const pricePerDay = Number(booking.price_per_day || 0);
+      const currentTotal = Number(booking.total_price || 0);
+      const newBillableDays = currentBillableDays + 1;
+      const newTotal = Number((currentTotal + pricePerDay).toFixed(2));
+
+      await prisma.hostelBooking.update({
+        where: { id: booking.id },
+        data: {
+          billable_days: newBillableDays,
+          total_price: newTotal,
+          check_out_datetime: nextCheckout,
+          checkout_reminder_sent: false,
+          payment_status: pricePerDay > 0 ? 'pending' : booking.payment_status,
+          updated_at: new Date()
+        }
+      });
+
+      if (booking.gate_pass?.created_by_id) {
+        await prisma.notification.create({
+          data: {
+            userId: booking.gate_pass.created_by_id,
+            type: 'checkout_penalty_applied',
+            title: 'Extra Day Charge Applied',
+            message: `Checkout deadline (5:00 PM) missed for room ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'}. One extra day rent has been added.`,
+            referenceType: 'hostel_booking',
+            referenceId: booking.id,
+            metadata: {
+              actionUrl: '/notifications',
+              actionLabel: 'View Charge Details'
+            }
+          }
+        });
+      }
+
+      const parentDetails = booking.gate_pass?.created_by?.studentDetails?.[0]?.parentDetails?.[0];
+      if (parentDetails?.email) {
+        emailService.sendCheckoutPenaltyApplied({
+          parentEmail: parentDetails.email,
+          parentName: parentDetails.fatherName || parentDetails.motherName || 'Parent',
+          visitorName: booking.gate_pass?.visitor_name || 'Visitor',
+          passId: booking.gate_pass?.pass_id || 'N/A',
+          roomNumber: booking.room?.room_number || '—',
+          hostelName: booking.room?.hostel?.name || 'Guest House',
+          newCheckoutDatetime: nextCheckout,
+          additionalAmount: pricePerDay
+        }).catch(err => console.error(`[Checkout Deadline] Parent penalty email error for booking ${booking.id}:`, err));
+      }
+
+      chargedCount++;
+    }
+
+    if (chargedCount > 0) {
+      console.log(`[Checkout Deadline] ✅ Applied extra-day charges for ${chargedCount} booking(s)`);
+    }
+  } catch (error) {
+    console.error('[Checkout Deadline] ❌ Error:', error);
+  }
+};
+
+/**
  * Start the cron job
  * Schedule: Every 15 minutes
  */
@@ -328,6 +444,7 @@ const startQRActivationJob = () => {
   cron.schedule('*/15 * * * *', async () => {
     await activateQRCodes();
     await sendCheckoutReminders();
+    await applyCheckoutDeadlineCharges();
   }, {
     timezone: 'Asia/Kolkata'
   });
@@ -337,10 +454,12 @@ const startQRActivationJob = () => {
   // Run immediately on startup
   activateQRCodes();
   sendCheckoutReminders();
+  applyCheckoutDeadlineCharges();
 };
 
 module.exports = {
   startQRActivationJob,
   activateQRCodes,
-  sendCheckoutReminders
+  sendCheckoutReminders,
+  applyCheckoutDeadlineCharges
 };

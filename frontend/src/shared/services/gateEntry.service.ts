@@ -320,6 +320,8 @@ function transformBooking(booking: any): HostelBooking {
     paymentStatus: booking.payment_status || booking.paymentStatus,
     paymentQrCode: booking.payment_qr_code || booking.paymentQrCode,
     paymentReference: booking.payment_reference || booking.paymentReference,
+    hostelName: booking.hostel_name || booking.hostelName || booking.room?.hostel?.name,
+    roomNumber: booking.room_number || booking.roomNumber || booking.room?.room_number,
     hostel: booking.room?.hostel ? transformHostel(booking.room.hostel) : (booking.hostel ? transformHostel(booking.hostel) : undefined),
     room: booking.room ? transformRoom(booking.room) : undefined,
     createdAt: booking.created_at || booking.createdAt,
