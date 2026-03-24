@@ -93,6 +93,18 @@ function CreatePassPageContent() {
   
   // Dynamic purpose options based on user role
   const purposeOptions = isStudentLocked ? STUDENT_PURPOSE_OPTIONS : GENERAL_PURPOSE_OPTIONS;
+  const userRoleKey = userRole ? `common.role.${userRole.toLowerCase()}` : null;
+  const userRoleLabel = userRoleKey ? t(userRoleKey) : '';
+  const relationLabelMap: Record<string, string> = {
+    father: t('createPass.father'),
+    mother: t('createPass.mother'),
+    guardian: t('createPass.guardian'),
+    parent: t('createPass.parentOther'),
+  };
+  const getRelationLabel = (relation: string) => {
+    const normalized = relation?.toLowerCase?.().trim() || '';
+    return relationLabelMap[normalized] || relation;
+  };
   
   const [formData, setFormData] = useState<SimplePassFormData>({
     visitorName: '',
@@ -110,6 +122,9 @@ function CreatePassPageContent() {
     vehicleNumber: '',
     vehicleModel: '',
   });
+
+  const cardBaseClass = 'bg-white rounded-2xl border p-6 md:p-8';
+  const inputBaseClass = 'w-full px-4 py-3 border rounded-xl bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all';
 
   // Auto-detect multi-day visit (overnight stay - end date is different from start date)
   const isMultiDay = (() => {
@@ -174,13 +189,16 @@ function CreatePassPageContent() {
         if (result.isDuplicate) {
           const passes = result.conflictingPasses || [];
           const firstPass = passes[0];
+          const statusKey = `allPasses.status.${firstPass?.status}`;
+          const translatedStatus = t(statusKey as any);
+          const statusLabel = translatedStatus === statusKey ? firstPass?.status : translatedStatus;
           const dateRange = firstPass?.visitEndDate
-            ? `${new Date(firstPass.visitDate).toLocaleDateString()} to ${new Date(firstPass.visitEndDate).toLocaleDateString()}`
+            ? `${new Date(firstPass.visitDate).toLocaleDateString()} - ${new Date(firstPass.visitEndDate).toLocaleDateString()}`
             : new Date(firstPass.visitDate).toLocaleDateString();
           
           setDuplicateWarning({
             show: true,
-            message: `⚠️ ${formData.visitorName} already has an active pass (${firstPass?.passId}) for ${dateRange}. Status: ${firstPass?.status}`,
+            message: `${t('createPass.duplicateFound')} ${formData.visitorName} (${firstPass?.passId}) | ${t('createPass.visitPeriod')} ${dateRange} | ${t('allPasses.status')}: ${statusLabel}`,
             conflictingPasses: passes
           });
         } else {
@@ -459,7 +477,7 @@ function CreatePassPageContent() {
       
     } catch (err: any) {
       console.error('Create pass error:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to create pass');
+      setError(t('createPass.err.failedCreatePass'));
     } finally {
       setLoading(false);
     }
@@ -490,17 +508,9 @@ function CreatePassPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
+    <div className="min-h-screen bg-[#f8fafc] p-3 md:p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Hero Header with Gradient Background - Master Dashboard Style */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-visible animate-fade-in">
-          {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-10 overflow-hidden rounded-2xl">
-            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
-          </div>
-          
-          {/* Content */}
+        <div className="relative rounded-2xl p-6 md:p-8 mb-6 bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] animate-fade-in">
           <div className="relative z-10">
             {/* Header with Language Selector */}
             <div className="flex items-start justify-between gap-4 mb-3">
@@ -510,7 +520,7 @@ function CreatePassPageContent() {
                 </div>
                 <div className="flex-1">
                   <h1 className="text-2xl md:text-4xl font-bold text-white">{t('createPass.title')}</h1>
-                  <p className="text-blue-100 text-sm md:text-base mt-1">{t('createPass.subtitle')}</p>
+                  <p className="text-[#b3cde0] text-sm md:text-base mt-1">{t('createPass.subtitle')}</p>
                 </div>
               </div>
               {/* Language Selector */}
@@ -522,13 +532,13 @@ function CreatePassPageContent() {
             {/* Quick Stats */}
             {userRole && (
               <div className="mt-4 flex flex-wrap gap-3">
-                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
-                  <span className="text-white/90 text-xs font-medium">{t('createPass.creatingAs')}</span>
-                  <span className="text-white font-bold ml-2 text-sm">{userRole}</span>
+                <div className="bg-white/15 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
+                  <span className="text-[#b3cde0] text-xs font-medium">{t('createPass.creatingAs')}</span>
+                  <span className="text-white font-bold ml-2 text-sm">{userRoleLabel === userRoleKey ? userRole : userRoleLabel}</span>
                 </div>
                 {isStudentLocked && (
-                  <div className="bg-yellow-400/90 backdrop-blur-sm px-4 py-2 rounded-lg border border-yellow-300">
-                    <span className="text-yellow-900 text-xs font-bold">🔒 {t('createPass.parentGuardianOnly')}</span>
+                  <div className="bg-[#b3cde0] px-4 py-2 rounded-lg border border-[#6497b1]">
+                    <span className="text-[#011f4b] text-xs font-bold">🔒 {t('createPass.parentGuardianOnly')}</span>
                   </div>
                 )}
               </div>
@@ -553,15 +563,15 @@ function CreatePassPageContent() {
           )}
 
           {/* Visitor Information Card - Animated with Gradient Border */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-1">
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-1`}>
             {/* Section Header with Gradient */}
             <div className="flex items-center gap-3 mb-6">
-              <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <User className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.visitorInfo')}</h2>
-                <p className="text-gray-600 text-sm">{t('createPass.visitorInfoDesc')}</p>
+                <h2 className="text-xl md:text-2xl font-bold text-[#011f4b]">{t('createPass.visitorInfo')}</h2>
+                <p className="text-[#6497b1] text-sm">{t('createPass.visitorInfoDesc')}</p>
               </div>
             </div>
             
@@ -577,13 +587,13 @@ function CreatePassPageContent() {
                     <select
                       value={selectedGuardianId}
                       onChange={handleGuardianSelect}
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-blue-400"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                       disabled={loadingGuardians}
                     >
                       <option value="">{t('createPass.selectGuardianOption')}</option>
                       {guardians.map(guardian => (
                         <option key={guardian.id} value={guardian.id}>
-                          {guardian.name} ({guardian.relationship}) - {guardian.phone}
+                          {guardian.name} ({getRelationLabel(guardian.relationship)}) - {guardian.phone}
                         </option>
                       ))}
                     </select>
@@ -628,7 +638,7 @@ function CreatePassPageContent() {
                       name="visitorName"
                       value={formData.visitorName}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                       placeholder={t('common.enterFullName')}
                       required
                       readOnly={isStudentLocked && selectedGuardianId !== ''}
@@ -654,7 +664,7 @@ function CreatePassPageContent() {
                       name="mobileNumber"
                       value={formData.mobileNumber}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                       placeholder={t('common.tenDigitNumber')}
                       maxLength={10}
                       pattern="[0-9]{10}"
@@ -688,7 +698,7 @@ function CreatePassPageContent() {
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                       placeholder={t('common.visitorExample')}
                       readOnly={isStudentLocked && selectedGuardianId !== ''}
                     />
@@ -711,7 +721,7 @@ function CreatePassPageContent() {
                   <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
                     {t('createPass.relation')}
                     {isStudentLocked && (
-                      <span className="text-xs bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-3 py-1 rounded-full font-bold">
+                        <span className="text-xs bg-[#005b96] text-white px-3 py-1 rounded-full font-bold">
                         🔒 {t('createPass.parentGuardianBadge')}
                       </span>
                     )}
@@ -722,7 +732,7 @@ function CreatePassPageContent() {
                         name="visitorRelation"
                         value={formData.visitorRelation}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white hover:border-blue-400"
+                        className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                         required
                         disabled={selectedGuardianId !== ''}
                       >
@@ -738,7 +748,7 @@ function CreatePassPageContent() {
                         name="visitorRelation"
                         value={formData.visitorRelation}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                        className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                         placeholder={t('common.relationExample')}
                       />
                     )}
@@ -765,7 +775,7 @@ function CreatePassPageContent() {
                       onChange={handleChange}
                       min="1"
                       max="50"
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                       placeholder={t('createPass.howManyPeople')}
                       required
                     />
@@ -778,15 +788,15 @@ function CreatePassPageContent() {
           </div>
 
           {/* Visit Details Card - Animated with Green Gradient */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-2">
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-2`}>
             {/* Section Header with Gradient */}
             <div className="flex items-center gap-3 mb-6">
-              <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.visitDetails')}</h2>
-                <p className="text-gray-600 text-sm">{t('createPass.visitDetailsDesc')}</p>
+                <h2 className="text-xl md:text-2xl font-bold text-[#011f4b]">{t('createPass.visitDetails')}</h2>
+                <p className="text-[#6497b1] text-sm">{t('createPass.visitDetailsDesc')}</p>
               </div>
             </div>
             
@@ -801,7 +811,7 @@ function CreatePassPageContent() {
                     name="purposeOfVisit"
                     value={formData.purposeOfVisit}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all bg-white hover:border-green-400"
+                    className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                     required
                   >
                     <option value="">{t('common.selectPurpose')}</option>
@@ -826,7 +836,7 @@ function CreatePassPageContent() {
                     name="purposeOther"
                     value={formData.purposeOther}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
+                    className={`${inputBaseClass} border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                     placeholder={t('createPass.enterPurpose')}
                     required
                   />
@@ -845,7 +855,7 @@ function CreatePassPageContent() {
                     value={formData.visitDate}
                     onChange={handleChange}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
+                    className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                     required
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -864,7 +874,7 @@ function CreatePassPageContent() {
                     value={formData.visitEndDate}
                     onChange={handleChange}
                     min={formData.visitDate || new Date().toISOString().split('T')[0]}
-                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
+                    className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                     required
                   />
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -888,7 +898,7 @@ function CreatePassPageContent() {
                     name="entryTime"
                     value={formData.entryTime}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all hover:border-green-400"
+                    className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                     required
                   />
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -907,15 +917,15 @@ function CreatePassPageContent() {
                 {formData.entryTime && !entryTimeError && (() => {
                   const [hours, minutes] = formData.entryTime.split(':');
                   const hour = parseInt(hours, 10);
-                  const ampm = hour >= 12 ? 'PM' : 'AM';
+                  const ampm = hour >= 12 ? t('common.pm') : t('common.am');
                   const hour12 = hour % 12 || 12;
                   return (
                     <div className="mt-2 flex flex-wrap gap-3">
-                      <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
+                      <div className="bg-[#005b96] text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2">
                         <Clock className="w-4 h-4" />
                         {t('createPass.entry')} {hour12}:{minutes} {ampm}
                       </div>
-                      <div className="bg-blue-50 border border-blue-300 text-blue-700 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                      <div className="bg-[#b3cde0]/35 border border-[#6497b1] text-[#03396c] px-4 py-2 rounded-lg text-sm flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
                         {t('createPass.qrActivates')}
                       </div>
@@ -927,30 +937,30 @@ function CreatePassPageContent() {
           </div>
 
           {/* Vehicle Details Card - Animated with Purple Gradient */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-3">
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-3`}>
             {/* Section Header with Gradient */}
             <div className="flex items-center gap-3 mb-6">
-              <div className="bg-gradient-to-br from-purple-500 to-pink-500 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <Car className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.vehicleInfo')}</h2>
-                <p className="text-gray-600 text-sm">{t('createPass.vehicleInfoDesc')}</p>
+                <h2 className="text-xl md:text-2xl font-bold text-[#011f4b]">{t('createPass.vehicleInfo')}</h2>
+                <p className="text-[#6497b1] text-sm">{t('createPass.vehicleInfoDesc')}</p>
               </div>
             </div>
             
             {/* Vehicle Checkbox */}
             <div className="mb-5">
-              <label className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border-2 border-gray-300 hover:border-purple-400 hover:bg-purple-50 transition-all">
+              <label className="flex items-center gap-3 cursor-pointer group p-4 rounded-xl border border-[#b3cde0] hover:border-[#6497b1] hover:bg-[#b3cde0]/20 transition-all">
                 <input
                   type="checkbox"
                   name="hasVehicle"
                   checked={formData.hasVehicle}
                   onChange={handleChange}
-                  className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  className="w-5 h-5 text-[#005b96] border-[#6497b1] rounded focus:ring-[#6497b1]"
                 />
                 <div className="flex items-center gap-2">
-                  <Car className="w-5 h-5 text-purple-600" />
+                  <Car className="w-5 h-5 text-[#005b96]" />
                   <span className="text-sm font-bold text-gray-700">{t('createPass.visitorWillBringVehicle')}</span>
                 </div>
               </label>
@@ -969,7 +979,7 @@ function CreatePassPageContent() {
                       name="vehicleType"
                       value={formData.vehicleType}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white hover:border-purple-400"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                       required
                     >
                       <option value="">{t('createPass.selectVehicleType')}</option>
@@ -992,7 +1002,7 @@ function CreatePassPageContent() {
                       name="vehicleNumber"
                       value={formData.vehicleNumber}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all hover:border-purple-400 uppercase font-mono"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96] uppercase font-mono`}
                       placeholder={t('createPass.vehicleNumberExample')}
                       required
                     />
@@ -1011,7 +1021,7 @@ function CreatePassPageContent() {
                       name="vehicleModel"
                       value={formData.vehicleModel}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all hover:border-purple-400"
+                      className={`${inputBaseClass} pl-10 border-[#b3cde0] focus:ring-[#6497b1] focus:border-[#005b96]`}
                       placeholder={t('createPass.vehicleModelExample')}
                       required
                     />
@@ -1032,30 +1042,30 @@ function CreatePassPageContent() {
 
           {/* Stay Details Card - Orange Gradient Theme - ONLY for Students creating passes for Parents */}
           {canBookHostel && (
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 hover-lift animate-slide-up stagger-item-4">
+            <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-4`}>
               {/* Section Header with Gradient */}
               <div className="flex items-center gap-3 mb-6">
-                <div className="bg-gradient-to-br from-orange-500 to-red-500 p-3 rounded-xl shadow-lg">
+                <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                   <Hotel className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-900">{t('createPass.accommodation')}</h2>
-                  <p className="text-gray-600 text-sm">{t('createPass.accommodationDesc')}</p>
+                  <h2 className="text-xl md:text-2xl font-bold text-[#011f4b]">{t('createPass.accommodation')}</h2>
+                  <p className="text-[#6497b1] text-sm">{t('createPass.accommodationDesc')}</p>
                 </div>
               </div>
               
               {/* Info Banner */}
-              <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-l-4 border-blue-500 p-4 rounded-xl">
+              <div className="mb-6 bg-[#b3cde0]/25 border-l-4 border-[#005b96] p-4 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-5 h-5 text-[#005b96] mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-bold text-blue-900 mb-1">
+                    <p className="text-sm font-bold text-[#011f4b] mb-1">
                       {t('createPass.multiDayVisitDetected')}
                     </p>
-                    <div className="text-xs text-blue-700 space-y-1">
-                      <p><strong>{t('createPass.visitPeriod')}</strong> {formData.visitDate} to {formData.visitEndDate}</p>
-                      <p><strong>{t('createPass.qrActivation')}</strong> 5 hours before entry time on {formData.visitDate}</p>
-                      <p><strong>{t('createPass.qrExpiry')}</strong> {formData.visitEndDate} at 23:59</p>
+                    <div className="text-xs text-[#03396c] space-y-1">
+                      <p><strong>{t('createPass.visitPeriod')}</strong> {formData.visitDate} {t('common.to')} {formData.visitEndDate}</p>
+                      <p><strong>{t('createPass.qrActivation')}</strong> {t('createPass.qrActivationTiming')} {formData.visitDate}</p>
+                      <p><strong>{t('createPass.qrExpiry')}</strong> {formData.visitEndDate} {t('createPass.qrExpiryAt')} 23:59</p>
                     </div>
                   </div>
                 </div>
@@ -1076,19 +1086,19 @@ function CreatePassPageContent() {
                     }}
                     className={`group p-5 border-2 rounded-2xl text-left transition-all transform hover:scale-105 ${
                       wantToBook === true 
-                        ? 'border-orange-500 bg-gradient-to-br from-orange-50 to-red-50 ring-4 ring-orange-200 scale-105' 
-                        : 'border-gray-300 hover:border-orange-400 hover:shadow-lg'
+                        ? 'border-[#005b96] bg-[#b3cde0]/25 ring-4 ring-[#b3cde0] scale-105' 
+                        : 'border-[#b3cde0] hover:border-[#6497b1] hover:shadow-lg'
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className={`p-2 rounded-lg ${wantToBook === true ? 'bg-orange-500' : 'bg-gray-200'}`}>
-                        <Hotel className={`w-6 h-6 ${wantToBook === true ? 'text-white' : 'text-gray-400'}`} />
+                      <div className={`p-2 rounded-lg ${wantToBook === true ? 'bg-[#005b96]' : 'bg-slate-200'}`}>
+                        <Hotel className={`w-6 h-6 ${wantToBook === true ? 'text-white' : 'text-slate-400'}`} />
                       </div>
                       <span className="font-bold text-gray-800 text-base">{t('createPass.yesBooking')}</span>
                     </div>
                     <p className="text-xs text-gray-600 ml-11">{t('createPass.browseRooms')}</p>
                     {wantToBook === true && (
-                      <div className="mt-3 ml-11 bg-white border-2 border-orange-400 text-orange-700 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 animate-pulse-glow">
+                      <div className="mt-3 ml-11 bg-white border-2 border-[#6497b1] text-[#03396c] px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 animate-pulse-glow">
                         <CheckCircle className="w-4 h-4" />
                         {t('createPass.bookingFlowOpens')}
                       </div>
@@ -1104,13 +1114,13 @@ function CreatePassPageContent() {
                     }}
                     className={`group p-5 border-2 rounded-2xl text-left transition-all transform hover:scale-105 ${
                       wantToBook === false 
-                        ? 'border-gray-600 bg-gradient-to-br from-gray-50 to-gray-100 ring-4 ring-gray-200 scale-105' 
-                        : 'border-gray-300 hover:border-gray-400 hover:shadow-lg'
+                        ? 'border-[#03396c] bg-[#b3cde0]/15 ring-4 ring-[#b3cde0] scale-105' 
+                        : 'border-[#b3cde0] hover:border-[#6497b1] hover:shadow-lg'
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className={`p-2 rounded-lg ${wantToBook === false ? 'bg-gray-600' : 'bg-gray-200'}`}>
-                        <Clock className={`w-6 h-6 ${wantToBook === false ? 'text-white' : 'text-gray-400'}`} />
+                      <div className={`p-2 rounded-lg ${wantToBook === false ? 'bg-[#03396c]' : 'bg-slate-200'}`}>
+                        <Clock className={`w-6 h-6 ${wantToBook === false ? 'text-white' : 'text-slate-400'}`} />
                       </div>
                       <span className="font-bold text-gray-800 text-base">{t('createPass.noSkipBooking')}</span>
                     </div>
@@ -1122,22 +1132,22 @@ function CreatePassPageContent() {
           )}
 
           {/* Submit Buttons Card - Gradient Theme */}
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 md:p-8 animate-slide-up stagger-item-5">
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-5`}>
             
             {/* Duplicate Pass Warning - Enhanced with Animation */}
             {duplicateWarning.show && (
-              <div className="mb-6 bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 p-5 rounded-xl shadow-xl animate-shake">
+              <div className="mb-6 bg-[#b3cde0]/20 border-l-4 border-[#005b96] p-5 rounded-xl shadow-[0_8px_20px_rgba(3,57,108,0.12)] animate-shake">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0">
-                    <div className="bg-red-500 p-2 rounded-lg">
+                    <div className="bg-[#005b96] p-2 rounded-lg">
                       <AlertCircle className="h-6 w-6 text-white" />
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-red-800 mb-2 flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-[#011f4b] mb-2 flex items-center gap-2">
                       {t('createPass.duplicateFound')}
                     </h3>
-                    <div className="text-sm text-red-700 space-y-2">
+                    <div className="text-sm text-[#03396c] space-y-2">
                       <p className="font-bold bg-white/70 p-2 rounded">{duplicateWarning.message}</p>
                       <p>
                         {t('createPass.cancelExisting')}
@@ -1148,7 +1158,7 @@ function CreatePassPageContent() {
                         <button
                           type="button"
                           onClick={() => router.push('/admin/gate-entry')}
-                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white text-sm font-bold rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#03396c] text-white text-sm font-bold rounded-lg hover:bg-[#011f4b] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
                           <FileText className="w-4 h-4" />
                           {t('createPass.viewExistingPasses')}
@@ -1162,11 +1172,11 @@ function CreatePassPageContent() {
 
             {/* Checking Duplicate Spinner */}
             {checkingDuplicate && (
-              <div className="mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-xl p-4 flex items-center gap-3 animate-pulse">
-                <div className="bg-blue-500 p-2 rounded-lg">
+              <div className="mb-6 bg-[#b3cde0]/20 border border-[#6497b1] rounded-xl p-4 flex items-center gap-3 animate-pulse">
+                <div className="bg-[#005b96] p-2 rounded-lg">
                   <Loader2 className="h-5 w-5 text-white animate-spin" />
                 </div>
-                <span className="font-bold text-blue-800">{t('createPass.checkingDuplicate')}</span>
+                <span className="font-bold text-[#011f4b]">{t('createPass.checkingDuplicate')}</span>
               </div>
             )}
 
@@ -1175,7 +1185,7 @@ function CreatePassPageContent() {
               <button
                 type="button"
                 onClick={() => router.back()}
-                className="px-6 py-3 border-2 border-gray-300 text-gray-700 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 border border-[#6497b1] text-[#03396c] font-bold rounded-xl hover:bg-[#b3cde0]/20 hover:border-[#005b96] transition-all transform hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading}
               >
                 {t('createPass.cancel')}
@@ -1183,7 +1193,7 @@ function CreatePassPageContent() {
               <button
                 type="submit"
                 disabled={loading || duplicateWarning.show}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                className="px-8 py-3 bg-[#005b96] text-white font-bold rounded-xl hover:bg-[#03396c] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 {loading ? (
                   <>

@@ -13,6 +13,38 @@ const QRCode = require('qrcode');
  *   else                     → billable_days = base
  */
 const GRACE_CHECKOUT_HOUR = 17; // 5 PM
+const FIXED_CHECKOUT_MINUTE = 0;
+
+const normalizeToFixedCheckoutTime = (dateInput) => {
+  const d = new Date(dateInput);
+  d.setHours(GRACE_CHECKOUT_HOUR, FIXED_CHECKOUT_MINUTE, 0, 0);
+  return d;
+};
+
+const combineDateAndTime = (dateInput, timeText = '00:00') => {
+  const d = new Date(dateInput);
+  const [h, m] = String(timeText)
+    .split(':')
+    .map((v) => Number(v));
+
+  d.setHours(Number.isFinite(h) ? h : 0, Number.isFinite(m) ? m : 0, 0, 0);
+  return d;
+};
+
+const resolvePassValidityWindow = (gatePass) => {
+  const passStart = combineDateAndTime(
+    gatePass.visit_date,
+    gatePass.entry_time || gatePass.expected_entry_time || '00:00'
+  );
+
+  const passEndDate = gatePass.visit_end_date || gatePass.visit_date;
+  const passEnd = combineDateAndTime(
+    passEndDate,
+    gatePass.expected_exit_time || '23:59'
+  );
+
+  return { passStart, passEnd };
+};
 
 /**
  * Calculate billable days based on Guest House schedule rules.
@@ -235,7 +267,14 @@ class HostelBookingService {
       // Resolve pass_id (formatted string) to UUID
       const gatePass = await prisma.gate_pass.findUnique({
         where: { pass_id: passId },
-        select: { id: true }
+        select: {
+          id: true,
+          visit_date: true,
+          visit_end_date: true,
+          entry_time: true,
+          expected_entry_time: true,
+          expected_exit_time: true
+        }
       });
 
       if (!gatePass) {
@@ -261,13 +300,25 @@ class HostelBookingService {
 
       // Validate datetimes
       const checkIn = new Date(checkInDatetime);
-      const checkOut = new Date(checkOutDatetime);
+      const requestedCheckOut = new Date(checkOutDatetime);
 
-      if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+      if (isNaN(checkIn.getTime()) || isNaN(requestedCheckOut.getTime())) {
         throw new Error('Invalid check-in or check-out datetime');
       }
+
+      // Enforce fixed 5:00 PM checkout on the selected checkout date.
+      const checkOut = normalizeToFixedCheckoutTime(requestedCheckOut);
+
       if (checkOut <= checkIn) {
         throw new Error('Check-out must be after check-in');
+      }
+
+      const { passStart, passEnd } = resolvePassValidityWindow(gatePass);
+      if (checkIn < passStart) {
+        throw new Error('Guest house check-in must be after pass entry time');
+      }
+      if (checkOut > passEnd) {
+        throw new Error('Guest house checkout must be within pass validity');
       }
 
       // Check room availability

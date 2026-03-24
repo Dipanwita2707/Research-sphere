@@ -3396,6 +3396,7 @@ enum visit_purpose_enum {
   meeting
   delivery
   maintenance
+  emergency
   event
   interview
   personal

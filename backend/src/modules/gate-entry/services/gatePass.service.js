@@ -447,6 +447,14 @@ class GatePassService {
         throw new Error('Vehicle model is required when vehicle is selected');
       }
 
+      // Backward-compatible purpose normalization:
+      // Some deployed DBs still have legacy visit_purpose_enum without "emergency".
+      // Persist as "other" while preserving semantic meaning in purpose_other.
+      const normalizedPurpose = data.purpose_of_visit === 'emergency' ? 'other' : data.purpose_of_visit;
+      const normalizedPurposeOther = data.purpose_of_visit === 'emergency'
+        ? (data.purpose_other || 'Emergency')
+        : (data.purpose_other || null);
+
       const pass_id = await this.generatePassId();
 
       // Parse and validate date - normalize to midnight IST
@@ -522,8 +530,8 @@ class GatePassService {
           age: data.age ? parseInt(data.age) : null,
 
           // Visit details
-          purpose_of_visit: data.purpose_of_visit,
-          purpose_other: data.purpose_other || null,
+          purpose_of_visit: normalizedPurpose,
+          purpose_other: normalizedPurposeOther,
           department_to_visit: data.department_to_visit || null,
           person_to_meet_name: person_to_meet_name || null,
           visit_date: visit_date,
@@ -1929,6 +1937,12 @@ class GatePassService {
     return Math.max(baseDays, 1);
   }
 
+  normalizeCheckoutDeadlineDatetime(dateInput) {
+    const checkout = new Date(dateInput);
+    checkout.setHours(17, 0, 0, 0);
+    return checkout;
+  }
+
   /**
    * Parse and validate extend date (must be strictly after current end date).
    */
@@ -2034,22 +2048,23 @@ class GatePassService {
     }
 
     const extensionStart = new Date(booking.check_out_datetime);
+    const extensionCheckoutDeadline = this.normalizeCheckoutDeadlineDatetime(visit_end_date);
     const sameRoomAvailable = await this.isRoomAvailableForExtension(
       booking.room_id,
       booking.id,
       extensionStart,
-      visit_end_date
+      extensionCheckoutDeadline
     );
 
     const hostelBookingService = require('./hostelBooking.service');
     const availableHostels = await hostelBookingService.getAvailableHostels(
       extensionStart,
-      visit_end_date,
+      extensionCheckoutDeadline,
       pass.created_by_id
     );
 
     const currentBillableDays = booking.billable_days || 1;
-    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, visit_end_date);
+    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, extensionCheckoutDeadline);
     const additionalNights = Math.max(newBillableDays - currentBillableDays, 0);
     const pricePerDay = parseFloat(booking.price_per_day || booking.room?.price_per_night || 0);
     const additionalAmount = Number((additionalNights * pricePerDay).toFixed(2));
@@ -2127,6 +2142,7 @@ class GatePassService {
     const useSameRoom = decision.useSameRoom !== false;
     const selectedRoomId = decision.selectedRoomId || null;
     const visit_end_date = new Date(options.proposedEndDate);
+    const extensionCheckoutDeadline = this.normalizeCheckoutDeadlineDatetime(visit_end_date);
     const checkout_qr_expires_at = new Date(visit_end_date.getTime() + 24 * 60 * 60 * 1000);
 
     let finalRoomId = booking.room_id;
@@ -2157,14 +2173,14 @@ class GatePassService {
       finalRoomId,
       booking.id,
       extensionStart,
-      visit_end_date
+      extensionCheckoutDeadline
     );
 
     if (!finalRoomAvailable) {
       throw new Error('Selected room is no longer available for extension period. Please re-check availability.');
     }
 
-    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, visit_end_date);
+    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, extensionCheckoutDeadline);
     const newPricePerDay = parseFloat(finalRoom.price_per_night || booking.price_per_day || 0);
     const newTotalPrice = Number((newBillableDays * newPricePerDay).toFixed(2));
     const currentTotalPrice = parseFloat(booking.total_price || 0);
@@ -2190,7 +2206,7 @@ class GatePassService {
 
       if (finalRoom.id === booking.room_id) {
         const bookingPatch = {
-          check_out_datetime: visit_end_date,
+          check_out_datetime: extensionCheckoutDeadline,
           billable_days: newBillableDays,
           price_per_day: newPricePerDay,
           total_price: newTotalPrice,
@@ -2210,7 +2226,7 @@ class GatePassService {
           data: bookingPatch
         });
       } else {
-        const extensionBillableDays = this.calculateExtensionBillableDays(extensionStart, visit_end_date);
+        const extensionBillableDays = this.calculateExtensionBillableDays(extensionStart, extensionCheckoutDeadline);
         const extensionTotalPrice = Number((extensionBillableDays * newPricePerDay).toFixed(2));
         additionalNightsResult = extensionBillableDays;
         additionalAmountResult = extensionTotalPrice;
@@ -2227,7 +2243,7 @@ class GatePassService {
             room_number: finalRoom.room_number,
             hostel_name: finalRoom.hostel?.name || booking.hostel_name,
             check_in_datetime: extensionStart,
-            check_out_datetime: visit_end_date,
+            check_out_datetime: extensionCheckoutDeadline,
             guest_count: booking.guest_count || 1,
             billable_days: extensionBillableDays,
             price_per_day: newPricePerDay,

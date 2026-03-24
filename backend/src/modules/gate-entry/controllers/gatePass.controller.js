@@ -382,6 +382,89 @@ class GatePassController {
   }
 
   /**
+   * Resend pass notification email
+   * POST /api/v1/gate-entry/resend-notification/:passId
+   */
+  async resendNotification(req, res) {
+    try {
+      const { passId } = req.params;
+      const userId = req.user.id;
+      const role = (req.user.role || '').toLowerCase();
+
+      const pass = await prisma.gate_pass.findUnique({
+        where: { pass_id: passId }
+      });
+
+      if (!pass) {
+        return res.status(404).json(
+          formatResponse(false, 'Pass not found')
+        );
+      }
+
+      const isAdmin = role === 'admin' || role === 'superadmin';
+      const isCreator = pass.created_by_id === userId;
+
+      if (!isAdmin && !isCreator) {
+        return res.status(403).json(
+          formatResponse(false, 'You do not have permission to resend this notification')
+        );
+      }
+
+      if (!pass.email) {
+        return res.status(400).json(
+          formatResponse(false, 'Visitor email is not available for this pass')
+        );
+      }
+
+      const candidateStatuses = [pass.pass_status, pass.status]
+        .filter(Boolean)
+        .map((s) => String(s).toLowerCase());
+
+      const normalizedStatus =
+        candidateStatuses.find((s) => ['expired', 'cancelled', 'denied', 'rejected', 'completed', 'checked_out', 'checked_in', 'active', 'approved', 'pending', 'created'].includes(s)) ||
+        'created';
+
+      if (normalizedStatus === 'created' || normalizedStatus === 'pending' || normalizedStatus === 'active' || normalizedStatus === 'approved') {
+        await emailService.sendPassCreated(pass);
+      } else if (normalizedStatus === 'checked_in') {
+        await emailService.sendEntryAllowed(pass);
+      } else if (normalizedStatus === 'checked_out') {
+        await emailService.sendExitRecorded(pass);
+      } else if (normalizedStatus === 'completed' || normalizedStatus === 'expired') {
+        // Keep status text exactly aligned with current displayed status
+        await emailService.sendPassStatusUpdate(pass);
+      } else if (normalizedStatus === 'denied' || normalizedStatus === 'rejected') {
+        const denialReason = pass.denial_reason || pass.cancellation_reason || 'Not specified';
+        await emailService.sendEntryDenied(pass, denialReason);
+      } else if (normalizedStatus === 'cancelled') {
+        const cancellationReason = pass.cancellation_reason || 'Not specified';
+        const cancellationType = pass.cancellation_type || (pass.actual_entry_time ? 'after_check_in' : 'before_check_in');
+
+        if (cancellationType === 'after_check_in') {
+          await emailService.sendPassCancelledAfterEntry(pass, cancellationReason);
+        } else {
+          await emailService.sendPassCancelledBeforeEntry(pass, cancellationReason);
+        }
+      } else {
+        await emailService.sendPassStatusUpdate(pass);
+      }
+
+      return res.status(200).json(
+        formatResponse(true, 'Notification email resent successfully', {
+          passId: pass.pass_id,
+          email: pass.email,
+          status: normalizedStatus
+        })
+      );
+    } catch (error) {
+      logger.error('Resend notification error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to resend notification email', null, error.message)
+      );
+    }
+  }
+
+  /**
    * Get check-in history (for guards)
    * GET /api/v1/gate-entry/check-in-history
    */
