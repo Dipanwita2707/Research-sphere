@@ -159,12 +159,15 @@ const activateQRCodes = async () => {
     // all day and is only expired on the first job run tomorrow.
     const dateComparison = { lt: todayIST };
     
-    // Find passes to expire (exclude multi-day daily passes that are checked_out and still within date range)
+    // Find passes to expire even if QR is inactive (e.g., never activated/used)
+    // so overdue passes do not remain visible as active/created forever.
     const passesToExpire = await prisma.gate_pass.findMany({
       where: {
-        qr_status: 'active',
+        qr_status: {
+          in: ['active', 'inactive']
+        },
         pass_status: {
-          in: ['created', 'approved', 'active']
+          in: ['created', 'approved', 'active', 'checked_in', 'checked_out']
         },
         OR: [
           // Single-day passes: visit_date expired based on 6 PM rule
@@ -187,10 +190,12 @@ const activateQRCodes = async () => {
     });
 
     if (passesToExpire.length > 0) {
+      const passIdsToExpire = passesToExpire.map(p => p.id);
+
       const result = await prisma.gate_pass.updateMany({
         where: {
           id: {
-            in: passesToExpire.map(p => p.id)
+            in: passIdsToExpire
           }
         },
         data: {
@@ -199,11 +204,48 @@ const activateQRCodes = async () => {
         }
       });
 
+      // Auto-close hostel bookings linked to expired passes.
+      // This ensures rooms are no longer considered occupied in any booking-state views.
+      const bookingCloseResult = await prisma.hostelBooking.updateMany({
+        where: {
+          gate_pass_id: { in: passIdsToExpire },
+          booking_status: { in: ['pending', 'confirmed'] }
+        },
+        data: {
+          booking_status: 'completed',
+          checkout_reminder_sent: true,
+          updated_at: new Date()
+        }
+      });
+
       console.log(`[QR Activation Job] ⏰ Expired ${result.count} passes`);
+      if (bookingCloseResult.count > 0) {
+        console.log(`[QR Activation Job] 🏨 Auto-completed ${bookingCloseResult.count} hostel booking(s) for expired passes`);
+      }
       passesToExpire.forEach(pass => {
         const endDate = pass.visit_end_date || pass.visit_date;
         console.log(`  - Pass ID: ${pass.pass_id}, End Date: ${new Date(endDate).toISOString().split('T')[0]}`);
       });
+    }
+
+    // Safety backfill: if a pass is already marked expired from a previous run,
+    // ensure any leftover pending/confirmed booking is auto-closed.
+    const staleBookingCleanup = await prisma.hostelBooking.updateMany({
+      where: {
+        booking_status: { in: ['pending', 'confirmed'] },
+        gate_pass: {
+          pass_status: 'expired'
+        }
+      },
+      data: {
+        booking_status: 'completed',
+        checkout_reminder_sent: true,
+        updated_at: new Date()
+      }
+    });
+
+    if (staleBookingCleanup.count > 0) {
+      console.log(`[QR Activation Job] 🧹 Backfill auto-completed ${staleBookingCleanup.count} stale hostel booking(s) for already expired passes`);
     }
 
   } catch (error) {
@@ -215,13 +257,20 @@ const activateQRCodes = async () => {
  * Send 4 PM checkout reminders (1 hour before 5 PM grace deadline).
  * Runs inside the 15-minute cron; only fires when IST hour = 16.
  */
-const sendCheckoutReminders = async () => {
+const sendCheckoutReminders = async (options = {}) => {
   try {
+    const { force = false } = options;
     const now = getISTDate();
     const istHour = now.getUTCHours(); // already shifted to IST
 
     // Only run between 4:00 PM and 4:14 PM IST (first cron tick of the 4 PM hour)
-    if (istHour !== 16) return;
+    if (!force && istHour !== 16) {
+      return {
+        skipped: true,
+        reason: 'outside-reminder-window',
+        now: now.toISOString()
+      };
+    }
 
     console.log(`[Checkout Reminder] Running at IST ${now.toISOString()}`);
 
@@ -242,11 +291,11 @@ const sendCheckoutReminders = async () => {
       include: {
         gate_pass: {
           include: {
-            created_by: {
+            user_login_gate_pass_created_by_idTouser_login: {
               include: {
-                studentDetails: {
+                studentLogin: {
                   include: {
-                    parentDetails: {
+                    parents: {
                       where: { isPrimaryContact: true },
                       take: 1
                     }
@@ -264,20 +313,25 @@ const sendCheckoutReminders = async () => {
 
     if (bookings.length === 0) {
       console.log(`[Checkout Reminder] No bookings to remind`);
-      return;
+      return {
+        skipped: false,
+        matchedBookings: 0,
+        remindersSent: 0,
+        now: now.toISOString()
+      };
     }
 
     let sentCount = 0;
     for (const booking of bookings) {
       const pass = booking.gate_pass;
-      const student = pass?.created_by;
-      const parentDetails = student?.studentDetails?.[0]?.parentDetails?.[0];
+      const studentId = pass?.created_by_id;
+      const parentDetails = pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
 
       // 1) Send notification to student's dashboard
-      if (student?.id) {
+      if (studentId) {
         await prisma.notification.create({
           data: {
-            userId: student.id,
+            userId: studentId,
             type: 'checkout_reminder',
             title: 'Checkout Reminder – 5 PM Deadline',
             message: `Guest house checkout is at 5:00 PM today. Room: ${booking.room?.room_number || '—'} at ${booking.room?.hostel?.name || 'Guest House'}. Checkout after 5 PM will incur an extra day charge.`,
@@ -295,7 +349,7 @@ const sendCheckoutReminders = async () => {
       if (parentDetails?.email) {
         emailService.sendCheckoutReminder({
           parentEmail: parentDetails.email,
-          parentName: parentDetails.fatherName || parentDetails.motherName || 'Parent',
+          parentName: `${parentDetails.firstName || ''} ${parentDetails.lastName || ''}`.trim() || parentDetails.fatherName || parentDetails.motherName || 'Parent',
           visitorName: pass.visitor_name,
           passId: pass.pass_id,
           roomNumber: booking.room?.room_number || '—',
@@ -314,8 +368,15 @@ const sendCheckoutReminders = async () => {
     }
 
     console.log(`[Checkout Reminder] ✅ Sent ${sentCount} reminders`);
+    return {
+      skipped: false,
+      matchedBookings: bookings.length,
+      remindersSent: sentCount,
+      now: now.toISOString()
+    };
   } catch (error) {
     console.error(`[Checkout Reminder] ❌ Error:`, error);
+    throw error;
   }
 };
 
@@ -323,11 +384,18 @@ const sendCheckoutReminders = async () => {
  * Apply one-day extra charge after 5 PM if checkout/cancellation was not completed.
  * The booking deadline is pushed to next day 5 PM to avoid duplicate charging in same day.
  */
-const applyCheckoutDeadlineCharges = async () => {
+const applyCheckoutDeadlineCharges = async (options = {}) => {
   try {
+    const { force = false } = options;
     const now = getISTDate();
     const istHour = now.getUTCHours(); // already shifted to IST
-    if (istHour < 17) return;
+    if (!force && istHour < 17) {
+      return {
+        skipped: true,
+        reason: 'before-penalty-window',
+        now: now.toISOString()
+      };
+    }
 
     const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -343,11 +411,11 @@ const applyCheckoutDeadlineCharges = async () => {
       include: {
         gate_pass: {
           include: {
-            created_by: {
+            user_login_gate_pass_created_by_idTouser_login: {
               include: {
-                studentDetails: {
+                studentLogin: {
                   include: {
-                    parentDetails: {
+                    parents: {
                       where: { isPrimaryContact: true },
                       take: 1
                     }
@@ -364,7 +432,12 @@ const applyCheckoutDeadlineCharges = async () => {
     });
 
     if (overdueBookings.length === 0) {
-      return;
+      return {
+        skipped: false,
+        matchedBookings: 0,
+        chargedBookings: 0,
+        now: now.toISOString()
+      };
     }
 
     let chargedCount = 0;
@@ -410,11 +483,11 @@ const applyCheckoutDeadlineCharges = async () => {
         });
       }
 
-      const parentDetails = booking.gate_pass?.created_by?.studentDetails?.[0]?.parentDetails?.[0];
+      const parentDetails = booking.gate_pass?.user_login_gate_pass_created_by_idTouser_login?.studentLogin?.parents?.[0];
       if (parentDetails?.email) {
         emailService.sendCheckoutPenaltyApplied({
           parentEmail: parentDetails.email,
-          parentName: parentDetails.fatherName || parentDetails.motherName || 'Parent',
+          parentName: `${parentDetails.firstName || ''} ${parentDetails.lastName || ''}`.trim() || parentDetails.fatherName || parentDetails.motherName || 'Parent',
           visitorName: booking.gate_pass?.visitor_name || 'Visitor',
           passId: booking.gate_pass?.pass_id || 'N/A',
           roomNumber: booking.room?.room_number || '—',
@@ -430,8 +503,16 @@ const applyCheckoutDeadlineCharges = async () => {
     if (chargedCount > 0) {
       console.log(`[Checkout Deadline] ✅ Applied extra-day charges for ${chargedCount} booking(s)`);
     }
+
+    return {
+      skipped: false,
+      matchedBookings: overdueBookings.length,
+      chargedBookings: chargedCount,
+      now: now.toISOString()
+    };
   } catch (error) {
     console.error('[Checkout Deadline] ❌ Error:', error);
+    throw error;
   }
 };
 

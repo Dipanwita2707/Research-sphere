@@ -2,6 +2,10 @@ const gatePassService = require('../services/gatePass.service');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('../../../shared/utils/emailService');
+const {
+  sendCheckoutReminders,
+  applyCheckoutDeadlineCharges
+} = require('../../../jobs/qrActivation.job');
 
 // Simple logger
 const logger = {
@@ -1344,6 +1348,53 @@ class GatePassController {
       logger.error('[GET REFUND BY BOOKING] Error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to fetch refund', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Manually trigger checkout reminder and penalty automation (admin only).
+   * POST /api/v1/gate-entry/debug/checkout-automation
+   */
+  async runCheckoutAutomationNow(req, res) {
+    try {
+      const userRole = req.user?.role?.toLowerCase();
+      if (userRole !== 'admin') {
+        return res.status(403).json(
+          formatResponse(false, 'Only admin can run checkout automation manually')
+        );
+      }
+
+      const runReminder = req.body?.runReminder !== false;
+      const runPenalty = req.body?.runPenalty !== false;
+      const force = req.body?.force !== false;
+
+      if (!runReminder && !runPenalty) {
+        return res.status(400).json(
+          formatResponse(false, 'At least one job must be enabled: runReminder or runPenalty')
+        );
+      }
+
+      const result = {
+        force,
+        executedAt: new Date().toISOString()
+      };
+
+      if (runReminder) {
+        result.reminder = await sendCheckoutReminders({ force });
+      }
+
+      if (runPenalty) {
+        result.penalty = await applyCheckoutDeadlineCharges({ force });
+      }
+
+      return res.status(200).json(
+        formatResponse(true, 'Checkout automation executed successfully', result)
+      );
+    } catch (error) {
+      logger.error('[RUN CHECKOUT AUTOMATION NOW] Error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to execute checkout automation', null, error.message)
       );
     }
   }
