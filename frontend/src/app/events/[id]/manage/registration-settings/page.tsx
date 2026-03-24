@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Skeleton, CardSkeleton, PageHeaderSkeleton, TableSkeleton } from "@/components/skeletons";
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft, Save, Plus, Trash2, GripVertical, Settings, Users,
@@ -11,6 +11,8 @@ import {
   AlertCircle, Loader2, ChevronDown, ChevronUp, Eye, EyeOff, Info
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
+import { useEventCustomFields, useRegistrationSettings, EVENT_QUERY_KEYS } from '@/features/event-management/hooks/useEvents';
+import { useQueryClient } from '@tanstack/react-query';
 import type { EventCustomField, EventFieldType } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
@@ -250,57 +252,43 @@ const CustomFieldEditor: React.FC<CustomFieldEditorProps> = ({
   );
 };
 
+const DEFAULT_SETTINGS = {
+  autoApproveRegistration: true,
+  requireFormSubmission: true,
+  allowEditAfterSubmission: true,
+  lookingForTeammatesEnabled: true,
+  minTeamSize: 2,
+  maxTeamSize: 4,
+  maxTeamLimit: null as number | null,
+  teamRegistrationDeadline: '',
+};
+
 export default function RegistrationSettingsPage() {
   const params = useParams();
-  const router = useRouter();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const eventId = params?.id as string;
 
-  const [loading, setLoading] = useState(true);
+  const { data: customFields = [], isLoading: fieldsLoading } = useEventCustomFields(eventId);
+  const { data: settingsData, isLoading: settingsLoading } = useRegistrationSettings(eventId);
+  const loading = fieldsLoading || settingsLoading;
+
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [saving, setSaving] = useState(false);
-  const [customFields, setCustomFields] = useState<EventCustomField[]>([]);
-  const [settings, setSettings] = useState({
-    autoApproveRegistration: true,
-    requireFormSubmission: true,
-    allowEditAfterSubmission: true,
-    lookingForTeammatesEnabled: true,
-    minTeamSize: 2,
-    maxTeamSize: 4,
-    maxTeamLimit: null as number | null,
-    teamRegistrationDeadline: '',
-  });
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [fieldsData, settingsData] = await Promise.all([
-          eventService.getCustomFields(eventId),
-          eventService.getRegistrationSettings(eventId),
-        ]);
-        
-        setCustomFields(fieldsData);
-        if (settingsData) {
-          setSettings(prev => ({ ...prev, ...settingsData }));
-        }
-      } catch (error: any) {
-        toast({ type: 'error', message: getErrorMessage(error) });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (eventId) {
-      loadData();
+    if (settingsData) {
+      setSettings(prev => ({ ...prev, ...settingsData }));
     }
-  }, [eventId, toast]);
+  }, [settingsData]);
 
   const handleAddField = async (field: Partial<EventCustomField>) => {
     try {
-      const newField = await eventService.createCustomField(eventId, {
+      await eventService.createCustomField(eventId, {
         ...field,
         displayOrder: customFields.length,
       });
-      setCustomFields([...customFields, newField]);
+      await queryClient.invalidateQueries({ queryKey: EVENT_QUERY_KEYS.customFields(eventId) });
       toast({ type: 'success', message: 'Field added successfully' });
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
@@ -309,10 +297,9 @@ export default function RegistrationSettingsPage() {
 
   const handleUpdateField = async (field: Partial<EventCustomField>) => {
     if (!field.id) return;
-    
     try {
-      const updated = await eventService.updateCustomField(eventId, field.id, field);
-      setCustomFields(customFields.map(f => f.id === field.id ? updated : f));
+      await eventService.updateCustomField(eventId, field.id, field);
+      await queryClient.invalidateQueries({ queryKey: EVENT_QUERY_KEYS.customFields(eventId) });
       toast({ type: 'success', message: 'Field updated successfully' });
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });
@@ -321,10 +308,9 @@ export default function RegistrationSettingsPage() {
 
   const handleDeleteField = async (fieldId: string) => {
     if (!confirm('Are you sure you want to delete this field?')) return;
-    
     try {
       await eventService.deleteCustomField(eventId, fieldId);
-      setCustomFields(customFields.filter(f => f.id !== fieldId));
+      await queryClient.invalidateQueries({ queryKey: EVENT_QUERY_KEYS.customFields(eventId) });
       toast({ type: 'success', message: 'Field deleted successfully' });
     } catch (error: any) {
       toast({ type: 'error', message: getErrorMessage(error) });

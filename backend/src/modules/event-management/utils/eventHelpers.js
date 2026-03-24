@@ -645,6 +645,7 @@ const formatEventResponse = (event) => {
     // Dynamic data (included when queried)
     customFields: event.EventCustomField || [],
     prizes: event.EventPrize || [],
+    rounds: event.EventRound || [],
     // Metadata
     notingId: event.notingId,
     createdAt: event.createdAt,

@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 // @ts-ignore
@@ -34,6 +34,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
+import { useEvent, useEventPrizes, useEventCustomFields } from '@/features/event-management/hooks/useEvents';
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { Event, OpportunityMode, ParticipationType, EventPrize, PrizeType, EventCustomField, EventFieldType } from '@/features/event-management/types/event.types';
 import {
@@ -54,6 +55,7 @@ import {
 } from '@/shared/utils/inputSanitizers';
 
 const ReactQuill = dynamic(() => import('react-quill'), { ssr: false });
+const RoundsSection = dynamic(() => import('./components/RoundsSection'), { ssr: false });
 
 interface FAQ {
   question: string;
@@ -116,10 +118,22 @@ export default function ManageEventPage() {
   const eventId = params.id as string;
 
   const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
+  const populatedForEventIdRef = useRef<string | null>(null);
+  const { data: eventData, isLoading: eventLoading } = useEvent(eventId);
+  const { data: existingPrizes = [], isLoading: prizesLoading } = useEventPrizes(eventId);
+  const { data: existingFields = [], isLoading: fieldsLoading } = useEventCustomFields(eventId);
+  const loading = eventLoading || prizesLoading || fieldsLoading;
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
+  const searchParams = useSearchParams();
+  const [currentStep, setCurrentStep] = useState(() => {
+    const stepParam = searchParams.get("step");
+    if (stepParam) {
+      const step = parseInt(stepParam, 10);
+      if (step >= 1 && step <= STEPS.length) return step;
+    }
+    return 1;
+  });
 
   // Validation
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -238,30 +252,32 @@ export default function ManageEventPage() {
     }
   }, [event, eventId, toast]);
 
+  const goToStep = useCallback((step: number) => {
+    setCurrentStep(step);
+    const url = new URL(window.location.href);
+    url.searchParams.set("step", String(step));
+    url.hash = "";
+    window.history.replaceState(null, "", url.toString());
+  }, []);
+
   useEffect(() => {
-    loadEvent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (eventId) populatedForEventIdRef.current = null;
   }, [eventId]);
 
-  const loadEvent = async () => {
-    try {
-      setLoading(true);
-      const [data, existingPrizes, existingFields] = await Promise.all([
-        eventService.getEvent(eventId),
-        eventService.getPrizes(eventId).catch(() => []),
-        eventService.getCustomFields(eventId).catch(() => []),
-      ]);
+  useEffect(() => {
+    const data = eventData;
+    if (!data || populatedForEventIdRef.current === eventId) return;
 
-      // ── Security: block users who cannot manage this event ──
-      if (!(data as any).canManage) {
-        toast({ type: 'error', message: 'You do not have permission to manage this event' });
-        router.replace('/events');
-        return;
-      }
+    if (!(data as any).canManage) {
+      toast({ type: 'error', message: 'You do not have permission to manage this event' });
+      router.replace('/events');
+      return;
+    }
 
-      setEvent(data);
+    populatedForEventIdRef.current = eventId;
+    setEvent(data);
 
-      setDescription(data.description || '');
+    setDescription(data.description || '');
       setLongDescription(data.longDescription || '');
       setVenue(data.venue || '');
       setMaxCapacity(data.maxCapacity || '');
@@ -332,12 +348,7 @@ export default function ManageEventPage() {
       setShowSponsorshipPublicly(data.showSponsorshipPublicly ?? false);
       setHasResources(data.hasResources ?? (notingLocked ? false : null));
       setResources(Array.isArray(data.resources) ? data.resources : []);
-    } catch (error: any) {
-      toast({ type: 'error', message: getErrorMessage(error) });
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [eventData, existingPrizes, existingFields, eventId, router, toast]);
 
   const handleImageUpload = (type: 'banner' | 'logo', file: File) => {
     const reader = new FileReader();
@@ -474,7 +485,7 @@ export default function ManageEventPage() {
     ];
     for (const { field, step } of stepFieldMap) {
       if (errors[field]) {
-        setCurrentStep(step);
+        goToStep(step);
         setTimeout(() => {
           const el = document.getElementById(`field-${field}`);
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -724,7 +735,7 @@ export default function ManageEventPage() {
     return true;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     const errors = runValidation(false);
     const stepFields = currentStep === 1
       ? ['description', 'longDescription', 'registrationFee', 'teamRegistrationFee', 'registrationStartDate', 'registrationEndDate', 'contactPersonName', 'contactEmail', 'contactMobile']
@@ -750,7 +761,21 @@ export default function ManageEventPage() {
       return;
     }
 
-    setCurrentStep((prev) => Math.min(prev + 1, STEPS.length));
+    if (currentStep === 1) {
+      try {
+        const rounds = await eventService.getRounds(eventId);
+        if (!rounds || rounds.length === 0) {
+          toast({ type: 'error', message: 'Please add at least one Event Round before proceeding.' });
+          document.getElementById('section-rounds')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      } catch {
+        toast({ type: 'error', message: 'Failed to verify rounds. Please try again.' });
+        return;
+      }
+    }
+
+    goToStep(Math.min(currentStep + 1, STEPS.length));
   };
 
   const handleSave = async () => {
@@ -783,6 +808,16 @@ export default function ManageEventPage() {
 
     try {
       setPublishing(true);
+
+      // Check at least 1 round exists
+      const rounds = await eventService.getRounds(eventId);
+      if (!rounds || rounds.length === 0) {
+        toast({ type: 'error', message: 'Please add at least one Event Round before publishing.' });
+        document.getElementById('section-rounds')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setPublishing(false);
+        return;
+      }
+
       // Save first
       await eventService.updateEvent(eventId, buildUpdateData());
       
@@ -908,7 +943,7 @@ export default function ManageEventPage() {
                 return (
                   <React.Fragment key={step.id}>
                     <button
-                      onClick={() => setCurrentStep(step.id)}
+                      onClick={() => goToStep(step.id)}
                       className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap min-h-[44px] ${
                         isActive ? 'bg-ev-700 text-white' : isCompleted ? 'bg-ev-100 text-ev-800 dark:bg-ev-900/20 dark:text-ev-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                       }`}
@@ -1084,6 +1119,19 @@ export default function ManageEventPage() {
                   )}
                 </div>
               </div>
+            </section>
+
+            {/* ====== Rounds ====== */}
+            <section id="section-rounds" className={sectionClass}>
+              <SectionLabel>Event Rounds <span className="text-red-500">*</span></SectionLabel>
+              {event && (
+                <RoundsSection
+                  eventId={event.id}
+                  eventStartDate={event.startDate}
+                  eventEndDate={event.endDate}
+                  toast={toast}
+                />
+              )}
             </section>
 
             {/* ====== Description ====== */}
@@ -1906,7 +1954,7 @@ export default function ManageEventPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 sm:gap-3">
                 {currentStep > 1 && (
-                  <button onClick={() => setCurrentStep(currentStep - 1)} className="px-3 sm:px-4 py-2.5 min-h-[44px] border border-[#b3cde0] dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
+                  <button onClick={() => goToStep(currentStep - 1)} className="px-3 sm:px-4 py-2.5 min-h-[44px] border border-[#b3cde0] dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-gray-700 flex items-center gap-2 transition-colors">
                     <ArrowLeft className="w-4 h-4" /><span className="hidden sm:inline">Previous</span>
                   </button>
                 )}

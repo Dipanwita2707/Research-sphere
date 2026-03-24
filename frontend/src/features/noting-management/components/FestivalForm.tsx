@@ -534,11 +534,17 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
                 setStage('subevents');
               } else if (stage === 'subevents') {
                 // Validate each sub-event has required fields
+                const seenSubEventNames = new Set<string>();
                 for (let i = 0; i < data.subEvents.length; i++) {
                   const se = data.subEvents[i];
                   const v = se.venueFormData;
                   const label = `Sub-Event #${i + 1}`;
                   if (!v.eventName?.trim()) { setDateError(`${label}: Please enter the Event Name.`); return; }
+                  const normalizedName = v.eventName.trim().toLocaleLowerCase();
+                  if (seenSubEventNames.has(normalizedName)) {
+                    setDateError(`${label}: Event name must be unique within the festival.`); return;
+                  }
+                  seenSubEventNames.add(normalizedName);
                   if (!v.eventType) { setDateError(`${label}: Please select the Event Type.`); return; }
                   if (!v.eventStartDate) { setDateError(`${label}: Please select the Start Date.`); return; }
                   if (!v.eventEndDate) { setDateError(`${label}: Please select the End Date.`); return; }

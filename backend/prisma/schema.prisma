@@ -2347,6 +2347,7 @@ model Event {
   EventCertificateTemplate   EventCertificateTemplate[]
   EventCertificateLog        EventCertificateLog[]
   SponsorFulfillmentHistory SponsorFulfillmentHistory[]
+  EventRound                 EventRound[]
 
   @@index([createdById])
   @@index([eventId])
@@ -2356,6 +2357,8 @@ model Event {
   @@index([startDate])
   @@index([status])
   @@index([status, startDate], map: "event_status_startDate_idx")
+  @@index([status, createdAt(sort: Desc)], map: "event_status_createdAt_idx")
+  @@index([createdById, status, createdAt(sort: Desc)], map: "event_createdBy_status_createdAt_idx")
   @@index([opportunityMode])
   @@index([participationType])
 }
@@ -2429,6 +2432,7 @@ model EventEntry {
   @@index([scannedAt])
   @@index([volunteerId])
   @@index([eventId, entryType], map: "event_entry_eventId_entryType_idx")
+  @@index([eventId, scannedAt(sort: Desc)], map: "event_entry_eventId_scannedAt_idx")
 }
 
 model EventRegistration {
@@ -2487,6 +2491,8 @@ model EventRegistration {
   @@index([eventId, userId, status], map: "event_registration_eventId_userId_status_idx")
   @@index([couponId])
   @@index([eventId, paymentStatus], map: "event_registration_eventId_paymentStatus_idx")
+  @@index([eventId, registeredAt(sort: Desc)], map: "event_registration_eventId_registeredAt_idx")
+  @@index([eventId, hasEntered], map: "event_registration_eventId_hasEntered_idx")
   @@index([userId, status], map: "event_registration_userId_status_idx")
   @@index([userId, registeredAt(sort: Desc)], map: "event_registration_userId_registeredAt_idx")
 }
@@ -2530,6 +2536,8 @@ model EventVolunteer {
   @@index([canScanQr])
   @@index([eventId])
   @@index([userId])
+  @@index([userId, role], map: "event_volunteer_userId_role_idx")
+  @@index([eventId, role], map: "event_volunteer_eventId_role_idx")
 }
 
 // Event feedback (10 points 1-10 + short description)
@@ -2713,6 +2721,28 @@ model EventPrize {
   @@index([eventId])
   @@index([sortOrder])
   @@map("event_prize")
+}
+
+// Event rounds/phases
+model EventRound {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId         String
+  name            String        @db.VarChar(128)
+  description     String?       @db.VarChar(512)
+  startTime       DateTime      @map("start_time") @db.Timestamptz(6)
+  endTime         DateTime      @map("end_time") @db.Timestamptz(6)
+  roundType       String?       @map("round_type") @db.VarChar(32) // elimination, final, general, registration
+  isDefault       Boolean       @default(false) @map("is_default")
+  sortOrder       Int           @default(0) @map("sort_order")
+  isActive        Boolean       @default(true) @map("is_active")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  Event           Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([sortOrder])
+  @@map("event_round")
 }
 
 // ============================================

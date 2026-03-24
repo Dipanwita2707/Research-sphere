@@ -146,28 +146,13 @@ export default function NotingListPage() {
       : "Search by Note ID or description...";
 
   const hasActiveFilters = !!(status || category || startDate || endDate);
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(hasActiveFilters);
+  const [filterPanelOpenByUser, setFilterPanelOpenByUser] = useState(false);
+  const isFilterPanelOpen = hasActiveFilters || filterPanelOpenByUser;
 
-  // ── Search input: local state only (debounced before hitting URL/query) ───
-  // The input box updates instantly; the URL + TanStack key update after 350 ms.
+  // ── Search input: local state, debounced before hitting URL/query ─────────
   const [searchInput, setSearchInput] = useState(
     () => searchParams.get("search") ?? "",
   );
-  const debouncedSearch = useDebounce(searchInput, 350);
-
-  // Sync debounced search value into the URL (also resets page to 1)
-  useEffect(() => {
-    const current = searchParams.get("search") ?? "";
-    if (debouncedSearch === current) return;
-    setParams({ search: debouncedSearch || undefined, page: undefined });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
-
-  useEffect(() => {
-    if (hasActiveFilters) {
-      setIsFilterPanelOpen(true);
-    }
-  }, [hasActiveFilters]);
 
   // ── Single URL-param updater ──────────────────────────────────────────────
   // Wrapping router.replace in startTransition marks the navigation as
@@ -190,6 +175,16 @@ export default function NotingListPage() {
     },
     [router, pathname, searchParams],
   );
+
+  const debouncedSearch = useDebounce(searchInput, {
+    delay: 350,
+    onSettle: (v) => {
+      const str = (v as string) || "";
+      const current = searchParams.get("search") ?? "";
+      if (str === current) return;
+      setParams({ search: str || undefined, page: undefined });
+    },
+  });
 
   useEffect(() => {
     if (!status) return;
@@ -425,7 +420,7 @@ export default function NotingListPage() {
 
   const resetFilters = useCallback(() => {
     setSearchInput("");
-    setIsFilterPanelOpen(false);
+    setFilterPanelOpenByUser(false);
     setParams({
       search: undefined,
       status: undefined,
@@ -652,7 +647,7 @@ export default function NotingListPage() {
               </button>
                 <button
                   type="button"
-                  onClick={() => setIsFilterPanelOpen((prev) => !prev)}
+                  onClick={() => setFilterPanelOpenByUser((prev) => !prev)}
                 className={`flex-1 sm:flex-none px-4 py-2 rounded-xl border text-sm font-medium flex items-center justify-center gap-1.5 transition-all duration-200 ${isFilterPanelOpen || hasActiveFilters
                     ? "bg-[#b3cde0]/20 dark:bg-[#005b96]/20 text-[#011f4b] border-[#6497b1]"
                     : "bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-300 border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700"

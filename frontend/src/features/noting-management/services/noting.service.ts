@@ -400,13 +400,21 @@ export const notingService = {
         .catch(reject);
     }),
 
+  /** Base URL for file downloads — use same-origin in browser so request goes through Next.js proxy (cookies sent) */
+  getFileDownloadUrl: (filePath: string): string => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/api/v1/file-upload/download/${filePath}`;
+    }
+    const base = api.defaults.baseURL || "";
+    return `${base}/file-upload/download/${filePath}`;
+  },
+
   /** Download attachment with auth; triggers browser download. */
   downloadAttachment: async (
     filePath: string,
     fileName: string,
   ): Promise<void> => {
-    const base = api.defaults.baseURL || "";
-    const url = `${base}/file-upload/download/${filePath}`;
+    const url = notingService.getFileDownloadUrl(filePath);
     const res = await api.get(url, { responseType: "blob" });
     const blob = res.data as Blob;
     const blobUrl = URL.createObjectURL(blob);
@@ -421,8 +429,7 @@ export const notingService = {
 
   /** Open attachment in new tab (view); returns blob URL. Call URL.revokeObjectURL when done. */
   viewAttachment: async (filePath: string): Promise<string> => {
-    const base = api.defaults.baseURL || "";
-    const url = `${base}/file-upload/download/${filePath}`;
+    const url = notingService.getFileDownloadUrl(filePath);
     const res = await api.get(url, { responseType: "blob" });
     const blob = res.data as Blob;
     return URL.createObjectURL(blob);

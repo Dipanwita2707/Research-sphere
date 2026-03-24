@@ -290,12 +290,16 @@ const festivalSchema = z
     subEvents: z.array(
       z.object({
         eventType: z.enum(["venue", "stall"]),
+        venueFormData: z.object({
+          eventName: z.string(),
+        }),
       }),
     ),
   })
   .superRefine((value, ctx) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const seenSubEventNames = new Set<string>();
 
     if (new Date(value.startDate) < today) {
       ctx.addIssue({
@@ -320,6 +324,22 @@ const festivalSchema = z
         message: "Please add at least one sub-event to the festival.",
       });
     }
+
+    value.subEvents.forEach((subEvent, index) => {
+      const normalizedName = subEvent.venueFormData?.eventName?.trim().toLocaleLowerCase();
+      if (!normalizedName) {
+        return;
+      }
+      if (seenSubEventNames.has(normalizedName)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["subEvents", index, "venueFormData", "eventName"],
+          message: "Sub-event names must be unique within the same festival.",
+        });
+        return;
+      }
+      seenSubEventNames.add(normalizedName);
+    });
   });
 
 const visibilitySchema = z.object({

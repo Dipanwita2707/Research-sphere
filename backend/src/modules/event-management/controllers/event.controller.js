@@ -175,7 +175,7 @@ const getMyRegistrations = asyncHandler(async (req, res) => {
  * Get event statistics
  * 
  * @route GET /api/events/:id/statistics
- * @access Protected (Event Creator only)
+ * @access Protected (Admin only)
  */
 const getEventStatistics = asyncHandler(async (req, res) => {
   const { id } = req.params;

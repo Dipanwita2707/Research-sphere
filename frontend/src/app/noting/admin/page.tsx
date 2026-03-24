@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity,
@@ -222,13 +222,32 @@ export default function NotingAdminPage() {
   const roleName = user?.role?.name || user?.userType || '';
   const canViewAnalytics = roleName === 'admin' || roleName === 'superadmin';
 
-  useEffect(() => {
+  const handleStatusFilterChange = useCallback((v: string) => {
+    setStatusFilter(v);
     setNotePage(1);
-  }, [debouncedSearch, statusFilter, categoryFilter, startDate, endDate, creatorFilter]);
-
-  useEffect(() => {
+  }, []);
+  const handleCategoryFilterChange = useCallback((v: string) => {
+    setCategoryFilter(v);
+    setNotePage(1);
+  }, []);
+  const handleCreatorFilterChange = useCallback((v: string) => {
+    setCreatorFilter(v);
+    setNotePage(1);
+  }, []);
+  const handleStartDateChange = useCallback((v: string) => {
+    setStartDate(v);
+    setNotePage(1);
     setActivityPage(1);
-  }, [startDate, endDate]);
+  }, []);
+  const handleEndDateChange = useCallback((v: string) => {
+    setEndDate(v);
+    setNotePage(1);
+    setActivityPage(1);
+  }, []);
+  const handleSearchInputChange = useCallback((v: string) => {
+    setSearchInput(v);
+    setNotePage(1);
+  }, []);
 
   const sharedFilters = useMemo(
     () => ({
@@ -308,9 +327,9 @@ export default function NotingAdminPage() {
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="flex items-center gap-2 bg-white rounded-2xl border border-[#b3cde0]/40 px-3 py-2">
               <CalendarRange className="w-4 h-4 text-[#6497b1]" />
-              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-sm bg-transparent outline-none text-[#011f4b]" />
+              <input type="date" value={startDate} onChange={(e) => handleStartDateChange(e.target.value)} className="text-sm bg-transparent outline-none text-[#011f4b]" />
               <span className="text-[#b3cde0]">to</span>
-              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-sm bg-transparent outline-none text-[#011f4b]" />
+              <input type="date" value={endDate} onChange={(e) => handleEndDateChange(e.target.value)} className="text-sm bg-transparent outline-none text-[#011f4b]" />
             </div>
             <Link href="/noting" className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border border-[#b3cde0]/50 bg-white text-[#03396c] text-sm font-medium hover:bg-[#f8fbfd]">
               <FileText className="w-4 h-4" />
@@ -512,12 +531,12 @@ export default function NotingAdminPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6497b1]" />
                   <input
                     value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
+                    onChange={(e) => handleSearchInputChange(e.target.value)}
                     placeholder="Search by noting ID or description"
                     className="w-full pl-10 pr-3 py-2.5 rounded-xl border border-[#b3cde0]/50 text-sm text-[#011f4b] outline-none focus:border-[#005b96]"
                   />
                 </div>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-[#b3cde0]/50 text-sm text-[#011f4b] outline-none focus:border-[#005b96]">
+                <select value={statusFilter} onChange={(e) => handleStatusFilterChange(e.target.value)} className="px-3 py-2.5 rounded-xl border border-[#b3cde0]/50 text-sm text-[#011f4b] outline-none focus:border-[#005b96]">
                   <option value="">All statuses</option>
                   {Object.entries(STATUS_CONFIG).map(([value, status]) => (
                     <option key={value} value={value}>
@@ -525,7 +544,7 @@ export default function NotingAdminPage() {
                     </option>
                   ))}
                 </select>
-                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-3 py-2.5 rounded-xl border border-[#b3cde0]/50 text-sm text-[#011f4b] outline-none focus:border-[#005b96]">
+                <select value={categoryFilter} onChange={(e) => handleCategoryFilterChange(e.target.value)} className="px-3 py-2.5 rounded-xl border border-[#b3cde0]/50 text-sm text-[#011f4b] outline-none focus:border-[#005b96]">
                   <option value="">All categories</option>
                   {categoryOptions.map((category) => (
                     <option key={category.value} value={category.value}>
@@ -539,7 +558,7 @@ export default function NotingAdminPage() {
                   {creatorFilter && (
                     <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#eaf3f8] text-[#03396c] text-sm font-medium">
                       Creator focus applied
-                      <button type="button" onClick={() => setCreatorFilter('')} className="text-[#005b96]">
+                      <button type="button" onClick={() => handleCreatorFilterChange('')} className="text-[#005b96]">
                         Clear
                       </button>
                     </span>
@@ -547,10 +566,10 @@ export default function NotingAdminPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSearchInput('');
-                      setStatusFilter('');
-                      setCategoryFilter('');
-                      setCreatorFilter('');
+                      handleSearchInputChange('');
+                      handleStatusFilterChange('');
+                      handleCategoryFilterChange('');
+                      handleCreatorFilterChange('');
                     }}
                     className="text-sm font-semibold text-[#005b96]"
                   >
@@ -697,7 +716,7 @@ export default function NotingAdminPage() {
                                 <button
                                   type="button"
                                     onClick={() => {
-                                      setCreatorFilter(item.user.id);
+                                      handleCreatorFilterChange(item.user.id);
                                       setActiveTab('notings');
                                       setNotePage(1);
                                     }}

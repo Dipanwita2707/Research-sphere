@@ -31,6 +31,8 @@ import type {
   CouponValidationResult,
   EventExtraPass,
   PassPreviewData,
+  EventRound,
+  RoundFormData,
 } from '../types/event.types';
 
 const BASE_URL = '/events';
@@ -1426,5 +1428,33 @@ export const eventService = {
   async downloadCertificate(verificationCode: string): Promise<{ downloadUrl: string }> {
     const response = await api.get(`${BASE_URL}/certificates/download/${verificationCode}`);
     return response.data.data;
+  },
+
+  // ============================================
+  // Rounds
+  // ============================================
+
+  async getRounds(eventId: string): Promise<EventRound[]> {
+    const response = await api.get(`${BASE_URL}/${eventId}/rounds`);
+    return response.data?.data ?? response.data;
+  },
+
+  async createRound(eventId: string, data: RoundFormData): Promise<EventRound> {
+    const response = await api.post(`${BASE_URL}/${eventId}/rounds`, data);
+    return response.data?.data ?? response.data;
+  },
+
+  async updateRound(eventId: string, roundId: string, data: Partial<RoundFormData>): Promise<EventRound> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/rounds/${roundId}`, data);
+    return response.data?.data ?? response.data;
+  },
+
+  async deleteRound(eventId: string, roundId: string): Promise<void> {
+    await api.delete(`${BASE_URL}/${eventId}/rounds/${roundId}`);
+  },
+
+  async reorderRounds(eventId: string, roundOrders: { id: string; sortOrder: number }[]): Promise<EventRound[]> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/rounds/reorder`, { roundOrders });
+    return response.data?.data ?? response.data;
   },
 };
