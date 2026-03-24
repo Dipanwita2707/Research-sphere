@@ -35,7 +35,6 @@ const {
   generateEventId,
   generateRegistrationId,
   getEventById,
-  getEventLean,
   canRegisterForEvent,
   isEventVolunteer,
   isEventManager,
@@ -45,6 +44,7 @@ const {
 const { generateQRCode } = require("../utils/qrCodeGenerator");
 const { buildVisibilityFilter, isRegistrationOpen } = require('./eventSettings.service');
 const eventAnalyticsService = require("./eventAnalytics.service");
+const eventStatisticsService = require("./eventStatistics.service");
 const crypto = require("crypto");
 const log = require("../../../shared/utils/logger");
 
@@ -54,10 +54,13 @@ async function invalidateEventCaches(eventId) {
   invalidateResolveEventCache(eventId); // bust in-memory resolveEvent cache
   await Promise.all([
     cache.del(`event:detail:${eventId}`),
+    cache.delPattern(`event:detailfull:${eventId}:*`),
     cache.del(`event:stats:${eventId}`),
+    cache.delPattern(`event:stats:*:${eventId}`),
     cache.del(`event:regopen:${eventId}`),
     cache.del(`event:regform:${eventId}`),
     cache.delPattern('event:list:*'),          // bust all list caches (short TTL anyway)
+    cache.delPattern('event:managed:*'),
     cache.delPattern(`event:canSee:${eventId}:*`), // bust visibility cache for this event
     eventAnalyticsService.invalidateEventAnalyticsCaches(),
   ]);
@@ -511,94 +514,86 @@ const createEventFromNoting = async (noteId, userId) => {
  * Caches the event base data per eventId (user-specific data always fetched fresh).
  */
 const getEventDetails = async (eventId, userId) => {
-  // Try cache for event base data (with stampede protection)
-  const cacheKey = `event:detail:${eventId}`;
-  const { data: event } = await cache.getOrSet(cacheKey, async () => {
-    return await getEventById(prisma, eventId, {
-      EventCustomField: {
-        where: { isActive: true },
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          fieldName: true,
-          fieldLabel: true,
-          fieldType: true,
-          isRequired: true,
-          placeholder: true,
-          helpText: true,
-          options: true,
-          sortOrder: true,
-        },
-      },
-      EventPrize: {
-        where: { isActive: true },
-        orderBy: [{ sortOrder: "asc" }, { position: "asc" }],
-        select: {
-          id: true,
-          position: true,
-          rank: true,
-          title: true,
-          description: true,
-          prizeType: true,
-          prizeAmount: true,
-          additionalPerks: true,
-          sortOrder: true,
-        },
-      },
-    });
-  }, 300);
-
-  // User-specific data: cache registration count (30s), always fresh user registration
+  const detailCacheKey = `event:detailfull:${eventId}:${userId}`;
+  // User-specific keys
   const regCountKey = `event:regcount:${eventId}`;
   const userRegKey = `event:userreg:${eventId}:${userId}`;
+  const cacheKey = `event:detail:${eventId}`;
 
-  const [cachedRegCount, cachedUserReg] = await Promise.all([
-    cache.get(regCountKey),
-    cache.get(userRegKey),
-  ]);
+  const { data: detail } = await cache.getOrSet(detailCacheKey, async () => {
+    // Fetch all detail parts in parallel so first-hit latency is not split into phases.
+    const [{ data: event }, { data: currentRegistrations }, { data: cachedUserRegistration }] =
+      await Promise.all([
+        cache.getOrSet(cacheKey, async () => {
+          return await getEventById(prisma, eventId, {
+            EventCustomField: {
+              where: { isActive: true },
+              orderBy: { sortOrder: "asc" },
+              select: {
+                id: true,
+                fieldName: true,
+                fieldLabel: true,
+                fieldType: true,
+                isRequired: true,
+                placeholder: true,
+                helpText: true,
+                options: true,
+                sortOrder: true,
+              },
+            },
+            EventPrize: {
+              where: { isActive: true },
+              orderBy: [{ sortOrder: "asc" }, { position: "asc" }],
+              select: {
+                id: true,
+                position: true,
+                rank: true,
+                title: true,
+                description: true,
+                prizeType: true,
+                prizeAmount: true,
+                additionalPerks: true,
+                sortOrder: true,
+              },
+            },
+            EventRound: {
+              where: { isActive: true },
+              orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }],
+            },
+          });
+        }, 300),
+        cache.getOrSet(regCountKey, async () => {
+          return await prisma.eventRegistration.count({
+            where: { eventId, status: "confirmed" },
+          });
+        }, 120),
+        cache.getOrSet(userRegKey, async () => {
+          const reg = await prisma.eventRegistration.findFirst({
+            where: { eventId, userId },
+            select: {
+              id: true,
+              registrationId: true,
+              qrCode: true,
+              status: true,
+              hasEntered: true,
+              registeredAt: true,
+            },
+          });
+          return reg || false;
+        }, 300),
+      ]);
 
-  let currentRegistrations, userRegistration;
+    const userRegistration = cachedUserRegistration === false ? null : cachedUserRegistration;
 
-  if (cachedRegCount !== null && cachedUserReg !== null) {
-    currentRegistrations = cachedRegCount;
-    userRegistration = cachedUserReg;
-  } else {
-    // Fetch missing values in parallel
-    const promises = [];
-    if (cachedRegCount === null) {
-      promises.push(
-        prisma.eventRegistration.count({
-          where: { eventId, status: "confirmed" },
-        }).then(count => { currentRegistrations = count; cache.set(regCountKey, count, 120); })
-      );
-    } else {
-      currentRegistrations = cachedRegCount;
-    }
-    if (cachedUserReg === null) {
-      promises.push(
-        prisma.eventRegistration.findFirst({
-          where: { eventId, userId },
-          select: {
-            id: true,
-            registrationId: true,
-            qrCode: true,
-            status: true,
-            hasEntered: true,
-            registeredAt: true,
-          },
-        }).then(reg => { userRegistration = reg; cache.set(userRegKey, reg || false, 300); })
-      );
-    } else {
-      userRegistration = cachedUserReg === false ? null : cachedUserReg;
-    }
-    await Promise.all(promises);
-  }
-  // Normalize false back to null for API response
-  if (userRegistration === false) userRegistration = null;
+    // Return a new object to avoid mutating shared cache references.
+    return {
+      ...event,
+      currentRegistrations,
+      userRegistration,
+    };
+  }, 180);
 
-  event.currentRegistrations = currentRegistrations;
-  event.userRegistration = userRegistration;
-  return event;
+  return detail;
 };
 
 /**
@@ -1129,6 +1124,16 @@ const publishEvent = async (eventId, userId) => {
   // Validate event has all required details before publishing
   validateEventRequiredFields(event);
 
+  // At least one round is required before publishing
+  const roundCount = await prisma.eventRound.count({
+    where: { eventId, isActive: true },
+  });
+  if (roundCount === 0) {
+    throw new ValidationError(
+      "Please add at least one Event Round before publishing.",
+    );
+  }
+
   // Opportunity mode must be explicitly chosen before publishing
   const VALID_OPPORTUNITY_MODES = ['online', 'offline', 'hybrid'];
   if (!event.opportunityMode || !VALID_OPPORTUNITY_MODES.includes(event.opportunityMode)) {
@@ -1174,13 +1179,26 @@ const publishEvent = async (eventId, userId) => {
   return publishedEvent;
 };
 
+const getManagedEventIds = async (userId) => {
+  const cacheKey = `event:managed:${userId}`;
+  const { data } = await cache.getOrSet(cacheKey, async () => {
+    const rows = await prisma.eventVolunteer.findMany({
+      where: { userId, role: 'event_manager' },
+      select: { eventId: true },
+    });
+    return rows.map((row) => row.eventId);
+  }, 120);
+
+  return Array.isArray(data) ? data : [];
+};
+
 /**
  * List events with filters and pagination
- * PERF: Results cached for 30s per unique filter+user combination
  */
 const listEvents = async (filters, pagination, userId) => {
-  const { page = 1, limit = 20 } = pagination;
-  const LIST_CACHE_VERSION = 'v2';
+  const page = Math.max(1, parseInt(pagination.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pagination.limit, 10) || 20));
+  const LIST_CACHE_VERSION = 'v3';
   const {
     status,
     eventType,
@@ -1195,19 +1213,17 @@ const listEvents = async (filters, pagination, userId) => {
   // visibility hash (same role+program → same cache). This prevents 150 separate 
   // cache entries for 150 users with identical query results.
   let cacheKey;
+  let visibilityFilter = null;
   if (myEvents) {
-    // My events is user-specific
     cacheKey = `event:list:${LIST_CACHE_VERSION}:my:${userId}:${JSON.stringify({ page, limit, status, eventType, search })}`;
   } else {
-    // Public list — build visibility filter first and hash it for the cache key
-    const visFilter = await buildVisibilityFilter(userId);
-    const crypto = require('crypto');
-    const visHash = crypto.createHash('md5').update(JSON.stringify(visFilter)).digest('hex').slice(0, 8);
+    visibilityFilter = await buildVisibilityFilter(userId);
+    const visHash = crypto.createHash('md5').update(JSON.stringify(visibilityFilter)).digest('hex').slice(0, 8);
     cacheKey = `event:list:${LIST_CACHE_VERSION}:pub:${visHash}:${JSON.stringify({ page, limit, status, eventType, search, specialFilter, studentApply })}`;
   }
 
   const { data: result } = await cache.getOrSet(cacheKey, async () => {
-    return await _fetchListFromDB(filters, pagination, userId);
+    return await _fetchListFromDB(filters, { page, limit }, userId, visibilityFilter);
   }, 120);
 
   return result;
@@ -1216,7 +1232,7 @@ const listEvents = async (filters, pagination, userId) => {
 /**
  * Internal: fetch event list from database (called on cache miss)
  */
-const _fetchListFromDB = async (filters, pagination, userId) => {
+const _fetchListFromDB = async (filters, pagination, userId, prebuiltVisibilityFilter = null) => {
   const { page = 1, limit = 20 } = pagination;
   const {
     status,
@@ -1256,6 +1272,7 @@ const _fetchListFromDB = async (filters, pagination, userId) => {
     prizesEnabled: true,
     certificateAvailable: true,
   };
+  const managedEventIds = await getManagedEventIds(userId);
 
   // Special stall-open filter: return events open for student stall applications
   if (specialFilter === "stall-open" || studentApply === "true") {
@@ -1284,8 +1301,8 @@ const _fetchListFromDB = async (filters, pagination, userId) => {
             },
           },
         },
-        skip: (parseInt(page) - 1) * parseInt(limit),
-        take: parseInt(limit),
+        skip: (page - 1) * limit,
+        take: limit,
         orderBy: { startDate: "asc" },
       }),
       prisma.event.count({ where }),
@@ -1297,10 +1314,10 @@ const _fetchListFromDB = async (filters, pagination, userId) => {
         isPaid: e.paymentType === "paid",
       })),
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
-        totalPages: Math.ceil(total / parseInt(limit)),
+        totalPages: Math.ceil(total / limit),
       },
     };
     return stallResult;
@@ -1311,11 +1328,10 @@ const _fetchListFromDB = async (filters, pagination, userId) => {
   // Draft events are only visible to their creator
   // Published/Ongoing/Completed events are visible to everyone
   if (myEvents) {
-    // Show events created by user OR where user is an assigned event_manager (club chairperson)
-    where.OR = [
-      { createdById: userId },
-      { EventVolunteer: { some: { userId, role: "event_manager" } } },
-    ];
+    where.OR = [{ createdById: userId }];
+    if (managedEventIds.length > 0) {
+      where.OR.push({ id: { in: managedEventIds } });
+    }
     if (status) {
       where.status = status;
     }
@@ -1323,15 +1339,17 @@ const _fetchListFromDB = async (filters, pagination, userId) => {
     where.OR = [
       { status: { in: ["published", "ongoing", "completed"] } },
       { AND: [{ status: "draft" }, { createdById: userId }] },
-      { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
     ];
+    if (managedEventIds.length > 0) {
+      where.OR.push({ AND: [{ status: "draft" }, { id: { in: managedEventIds } }] });
+    }
 
     if (status) {
       if (status === "draft") {
-        where.OR = [
-          { AND: [{ status: "draft" }, { createdById: userId }] },
-          { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
-        ];
+        where.OR = [{ AND: [{ status: "draft" }, { createdById: userId }] }];
+        if (managedEventIds.length > 0) {
+          where.OR.push({ AND: [{ status: "draft" }, { id: { in: managedEventIds } }] });
+        }
       } else {
         where.status = status;
         delete where.OR;
@@ -1362,7 +1380,7 @@ const _fetchListFromDB = async (filters, pagination, userId) => {
   // ── Visibility filter: exclude events user cannot see ─────────────────
   // Use buildVisibilityFilter to push filtering to SQL instead of loading all records into memory
   if (!myEvents) {
-    const visibilityFilter = await buildVisibilityFilter(userId);
+    const visibilityFilter = prebuiltVisibilityFilter || await buildVisibilityFilter(userId);
     // Merge visibility filter into the where clause
     if (visibilityFilter && Object.keys(visibilityFilter).length > 0) {
       where.AND = where.AND || [];
@@ -1649,153 +1667,8 @@ const getUserRegistrations = async (userId, filters, pagination) => {
   };
 };
 
-/**
- * Get event statistics (comprehensive)
- * Optimized: Single raw SQL for counts + date grouping, separate query for recent registrations
- */
 const getEventStatistics = async (eventId, userOrId) => {
-  const event = await getEventLean(prisma, eventId);
-  const userId =
-    typeof userOrId === "string" ? userOrId : userOrId?.id;
-  const roleName =
-    typeof userOrId === "string"
-      ? null
-      : userOrId?.role?.name || userOrId?.role || userOrId?.userType || null;
-  const isAdminRole = roleName === "admin";
-  const isSuperadmin = roleName === "superadmin";
-  const hasReportAccess =
-    typeof userOrId === "object" &&
-    (
-      (userOrId?.centralDeptPermissions || []).some(
-        (dp) =>
-          dp.permissions &&
-          (dp.permissions.event_manage_all === true ||
-            dp.permissions.event_view_reports === true),
-      ) ||
-      (userOrId?.schoolDeptPermissions || []).some(
-        (dp) =>
-          dp.permissions &&
-          (dp.permissions.event_manage_all === true ||
-            dp.permissions.event_view_reports === true),
-      )
-    );
-
-  // Allow event creator, superadmin, and admin/report users who already passed route permission.
-  if (event.createdById !== userId && !isAdminRole && !isSuperadmin && !hasReportAccess) {
-    throw new ForbiddenError("You do not have permission to view event statistics");
-  }
-
-  // Check cache first (1 min TTL — stats change frequently with registrations)
-  const cacheKey = `event:stats:${eventId}`;
-  const cached = await cache.get(cacheKey);
-  if (cached) return cached;
-
-  // Single raw SQL for all registration counts + revenue (replaces 6 count + 1 aggregate queries)
-  // Also includes volunteer count, entry/exit counts in one combined query
-  const [statsResult, dateGroups, recentRegistrations] = await Promise.all([
-    prisma.$queryRaw`
-      SELECT
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId}) as total,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'confirmed') as confirmed,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'pending') as pending,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'cancelled') as cancelled,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'waitlisted') as waitlisted,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "hasEntered" = true) as attended,
-        (SELECT COALESCE(SUM("amountPaid"), 0)::float FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "paymentStatus" = 'completed') as revenue,
-        (SELECT COUNT(*)::int FROM "EventVolunteer" WHERE "eventId" = ${eventId}) as "volunteerCount",
-        (
-          SELECT COALESCE(SUM("entryCount"), 0)::int
-          FROM "EventEntry"
-          WHERE "eventId" = ${eventId} AND "entryType" = 'entry'
-        ) as "totalEntries",
-        (
-          SELECT COALESCE(SUM("entryCount"), 0)::int
-          FROM "EventEntry"
-          WHERE "eventId" = ${eventId} AND "entryType" = 'exit'
-        ) as "totalExits"
-    `,
-    // Date grouping via SQL (replaces full table scan findMany)
-    prisma.$queryRaw`
-      SELECT DATE("registeredAt")::text as date, COUNT(*)::int as count
-      FROM "EventRegistration"
-      WHERE "eventId" = ${eventId}
-      GROUP BY DATE("registeredAt")
-      ORDER BY date ASC
-    `,
-    prisma.eventRegistration.findMany({
-      where: { eventId },
-      include: {
-        user_login: {
-          select: {
-            id: true,
-            uid: true,
-            email: true,
-            employeeDetails: {
-              select: {
-                firstName: true,
-                lastName: true,
-                displayName: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { registeredAt: "desc" },
-      take: 50,
-    }),
-  ]);
-
-  const stats = statsResult[0] || {};
-  const volunteerCount = stats.volunteerCount || 0;
-  const totalEntries = stats.totalEntries || 0;
-  const totalExits = stats.totalExits || 0;
-
-  const registrationsByDate = dateGroups.map((r) => ({
-    date: r.date,
-    count: Number(r.count),
-  }));
-  const currentlyInside = Math.max(0, (totalEntries || 0) - (totalExits || 0));
-  const totalRevenue = Number(stats.revenue) || 0;
-
-  const result = {
-    totalRegistrations: stats.total || 0,
-    confirmedRegistrations: stats.confirmed || 0,
-    pendingRegistrations: stats.pending || 0,
-    cancelledRegistrations: stats.cancelled || 0,
-    waitlistedRegistrations: stats.waitlisted || 0,
-    totalAttended: stats.attended || 0,
-    totalEntries,
-    totalExits,
-    currentlyInside,
-    volunteerCount,
-    totalRevenue,
-    revenueCollected: totalRevenue,
-    registrationsByDate,
-    recentRegistrations: recentRegistrations.map((r) => ({
-      id: r.id,
-      registrationId: r.registrationId,
-      status: r.status,
-      paymentStatus: r.paymentStatus,
-      amountPaid: r.amountPaid,
-      hasEntered: r.hasEntered,
-      registeredAt: r.registeredAt,
-      user: r.user_login
-        ? {
-          id: r.user_login.id,
-          uid: r.user_login.uid,
-          email: r.user_login.email,
-          name:
-            r.user_login.employeeDetails?.displayName ||
-            `${r.user_login.employeeDetails?.firstName || ""} ${r.user_login.employeeDetails?.lastName || ""}`.trim() ||
-            r.user_login.uid,
-        }
-        : null,
-    })),
-  };
-
-  // Cache the result (1 min TTL)
-  await cache.set(cacheKey, result, 60);
-  return result;
+  return eventStatisticsService.getEventStatistics(eventId, userOrId);
 };
 
 // ── Re-export volunteer & feedback services (split for Single Responsibility) ──
@@ -1812,6 +1685,7 @@ module.exports = {
   registerForEvent,
   getUserRegistrations,
   getEventStatistics,
+  invalidateEventCaches,
   // Re-exports from eventVolunteer.service.js
   ...volunteerService,
   // Re-exports from eventFeedback.service.js

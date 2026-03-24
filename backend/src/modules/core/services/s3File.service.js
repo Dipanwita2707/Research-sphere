@@ -255,7 +255,8 @@ const downloadFile = async (req, res) => {
     const result = await downloadFromS3(filePath);
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Content-Length', result.contentLength);
-    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300'); // Cache 5 min for repeat loads (e.g. sponsor logos)
     result.stream.pipe(res);
   } catch (error) {
     console.error('File download error:', error);

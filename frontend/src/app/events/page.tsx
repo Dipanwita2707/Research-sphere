@@ -145,7 +145,10 @@ export default function EventsPage() {
   const [filters, setFilters] = useState<EventFilters>({});
   const [registrationDayFilter, setRegistrationDayFilter] = useState<'all' | DayPhase>('all');
   const [eventDayFilter, setEventDayFilter] = useState<'all' | DayPhase>('all');
-  const debouncedSearch = useDebounce(searchInput, 300);
+  const debouncedSearch = useDebounce(searchInput, {
+    delay: 300,
+    onSettle: () => setPage(1),
+  });
   const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
   const { data: myClubsData } = useMyClubs();
   const isClubChairperson = !!(
@@ -168,19 +171,14 @@ export default function EventsPage() {
   );
 
   useEffect(() => {
-    setFilters((prev) => ({ ...prev, search: debouncedSearch || undefined }));
-    setPage(1);
-  }, [debouncedSearch]);
-
-  useEffect(() => {
     if (!isAccessCheckLoading && !canBrowseEvents) {
       router.replace('/dashboard');
     }
   }, [canBrowseEvents, isAccessCheckLoading, router]);
 
   const enforcedFilters = React.useMemo<EventFilters>(
-    () => ({ ...filters, status: 'published' }),
-    [filters],
+    () => ({ ...filters, search: debouncedSearch || undefined, status: 'published' }),
+    [filters, debouncedSearch],
   );
 
   const { data: result, isLoading, error } = useEvents(enforcedFilters, page, 20, canBrowseEvents);
@@ -289,7 +287,7 @@ export default function EventsPage() {
   const freeCount = events.filter((event) => event.paymentType === 'free').length;
   const activeFilterCount = [
     filters.eventType,
-    filters.search,
+    debouncedSearch || undefined,
     registrationDayFilter !== 'all' ? registrationDayFilter : undefined,
     eventDayFilter !== 'all' ? eventDayFilter : undefined,
   ].filter(Boolean).length;
@@ -320,7 +318,7 @@ export default function EventsPage() {
       </div>
 
       <div className="relative mx-auto max-w-[1450px] px-4 pt-0 sm:px-6 sm:pt-0 lg:px-8 lg:pt-0">
-        <section className="overflow-visible rounded-[1.75rem] border border-white/70 bg-white/92 shadow-[0_24px_70px_-48px_rgba(1,31,75,0.35)] backdrop-blur-xl">
+        <section className="overflow-visible rounded-[1.75rem] border border-white/70 bg-[rgba(144,213,255,0.08)] shadow-[0_24px_70px_-48px_rgba(1,31,75,0.35)] backdrop-blur-xl">
           <div className="space-y-5 px-5 pb-5 pt-2 sm:px-8 sm:pb-7 sm:pt-3 lg:px-10 lg:pb-10 lg:pt-3">
             <Card className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(1,31,75,0.98),rgba(23,76,150,0.96))] py-0 text-white shadow-[0_18px_50px_-36px_rgba(1,31,75,0.48)]">
               <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
@@ -359,7 +357,7 @@ export default function EventsPage() {
               </CardContent>
             </Card>
 
-            <Card className="overflow-visible rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff,rgba(248,250,252,0.96))] py-0 shadow-[0_18px_50px_-40px_rgba(1,31,75,0.22)]">
+            <Card className="overflow-visible rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(144,213,255,0.15))] py-0 shadow-[0_18px_50px_-40px_rgba(1,31,75,0.22)]">
               <CardHeader className="gap-3 border-b border-slate-200/80 px-5 py-3 sm:px-6">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                   <div>
@@ -511,7 +509,7 @@ export default function EventsPage() {
                 ))}
               </div>
             ) : filteredEvents.length === 0 ? (
-              <Card className="rounded-[1.75rem] border border-slate-200/80 bg-white/90 py-0 text-center shadow-[0_24px_60px_-42px_rgba(1,31,75,0.22)]">
+              <Card className="rounded-[1.75rem] border border-slate-200/80 bg-[rgba(144,213,255,0.12)] py-0 text-center shadow-[0_24px_60px_-42px_rgba(1,31,75,0.22)]">
                 <CardContent className="px-6 py-14">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-sky-50 text-sky-700">
                     <CalendarIcon className="h-8 w-8" />
@@ -600,11 +598,11 @@ export default function EventsPage() {
                           open={isExpanded}
                           onOpenChange={() => toggleFestival(festivalId)}
                         >
-                          <Card className="overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.18)]">
+                          <Card className="overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-[rgba(144,213,255,0.12)] py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.18)]">
                             <CollapsibleTrigger asChild>
                               <button
                                 type="button"
-                                className="flex w-full items-center gap-4 bg-[linear-gradient(180deg,#ffffff,rgba(247,249,252,0.96))] px-5 py-5 text-left transition hover:bg-[linear-gradient(180deg,#ffffff,rgba(241,246,250,0.96))] sm:px-6"
+                                className="flex w-full items-center gap-4 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(144,213,255,0.18))] px-5 py-5 text-left transition hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(144,213,255,0.22))] sm:px-6"
                               >
                                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
                                   {isExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
@@ -664,7 +662,7 @@ export default function EventsPage() {
                 </div>
 
                 {pagination.totalPages > 1 ? (
-                  <Card className="rounded-[1.35rem] border border-slate-200/80 bg-white/88 py-0 shadow-[0_18px_40px_-36px_rgba(1,31,75,0.18)]">
+                  <Card className="rounded-[1.35rem] border border-slate-200/80 bg-[#fafcfe] py-0 shadow-[0_18px_40px_-36px_rgba(1,31,75,0.18)]">
                     <CardContent className="px-4 py-4 sm:px-6">
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <p className="text-sm text-slate-500">
@@ -761,7 +759,7 @@ function BrowseEventCard({
 
   return (
     <Link href={`/events/${event.id}`} onMouseEnter={() => handlePrefetch(event.id)} className="block">
-      <Card className="h-full rounded-[1.25rem] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff,rgba(248,250,252,0.96))] py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.2)] transition duration-200 hover:-translate-y-1 hover:border-sky-200 hover:shadow-[0_24px_56px_-40px_rgba(1,31,75,0.24)]">
+      <Card className="h-full rounded-[1.25rem] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(144,213,255,0.15))] py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.2)] transition duration-200 hover:-translate-y-1 hover:border-sky-200 hover:shadow-[0_24px_56px_-40px_rgba(1,31,75,0.24)]">
         <CardHeader className="px-5 pt-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex flex-wrap gap-2">
@@ -808,13 +806,13 @@ function BrowseEventCard({
 
         <CardContent className="space-y-4 px-5 pb-5">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-slate-200/80 bg-white/85 p-3">
+            <div className="rounded-xl border border-slate-200/80 bg-[rgba(144,213,255,0.2)] p-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Event Start-End</p>
               <p className="mt-2 text-[0.98rem] font-bold leading-tight text-slate-900">{eventStartDateTime}</p>
               <p className="mt-1 text-sm leading-5 text-slate-500">to {eventEndDateTime}</p>
             </div>
 
-            <div className="rounded-xl border border-slate-200/80 bg-white/85 p-3">
+            <div className="rounded-xl border border-slate-200/80 bg-[rgba(144,213,255,0.2)] p-3">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Registration Start-End</p>
               <p className="mt-2 text-[0.98rem] font-bold leading-tight text-slate-900">{registrationStartDateTime}</p>
               <p className="mt-1 text-sm leading-5 text-slate-500">to {registrationEndDateTime}</p>

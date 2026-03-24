@@ -674,7 +674,7 @@ export default function NavigationHeader() {
       }}
     >
       {/* Single Line Header */}
-      <div className="h-14 sm:h-16 px-3 sm:px-6 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="h-14 sm:h-16 px-2 sm:px-6 flex items-center justify-between gap-1 sm:gap-4 min-w-0">
         {/* Mobile Menu Button */}
         <button
           onClick={() => { setMobileMenuOpen(!mobileMenuOpen); if (mobileMenuOpen) setExpandedMobileSection(null); }}
@@ -689,7 +689,7 @@ export default function NavigationHeader() {
           <img
             src="/images/new-header-logo.png"
             alt="SGT University"
-            className="h-10 sm:h-12 object-contain brightness-0 invert"
+            className="h-8 sm:h-12 object-contain brightness-0 invert"
           />
           <div className="hidden sm:block">
             <div className="text-white font-bold text-xs sm:text-sm leading-tight">UNIVERSITY</div>
@@ -1147,14 +1147,14 @@ export default function NavigationHeader() {
         </nav>
 
         {/* Right Section - Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0 min-w-0">
           {/* Search */}
           <div className="relative" ref={searchRef}>
             <button
               onClick={() => setShowSearch(!showSearch)}
-              className="p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+              className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {showSearch && (
@@ -1234,8 +1234,8 @@ export default function NavigationHeader() {
             )}
           </div>
 
-          {/* Quick Links Dropdown */}
-          <div className="relative">
+          {/* Quick Links Dropdown - hidden on mobile to prevent header overflow */}
+          <div className="relative hidden sm:block">
             <button
               onClick={() => setActiveDropdown(activeDropdown === 'quicklinks' ? null : 'quicklinks')}
               onMouseEnter={() => setActiveDropdown('quicklinks')}
@@ -1314,22 +1314,22 @@ export default function NavigationHeader() {
           {/* Dark Mode Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+            className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
             title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
             {theme === 'dark' ? (
-              <Sun className="w-5 h-5" />
+              <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
             ) : (
-              <Moon className="w-5 h-5" />
+              <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </button>
 
           {/* Notifications */}
           <button
             onClick={() => router.push('/notifications')}
-            className="relative p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+            className="relative p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
             {unreadCount > 0 && (
               <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-lg">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -1338,16 +1338,16 @@ export default function NavigationHeader() {
           </button>
 
           {/* User Menu */}
-          <div className="relative" ref={userMenuRef}>
+          <div className="relative flex-shrink-0" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1.5 pr-3 hover:bg-white/15 rounded-lg transition-all duration-200"
+              className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3 hover:bg-white/15 rounded-lg transition-all duration-200"
             >
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-sm font-semibold shadow-lg border-2 border-white/30">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xs sm:text-sm font-semibold shadow-lg border-2 border-white/30">
                 {getUserInitials()}
               </div>
               <span className="text-white text-sm font-medium hidden lg:block">{getUserDisplayName()}</span>
-              <ChevronDown className={`w-4 h-4 text-white/80 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/80 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {showUserMenu && (

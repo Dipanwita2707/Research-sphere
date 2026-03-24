@@ -260,6 +260,7 @@ export interface Event {
   // Dynamic data (populated from API)
   customFields?: EventCustomField[];
   prizes?: EventPrize[];
+  rounds?: EventRound[];
   stalls?: Stall[];
 
   createdAt: string;
@@ -365,7 +366,85 @@ export interface EventEntry {
   volunteer?: EventVolunteer;
 }
 
+export interface EventStatisticsSponsor {
+  id?: string | null;
+  name: string;
+  contributionAmount: number;
+  cashAmount?: number;
+  inKindEstimatedValue?: number;
+  contributionType?: string;
+  paymentStatus?: string | null;
+  statusBucket?: 'confirmed' | 'pending';
+  source?: 'noting' | 'manual';
+}
+
+export interface EventStatisticsCustomFieldSummary {
+  id: string;
+  fieldName: string;
+  fieldLabel: string;
+  fieldType: string;
+  isRequired: boolean;
+  responseCount: number;
+  responseRate: number;
+}
+
+export interface EventStatisticsStatusBreakdownItem {
+  status: string;
+  count: number;
+  amount?: number;
+  percent?: number;
+}
+
+export interface EventStatisticsRoleBreakdownItem {
+  role: string;
+  count: number;
+  percent: number;
+}
+
+export interface EventStatisticsHourlyScan {
+  hour: number;
+  entries: number;
+  exits: number;
+  total: number;
+}
+
+export interface EventStatisticsTopVolunteer {
+  id: string;
+  scans: number;
+  entries: number;
+  exits: number;
+  role?: string | null;
+  canScanQr?: boolean;
+  assignedGate?: string | null;
+  user?: {
+    id: string;
+    uid: string;
+    email?: string;
+    name: string;
+  } | null;
+}
+
 export interface EventStatistics {
+  eventSummary?: {
+    id: string;
+    eventId: string;
+    name: string;
+    status: EventStatus;
+    eventType: EventType;
+    venue?: string;
+    startDate: string;
+    endDate: string;
+    paymentType: EventPaymentType;
+    participationType?: ParticipationType | null;
+    registrationFee?: number | null;
+    maxCapacity?: number | null;
+    registrationStartDate?: string | null;
+    registrationEndDate?: string | null;
+    publishedAt?: string | null;
+    notingId?: string | null;
+    notingEventType?: 'venue' | 'stall' | 'festival' | null;
+    opportunityMode?: OpportunityMode | null;
+  };
   totalRegistrations: number;
   confirmedRegistrations: number;
   pendingRegistrations: number;
@@ -379,6 +458,10 @@ export interface EventStatistics {
   totalRevenue?: number;
   revenueCollected?: number;
   registrationsByDate: Array<{
+    date: string;
+    count: number;
+  }>;
+  topRegistrationDays?: Array<{
     date: string;
     count: number;
   }>;
@@ -397,6 +480,119 @@ export interface EventStatistics {
       name: string;
     };
   }>;
+  registrationFunnel?: {
+    registered: number;
+    formSubmitted: number;
+    confirmed: number;
+    attended: number;
+    dropOffs: number;
+    formCompletionRate: number;
+    confirmationRate: number;
+    attendanceRate: number;
+    dropOffRate: number;
+  };
+  sponsorship?: {
+    totalSponsorshipAmountCollected: number;
+    totalSponsorshipAmountCommitted?: number;
+    confirmedSponsorships: {
+      count: number;
+      amount: number;
+    };
+    pendingSponsorships: {
+      count: number;
+      amount: number;
+    };
+    sponsors: EventStatisticsSponsor[];
+  };
+  participationMetrics?: {
+    totalRegistrations: number;
+    activeParticipants: number;
+    dropOffRegistrations: number;
+    incompleteRegistrations: number;
+    completionRate: number;
+  };
+  eventInsights?: {
+    revenue: number;
+    ticketSales?: {
+      sold: number;
+      grossPotentialRevenue: number;
+    } | null;
+    engagementMetrics: {
+      confirmationRate: number;
+      attendanceRate: number;
+      checkInRate: number;
+      avgEntriesPerActiveParticipant: number;
+      currentlyInside: number;
+    };
+  };
+  paymentMetrics?: {
+    completedPayments: number;
+    pendingPayments: number;
+    failedPayments: number;
+    refundedPayments: number;
+    couponUsageCount: number;
+    totalDiscountAmount: number;
+    avgRevenuePerConfirmed: number;
+    avgAmountPerPaidRegistration: number;
+    statusBreakdown: EventStatisticsStatusBreakdownItem[];
+  };
+  capacityInsights?: {
+    maxCapacity: number | null;
+    registrationsUtilization: number | null;
+    confirmedUtilization: number | null;
+    remainingCapacity: number | null;
+    eventDurationDays: number | null;
+    daysUntilStart: number | null;
+    daysUntilEnd: number | null;
+    registrationWindow: {
+      startDate: string | null;
+      endDate: string | null;
+      progressPercent: number | null;
+      daysLeft: number | null;
+      isOpen: boolean;
+    };
+  };
+  participantDemographics?: {
+    byRole: EventStatisticsRoleBreakdownItem[];
+    withTeamCount: number;
+    lookingForTeammatesCount: number;
+  };
+  volunteerInsights?: {
+    totalVolunteers: number;
+    scannersEnabled: number;
+    scansByHour: EventStatisticsHourlyScan[];
+    peakHour?: EventStatisticsHourlyScan;
+    topVolunteers: EventStatisticsTopVolunteer[];
+  };
+  teamInsights?: {
+    totalTeams: number;
+    activeTeams: number;
+    formingTeams: number;
+    completeTeams: number;
+    confirmedTeams: number;
+    disqualifiedTeams: number;
+    withdrawnTeams: number;
+    pendingInvitations: number;
+    pendingJoinRequests: number;
+    confirmedTeamMembers: number;
+    teamsLookingForMembers: number;
+    avgTeamSize: number;
+  } | null;
+  notingAndCustomData?: {
+    notingId?: string | null;
+    notingEventType?: string | null;
+    source?: 'noting' | 'manual';
+    sponsorsFromNotingCount?: number;
+    sponsorsAddedManuallyCount?: number;
+    resourcesFromNoting?: any[];
+    resourcesAddedByCreator?: any[];
+    customFields?: EventStatisticsCustomFieldSummary[];
+    customFieldResponseCoverage?: {
+      registrationsWithResponses: number;
+      totalRegistrations: number;
+      coverageRate: number;
+    };
+  };
 }
 
 export interface EventFormData {
@@ -982,6 +1178,35 @@ export interface RegistrationSettings {
 
   // Prize Settings
   prizesEnabled?: boolean;
+}
+
+// ============================================
+// Round Types
+// ============================================
+
+export type RoundType = 'elimination' | 'final' | 'general';
+
+export interface EventRound {
+  id: string;
+  eventId: string;
+  name: string;
+  description?: string | null;
+  startTime: string;
+  endTime: string;
+  roundType?: RoundType | null;
+  isDefault: boolean;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoundFormData {
+  name: string;
+  description?: string;
+  startTime: string;
+  endTime: string;
+  roundType?: RoundType;
 }
 
 // ============================================

@@ -16,6 +16,10 @@ export const EVENT_QUERY_KEYS = {
     ['events', 'list', filters, page, limit],
   detail: (id: string) => ['events', id],
   myCreated: () => ['events', 'my-created'],
+  rounds: (eventId: string) => ['events', eventId, 'rounds'] as const,
+  customFields: (eventId: string) => ['events', eventId, 'custom-fields'] as const,
+  registrationSettings: (eventId: string) => ['events', eventId, 'registration-settings'] as const,
+  prizes: (eventId: string) => ['events', eventId, 'prizes'] as const,
   adminOverview: (params?: { startDate?: string; endDate?: string }) =>
     ['events', 'admin', 'overview', params] as const,
   adminUsers: (params?: { startDate?: string; endDate?: string }) =>
@@ -54,6 +58,58 @@ export function useEvent(id: string) {
     enabled: !!id,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000, // Keep cached for 10 min even after unmount
+  });
+}
+
+/**
+ * Hook to fetch rounds for an event.
+ */
+export function useRounds(eventId: string, options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.rounds(eventId),
+    queryFn: () => eventService.getRounds(eventId),
+    enabled: !!eventId && enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Hook to fetch custom fields for an event.
+ */
+export function useEventCustomFields(eventId: string, options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.customFields(eventId),
+    queryFn: () => eventService.getCustomFields(eventId),
+    enabled: !!eventId && enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Hook to fetch registration settings for an event.
+ */
+export function useRegistrationSettings(eventId: string, options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.registrationSettings(eventId),
+    queryFn: () => eventService.getRegistrationSettings(eventId),
+    enabled: !!eventId && enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Hook to fetch prizes for an event.
+ */
+export function useEventPrizes(eventId: string, options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: EVENT_QUERY_KEYS.prizes(eventId),
+    queryFn: () => eventService.getPrizes(eventId),
+    enabled: !!eventId && enabled,
+    staleTime: 60 * 1000,
   });
 }
 

@@ -33,8 +33,9 @@ module.exports = {
   
   rateLimit: {
     // For 25k users: Increased limits for high traffic
+    // Dev default is 5000 to avoid hitting limits during development
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW || '15', 10) * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '500', 10),
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || (process.env.NODE_ENV === 'production' ? '500' : '5000'), 10),
   },
   
   database: {
