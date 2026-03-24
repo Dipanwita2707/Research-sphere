@@ -27,7 +27,37 @@ app.set("trust proxy", 1);
 
 // Security middleware
 app.use(helmet());
-app.use(cors(config.cors));
+const normalizeOrigin = (value) => value?.trim().replace(/\/$/, "");
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      ...(Array.isArray(config.cors?.origin) ? config.cors.origin : []),
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+    ]
+      .map(normalizeOrigin)
+      .filter(Boolean),
+  ),
+);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // Postman / mobile apps
+
+      const normalizedOrigin = normalizeOrigin(origin);
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 // Rate limiting - Separate limiters for different endpoints
 const loginLimiter = rateLimit({
