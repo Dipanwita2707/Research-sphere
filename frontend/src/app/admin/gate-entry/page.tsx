@@ -191,6 +191,14 @@ function AllPassesPageContent() {
     return translated === key ? relation : translated;
   };
 
+  const shouldShowInlineRelation = (relation?: string): boolean => {
+    if (!relation) return false;
+
+    const normalized = relation.trim().toLowerCase();
+    // Hide generic relation labels in list row; show only meaningful specific relation tags.
+    return !['parent', 'parent (other)', 'other', 'na', 'n/a'].includes(normalized);
+  };
+
   const getCreatorLabel = (username?: string): string => {
     if (!username) return t('allPasses.system');
 
@@ -521,7 +529,7 @@ function AllPassesPageContent() {
 
   const hasAnyActiveRoomBooking = (pass: Pass) => {
     const bookings = getPassBookings(pass);
-    return bookings.some((booking) => booking.bookingStatus !== 'cancelled');
+    return bookings.some((booking) => !['cancelled', 'completed'].includes((booking.bookingStatus || '').toLowerCase()));
   };
 
   // Filter and search logic
@@ -1136,7 +1144,7 @@ function AllPassesPageContent() {
                                 <Phone className="w-3 h-3" />
                                 {pass.mobileNumber}
                               </div>
-                              {pass.visitorRelation && (
+                              {shouldShowInlineRelation(pass.visitorRelation) && (
                                 <div className="text-xs text-[#005b96] mt-1">
                                   {getRelationLabel(pass.visitorRelation)}
                                 </div>
@@ -1400,8 +1408,9 @@ function AllPassesPageContent() {
                           const isPending = requestStatus === 'pending';
                           const isApproved = requestStatus === 'approved';
                           const isRejected = requestStatus === 'rejected';
+                          const bookingStatus = (booking.bookingStatus || '').toLowerCase();
                           const canRequest = booking.id
-                            && booking.bookingStatus !== 'cancelled'
+                            && !['cancelled', 'completed'].includes(bookingStatus)
                             && !isPending
                             && !isApproved
                             && ((selectedPass.creator?.id && selectedPass.creator.id === (user as any)?.id)
@@ -1936,7 +1945,9 @@ function AllPassesPageContent() {
                       </p>
                       {(() => {
                         const actionableBooking = getPassBookings(selectedPass).find(
-                          (booking) => booking.id && booking.bookingStatus !== 'cancelled' && !['pending', 'approved'].includes(booking.roomCancelRequestStatus || '')
+                          (booking) => booking.id
+                            && !['cancelled', 'completed'].includes((booking.bookingStatus || '').toLowerCase())
+                            && !['pending', 'approved'].includes(booking.roomCancelRequestStatus || '')
                         );
                         return actionableBooking ? (
                         <button
