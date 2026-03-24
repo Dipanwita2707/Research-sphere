@@ -64,6 +64,12 @@ const optionalUrl = z.preprocess((value) => {
   return sanitized.startsWith("http") ? sanitized : `https://${sanitized}`;
 }, z.string().url("Please enter a valid website URL").optional());
 
+const optionalUrlOrPath = z.preprocess((value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") return undefined;
+  return value.trim();
+}, z.string().min(1).optional());
+
 const optionalInteger = (options, message) =>
   z.preprocess((value) => {
     if (value === undefined || value === null || value === "") return undefined;
@@ -194,8 +200,8 @@ const validateEventUpdate = validateRequest({
         LIMITS.MAX_LONG_DESCRIPTION_LENGTH || 50000,
         "Detailed description exceeds maximum length",
       ),
-      logoImageUrl: optionalUrl,
-      bannerImageUrl: optionalUrl,
+      logoImageUrl: optionalUrlOrPath,
+      bannerImageUrl: optionalUrlOrPath,
       venue: optionalPlainText(
         LIMITS.MAX_VENUE_LENGTH,
         `Venue must not exceed ${LIMITS.MAX_VENUE_LENGTH} characters`,
@@ -226,8 +232,16 @@ const validateEventUpdate = validateRequest({
       teamRegistrationFee: optionalFiniteNumber(
         z.number().min(0, "Team registration fee must be a valid decimal number"),
       ),
-      registrationStartDate: z.string().datetime().optional(),
-      registrationEndDate: z.string().datetime().optional(),
+      registrationStartDate: z.preprocess((v) => {
+        if (v === null || v === undefined || v === "") return undefined;
+        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return v + ":00Z";
+        return v;
+      }, z.string().datetime().optional()),
+      registrationEndDate: z.preprocess((v) => {
+        if (v === null || v === undefined || v === "") return undefined;
+        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return v + ":00Z";
+        return v;
+      }, z.string().datetime().optional()),
       eligibilityDisplayFormat: z
         .enum(["points", "paragraph", "both"])
         .optional(),
@@ -238,7 +252,7 @@ const validateEventUpdate = validateRequest({
       rulesAndGuidelines: optionalPlainText(20000, "Rules and guidelines are too long"),
       prizeDetails: optionalPlainText(10000, "Prize details are too long"),
       certificateAvailable: optionalBooleanish,
-      faqs: z.array(faqSchema).optional(),
+      faqs: z.preprocess((v) => (v === null ? undefined : v), z.array(faqSchema).optional()),
       opportunityMode: z.enum(["online", "offline", "hybrid"]).optional(),
       participationType: z.enum(["individual", "team"]).optional(),
       minTeamSize: optionalInteger(
@@ -258,7 +272,7 @@ const validateEventUpdate = validateRequest({
       allowCrossInstituteTeams: optionalBooleanish,
       allowTeamEditAfterSubmission: optionalBooleanish,
       autoApproveTeams: optionalBooleanish,
-      teamRegistrationDeadline: z.string().date().optional(),
+      teamRegistrationDeadline: z.preprocess((v) => (v === null || v === "" ? undefined : v), z.string().date().optional()),
       autoApproveRegistration: optionalBooleanish,
       showParticipantsPublicly: optionalBooleanish,
       allowWithdrawRegistration: optionalBooleanish,
@@ -300,8 +314,16 @@ const validateEventId = validateRequest({
 const validateEventPublish = validateRequest({
   body: z
     .object({
-      registrationStartDate: z.string().datetime().optional(),
-      registrationEndDate: z.string().datetime().optional(),
+      registrationStartDate: z.preprocess((v) => {
+        if (v === null || v === undefined || v === "") return undefined;
+        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return v + ":00Z";
+        return v;
+      }, z.string().datetime().optional()),
+      registrationEndDate: z.preprocess((v) => {
+        if (v === null || v === undefined || v === "") return undefined;
+        if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) return v + ":00Z";
+        return v;
+      }, z.string().datetime().optional()),
     })
     .strip(),
 });

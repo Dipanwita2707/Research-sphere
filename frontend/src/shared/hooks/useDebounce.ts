@@ -1,36 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+export type UseDebounceOptions<T> = {
+  /** Delay in milliseconds (default: 500ms) */
+  delay?: number;
+  /** Called when the debounced value settles (after delay). Use to update URL/params without useEffect. */
+  onSettle?: (value: T) => void;
+};
 
 /**
  * useDebounce Hook
- * Debounces a value by the specified delay
- * 
+ * Debounces a value by the specified delay.
+ * Optionally invokes onSettle when the debounced value changes, so callers can
+ * update URL/params in the callback instead of syncing via useEffect.
+ *
  * @param value - The value to debounce
- * @param delay - Delay in milliseconds (default: 500ms)
+ * @param delayOrOptions - Delay in ms, or options object with delay and onSettle
  * @returns The debounced value
- * 
+ *
  * @example
- * const [searchTerm, setSearchTerm] = useState('');
+ * // Basic usage (returns debounced value only)
  * const debouncedSearch = useDebounce(searchTerm, 300);
- * 
- * useEffect(() => {
- *   if (debouncedSearch) {
- *     fetchResults(debouncedSearch);
- *   }
- * }, [debouncedSearch]);
+ *
+ * @example
+ * // With onSettle to update params without useEffect
+ * const debouncedSearch = useDebounce(searchInput, { delay: 350, onSettle: (v) => setParams({ search: v || undefined, page: undefined }) });
  */
-export function useDebounce<T>(value: T, delay: number = 500): T {
+export function useDebounce<T>(
+  value: T,
+  delayOrOptions: number | UseDebounceOptions<T> = 500,
+): T {
+  const opts = typeof delayOrOptions === 'number'
+    ? { delay: delayOrOptions }
+    : delayOrOptions;
+  const { delay = 500, onSettle } = opts;
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
+  const onSettleRef = useRef(onSettle);
+  onSettleRef.current = onSettle;
 
   useEffect(() => {
-    // Set up the timeout
     const handler = setTimeout(() => {
       setDebouncedValue(value);
+      onSettleRef.current?.(value);
     }, delay);
 
-    // Clean up the timeout if value or delay changes
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [value, delay]);
 
   return debouncedValue;

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Calendar, MapPin, Users, Edit, CheckCircle, AlertCircle, Eye, Trash2, QrCode, Settings, BarChart3, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
@@ -81,13 +81,6 @@ export default function MyCreatedEventsPage() {
   const { data: notingPerms, isLoading: permsLoading } = useNotingPermissions({ enabled: !!isStudent });
   const isChairperson = !!(notingPerms?.isClubChairperson);
 
-  // Access guard: students who are not club chairpersons cannot access this page
-  useEffect(() => {
-    if (isStudent && !permsLoading && !isChairperson) {
-      router.replace('/events');
-    }
-  }, [isStudent, permsLoading, isChairperson, router]);
-
   const { data: allEvents = [], isLoading: loading } = useMyCreatedEvents();
   const [activeTab, setActiveTab] = useState<'draft' | 'published' | 'past'>('published');
   const [expandedFestivals, setExpandedFestivals] = useState<Set<string>>(new Set());
@@ -110,8 +103,11 @@ export default function MyCreatedEventsPage() {
 
   // Show skeleton while checking permissions for students
   if (isStudent && permsLoading) return <PageSkeleton />;
-  // Render nothing while redirect is in progress
-  if (isStudent && !isChairperson) return null;
+  // Access guard: students who are not club chairpersons cannot access this page
+  if (isStudent && !isChairperson) {
+    router.replace('/events');
+    return null;
+  }
 
   const toggleFestival = (fid: string) => {
     setExpandedFestivals((prev) => {

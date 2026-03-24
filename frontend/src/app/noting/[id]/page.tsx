@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
@@ -152,7 +152,7 @@ export default function NoteDetailPage() {
   }, [noteError, router, toast]);
 
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionType, setActionType] = useState<
+  const [actionType, setActionTypeInternal] = useState<
     | "approve"
     | "reject"
     | "revert"
@@ -161,6 +161,13 @@ export default function NoteDetailPage() {
     | "not_recommend"
     | null
   >(null);
+  const setActionType = useCallback((t: "approve" | "reject" | "revert" | "forward" | "recommend" | "not_recommend" | null) => {
+    setForwardUserId("");
+    setForwardMode(null);
+    setSearchQuery("");
+    setSelectedUser(null);
+    setActionTypeInternal(t);
+  }, []);
   const [remarks, setRemarks] = useState("");
   const [forwardUserId, setForwardUserId] = useState("");
   const [forwardMode, setForwardMode] = useState<"auto" | "manual" | null>(
@@ -240,15 +247,6 @@ export default function NoteDetailPage() {
     showForwardBtn ||
     showRecommendBtn ||
     showNotRecommendBtn;
-
-  useEffect(() => {
-    if (actionType === "forward") {
-      setForwardUserId("");
-      setForwardMode(null);
-      setSearchQuery("");
-      setSelectedUser(null);
-    }
-  }, [actionType]);
 
   // Search is now handled by useSearchEmployees hook above (debounce + caching built-in)
 

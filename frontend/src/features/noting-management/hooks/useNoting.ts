@@ -61,6 +61,7 @@ export const NOTING_QUERY_KEYS = {
   config: () => ["noting", "config"],
   myManager: () => ["noting", "my-manager"],
   creatorInfo: () => ["noting", "creator-info"],
+  facilitatorClubs: () => ["noting", "facilitator-clubs"],
   permissions: (userId?: string | null) => ["noting", "permissions", userId ?? "anonymous"],
   noteCopies: (noteId: string) => ["noting", "copies", noteId],
   adminOverview: (params?: { startDate?: string; endDate?: string }) =>
@@ -297,6 +298,19 @@ export function useCreatorInfo(options: { enabled?: boolean } = {}) {
     queryFn: () => notingService.getMyCreatorInfo(),
     enabled,
     staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+/**
+ * Fetch facilitator clubs for event noting (when user is not a student).
+ */
+export function useFacilitatorClubs(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
+  return useQuery({
+    queryKey: NOTING_QUERY_KEYS.facilitatorClubs(),
+    queryFn: () => notingService.getMyFacilitatorClubs(),
+    enabled,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

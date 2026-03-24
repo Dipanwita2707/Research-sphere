@@ -457,6 +457,22 @@ export default function UserRoleManagement() {
     setSelectedDepartmentId('');
     setSelectedDepartmentType('central');
     setUserPermissions({});
+
+    // ── Preload all existing user permissions into allDepartmentPermissions ──
+    // This ensures unticking any existing permission is captured in state
+    // and correctly saved (or revoked) on Save click.
+    const initialDeptPerms: Record<string, Record<string, boolean>> = {};
+    user.centralDeptPermissions.forEach(perm => {
+      if (perm.permissions && Object.keys(perm.permissions).length > 0) {
+        initialDeptPerms[`central_${perm.centralDeptId}`] = { ...(perm.permissions as Record<string, boolean>) };
+      }
+    });
+    user.schoolDeptPermissions.forEach(perm => {
+      if (perm.permissions && Object.keys(perm.permissions).length > 0) {
+        initialDeptPerms[`school_${perm.departmentId}`] = { ...(perm.permissions as Record<string, boolean>) };
+      }
+    });
+    setAllDepartmentPermissions(initialDeptPerms);
     
     // Load user's assigned roles
     const assignedRoles = user.assignedRoleIds || [];
@@ -705,19 +721,35 @@ export default function UserRoleManagement() {
     }
 
     try {
+      let savedCount = 0;
       // Save each department's permissions
       for (const [deptKey, permissions] of deptEntries) {
         const hasPermissions = Object.values(permissions).some(v => v);
-        if (!hasPermissions) continue;
+        // Split on first underscore only (dept IDs may contain underscores)
+        const underscoreIdx = deptKey.indexOf('_');
+        const deptType = deptKey.substring(0, underscoreIdx);
+        const deptId = deptKey.substring(underscoreIdx + 1);
 
-        const [deptType, deptId] = deptKey.split('_');
+        if (!hasPermissions) {
+          // User unticked all permissions → revoke access for this department
+          try {
+            if (deptType === 'school') {
+              await permissionManagementService.revokeSchoolDeptPermissions(selectedUser.id, deptId);
+            } else {
+              await permissionManagementService.revokeCentralDeptPermissions(selectedUser.id, deptId);
+            }
+          } catch {
+            // Ignore revoke errors (e.g. dept had no permissions anyway)
+          }
+          continue;
+        }
         
         if (deptType === 'school') {
           await permissionManagementService.grantSchoolDeptPermissions({
             userId: selectedUser.id,
             departmentId: deptId,
             permissions: permissions,
-            isPrimary: false, // Can set primary separately if needed
+            isPrimary: false,
           });
         } else {
           await permissionManagementService.grantCentralDeptPermissions({
@@ -727,9 +759,10 @@ export default function UserRoleManagement() {
             isPrimary: false,
           });
         }
+        savedCount++;
       }
 
-      toast({ type: 'success', message: `Permissions saved for ${deptEntries.length} department(s)` });
+      toast({ type: 'success', message: `Permissions saved successfully` });
       setShowUserPermissionModal(false);
       fetchData();
     } catch (error: unknown) {
@@ -1621,13 +1654,22 @@ export default function UserRoleManagement() {
                           .map(dept => {
                           const deptKey = `central_${dept.id}`;
                           const deptPerms = allDepartmentPermissions[deptKey] || {};
+                          const hasDeptInState = Object.prototype.hasOwnProperty.call(allDepartmentPermissions, deptKey);
                           
                           // Get existing user permissions for this department
                           const existingPerm = selectedUser?.centralDeptPermissions.find(p => p.centralDeptId === dept.id);
                           const mergedPerms = { ...deptPerms };
-                          if (existingPerm) {
+                          if (existingPerm && !hasDeptInState) {
+                            // Only use DB values as display fallback if user hasn't touched this dept yet
                             Object.keys(existingPerm.permissions || {}).forEach(key => {
                               if (existingPerm.permissions?.[key]) {
+                                mergedPerms[key] = true;
+                              }
+                            });
+                          } else if (existingPerm && hasDeptInState) {
+                            // User has explicitly changed this dept — only fill in keys NOT yet in state
+                            Object.keys(existingPerm.permissions || {}).forEach(key => {
+                              if (!(key in deptPerms) && existingPerm.permissions?.[key]) {
                                 mergedPerms[key] = true;
                               }
                             });
@@ -1781,13 +1823,22 @@ export default function UserRoleManagement() {
                           }).map(dept => {
                             const deptKey = `school_${dept.id}`;
                             const deptPerms = allDepartmentPermissions[deptKey] || {};
+                            const hasDeptInState = Object.prototype.hasOwnProperty.call(allDepartmentPermissions, deptKey);
                             
                             // Get existing user permissions for this department
                             const existingPerm = selectedUser?.schoolDeptPermissions.find(p => p.departmentId === dept.id);
                             const mergedPerms = { ...deptPerms };
-                            if (existingPerm) {
+                            if (existingPerm && !hasDeptInState) {
+                              // Only use DB values as display fallback if user hasn't touched this dept yet
                               Object.keys(existingPerm.permissions || {}).forEach(key => {
                                 if (existingPerm.permissions?.[key]) {
+                                  mergedPerms[key] = true;
+                                }
+                              });
+                            } else if (existingPerm && hasDeptInState) {
+                              // User has explicitly changed this dept — only fill in keys NOT yet in state
+                              Object.keys(existingPerm.permissions || {}).forEach(key => {
+                                if (!(key in deptPerms) && existingPerm.permissions?.[key]) {
                                   mergedPerms[key] = true;
                                 }
                               });

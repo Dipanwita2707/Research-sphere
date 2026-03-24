@@ -8,7 +8,7 @@ import { ArrowLeft, Plus, Trash2, Upload, FileText, GripVertical, Clock, CheckCi
 import { notingService } from '@/features/noting-management/services/noting.service';
 import type { NotingPermissions } from '@/features/noting-management/services/noting.service';
 import type { NoteConfig, CreatorInfo, CreateNotePayload, NoteHistoryEntry } from '@/features/noting-management/types/noting.types';
-import { useNotingPermissions, useNotingConfig, useCreatorInfo } from '@/features/noting-management/hooks/useNoting';
+import { useNotingPermissions, useNotingConfig, useCreatorInfo, useFacilitatorClubs } from '@/features/noting-management/hooks/useNoting';
 import {
   EventTypeSelector,
   defaultStallConfig,
@@ -250,7 +250,7 @@ export default function NewNotePage() {
   useEffect(() => {
     if (cachedCreatorInfo && !creatorInfo) setCreatorInfo(cachedCreatorInfo);
   }, [cachedCreatorInfo, creatorInfo]);
-  const [submitting, setSubmitting] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState<'submit' | 'draft' | 'discard' | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [isRevertedNote, setIsRevertedNote] = useState(false);
   const [revertHistory, setRevertHistory] = useState<NoteHistoryEntry[]>([]);
@@ -273,6 +273,10 @@ export default function NewNotePage() {
 
   const [category, setCategory] = useState<'academic' | 'administrative'>(initial.category);
   const [subcategory, setSubcategory] = useState(initial.subcategory);
+
+  const isChairperson = notingPerms?.isClubChairperson === true;
+  const effectiveCategory = isChairperson ? 'academic' : category;
+  const effectiveSubcategory = isChairperson ? 'events' : subcategory;
   const [description, setDescription] = useState(initial.description);
   const [approvalPeriod, setApprovalPeriod] = useState<'one_time' | 'recurring'>(initial.approvalPeriod);
   const [recurringFrequency, setRecurringFrequency] = useState(initial.recurringFrequency);
@@ -295,20 +299,9 @@ export default function NewNotePage() {
   const [eventClubId, setEventClubId] = useState<string | null>(null);
   // Event visibility/settings for noting form
   const [eventVisibilitySettings, setEventVisibilitySettings] = useState<EventVisibilityFormData>({ ...defaultEventVisibilityForm });
-  const [facilitatorClubs, setFacilitatorClubs] = useState<import('@/features/noting-management/services/noting.service').FacilitatorClub[]>([]);
-  const [facilitatorClubsLoading, setFacilitatorClubsLoading] = useState(false);
-
-  // Fetch facilitator clubs when event noting is active
-  useEffect(() => {
-    if (!isEventNoting || isStudentUser) return; // students are chairpersons, not facilitators
-    let cancelled = false;
-    setFacilitatorClubsLoading(true);
-    notingService.getMyFacilitatorClubs()
-      .then((clubs) => { if (!cancelled) setFacilitatorClubs(clubs); })
-      .catch(() => { if (!cancelled) setFacilitatorClubs([]); })
-      .finally(() => { if (!cancelled) setFacilitatorClubsLoading(false); });
-    return () => { cancelled = true; };
-  }, [isEventNoting, isStudentUser]);
+  const { data: facilitatorClubs = [], isLoading: facilitatorClubsLoading } = useFacilitatorClubs({
+    enabled: isEventNoting && !isStudentUser,
+  });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -332,24 +325,8 @@ export default function NewNotePage() {
     });
   }, []);
 
-  // Auto-clear field errors when user corrects them
-  useEffect(() => { clearFieldError('subcategory'); }, [subcategory, clearFieldError]);
-  useEffect(() => { clearFieldError('description'); }, [description, clearFieldError]);
-  useEffect(() => { clearFieldError('points'); }, [points, clearFieldError]);
-  useEffect(() => { clearFieldError('policyCompliance'); }, [policyCompliance, clearFieldError]);
-  useEffect(() => { clearFieldError('recurringFrequency'); }, [recurringFrequency, clearFieldError]);
-  useEffect(() => { clearFieldError('amount'); }, [amount, amountRequired, clearFieldError]);
-
   // Config + Creator info now fetched via TanStack Query hooks above (useNotingConfig, useCreatorInfo)
   // No raw useEffect needed — the hooks handle caching, loading state, and error handling.
-
-  // Lock category to 'academic' and subcategory to 'events' for chairpersons
-  useEffect(() => {
-    if (notingPerms?.isClubChairperson) {
-      setCategory('academic');
-      setSubcategory('events');
-    }
-  }, [notingPerms]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -509,7 +486,7 @@ export default function NewNotePage() {
 
     // For new notes without year/sequence yet, generate preview once
     if (!draftIdFromUrl && !notingIdPreview) {
-      notingService.previewNotingId(category, subcategory).then((r) => {
+      notingService.previewNotingId(effectiveCategory, effectiveSubcategory).then((r) => {
         setNotingIdPreview(r.notingId);
         // Extract and store year and sequence
         const parts = r.notingId.split('/');
@@ -520,7 +497,7 @@ export default function NewNotePage() {
         }
       });
     }
-  }, [category, subcategory, draftIdFromUrl, notingIdPreview, notingYearAndSequence]);
+  }, [effectiveCategory, effectiveSubcategory, draftIdFromUrl, notingIdPreview, notingYearAndSequence]);
 
   // NOTE: subcategory is cleared only on explicit user-driven category changes
   // (inline in the radio onChange handlers below). The old useEffect approach
@@ -528,18 +505,18 @@ export default function NewNotePage() {
   // erased the subcategory that was just restored from the draft.
 
   useEffect(() => {
-    if (!subcategory || !config) {
+    if (!effectiveSubcategory || !config) {
       setIsEventNoting(false);
       return;
     }
     const eventKeywords = ['event', 'workshop', 'seminar', 'conference', 'function', 'celebration'];
-    const isEvent = eventKeywords.some(keyword => subcategory.toLowerCase().includes(keyword));
+    const isEvent = eventKeywords.some(keyword => effectiveSubcategory.toLowerCase().includes(keyword));
     setIsEventNoting(isEvent);
 
     if (!isEvent) {
       setVenueFormData(defaultVenueForm);
     }
-  }, [subcategory, config]);
+  }, [effectiveSubcategory, config]);
 
   // Auto-fill Overall Coordinator with noting creator's UID when Festival is selected
   useEffect(() => {
@@ -556,8 +533,8 @@ export default function NewNotePage() {
     syncTimeoutRef.current && clearTimeout(syncTimeoutRef.current);
     syncTimeoutRef.current = setTimeout(() => {
       setForm({
-        category,
-        subcategory,
+        category: effectiveCategory,
+        subcategory: effectiveSubcategory,
         description: sanitizeNoteDescription(description),
         approvalPeriod,
         recurringFrequency,
@@ -575,14 +552,14 @@ export default function NewNotePage() {
     }, DEBOUNCE_SYNC_MS);
     return () => { syncTimeoutRef.current && clearTimeout(syncTimeoutRef.current); };
   }, [
-    draftLoaded, category, subcategory, description, approvalPeriod,
+    draftLoaded, effectiveCategory, effectiveSubcategory, description, approvalPeriod,
     recurringFrequency, policyCompliance, amountRequired, amount,
     points, annexures, setForm,
   ]);
 
   useEffect(() => {
     if (!draftLoaded || !config) return;
-    const hasMinimum = category && subcategory;
+    const hasMinimum = effectiveCategory && effectiveSubcategory;
     if (!hasMinimum) return;
 
     // Prevent multiple autosaves from running simultaneously
@@ -594,8 +571,8 @@ export default function NewNotePage() {
       if (isAutosavingRef.current) return;
 
       const payload = {
-        category,
-        subcategory,
+        category: effectiveCategory,
+        subcategory: effectiveSubcategory,
         description: sanitizeNoteDescription(description).trim(),
         approvalPeriod,
         recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
@@ -657,8 +634,8 @@ export default function NewNotePage() {
 
       if (draftId) {
         const updatePayload: any = {
-          category,
-          subcategory,
+          category: effectiveCategory,
+          subcategory: effectiveSubcategory,
           description: payload.description,
           approvalPeriod: payload.approvalPeriod,
           policyCompliance: payload.policyCompliance,
@@ -694,7 +671,7 @@ export default function NewNotePage() {
     }, DEBOUNCE_AUTOSAVE_MS);
     return () => { autosaveTimeoutRef.current && clearTimeout(autosaveTimeoutRef.current); };
   }, [
-    draftLoaded, config, draftId, category, subcategory, description,
+    draftLoaded, config, draftId, effectiveCategory, effectiveSubcategory, description,
     approvalPeriod, recurringFrequency, policyCompliance, amountRequired,
     amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventVisibilitySettings, setDraftId,
   ]);
@@ -713,14 +690,16 @@ export default function NewNotePage() {
   const wordCount = plainTextDescription.trim() ? plainTextDescription.trim().split(/\s+/).length : 0;
   const overLimit = wordCount > MAX_WORDS;
 
-  const addPoint = () => setPoints((p) => [...p, '']);
-  const removePoint = (i: number) => setPoints((p) => p.filter((_, idx) => idx !== i));
-  const updatePoint = (i: number, v: string) =>
+  const addPoint = () => { setPoints((p) => [...p, '']); clearFieldError('points'); };
+  const removePoint = (i: number) => { setPoints((p) => p.filter((_, idx) => idx !== i)); clearFieldError('points'); };
+  const updatePoint = (i: number, v: string) => {
     setPoints((p) => {
       const n = [...p];
       n[i] = sanitizeNotePoints([v])[0] || '';
       return n;
     });
+    clearFieldError('points');
+  };
 
   const movePoint = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
@@ -732,6 +711,7 @@ export default function NewNotePage() {
     });
     setPointDraggedIndex(null);
     setPointDropTargetIndex(null);
+    clearFieldError('points');
   };
 
   // ── Sponsor receipt upload helper ──
@@ -854,8 +834,8 @@ export default function NewNotePage() {
       eventVisibilitySettings,
     );
     const basePayload: CreateNotePayload = {
-      category,
-      subcategory,
+      category: effectiveCategory,
+      subcategory: effectiveSubcategory,
       description: sanitizedDescription.trim(),
       approvalPeriod,
       recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
@@ -910,7 +890,7 @@ export default function NewNotePage() {
     }
 
     return basePayload;
-  }, [category, subcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventClubId, eventVisibilitySettings]);
+  }, [effectiveCategory, effectiveSubcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventClubId, eventVisibilitySettings]);
 
   const scrollToSection = (id: string) => {
     setTimeout(() => {
@@ -919,11 +899,11 @@ export default function NewNotePage() {
   };
 
   const handleSubmit = (asDraft: boolean) => {
-    if (!config) return;
+    if (!config || actionInProgress) return;
     if (!asDraft) {
       // Collect all base-field validation errors at once
       const baseValidation = validateBaseNoteSubmission({
-        subcategory,
+        subcategory: effectiveSubcategory,
         description,
         approvalPeriod,
         recurringFrequency,
@@ -1197,8 +1177,8 @@ export default function NewNotePage() {
 
     const payload = buildPayload();
     const updatePayload: any = {
-      category,
-      subcategory,
+      category: effectiveCategory,
+      subcategory: effectiveSubcategory,
       description: payload.description,
       approvalPeriod: payload.approvalPeriod,
       policyCompliance: payload.policyCompliance,
@@ -1254,7 +1234,7 @@ export default function NewNotePage() {
       if (payload.amount !== undefined && !Number.isNaN(payload.amount)) updatePayload.amount = payload.amount;
     }
 
-    setSubmitting(true);
+    setActionInProgress(asDraft ? 'draft' : 'submit');
     const onSuccess = (message: string, id: string) => {
       isAutosavingRef.current = false;
       clearDraft();
@@ -1271,43 +1251,54 @@ export default function NewNotePage() {
         .then(() => notingService.submitDraft(draftId))
         .then((res) => onSuccess(res.message || 'Note submitted', draftId))
         .catch(onError)
-        .finally(() => setSubmitting(false));
+        .finally(() => setActionInProgress(null));
     } else if (asDraft && draftId) {
       notingService
         .updateDraft(draftId, updatePayload)
         .then((res) => onSuccess(res.message || 'Draft saved', draftId))
         .catch(onError)
-        .finally(() => setSubmitting(false));
+        .finally(() => setActionInProgress(null));
     } else {
       notingService
         .create({ ...payload, submit: !asDraft })
         .then((res) => onSuccess(res.message || (asDraft ? 'Draft saved' : 'Note submitted'), res.data?.id ?? ''))
         .catch(onError)
-        .finally(() => setSubmitting(false));
+        .finally(() => setActionInProgress(null));
     }
   };
 
   const handleDiscardDraft = () => {
+    if (actionInProgress) return;
+    setActionInProgress('discard');
+    const doDiscard = () => {
+      isAutosavingRef.current = false;
+      clearDraft();
+      const s = useNotingDraftStore.getState();
+      setCategory(s.category);
+      setSubcategory(s.subcategory);
+      setDescription(s.description);
+      setApprovalPeriod(s.approvalPeriod);
+      setRecurringFrequency(s.recurringFrequency);
+      setPolicyCompliance(s.policyCompliance);
+      setAmountRequired(s.amountRequired);
+      setAmount(s.amount);
+      setPoints(s.points.length ? s.points : ['']);
+      setAnnexures(s.attachments.map((a) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription ?? '' })));
+      setNotingIdPreview('');
+      setNotingYearAndSequence(null);
+      setActionInProgress(null);
+      toast({ type: 'success', message: 'Draft discarded' });
+    };
     if (draftId) {
-      notingService.deleteDraft(draftId).catch(() => { });
+      notingService.deleteDraft(draftId)
+        .then(doDiscard)
+        .catch(() => { doDiscard(); });
+    } else {
+      doDiscard();
     }
-    isAutosavingRef.current = false;
-    clearDraft();
-    const s = useNotingDraftStore.getState();
-    setCategory(s.category);
-    setSubcategory(s.subcategory);
-    setDescription(s.description);
-    setApprovalPeriod(s.approvalPeriod);
-    setRecurringFrequency(s.recurringFrequency);
-    setPolicyCompliance(s.policyCompliance);
-    setAmountRequired(s.amountRequired);
-    setAmount(s.amount);
-    setPoints(s.points.length ? s.points : ['']);
-    setAnnexures(s.attachments.map((a) => ({ filePath: a.filePath, fileName: a.fileName, fileDescription: a.fileDescription ?? '' })));
-    setNotingIdPreview('');
-    setNotingYearAndSequence(null);
-    toast({ type: 'success', message: 'Draft discarded' });
   };
+
+  // isChairperson, effectiveCategory, effectiveSubcategory are declared near the top (after category/subcategory state)
 
   if (loading || !config) {
     return (
@@ -1317,16 +1308,14 @@ export default function NewNotePage() {
     );
   }
 
-  const isChairperson = notingPerms?.isClubChairperson === true;
-
   // For chairpersons: only show 'events' subcategory under 'academic'
-  const allSubcategories = config.categories.find((c) => c.value === category)?.subcategories ?? [];
+  const allSubcategories = config.categories.find((c) => c.value === effectiveCategory)?.subcategories ?? [];
   const subcategories = isChairperson
     ? allSubcategories.filter((s) => s.value === 'events')
     : allSubcategories;
 
   const baseValid = Boolean(
-    subcategory?.trim() &&
+    effectiveSubcategory?.trim() &&
     plainTextDescription.trim() &&
     !overLimit &&
     dedupePoints(points).length > 0 &&
@@ -1416,12 +1405,12 @@ export default function NewNotePage() {
                     <div className="space-y-2">
                       <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'academic' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                         }`}>
-                        <input type="radio" name="category" checked={category === 'academic'} onChange={() => { if (!isChairperson && category !== 'academic') { setCategory('academic'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                        <input type="radio" name="category" checked={effectiveCategory === 'academic'} onChange={() => { if (!isChairperson && category !== 'academic') { setCategory('academic'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                         <span className="text-sm font-medium">Academic</span>
                       </label>
                       <label className={`flex items-center gap-3 p-3 border rounded-xl transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${category === 'administrative' ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                         }`}>
-                        <input type="radio" name="category" checked={category === 'administrative'} onChange={() => { if (!isChairperson && category !== 'administrative') { setCategory('administrative'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                        <input type="radio" name="category" checked={effectiveCategory === 'administrative'} onChange={() => { if (!isChairperson && category !== 'administrative') { setCategory('administrative'); setSubcategory(''); } }} disabled={isChairperson} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                         <span className="text-sm font-medium">Administrative</span>
                       </label>
                     </div>
@@ -1431,8 +1420,8 @@ export default function NewNotePage() {
                       Subcategory <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={subcategory}
-                      onChange={(e) => setSubcategory(e.target.value)}
+                      value={effectiveSubcategory}
+                      onChange={(e) => { if (!isChairperson) setSubcategory(e.target.value); clearFieldError('subcategory'); }}
                       disabled={isChairperson}
                       className={`w-full px-3 py-3 text-sm border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${isChairperson ? 'opacity-60 cursor-not-allowed' : ''} ${fieldErrors.subcategory ? 'border-red-500 ring-1 ring-red-500' : 'border-[#b3cde0]/50 dark:border-gray-600'}`}
                     >
@@ -1484,7 +1473,7 @@ export default function NewNotePage() {
                   <ReactQuill
                     theme="snow"
                     value={description}
-                    onChange={(value) => setDescription(sanitizeNoteDescription(value))}
+                    onChange={(value) => { setDescription(sanitizeNoteDescription(value)); clearFieldError('description'); }}
                     placeholder="Describe your request in detail. Be clear and specific about what you need approval for..."
                     modules={{
                       toolbar: [
@@ -1783,7 +1772,7 @@ export default function NewNotePage() {
                           {approvalPeriod === 'recurring' && (
                             <select
                               value={recurringFrequency}
-                              onChange={(e) => setRecurringFrequency(e.target.value)}
+                              onChange={(e) => { setRecurringFrequency(e.target.value); clearFieldError('recurringFrequency'); }}
                               className="flex-1 px-3 py-2.5 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200"
                             >
                               <option value="">Select frequency</option>
@@ -1805,12 +1794,12 @@ export default function NewNotePage() {
                       <div className="flex flex-col gap-2">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'yes' ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
-                          <input type="radio" name="policyCompliance" checked={policyCompliance === 'yes'} onChange={() => setPolicyCompliance('yes')} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
+                          <input type="radio" name="policyCompliance" checked={policyCompliance === 'yes'} onChange={() => { setPolicyCompliance('yes'); clearFieldError('policyCompliance'); }} className="w-4 h-4 text-emerald-600 focus:ring-emerald-500" />
                           <span className="text-sm font-medium">Yes, complies</span>
                         </label>
                         <label className={`flex items-center gap-2 p-2.5 border rounded-md cursor-pointer transition-colors ${policyCompliance === 'no' ? 'border-red-400 bg-red-50/50 dark:bg-red-900/10' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                           }`}>
-                          <input type="radio" name="policyCompliance" checked={policyCompliance === 'no'} onChange={() => setPolicyCompliance('no')} className="w-4 h-4 text-red-600 focus:ring-red-500" />
+                          <input type="radio" name="policyCompliance" checked={policyCompliance === 'no'} onChange={() => { setPolicyCompliance('no'); clearFieldError('policyCompliance'); }} className="w-4 h-4 text-red-600 focus:ring-red-500" />
                           <span className="text-sm font-medium">No</span>
                         </label>
                       </div>
@@ -1827,12 +1816,12 @@ export default function NewNotePage() {
                       <div className="flex flex-col sm:flex-row gap-3 flex-1 sm:items-center">
                         <label className={`flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer transition-all duration-200 flex-1 ${!amountRequired ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                           }`}>
-                          <input type="radio" name="amountReq" checked={!amountRequired} onChange={() => setAmountRequired(false)} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                          <input type="radio" name="amountReq" checked={!amountRequired} onChange={() => { setAmountRequired(false); clearFieldError('amount'); }} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                           <span className="text-sm font-medium">No amount</span>
                         </label>
                         <label className={`flex items-center gap-2 p-2.5 border rounded-xl cursor-pointer transition-all duration-200 flex-1 ${amountRequired ? 'border-[#6497b1] bg-[#b3cde0]/10 dark:bg-[#005b96]/10' : 'border-[#b3cde0]/40 dark:border-gray-600 hover:border-[#6497b1]'
                           }`}>
-                          <input type="radio" name="amountReq" checked={amountRequired} onChange={() => setAmountRequired(true)} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
+                          <input type="radio" name="amountReq" checked={amountRequired} onChange={() => { setAmountRequired(true); clearFieldError('amount'); }} className="w-4 h-4 text-[#005b96] focus:ring-[#005b96]/40" />
                           <span className="text-sm font-medium">Amount required</span>
                         </label>
                         {amountRequired && (
@@ -1849,6 +1838,7 @@ export default function NewNotePage() {
                                 // Only accept integers (no decimals)
                                 if (val === '' || /^\d+$/.test(val)) {
                                   setAmount(val);
+                                  clearFieldError('amount');
                                 }
                               }}
                               className={`w-full pl-8 pr-3 py-2.5 text-sm border rounded-xl bg-white dark:bg-gray-700 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${fieldErrors.amount ? 'border-red-500 ring-1 ring-red-500' : 'border-[#b3cde0]/50 dark:border-gray-600'}`}
@@ -2020,30 +2010,29 @@ export default function NewNotePage() {
                 <button
                   type="button"
                   onClick={() => handleSubmit(false)}
-                  disabled={submitting}
+                  disabled={!!actionInProgress}
                   className="px-5 py-2.5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
                 >
-                  {submitting ? <LoadingSpinner size="sm" /> : <Send className="w-4 h-4" />}
+                  {actionInProgress === 'submit' ? <LoadingSpinner size="sm" /> : <Send className="w-4 h-4" />}
                   {isRevertedNote ? 'Send for Reapproval' : 'Send for Approval'}
                 </button>
                 <button
                   type="button"
                   onClick={() => handleSubmit(true)}
-                  disabled={submitting}
+                  disabled={!!actionInProgress}
                   className="px-5 py-2.5 border border-[#b3cde0]/50 dark:border-gray-600 text-[#03396c] dark:text-gray-300 text-sm font-medium rounded-xl hover:bg-white dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200"
                 >
-                  {submitting && <LoadingSpinner size="sm" />}
-                  <Save className="w-4 h-4" />
+                  {actionInProgress === 'draft' ? <LoadingSpinner size="sm" /> : <Save className="w-4 h-4" />}
                   Save as Draft
                 </button>
                 {!isRevertedNote && (draftId || category || subcategory || description.trim() || points.some((p) => p.trim())) && (
                   <button
                     type="button"
                     onClick={handleDiscardDraft}
-                    disabled={submitting}
+                    disabled={!!actionInProgress}
                     className="ml-auto px-4 py-2.5 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {actionInProgress === 'discard' ? <LoadingSpinner size="sm" /> : <Trash2 className="w-4 h-4" />}
                     Discard Draft
                   </button>
                 )}

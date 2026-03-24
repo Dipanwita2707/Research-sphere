@@ -45,6 +45,8 @@ const couponRoutes = require('./coupon.routes');
 const bulkEmailRoutes = require('./bulkEmail.routes');
 const certificateRoutes = require('./certificate.routes');
 const settingsRoutes = require('./settings.routes');
+const roundRoutes = require('./round.routes');
+const { requireEventStatisticsAdmin } = require('../middleware/statisticsAuth.middleware');
 
 // Rate limiter for public (unauthenticated) endpoints to prevent abuse
 const publicEndpointLimiter = rateLimit({
@@ -189,7 +191,7 @@ router.post('/:id/publish', validateEventId, checkPermission('event_publish', { 
 router.post('/:id/register', validateEventId, eventController.registerForEvent);
 
 // Get event statistics
-router.get('/:id/statistics', validateEventId, checkAnyPermission(['event_view_reports', 'event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }), eventController.getEventStatistics);
+router.get('/:id/statistics', validateEventId, requireEventStatisticsAdmin, eventController.getEventStatistics);
 
 // Registration filter options
 router.get('/:id/registrations/filter-options', validateEventId, eventManagePerm, eventController.getRegistrationFilterOptions);
@@ -250,5 +252,6 @@ router.use(couponRoutes);
 router.use(bulkEmailRoutes);
 router.use(certificateRoutes);
 router.use(settingsRoutes);
+router.use(roundRoutes);
 
 module.exports = router;
