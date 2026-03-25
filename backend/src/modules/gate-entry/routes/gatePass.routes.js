@@ -163,6 +163,13 @@ router.post('/record-exit/:passId', canVerifyPass, gatePassController.recordExit
 router.post('/cancel/:passId', canCancelPass, gatePassController.cancelPass);
 
 /**
+ * @route POST /api/v1/gate-entry/resend-notification/:passId
+ * @desc Resend pass notification email to visitor
+ * @access Private (Creator/Admin)
+ */
+router.post('/resend-notification/:passId', checkGateEntryAccess(), gatePassController.resendNotification);
+
+/**
  * @route POST /api/v1/gate-entry/extend-pass/:passId/check
  * @desc Check extension options for guest house booking (same room/alternate room)
  * @access Private (Creator or Admin only)
@@ -224,6 +231,27 @@ router.post('/bookings/:bookingId/confirm-payment', checkGateEntryAccess(), gate
  * @access Private (Creator or Admin)
  */
 router.get('/bookings/:passId', checkGateEntryAccess(), gatePassController.getBookingByPass);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/room-cancel-request
+ * @desc Request room cancellation (student/creator)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/room-cancel-request', checkGateEntryAccess(), gatePassController.requestRoomCancellation);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/approve-room-cancel
+ * @desc Approve room cancellation request (admin only enforced in service)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/approve-room-cancel', checkGateEntryAccess(), gatePassController.approveRoomCancellation);
+
+/**
+ * @route POST /api/v1/gate-entry/bookings/:bookingId/reject-room-cancel
+ * @desc Reject room cancellation request (admin only enforced in service)
+ * @access Private
+ */
+router.post('/bookings/:bookingId/reject-room-cancel', checkGateEntryAccess(), gatePassController.rejectRoomCancellation);
 
 /**
  * @route POST /api/v1/gate-entry/bookings/:bookingId/early-checkin
@@ -301,5 +329,12 @@ router.get('/refunds', gatePassController.getAllRefunds);
  * @access Private (Creator or Admin)
  */
 router.get('/refunds/:bookingId', gatePassController.getRefundByBooking);
+
+/**
+ * @route POST /api/v1/gate-entry/debug/checkout-automation
+ * @desc Manually trigger checkout reminder and penalty jobs (admin only)
+ * @access Private (Admin only)
+ */
+router.post('/debug/checkout-automation', canViewAnalytics, gatePassController.runCheckoutAutomationNow);
 
 module.exports = router;

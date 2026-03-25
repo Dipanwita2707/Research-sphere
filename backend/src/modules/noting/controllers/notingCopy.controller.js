@@ -703,6 +703,11 @@ const getCopies = asyncHandler(async (req, res) => {
  */
 const getMyCopies = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+  const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
+  const category = typeof req.query.category === "string" ? req.query.category.trim() : "";
+  const startDate = typeof req.query.startDate === "string" ? req.query.startDate.trim() : "";
+  const endDate = typeof req.query.endDate === "string" ? req.query.endDate.trim() : "";
 
   // Support optional pagination (default: paginated with limit 20)
   const rawPage = parseInt(req.query.page);
@@ -719,9 +724,48 @@ const getMyCopies = asyncHandler(async (req, res) => {
     : 50; // Default cap even for "all" — prevents unbounded loads
   const skip = usePagination ? (page - 1) * limit : undefined;
 
+  const where = { assignedToId: userId };
+
+  if (status) {
+    where.status = status;
+  }
+
+  if (category) {
+    where.note = {
+      ...(where.note || {}),
+      category,
+    };
+  }
+
+  if (search) {
+    where.OR = [
+      { note: { notingId: { contains: search, mode: "insensitive" } } },
+      { note: { description: { contains: search, mode: "insensitive" } } },
+      { sentBy: { uid: { contains: search, mode: "insensitive" } } },
+      {
+        sentBy: {
+          employeeDetails: {
+            displayName: { contains: search, mode: "insensitive" },
+          },
+        },
+      },
+    ];
+  }
+
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = new Date(startDate);
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      where.createdAt.lte = end;
+    }
+  }
+
   // ── PERF: Cache my-copies per-user for 30s ─────────────────────────────
   const pagKey = useCursorPag ? `c:${cursorParam}:${limit}` : `${page || "all"}:${limit || "all"}`;
-  const copiesCacheKey = `noting:mycopies:${userId}:${pagKey}`;
+  const filterKey = JSON.stringify({ search, status, category, startDate, endDate });
+  const copiesCacheKey = `noting:mycopies:${userId}:${pagKey}:${filterKey}`;
   const cachedCopies = await cache.get(copiesCacheKey);
   if (cachedCopies) {
     return ApiResponse.success(res, cachedCopies, "My copies fetched successfully");
@@ -746,7 +790,7 @@ const getMyCopies = asyncHandler(async (req, res) => {
 
   const [copies, totalCount, managerId] = await Promise.all([
     prisma.noteCopy.findMany({
-      where: { assignedToId: userId },
+      where,
       ...paginationArgs,
       relationLoadStrategy: "join",
       select: {
@@ -818,7 +862,7 @@ const getMyCopies = asyncHandler(async (req, res) => {
     }),
     // Count only when using offset pagination (cursor doesn't need total)
     usePagination
-      ? prisma.noteCopy.count({ where: { assignedToId: userId } })
+      ? prisma.noteCopy.count({ where })
       : null,
     // Manager ID lookup (tiny indexed query)
     prisma.reportingStructure

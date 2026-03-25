@@ -85,7 +85,13 @@ export interface GatePass {
     requestedCheckinTime?: string;
     checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
     checkinRequestRejectReason?: string;
+    roomCancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    roomCancelRequestReason?: string;
+    roomCancelRequestRejectReason?: string;
+    roomCancelRequestedAt?: string;
+    roomCancelReviewedAt?: string;
   };
+  hostelBookings?: HostelBooking[];
   numberOfPersons?: number;
   specialInstructions?: string;
   itemsCarrying?: string;
@@ -213,6 +219,11 @@ export interface HostelBooking {
   checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
   checkinRequestRejectReason?: string;
   checkinRequestReviewedAt?: string;
+  roomCancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+  roomCancelRequestReason?: string;
+  roomCancelRequestRejectReason?: string;
+  roomCancelRequestedAt?: string;
+  roomCancelReviewedAt?: string;
 }
 
 export interface ExtendPassOptions {
@@ -309,6 +320,8 @@ function transformBooking(booking: any): HostelBooking {
     paymentStatus: booking.payment_status || booking.paymentStatus,
     paymentQrCode: booking.payment_qr_code || booking.paymentQrCode,
     paymentReference: booking.payment_reference || booking.paymentReference,
+    hostelName: booking.hostel_name || booking.hostelName || booking.room?.hostel?.name,
+    roomNumber: booking.room_number || booking.roomNumber || booking.room?.room_number,
     hostel: booking.room?.hostel ? transformHostel(booking.room.hostel) : (booking.hostel ? transformHostel(booking.hostel) : undefined),
     room: booking.room ? transformRoom(booking.room) : undefined,
     createdAt: booking.created_at || booking.createdAt,
@@ -318,6 +331,11 @@ function transformBooking(booking: any): HostelBooking {
     checkinRequestStatus: booking.checkin_request_status || booking.checkinRequestStatus || null,
     checkinRequestRejectReason: booking.checkin_request_reject_reason || booking.checkinRequestRejectReason,
     checkinRequestReviewedAt: booking.checkin_request_reviewed_at || booking.checkinRequestReviewedAt,
+    roomCancelRequestStatus: booking.room_cancel_request_status || booking.roomCancelRequestStatus || null,
+    roomCancelRequestReason: booking.room_cancel_request_reason || booking.roomCancelRequestReason,
+    roomCancelRequestRejectReason: booking.room_cancel_request_reject_reason || booking.roomCancelRequestRejectReason,
+    roomCancelRequestedAt: booking.room_cancel_request_requested_at || booking.roomCancelRequestedAt,
+    roomCancelReviewedAt: booking.room_cancel_request_reviewed_at || booking.roomCancelReviewedAt,
   };
 }
 
@@ -326,9 +344,13 @@ function transformPass(pass: any): GatePass {
   // Extract creator info from the relation
   const creatorData = pass.user_login_gate_pass_created_by_idTouser_login;
   const creatorName = creatorData?.employeeDetails?.displayName || creatorData?.uid || 'Unknown';
-7
+
   // Extract hostel booking details if available
-  const hostelBooking = pass.hostel_booking;
+  const hostelBookingsRaw = pass.hostelBookings || pass.hostel_bookings || [];
+  const hostelBookings = Array.isArray(hostelBookingsRaw)
+    ? hostelBookingsRaw.map((booking: any) => transformBooking(booking))
+    : [];
+  const hostelBooking = pass.hostel_booking || (hostelBookings.length > 0 ? hostelBookings[0] : null);
   const hostelName = hostelBooking?.room?.hostel?.name || pass.hostel_name || null;
   const roomNumber = hostelBooking?.room?.room_number || pass.room_number || null;
   const checkInDate = hostelBooking?.check_in_datetime || hostelBooking?.check_in_date || pass.check_in_date || null;
@@ -377,7 +399,13 @@ function transformPass(pass: any): GatePass {
       requestedCheckinTime: hostelBooking.requested_checkin_time || hostelBooking.requestedCheckinTime,
       checkinRequestStatus: hostelBooking.checkin_request_status || hostelBooking.checkinRequestStatus || null,
       checkinRequestRejectReason: hostelBooking.checkin_request_reject_reason || hostelBooking.checkinRequestRejectReason,
+      roomCancelRequestStatus: hostelBooking.room_cancel_request_status || hostelBooking.roomCancelRequestStatus || null,
+      roomCancelRequestReason: hostelBooking.room_cancel_request_reason || hostelBooking.roomCancelRequestReason,
+      roomCancelRequestRejectReason: hostelBooking.room_cancel_request_reject_reason || hostelBooking.roomCancelRequestRejectReason,
+      roomCancelRequestedAt: hostelBooking.room_cancel_request_requested_at || hostelBooking.roomCancelRequestedAt,
+      roomCancelReviewedAt: hostelBooking.room_cancel_request_reviewed_at || hostelBooking.roomCancelReviewedAt,
     } : undefined,
+    hostelBookings,
     numberOfPersons: pass.number_of_persons,
     specialInstructions: pass.special_instructions,
     itemsCarrying: pass.items_carrying,
@@ -557,6 +585,18 @@ class GateEntryService {
   }
 
   /**
+   * Resend pass notification email
+   */
+  async resendNotification(passId: string): Promise<{ success: boolean; message: string; data?: { passId: string; email: string } }> {
+    const response = await api.post<any>(`/gate-entry/resend-notification/${passId}`);
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      data: response.data.data
+    };
+  }
+
+  /**
    * Extend pass (modify entry time and date)
    */
   async extendPass(passId: string, newEndDate: string, extensionReason: string): Promise<{ success: boolean; pass: GatePass; message: string }> {
@@ -727,6 +767,54 @@ class GateEntryService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Submit room cancellation request
+   */
+  async requestRoomCancellation(bookingId: string, reason: string): Promise<{ success: boolean; booking: HostelBooking; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/bookings/${bookingId}/room-cancel-request`,
+      { reason }
+    );
+    const rawBooking = response.data?.data?.booking;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      booking: rawBooking ? transformBooking(rawBooking) : null as any
+    };
+  }
+
+  /**
+   * Approve room cancellation request (admin)
+   */
+  async approveRoomCancellationRequest(bookingId: string): Promise<{ success: boolean; booking: HostelBooking; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/bookings/${bookingId}/approve-room-cancel`,
+      {}
+    );
+    const rawBooking = response.data?.data?.booking;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      booking: rawBooking ? transformBooking(rawBooking) : null as any
+    };
+  }
+
+  /**
+   * Reject room cancellation request (admin)
+   */
+  async rejectRoomCancellationRequest(bookingId: string, reason: string): Promise<{ success: boolean; booking: HostelBooking; message: string }> {
+    const response = await api.post<any>(
+      `/gate-entry/bookings/${bookingId}/reject-room-cancel`,
+      { reason }
+    );
+    const rawBooking = response.data?.data?.booking;
+    return {
+      success: response.data.success,
+      message: response.data.message,
+      booking: rawBooking ? transformBooking(rawBooking) : null as any
+    };
   }
 
   /**

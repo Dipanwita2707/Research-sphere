@@ -2,16 +2,16 @@ import React from 'react';
 
 // Base Shimmer Animation
 export const Shimmer = ({ className = "" }: { className?: string }) => (
-  <div className={`animate-pulse bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 bg-[length:200%_100%] ${className}`} 
+  <div className={`animate-pulse bg-gradient-to-r from-[#dbe7f3] via-[#b3cde0] to-[#dbe7f3] bg-[length:200%_100%] ${className}`} 
        style={{ animation: 'shimmer 1.5s infinite' }} />
 );
 
 // Analytics Page Shimmer
 export const AnalyticsShimmer = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+  <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8">
     <div className="max-w-[1800px] mx-auto space-y-6">
       {/* Header Shimmer */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8">
+      <div className="bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] rounded-2xl border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] p-6 md:p-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
             <Shimmer className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-white/20" />
@@ -25,7 +25,7 @@ export const AnalyticsShimmer = () => (
       </div>
 
       {/* Filter Section Shimmer */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-5 md:p-6">
+      <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-5 md:p-6">
         <div className="flex items-center gap-3 mb-5">
           <Shimmer className="w-10 h-10 rounded-xl" />
           <Shimmer className="h-6 w-48 rounded" />
@@ -47,7 +47,7 @@ export const AnalyticsShimmer = () => (
       {/* Stats Cards Shimmer */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4">
+          <div key={i} className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-4">
             <div className="flex items-center gap-3">
               <Shimmer className="w-10 h-10 rounded-xl" />
               <div className="flex-1 space-y-2">
@@ -61,18 +61,18 @@ export const AnalyticsShimmer = () => (
 
       {/* Charts Shimmer */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-4">
           <Shimmer className="h-6 w-48 rounded" />
           <Shimmer className="h-[300px] w-full rounded" />
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-4">
           <Shimmer className="h-6 w-48 rounded" />
           <Shimmer className="h-[300px] w-full rounded" />
         </div>
       </div>
 
       {/* Tables Shimmer */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-4">
         <Shimmer className="h-6 w-40 rounded" />
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
@@ -86,10 +86,10 @@ export const AnalyticsShimmer = () => (
 
 // Verify Pass Shimmer
 export const VerifyPassShimmer = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+  <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8">
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-xl p-6 md:p-8">
+      <div className="bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] rounded-2xl border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] p-6 md:p-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
             <Shimmer className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-white/20" />
@@ -103,7 +103,7 @@ export const VerifyPassShimmer = () => (
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-2">
+      <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-2">
         <div className="flex gap-2">
           <Shimmer className="h-12 flex-1 rounded-xl" />
           <Shimmer className="h-12 flex-1 rounded-xl" />
@@ -111,14 +111,14 @@ export const VerifyPassShimmer = () => (
       </div>
 
       {/* Search/Scan Area */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-4">
         <Shimmer className="h-6 w-48 rounded" />
         <Shimmer className="h-12 w-full rounded-xl" />
         <Shimmer className="h-12 w-32 rounded-xl" />
       </div>
 
       {/* Result Card Placeholder */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 space-y-6">
+      <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-6">
         <div className="space-y-3">
           <Shimmer className="h-6 w-40 rounded" />
           <Shimmer className="h-4 w-full rounded" />
@@ -140,10 +140,10 @@ export const VerifyPassShimmer = () => (
 
 // Create Pass Shimmer
 export const CreatePassShimmer = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+  <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8">
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-xl p-6 md:p-8">
+      <div className="bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] rounded-2xl border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] p-6 md:p-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
             <Shimmer className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-white/20" />
@@ -158,7 +158,7 @@ export const CreatePassShimmer = () => (
 
       {/* Form Sections */}
       {[...Array(3)].map((_, sectionIdx) => (
-        <div key={sectionIdx} className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 space-y-4">
+        <div key={sectionIdx} className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-4">
           <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
             <Shimmer className="w-8 h-8 rounded-xl" />
             <Shimmer className="h-6 w-48 rounded" />
@@ -185,10 +185,10 @@ export const CreatePassShimmer = () => (
 
 // Dashboard/Main Page Shimmer
 export const DashboardShimmer = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+  <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8">
     <div className="max-w-[1800px] mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-xl p-6 md:p-8">
+      <div className="bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] rounded-2xl border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] p-6 md:p-8">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">
             <Shimmer className="w-12 h-12 md:w-14 md:h-14 rounded-xl bg-white/20" />
@@ -204,7 +204,7 @@ export const DashboardShimmer = () => (
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6">
+          <div key={i} className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6">
             <div className="flex items-center gap-4">
               <Shimmer className="w-14 h-14 rounded-xl" />
               <div className="flex-1 space-y-2">
@@ -219,7 +219,7 @@ export const DashboardShimmer = () => (
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 space-y-4">
+          <div key={i} className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-4">
             <div className="flex items-center gap-3">
               <Shimmer className="w-12 h-12 rounded-xl" />
               <div className="flex-1 space-y-2">
@@ -233,7 +233,7 @@ export const DashboardShimmer = () => (
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 space-y-4">
+      <div className="bg-white rounded-2xl shadow-[0_10px_24px_rgba(3,57,108,0.12)] border border-[#6497b1] p-6 space-y-4">
         <div className="flex items-center justify-between">
           <Shimmer className="h-6 w-48 rounded" />
           <Shimmer className="h-8 w-24 rounded-lg" />
@@ -257,7 +257,7 @@ export const DashboardShimmer = () => (
 
 // Generic Loading Shimmer (fallback)
 export const GenericShimmer = () => (
-  <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+  <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8">
     <div className="max-w-7xl mx-auto space-y-6">
       <Shimmer className="h-32 w-full rounded-2xl" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -638,18 +638,14 @@ const getDefaultPermissions = (role) => {
       dsw_view_club: true, // Students can view clubs
       // Event Permissions
       event_manage_own: true,     // Students can manage events they create (via club)
-      // TMS Permissions
       tms_submit_ticket: true,    // Students can submit tickets
       tms_view_own_tickets: true  // Students can view their own tickets
     },
     faculty: {
       // DRD Permissions
       ipr_file_new: true, // Faculty can file IPR by default
-      research_file_new: true, // Faculty can file Research by default
-      book_file_new: true, // Faculty can file Book/Chapter by default
-      conference_file_new: true, // Faculty can file Conference by default
-      // DSW Permissions
-      dsw_create_club_noting: true, // Faculty can initiate club creation
+      // Admin does NOT get noting analytics/approval or IPR/Research filing by default
+      // These require explicit permission assignment
       dsw_view_club: true, // Faculty can view clubs
       dsw_request_club_change: true, // Faculty facilitators can request changes
       // Noting Permissions - Faculty can create notings (events, curriculum, etc.)
@@ -687,13 +683,6 @@ const getDefaultPermissions = (role) => {
       dsw_suspend_club: true,
       dsw_approve_club_change: true,
       dsw_view_audit_logs: true,
-      // Noting Permissions
-      noting_view_all: true,
-      noting_approve: true,
-      noting_forward: true,
-      noting_return: true,
-      noting_reject: true,
-      noting_not_recommend: true,
       // Event Permissions
       event_view_all: true,
       event_manage_all: true,
@@ -708,6 +697,8 @@ const getDefaultPermissions = (role) => {
       drd_member_analytics: true
       // Admin does NOT get IPR/Research filing permissions by default
       // Admin manages users/permissions/analytics, NOT IPR operations
+      // Admin does NOT get noting analytics/approval or IPR/Research filing by default
+      // These require explicit permission assignment
     },
     superadmin: {
       // Superadmin gets all permissions by default

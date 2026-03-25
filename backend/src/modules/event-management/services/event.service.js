@@ -18,6 +18,12 @@ const {
   isValidUrl,
 } = require("../../../shared/utils/validators");
 const {
+  sanitizeDigits,
+  sanitizeEmail,
+  sanitizePlainText,
+  sanitizeUrl,
+} = require("../../../shared/utils/sanitize");
+const {
   ERRORS,
   EVENT_STATUS,
   REGISTRATION_STATUS,
@@ -29,7 +35,6 @@ const {
   generateEventId,
   generateRegistrationId,
   getEventById,
-  getEventLean,
   canRegisterForEvent,
   isEventVolunteer,
   isEventManager,
@@ -38,6 +43,8 @@ const {
 } = require("../utils/eventHelpers");
 const { generateQRCode } = require("../utils/qrCodeGenerator");
 const { buildVisibilityFilter, isRegistrationOpen } = require('./eventSettings.service');
+const eventAnalyticsService = require("./eventAnalytics.service");
+const eventStatisticsService = require("./eventStatistics.service");
 const crypto = require("crypto");
 const log = require("../../../shared/utils/logger");
 
@@ -47,8 +54,56 @@ async function invalidateEventCaches(eventId) {
   invalidateResolveEventCache(eventId); // bust in-memory resolveEvent cache
   await Promise.all([
     cache.del(`event:detail:${eventId}`),
+    cache.delPattern(`event:detailfull:${eventId}:*`),
     cache.del(`event:stats:${eventId}`),
+    cache.delPattern(`event:stats:*:${eventId}`),
+    cache.del(`event:regopen:${eventId}`),
+    cache.del(`event:regform:${eventId}`),
+    cache.delPattern('event:list:*'),          // bust all list caches (short TTL anyway)
+    cache.delPattern('event:managed:*'),
+    cache.delPattern(`event:canSee:${eventId}:*`), // bust visibility cache for this event
+    eventAnalyticsService.invalidateEventAnalyticsCaches(),
   ]);
+}
+
+function sanitizeEventResources(resources) {
+  if (!Array.isArray(resources)) return [];
+
+  return resources
+    .filter((resource) => resource && typeof resource === "object")
+    .map((resource) => {
+      const pricePerPiece =
+        resource.pricePerPiece != null && resource.pricePerPiece !== ""
+          ? Number(resource.pricePerPiece)
+          : undefined;
+      const quantity =
+        resource.quantity != null && resource.quantity !== ""
+          ? Number(resource.quantity)
+          : undefined;
+      const estimatedCost =
+        resource.estimatedCost != null && resource.estimatedCost !== ""
+          ? Number(resource.estimatedCost)
+          : undefined;
+
+      return {
+        category:
+          sanitizePlainText(resource.category || "internal", {
+            maxLength: 32,
+          }) || "internal",
+        type: sanitizePlainText(resource.type || "", { maxLength: 256 }),
+        description: sanitizePlainText(resource.description || "", {
+          maxLength: 2000,
+        }),
+        pricePerPiece: Number.isFinite(pricePerPiece) ? pricePerPiece : undefined,
+        quantity: Number.isFinite(quantity) ? quantity : undefined,
+        estimatedCost: Number.isFinite(estimatedCost)
+          ? estimatedCost
+          : Number.isFinite(pricePerPiece) && Number.isFinite(quantity)
+            ? pricePerPiece * quantity
+            : undefined,
+      };
+    })
+    .filter((resource) => resource.type || resource.description);
 }
 
 /**
@@ -168,7 +223,13 @@ const createEventFromNoting = async (noteId, userId) => {
               : null,
             dutyLeaveRoleType: v.eventDutyLeaveRoleType ?? null,
             hasSponsorship: v.eventHasSponsorship ?? null,
-            sponsors: Array.isArray(v.eventSponsors) ? v.eventSponsors : null,
+            sponsors: Array.isArray(v.eventSponsors)
+              ? v.eventSponsors.map(s => ({
+                  ...s,
+                  id: s.id || require('crypto').randomUUID(),
+                  originSource: s.originSource || 'noting',
+                }))
+              : null,
             hasResources: v.eventHasResources ?? null,
             resources: Array.isArray(v.eventResources) ? v.eventResources : null,
             certificateAvailable: v.eventCertification ?? false,
@@ -236,6 +297,44 @@ const createEventFromNoting = async (noteId, userId) => {
       }
     }
 
+    // ── Seed EventVisibility for all festival sub-events from noting settings ──
+    const festVs = noting.eventVisibilitySettings;
+    if (festVs && typeof festVs === "object" && createdEvents.length > 0) {
+      try {
+        const VALID_ROLES = ["student", "faculty", "staff", "admin", "parent", "superadmin"];
+        const roles = Array.isArray(festVs.visibleToRoles)
+          ? festVs.visibleToRoles.filter((r) => VALID_ROLES.includes(r))
+          : ["student", "faculty", "staff", "admin", "superadmin", "parent"];
+
+        const visibilityRows = createdEvents.map((ev) => ({
+          eventId: ev.id,
+          isActive: true,
+          visibleToRoles: roles,
+          studentFilterType: festVs.studentFilterType === "custom" ? "custom" : "all",
+          allowedSchoolIds: Array.isArray(festVs.allowedSchoolIds) ? festVs.allowedSchoolIds : [],
+          allowedDepartmentIds: Array.isArray(festVs.allowedDepartmentIds) ? festVs.allowedDepartmentIds : [],
+          allowedProgramIds: Array.isArray(festVs.allowedProgramIds) ? festVs.allowedProgramIds : [],
+          allowedBatchYears: Array.isArray(festVs.allowedBatchYears) ? festVs.allowedBatchYears : [],
+          allowedSectionIds: Array.isArray(festVs.allowedSectionIds) ? festVs.allowedSectionIds : [],
+        }));
+        await prisma.eventVisibility.createMany({ data: visibilityRows });
+
+        if (festVs.allowExtraPasses) {
+          const eventIds = createdEvents.map((ev) => ev.id);
+          await prisma.event.updateMany({
+            where: { id: { in: eventIds } },
+            data: {
+              allowExtraPasses: true,
+              maxExtraPassesPerUser: Number(festVs.maxExtraPassesPerUser) || 1,
+            },
+          });
+        }
+        log.ok(`Seeded EventVisibility from noting settings for ${createdEvents.length} festival sub-events`);
+      } catch (err) {
+        log.error(`Failed to seed EventVisibility for festival sub-events: ${err.message}`);
+      }
+    }
+
     return { isFestival: true, events: createdEvents };
   }
 
@@ -286,7 +385,13 @@ const createEventFromNoting = async (noteId, userId) => {
       dutyLeaveEligibility: noting.eventDutyLeaveEligibility ?? null,
       dutyLeaveRoleType: noting.eventDutyLeaveRoleType ?? null,
       hasSponsorship: noting.eventHasSponsorship ?? null,
-      sponsors: noting.eventSponsors ?? null,
+      sponsors: Array.isArray(noting.eventSponsors)
+        ? noting.eventSponsors.map(s => ({
+            ...s,
+            id: s.id || require('crypto').randomUUID(),
+            originSource: s.originSource || 'noting',
+          }))
+        : noting.eventSponsors ?? null,
       hasResources: noting.eventHasResources ?? null,
       resources: noting.eventResources ?? null,
       certificateAvailable: noting.eventCertification ?? false,
@@ -363,6 +468,44 @@ const createEventFromNoting = async (noteId, userId) => {
     }
   }
 
+  // ── Seed EventVisibility from noting's event settings ────────────────────
+  const vs = noting.eventVisibilitySettings;
+  if (vs && typeof vs === "object") {
+    try {
+      const VALID_ROLES = ["student", "faculty", "staff", "admin", "parent", "superadmin"];
+      const roles = Array.isArray(vs.visibleToRoles)
+        ? vs.visibleToRoles.filter((r) => VALID_ROLES.includes(r))
+        : ["student", "faculty", "staff", "admin", "superadmin", "parent"];
+
+      await prisma.eventVisibility.create({
+        data: {
+          eventId: event.id,
+          isActive: true,
+          visibleToRoles: roles,
+          studentFilterType: vs.studentFilterType === "custom" ? "custom" : "all",
+          allowedSchoolIds: Array.isArray(vs.allowedSchoolIds) ? vs.allowedSchoolIds : [],
+          allowedDepartmentIds: Array.isArray(vs.allowedDepartmentIds) ? vs.allowedDepartmentIds : [],
+          allowedProgramIds: Array.isArray(vs.allowedProgramIds) ? vs.allowedProgramIds : [],
+          allowedBatchYears: Array.isArray(vs.allowedBatchYears) ? vs.allowedBatchYears : [],
+          allowedSectionIds: Array.isArray(vs.allowedSectionIds) ? vs.allowedSectionIds : [],
+        },
+      });
+      // Set extra pass fields on event
+      if (vs.allowExtraPasses) {
+        await prisma.event.update({
+          where: { id: event.id },
+          data: {
+            allowExtraPasses: true,
+            maxExtraPassesPerUser: Number(vs.maxExtraPassesPerUser) || 1,
+          },
+        });
+      }
+      log.ok(`Seeded EventVisibility from noting settings for event ${event.eventId}`);
+    } catch (err) {
+      log.error(`Failed to seed EventVisibility from noting: ${err.message}`);
+    }
+  }
+
   return { isFestival: false, event };
 };
 
@@ -371,95 +514,86 @@ const createEventFromNoting = async (noteId, userId) => {
  * Caches the event base data per eventId (user-specific data always fetched fresh).
  */
 const getEventDetails = async (eventId, userId) => {
-  // Try cache for event base data
+  const detailCacheKey = `event:detailfull:${eventId}:${userId}`;
+  // User-specific keys
+  const regCountKey = `event:regcount:${eventId}`;
+  const userRegKey = `event:userreg:${eventId}:${userId}`;
   const cacheKey = `event:detail:${eventId}`;
-  let event = await cache.get(cacheKey);
 
-  if (!event) {
-    // Cache miss — fetch from DB and cache
-    event = await getEventById(prisma, eventId, {
-      EventVolunteer: {
-        take: 20,
-        include: {
-          user_login: {
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              employeeDetails: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                },
-              },
-              studentLogin: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  displayName: true,
-                },
+  const { data: detail } = await cache.getOrSet(detailCacheKey, async () => {
+    // Fetch all detail parts in parallel so first-hit latency is not split into phases.
+    const [{ data: event }, { data: currentRegistrations }, { data: cachedUserRegistration }] =
+      await Promise.all([
+        cache.getOrSet(cacheKey, async () => {
+          return await getEventById(prisma, eventId, {
+            EventCustomField: {
+              where: { isActive: true },
+              orderBy: { sortOrder: "asc" },
+              select: {
+                id: true,
+                fieldName: true,
+                fieldLabel: true,
+                fieldType: true,
+                isRequired: true,
+                placeholder: true,
+                helpText: true,
+                options: true,
+                sortOrder: true,
               },
             },
-          },
-        },
-      },
-      EventCustomField: {
-        where: { isActive: true },
-        orderBy: { sortOrder: "asc" },
-        select: {
-          id: true,
-          fieldName: true,
-          fieldLabel: true,
-          fieldType: true,
-          isRequired: true,
-          placeholder: true,
-          helpText: true,
-          options: true,
-          sortOrder: true,
-        },
-      },
-      EventPrize: {
-        where: { isActive: true },
-        orderBy: [{ sortOrder: "asc" }, { position: "asc" }],
-        select: {
-          id: true,
-          position: true,
-          rank: true,
-          title: true,
-          description: true,
-          prizeType: true,
-          prizeAmount: true,
-          additionalPerks: true,
-          sortOrder: true,
-        },
-      },
-    });
-    // Cache event base data (2 min TTL)
-    await cache.set(cacheKey, event, 120);
-  }
+            EventPrize: {
+              where: { isActive: true },
+              orderBy: [{ sortOrder: "asc" }, { position: "asc" }],
+              select: {
+                id: true,
+                position: true,
+                rank: true,
+                title: true,
+                description: true,
+                prizeType: true,
+                prizeAmount: true,
+                additionalPerks: true,
+                sortOrder: true,
+              },
+            },
+            EventRound: {
+              where: { isActive: true },
+              orderBy: [{ sortOrder: "asc" }, { startTime: "asc" }],
+            },
+          });
+        }, 300),
+        cache.getOrSet(regCountKey, async () => {
+          return await prisma.eventRegistration.count({
+            where: { eventId, status: "confirmed" },
+          });
+        }, 120),
+        cache.getOrSet(userRegKey, async () => {
+          const reg = await prisma.eventRegistration.findFirst({
+            where: { eventId, userId },
+            select: {
+              id: true,
+              registrationId: true,
+              qrCode: true,
+              status: true,
+              hasEntered: true,
+              registeredAt: true,
+            },
+          });
+          return reg || false;
+        }, 300),
+      ]);
 
-  // User-specific data always fetched fresh (not cached)
-  const [currentRegistrations, userRegistration] = await Promise.all([
-    prisma.eventRegistration.count({
-      where: { eventId, status: "confirmed" },
-    }),
-    prisma.eventRegistration.findFirst({
-      where: { eventId, userId },
-      select: {
-        id: true,
-        registrationId: true,
-        qrCode: true,
-        status: true,
-        hasEntered: true,
-        registeredAt: true,
-      },
-    }),
-  ]);
+    const userRegistration = cachedUserRegistration === false ? null : cachedUserRegistration;
 
-  event.currentRegistrations = currentRegistrations;
-  event.userRegistration = userRegistration;
-  return event;
+    // Return a new object to avoid mutating shared cache references.
+    return {
+      ...event,
+      currentRegistrations,
+      userRegistration,
+    };
+  }, 180);
+
+  return detail;
 };
 
 /**
@@ -659,7 +793,8 @@ const updateEvent = async (eventId, userId, updateData) => {
     "isPaid",
     "notingId",
   ];
-  // When event is from noting, also lock: fee fields, sponsorship, duty leave, resources. Capacity (approxCapacity) stays editable.
+  // When event is from noting, also lock: fee fields, duty leave, resources. Capacity (approxCapacity) stays editable.
+  // Sponsors are NOT fully locked — fulfillment-only updates are allowed (handled separately below).
   if (event.notingId) {
     lockedFields.push(
       "registrationFee",
@@ -668,7 +803,6 @@ const updateEvent = async (eventId, userId, updateData) => {
       "dutyLeaveEligibility",
       "dutyLeaveRoleType",
       "hasSponsorship",
-      "sponsors",
       "hasResources",
       "resources",
       "certificateAvailable",
@@ -721,8 +855,78 @@ const updateEvent = async (eventId, userId, updateData) => {
   }
 
   // Sanitize HTML in longDescription to prevent XSS
+  if (updateData.description !== undefined) {
+    updateData.description = sanitizePlainText(updateData.description || "", {
+      maxLength: LIMITS.MAX_DESCRIPTION_LENGTH,
+    });
+  }
   if (updateData.longDescription !== undefined) {
     updateData.longDescription = sanitizeHtml(updateData.longDescription || "");
+  }
+  if (updateData.venue !== undefined) {
+    updateData.venue = sanitizePlainText(updateData.venue || "", {
+      maxLength: LIMITS.MAX_VENUE_LENGTH,
+    });
+  }
+  if (updateData.contactPersonName !== undefined) {
+    updateData.contactPersonName = sanitizePlainText(
+      updateData.contactPersonName || "",
+      { maxLength: LIMITS.MAX_CONTACT_NAME_LENGTH || 256 },
+    );
+  }
+  if (updateData.contactEmail !== undefined) {
+    updateData.contactEmail = sanitizeEmail(updateData.contactEmail || "");
+  }
+  if (updateData.contactMobile !== undefined) {
+    updateData.contactMobile = sanitizeDigits(updateData.contactMobile || "", {
+      maxLength: 10,
+    });
+  }
+  if (updateData.alternateContact !== undefined) {
+    updateData.alternateContact = sanitizePlainText(
+      updateData.alternateContact || "",
+      { maxLength: 32 },
+    );
+  }
+  if (updateData.websiteUrl !== undefined) {
+    updateData.websiteUrl = sanitizeUrl(updateData.websiteUrl || "");
+  }
+  if (updateData.eligibilityCriteria !== undefined) {
+    updateData.eligibilityCriteria = sanitizePlainText(
+      updateData.eligibilityCriteria || "",
+      { maxLength: 10000 },
+    );
+  }
+  if (updateData.rulesAndGuidelines !== undefined) {
+    updateData.rulesAndGuidelines = sanitizePlainText(
+      updateData.rulesAndGuidelines || "",
+      { maxLength: 20000 },
+    );
+  }
+  if (updateData.prizeDetails !== undefined) {
+    updateData.prizeDetails = sanitizePlainText(updateData.prizeDetails || "", {
+      maxLength: 10000,
+    });
+  }
+  if (updateData.faqs !== undefined && Array.isArray(updateData.faqs)) {
+    updateData.faqs = updateData.faqs
+      .map((faq) => ({
+        question: sanitizePlainText(faq?.question || "", { maxLength: 500 }),
+        answer: sanitizePlainText(faq?.answer || "", { maxLength: 2000 }),
+      }))
+      .filter((faq) => faq.question && faq.answer);
+  }
+  if (
+    updateData.socialMediaLinks !== undefined &&
+    updateData.socialMediaLinks &&
+    typeof updateData.socialMediaLinks === "object"
+  ) {
+    updateData.socialMediaLinks = Object.fromEntries(
+      Object.entries(updateData.socialMediaLinks)
+        .filter(([, value]) => value)
+        .map(([key, value]) => [key, sanitizeUrl(value)])
+        .filter(([, value]) => value),
+    );
   }
 
   // Sanitize sponsors (Cash: amount, In-kind: notes/description)
@@ -731,6 +935,100 @@ const updateEvent = async (eventId, userId, updateData) => {
       updateData.hasSponsorship === false
         ? null
         : sanitizeSponsors(updateData.sponsors || []);
+  }
+  if (updateData.resources !== undefined) {
+    updateData.resources =
+      updateData.hasResources === false
+        ? null
+        : sanitizeEventResources(updateData.resources || []);
+  }
+
+  // ── Sponsor field-level enforcement for noting-origin sponsors ──
+  // For noting-backed events: noting-origin sponsors can only have fulfillment fields updated.
+  // Base fields (name, type, contact, contribution type, etc.) are preserved from the existing data.
+  const sponsorHistoryEntries = [];
+  if (event.notingId && updateData.sponsors && Array.isArray(updateData.sponsors)) {
+    const existingSponsors = Array.isArray(event.sponsors) ? event.sponsors : [];
+    const existingById = {};
+    for (const s of existingSponsors) {
+      if (s.id) existingById[s.id] = s;
+    }
+
+    updateData.sponsors = updateData.sponsors.map((incoming) => {
+      if (!incoming.id || !existingById[incoming.id]) return incoming; // new sponsor or no match
+      const existing = existingById[incoming.id];
+
+      // Saved (locked) sponsors are completely immutable — return existing data unchanged
+      if (existing.savedAt) {
+        return existing;
+      }
+
+      // Generate history for any fulfillment changes
+      const changes = [];
+      if (existing.paymentStatus !== incoming.paymentStatus) {
+        changes.push({ field: 'paymentStatus', from: existing.paymentStatus, to: incoming.paymentStatus });
+      }
+      if (existing.cashAmount !== incoming.cashAmount) {
+        changes.push({ field: 'cashAmount', from: existing.cashAmount, to: incoming.cashAmount });
+      }
+      if (existing.paymentMethod !== incoming.paymentMethod) {
+        changes.push({ field: 'paymentMethod', from: existing.paymentMethod, to: incoming.paymentMethod });
+      }
+      if (existing.transactionId !== incoming.transactionId) {
+        changes.push({ field: 'transactionId', from: existing.transactionId, to: incoming.transactionId });
+      }
+      // In-kind delivery status changes
+      if (Array.isArray(incoming.inKindItems) && Array.isArray(existing.inKindItems)) {
+        for (let k = 0; k < incoming.inKindItems.length && k < existing.inKindItems.length; k++) {
+          if (existing.inKindItems[k].deliveryStatus !== incoming.inKindItems[k].deliveryStatus) {
+            changes.push({ field: `inKindItems[${k}].deliveryStatus`, from: existing.inKindItems[k].deliveryStatus, to: incoming.inKindItems[k].deliveryStatus });
+          }
+        }
+      }
+
+      if (changes.length > 0) {
+        const summaryParts = changes.map(c => `${c.field}: ${c.from || 'none'} → ${c.to || 'none'}`);
+        sponsorHistoryEntries.push({
+          eventId: event.id,
+          sponsorId: incoming.id,
+          changeType: changes.some(c => c.field === 'paymentStatus' || c.field.includes('deliveryStatus')) ? 'status_change' : 'payment_update',
+          previousSnapshot: existing,
+          newSnapshot: incoming,
+          summary: summaryParts.join('; '),
+          changedById: userId,
+        });
+      }
+
+      // If noting-origin, enforce base field immutability
+      if (existing.originSource === 'noting') {
+        return {
+          ...existing,
+          // Allow fulfillment-only fields to be updated
+          cashAmount: incoming.cashAmount !== undefined ? incoming.cashAmount : existing.cashAmount,
+          paymentStatus: incoming.paymentStatus || existing.paymentStatus,
+          paymentMethod: incoming.paymentMethod,
+          paymentMethodOtherLabel: incoming.paymentMethodOtherLabel,
+          transactionId: incoming.transactionId,
+          receipt: incoming.receipt !== undefined ? incoming.receipt : existing.receipt,
+          cashAssignedTo: incoming.cashAssignedTo !== undefined ? incoming.cashAssignedTo : existing.cashAssignedTo,
+          // Preserve save/lock state from incoming
+          savedAt: incoming.savedAt || existing.savedAt,
+          originalSnapshot: incoming.originalSnapshot || existing.originalSnapshot,
+          inKindItems: incoming.inKindItems !== undefined ? incoming.inKindItems.map((item, idx) => {
+            const existingItem = existing.inKindItems && existing.inKindItems[idx];
+            if (!existingItem) return item; // new item additions are allowed
+            return {
+              ...existingItem,
+              // Allow fulfillment fields only
+              deliveryStatus: item.deliveryStatus || existingItem.deliveryStatus,
+              assignedTo: item.assignedTo !== undefined ? item.assignedTo : existingItem.assignedTo,
+            };
+          }) : existing.inKindItems,
+        };
+      }
+
+      return incoming; // event-origin sponsors: fully editable
+    });
   }
 
   // Prisma rejects null for required Boolean fields - omit them so existing value is kept
@@ -750,12 +1048,15 @@ const updateEvent = async (eventId, userId, updateData) => {
     if (updateData[key] === null) delete updateData[key];
   });
 
-  // Validate merged event data (existing + updates) has all required fields
+  // Validate merged event data only when event is already published (for re-saves)
+  // Draft events skip validation — it runs at publish time instead
   const merged = { ...event, ...updateData };
-  validateEventRequiredFields(merged);
+  if (event.status === 'published') {
+    validateEventRequiredFields(merged);
+  }
 
-  // Update event
-  const updatedEvent = await prisma.event.update({
+  // Update event (+ sponsor history if any)
+  const updatePayload = {
     where: { id: eventId },
     data: {
       ...updateData,
@@ -778,7 +1079,18 @@ const updateEvent = async (eventId, userId, updateData) => {
       },
       note: true,
     },
-  });
+  };
+
+  let updatedEvent;
+  if (sponsorHistoryEntries.length > 0) {
+    updatedEvent = await prisma.$transaction(async (tx) => {
+      const result = await tx.event.update(updatePayload);
+      await tx.sponsorFulfillmentHistory.createMany({ data: sponsorHistoryEntries });
+      return result;
+    });
+  } else {
+    updatedEvent = await prisma.event.update(updatePayload);
+  }
 
   await invalidateEventCaches(eventId);
   return updatedEvent;
@@ -811,6 +1123,16 @@ const publishEvent = async (eventId, userId) => {
 
   // Validate event has all required details before publishing
   validateEventRequiredFields(event);
+
+  // At least one round is required before publishing
+  const roundCount = await prisma.eventRound.count({
+    where: { eventId, isActive: true },
+  });
+  if (roundCount === 0) {
+    throw new ValidationError(
+      "Please add at least one Event Round before publishing.",
+    );
+  }
 
   // Opportunity mode must be explicitly chosen before publishing
   const VALID_OPPORTUNITY_MODES = ['online', 'offline', 'hybrid'];
@@ -857,10 +1179,60 @@ const publishEvent = async (eventId, userId) => {
   return publishedEvent;
 };
 
+const getManagedEventIds = async (userId) => {
+  const cacheKey = `event:managed:${userId}`;
+  const { data } = await cache.getOrSet(cacheKey, async () => {
+    const rows = await prisma.eventVolunteer.findMany({
+      where: { userId, role: 'event_manager' },
+      select: { eventId: true },
+    });
+    return rows.map((row) => row.eventId);
+  }, 120);
+
+  return Array.isArray(data) ? data : [];
+};
+
 /**
  * List events with filters and pagination
  */
 const listEvents = async (filters, pagination, userId) => {
+  const page = Math.max(1, parseInt(pagination.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(pagination.limit, 10) || 20));
+  const LIST_CACHE_VERSION = 'v3';
+  const {
+    status,
+    eventType,
+    search,
+    myEvents,
+    filter: specialFilter,
+    studentApply,
+  } = filters;
+
+  // ── Cache layer with stampede protection ───────────────────────────────
+  // For public list (myEvents=false), use a shared cache key based on filters + 
+  // visibility hash (same role+program → same cache). This prevents 150 separate 
+  // cache entries for 150 users with identical query results.
+  let cacheKey;
+  let visibilityFilter = null;
+  if (myEvents) {
+    cacheKey = `event:list:${LIST_CACHE_VERSION}:my:${userId}:${JSON.stringify({ page, limit, status, eventType, search })}`;
+  } else {
+    visibilityFilter = await buildVisibilityFilter(userId);
+    const visHash = crypto.createHash('md5').update(JSON.stringify(visibilityFilter)).digest('hex').slice(0, 8);
+    cacheKey = `event:list:${LIST_CACHE_VERSION}:pub:${visHash}:${JSON.stringify({ page, limit, status, eventType, search, specialFilter, studentApply })}`;
+  }
+
+  const { data: result } = await cache.getOrSet(cacheKey, async () => {
+    return await _fetchListFromDB(filters, { page, limit }, userId, visibilityFilter);
+  }, 120);
+
+  return result;
+};
+
+/**
+ * Internal: fetch event list from database (called on cache miss)
+ */
+const _fetchListFromDB = async (filters, pagination, userId, prebuiltVisibilityFilter = null) => {
   const { page = 1, limit = 20 } = pagination;
   const {
     status,
@@ -883,53 +1255,24 @@ const listEvents = async (filters, pagination, userId) => {
     status: true,
     startDate: true,
     endDate: true,
+    registrationStartDate: true,
+    registrationEndDate: true,
     venue: true,
     paymentType: true,
     registrationFee: true,
-    teamRegistrationFee: true,
     maxCapacity: true,
-    approxCapacity: true,
     createdById: true,
     createdAt: true,
-    updatedAt: true,
     description: true,
     notingId: true,
-    festivalNotingId: true,
-    festivalMeta: true,
-    hasStalls: true,
-    stallConfig: true,
     bannerImageUrl: true,
-    participationType: true,
-    capacityFixed: true,
-    prizesEnabled: true,
-    // Noting-derived fields (duty leave, sponsorship, resources)
-    dutyLeaveAvailable: true,
-    dutyLeaveEligibility: true,
-    dutyLeaveRoleType: true,
-    hasSponsorship: true,
-    sponsors: true,
-    showSponsorshipPublicly: true,
-    hasResources: true,
-    resources: true,
-    certificateAvailable: true,
     logoImageUrl: true,
-    note: {
-      select: {
-        notingId: true,
-        status: true,
-        category: true,
-        subcategory: true,
-        eventSponsors: true,
-        eventResources: true,
-        eventHasSponsorship: true,
-        eventHasResources: true,
-        eventDutyLeaveAvailable: true,
-        eventDutyLeaveEligibility: true,
-        eventDutyLeaveRoleType: true,
-        subEvents: true,
-      },
-    },
+    participationType: true,
+    hasStalls: true,
+    prizesEnabled: true,
+    certificateAvailable: true,
   };
+  const managedEventIds = await getManagedEventIds(userId);
 
   // Special stall-open filter: return events open for student stall applications
   if (specialFilter === "stall-open" || studentApply === "true") {
@@ -958,25 +1301,26 @@ const listEvents = async (filters, pagination, userId) => {
             },
           },
         },
-        skip: (parseInt(page) - 1) * parseInt(limit),
-        take: parseInt(limit),
+        skip: (page - 1) * limit,
+        take: limit,
         orderBy: { startDate: "asc" },
       }),
       prisma.event.count({ where }),
     ]);
-    return {
+    const stallResult = {
       events: events.map((e) => ({
         ...e,
         currentRegistrations: 0,
         isPaid: e.paymentType === "paid",
       })),
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
-        totalPages: Math.ceil(total / parseInt(limit)),
+        totalPages: Math.ceil(total / limit),
       },
     };
+    return stallResult;
   }
 
   const where = {};
@@ -984,11 +1328,10 @@ const listEvents = async (filters, pagination, userId) => {
   // Draft events are only visible to their creator
   // Published/Ongoing/Completed events are visible to everyone
   if (myEvents) {
-    // Show events created by user OR where user is an assigned event_manager (club chairperson)
-    where.OR = [
-      { createdById: userId },
-      { EventVolunteer: { some: { userId, role: "event_manager" } } },
-    ];
+    where.OR = [{ createdById: userId }];
+    if (managedEventIds.length > 0) {
+      where.OR.push({ id: { in: managedEventIds } });
+    }
     if (status) {
       where.status = status;
     }
@@ -996,15 +1339,17 @@ const listEvents = async (filters, pagination, userId) => {
     where.OR = [
       { status: { in: ["published", "ongoing", "completed"] } },
       { AND: [{ status: "draft" }, { createdById: userId }] },
-      { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
     ];
+    if (managedEventIds.length > 0) {
+      where.OR.push({ AND: [{ status: "draft" }, { id: { in: managedEventIds } }] });
+    }
 
     if (status) {
       if (status === "draft") {
-        where.OR = [
-          { AND: [{ status: "draft" }, { createdById: userId }] },
-          { AND: [{ status: "draft" }, { EventVolunteer: { some: { userId, role: "event_manager" } } }] },
-        ];
+        where.OR = [{ AND: [{ status: "draft" }, { createdById: userId }] }];
+        if (managedEventIds.length > 0) {
+          where.OR.push({ AND: [{ status: "draft" }, { id: { in: managedEventIds } }] });
+        }
       } else {
         where.status = status;
         delete where.OR;
@@ -1035,7 +1380,7 @@ const listEvents = async (filters, pagination, userId) => {
   // ── Visibility filter: exclude events user cannot see ─────────────────
   // Use buildVisibilityFilter to push filtering to SQL instead of loading all records into memory
   if (!myEvents) {
-    const visibilityFilter = await buildVisibilityFilter(userId);
+    const visibilityFilter = prebuiltVisibilityFilter || await buildVisibilityFilter(userId);
     // Merge visibility filter into the where clause
     if (visibilityFilter && Object.keys(visibilityFilter).length > 0) {
       where.AND = where.AND || [];
@@ -1089,7 +1434,7 @@ const listEvents = async (filters, pagination, userId) => {
     currentRegistrations: countMap.get(event.id) ?? 0,
   }));
 
-  return {
+  const listResult = {
     events: eventsWithCount,
     pagination: {
       page,
@@ -1098,6 +1443,7 @@ const listEvents = async (filters, pagination, userId) => {
       totalPages: Math.ceil(total / limit),
     },
   };
+  return listResult;
 };
 
 /**
@@ -1321,129 +1667,8 @@ const getUserRegistrations = async (userId, filters, pagination) => {
   };
 };
 
-/**
- * Get event statistics (comprehensive)
- * Optimized: Single raw SQL for counts + date grouping, separate query for recent registrations
- */
-const getEventStatistics = async (eventId, userId) => {
-  const event = await getEventLean(prisma, eventId);
-
-  // Verify user is the event creator
-  if (event.createdById !== userId) {
-    throw new ForbiddenError("Only the event creator can view statistics");
-  }
-
-  // Check cache first (1 min TTL — stats change frequently with registrations)
-  const cacheKey = `event:stats:${eventId}`;
-  const cached = await cache.get(cacheKey);
-  if (cached) return cached;
-
-  // Single raw SQL for all registration counts + revenue (replaces 6 count + 1 aggregate queries)
-  // Also includes volunteer count, entry/exit counts in one combined query
-  const [statsResult, dateGroups, recentRegistrations] = await Promise.all([
-    prisma.$queryRaw`
-      SELECT
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId}) as total,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'confirmed') as confirmed,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'pending') as pending,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'cancelled') as cancelled,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND status = 'waitlisted') as waitlisted,
-        (SELECT COUNT(*)::int FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "hasEntered" = true) as attended,
-        (SELECT COALESCE(SUM("amountPaid"), 0)::float FROM "EventRegistration" WHERE "eventId" = ${eventId} AND "paymentStatus" = 'completed') as revenue,
-        (SELECT COUNT(*)::int FROM "EventVolunteer" WHERE "eventId" = ${eventId}) as "volunteerCount",
-        (
-          SELECT COALESCE(SUM("entryCount"), 0)::int
-          FROM "EventEntry"
-          WHERE "eventId" = ${eventId} AND "entryType" = 'entry'
-        ) as "totalEntries",
-        (
-          SELECT COALESCE(SUM("entryCount"), 0)::int
-          FROM "EventEntry"
-          WHERE "eventId" = ${eventId} AND "entryType" = 'exit'
-        ) as "totalExits"
-    `,
-    // Date grouping via SQL (replaces full table scan findMany)
-    prisma.$queryRaw`
-      SELECT DATE("registeredAt")::text as date, COUNT(*)::int as count
-      FROM "EventRegistration"
-      WHERE "eventId" = ${eventId}
-      GROUP BY DATE("registeredAt")
-      ORDER BY date ASC
-    `,
-    prisma.eventRegistration.findMany({
-      where: { eventId },
-      include: {
-        user_login: {
-          select: {
-            id: true,
-            uid: true,
-            email: true,
-            employeeDetails: {
-              select: {
-                firstName: true,
-                lastName: true,
-                displayName: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { registeredAt: "desc" },
-      take: 50,
-    }),
-  ]);
-
-  const stats = statsResult[0] || {};
-  const volunteerCount = stats.volunteerCount || 0;
-  const totalEntries = stats.totalEntries || 0;
-  const totalExits = stats.totalExits || 0;
-
-  const registrationsByDate = dateGroups.map((r) => ({
-    date: r.date,
-    count: Number(r.count),
-  }));
-  const currentlyInside = Math.max(0, (totalEntries || 0) - (totalExits || 0));
-  const totalRevenue = Number(stats.revenue) || 0;
-
-  const result = {
-    totalRegistrations: stats.total || 0,
-    confirmedRegistrations: stats.confirmed || 0,
-    pendingRegistrations: stats.pending || 0,
-    cancelledRegistrations: stats.cancelled || 0,
-    waitlistedRegistrations: stats.waitlisted || 0,
-    totalAttended: stats.attended || 0,
-    totalEntries,
-    totalExits,
-    currentlyInside,
-    volunteerCount,
-    totalRevenue,
-    revenueCollected: totalRevenue,
-    registrationsByDate,
-    recentRegistrations: recentRegistrations.map((r) => ({
-      id: r.id,
-      registrationId: r.registrationId,
-      status: r.status,
-      paymentStatus: r.paymentStatus,
-      amountPaid: r.amountPaid,
-      hasEntered: r.hasEntered,
-      registeredAt: r.registeredAt,
-      user: r.user_login
-        ? {
-          id: r.user_login.id,
-          uid: r.user_login.uid,
-          email: r.user_login.email,
-          name:
-            r.user_login.employeeDetails?.displayName ||
-            `${r.user_login.employeeDetails?.firstName || ""} ${r.user_login.employeeDetails?.lastName || ""}`.trim() ||
-            r.user_login.uid,
-        }
-        : null,
-    })),
-  };
-
-  // Cache the result (1 min TTL)
-  await cache.set(cacheKey, result, 60);
-  return result;
+const getEventStatistics = async (eventId, userOrId) => {
+  return eventStatisticsService.getEventStatistics(eventId, userOrId);
 };
 
 // ── Re-export volunteer & feedback services (split for Single Responsibility) ──
@@ -1460,6 +1685,7 @@ module.exports = {
   registerForEvent,
   getUserRegistrations,
   getEventStatistics,
+  invalidateEventCaches,
   // Re-exports from eventVolunteer.service.js
   ...volunteerService,
   // Re-exports from eventFeedback.service.js

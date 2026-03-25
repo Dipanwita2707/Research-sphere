@@ -324,8 +324,8 @@ const auditMiddleware = (options = {}) => {
           auditData.errorMessage = responseBody.message || responseBody.error || `HTTP ${res.statusCode}`;
         }
 
-        // Create the audit log
-        await auditService.log(auditData);
+        // Fire-and-forget audit log (don't block response pipeline)
+        auditService.log(auditData).catch(err => console.error('Audit log error:', err.message));
       } catch (error) {
         console.error('Audit middleware error:', error);
         // Don't break the response - audit is non-critical

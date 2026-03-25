@@ -2,6 +2,10 @@ const gatePassService = require('../services/gatePass.service');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const emailService = require('../../../shared/utils/emailService');
+const {
+  sendCheckoutReminders,
+  applyCheckoutDeadlineCharges
+} = require('../../../jobs/qrActivation.job');
 
 // Simple logger
 const logger = {
@@ -364,13 +368,102 @@ class GatePassController {
       } else if (error.message.includes('permission')) {
         userMessage = error.message;
         statusCode = 403;
+      } else if (error.message.includes('cancel the room') || error.message.includes('room cancellation')) {
+        userMessage = error.message;
+        statusCode = 400;
       } else if (error.message.includes('only be cancelled after check-in')) {
+        userMessage = error.message;
+        statusCode = 400;
+      } else if (error.message) {
         userMessage = error.message;
         statusCode = 400;
       }
       
       return res.status(statusCode).json(
         formatResponse(false, userMessage)
+      );
+    }
+  }
+
+  /**
+   * Resend pass notification email
+   * POST /api/v1/gate-entry/resend-notification/:passId
+   */
+  async resendNotification(req, res) {
+    try {
+      const { passId } = req.params;
+      const userId = req.user.id;
+      const role = (req.user.role || '').toLowerCase();
+
+      const pass = await prisma.gate_pass.findUnique({
+        where: { pass_id: passId }
+      });
+
+      if (!pass) {
+        return res.status(404).json(
+          formatResponse(false, 'Pass not found')
+        );
+      }
+
+      const isAdmin = role === 'admin' || role === 'superadmin';
+      const isCreator = pass.created_by_id === userId;
+
+      if (!isAdmin && !isCreator) {
+        return res.status(403).json(
+          formatResponse(false, 'You do not have permission to resend this notification')
+        );
+      }
+
+      if (!pass.email) {
+        return res.status(400).json(
+          formatResponse(false, 'Visitor email is not available for this pass')
+        );
+      }
+
+      const candidateStatuses = [pass.pass_status, pass.status]
+        .filter(Boolean)
+        .map((s) => String(s).toLowerCase());
+
+      const normalizedStatus =
+        candidateStatuses.find((s) => ['expired', 'cancelled', 'denied', 'rejected', 'completed', 'checked_out', 'checked_in', 'active', 'approved', 'pending', 'created'].includes(s)) ||
+        'created';
+
+      if (normalizedStatus === 'created' || normalizedStatus === 'pending' || normalizedStatus === 'active' || normalizedStatus === 'approved') {
+        await emailService.sendPassCreated(pass);
+      } else if (normalizedStatus === 'checked_in') {
+        await emailService.sendEntryAllowed(pass);
+      } else if (normalizedStatus === 'checked_out') {
+        await emailService.sendExitRecorded(pass);
+      } else if (normalizedStatus === 'completed' || normalizedStatus === 'expired') {
+        // Keep status text exactly aligned with current displayed status
+        await emailService.sendPassStatusUpdate(pass);
+      } else if (normalizedStatus === 'denied' || normalizedStatus === 'rejected') {
+        const denialReason = pass.denial_reason || pass.cancellation_reason || 'Not specified';
+        await emailService.sendEntryDenied(pass, denialReason);
+      } else if (normalizedStatus === 'cancelled') {
+        const cancellationReason = pass.cancellation_reason || 'Not specified';
+        const cancellationType = pass.cancellation_type || (pass.actual_entry_time ? 'after_check_in' : 'before_check_in');
+
+        if (cancellationType === 'after_check_in') {
+          await emailService.sendPassCancelledAfterEntry(pass, cancellationReason);
+        } else {
+          await emailService.sendPassCancelledBeforeEntry(pass, cancellationReason);
+        }
+      } else {
+        await emailService.sendPassStatusUpdate(pass);
+      }
+
+      return res.status(200).json(
+        formatResponse(true, 'Notification email resent successfully', {
+          passId: pass.pass_id,
+          email: pass.email,
+          status: normalizedStatus
+        })
+      );
+    } catch (error) {
+      logger.error('Resend notification error:', error);
+      return res.status(500).json(
+        formatResponse(false, error.message || 'Failed to resend notification email', null, error.message)
       );
     }
   }
@@ -796,6 +889,97 @@ class GatePassController {
   }
 
   /**
+   * Request room cancellation for a booking (student/creator)
+   * POST /api/v1/gate-entry/bookings/:bookingId/room-cancel-request
+   */
+  async requestRoomCancellation(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { reason } = req.body;
+
+      const booking = await hostelBookingService.requestRoomCancellation(
+        bookingId,
+        req.user.id,
+        reason || ''
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Room cancellation request submitted successfully', { booking })
+      );
+    } catch (error) {
+      logger.error('Room cancellation request error:', error);
+      return res.status(400).json(
+        formatResponse(false, error.message || 'Failed to submit room cancellation request')
+      );
+    }
+  }
+
+  /**
+   * Approve room cancellation request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/approve-room-cancel
+   */
+  async approveRoomCancellation(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+
+      const booking = await hostelBookingService.approveRoomCancellationRequest(
+        bookingId,
+        req.user.id
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Room cancellation request approved', { booking })
+      );
+    } catch (error) {
+      logger.error('Approve room cancellation error:', error);
+      const message = error.code?.startsWith?.('P')
+        ? 'Failed to approve room cancellation request. Please try again.'
+        : (error.message || 'Failed to approve room cancellation request');
+      return res.status(400).json(
+        formatResponse(false, message)
+      );
+    }
+  }
+
+  /**
+   * Reject room cancellation request (admin only)
+   * POST /api/v1/gate-entry/bookings/:bookingId/reject-room-cancel
+   */
+  async rejectRoomCancellation(req, res) {
+    try {
+      const hostelBookingService = require('../services/hostelBooking.service');
+      const { bookingId } = req.params;
+      const { reason } = req.body;
+
+      if (!reason || !reason.trim()) {
+        return res.status(400).json(
+          formatResponse(false, 'Rejection reason is required')
+        );
+      }
+
+      const booking = await hostelBookingService.rejectRoomCancellationRequest(
+        bookingId,
+        req.user.id,
+        reason.trim()
+      );
+
+      return res.status(200).json(
+        formatResponse(true, 'Room cancellation request rejected', { booking })
+      );
+    } catch (error) {
+      logger.error('Reject room cancellation error:', error);
+      const message = error.code?.startsWith?.('P')
+        ? 'Failed to reject room cancellation request. Please try again.'
+        : (error.message || 'Failed to reject room cancellation request');
+      return res.status(400).json(
+        formatResponse(false, message)
+      );
+    }
+  }
+
+  /**
    * Request early check-in for a guest house booking (before 10 AM)
    * POST /api/v1/gate-entry/bookings/:bookingId/early-checkin
    */
@@ -1164,6 +1348,53 @@ class GatePassController {
       logger.error('[GET REFUND BY BOOKING] Error:', error);
       return res.status(500).json(
         formatResponse(false, 'Failed to fetch refund', null, error.message)
+      );
+    }
+  }
+
+  /**
+   * Manually trigger checkout reminder and penalty automation (admin only).
+   * POST /api/v1/gate-entry/debug/checkout-automation
+   */
+  async runCheckoutAutomationNow(req, res) {
+    try {
+      const userRole = req.user?.role?.toLowerCase();
+      if (userRole !== 'admin') {
+        return res.status(403).json(
+          formatResponse(false, 'Only admin can run checkout automation manually')
+        );
+      }
+
+      const runReminder = req.body?.runReminder !== false;
+      const runPenalty = req.body?.runPenalty !== false;
+      const force = req.body?.force !== false;
+
+      if (!runReminder && !runPenalty) {
+        return res.status(400).json(
+          formatResponse(false, 'At least one job must be enabled: runReminder or runPenalty')
+        );
+      }
+
+      const result = {
+        force,
+        executedAt: new Date().toISOString()
+      };
+
+      if (runReminder) {
+        result.reminder = await sendCheckoutReminders({ force });
+      }
+
+      if (runPenalty) {
+        result.penalty = await applyCheckoutDeadlineCharges({ force });
+      }
+
+      return res.status(200).json(
+        formatResponse(true, 'Checkout automation executed successfully', result)
+      );
+    } catch (error) {
+      logger.error('[RUN CHECKOUT AUTOMATION NOW] Error:', error);
+      return res.status(500).json(
+        formatResponse(false, 'Failed to execute checkout automation', null, error.message)
       );
     }
   }

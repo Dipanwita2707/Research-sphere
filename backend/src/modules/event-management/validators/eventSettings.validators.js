@@ -4,85 +4,68 @@
  * Input validation for event settings / visibility endpoints.
  */
 
-const { ValidationError } = require('../../../shared/utils/AppError');
+const { z } = require("zod");
+const { validateRequest } = require("../../../shared/utils/zodValidation");
 
-const VALID_ROLES = ['student', 'faculty', 'staff', 'admin', 'parent', 'superadmin'];
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VALID_ROLES = [
+  "student",
+  "faculty",
+  "staff",
+  "admin",
+  "parent",
+  "superadmin",
+];
 
-/**
- * Validate the updateEventSettings body
- */
-const validateEventSettingsUpdate = (req, _res, next) => {
-  const body = req.body;
+const uuidArraySchema = z
+  .array(z.string().uuid("Contains invalid UUID(s)"))
+  .optional();
 
-  // isActive
-  if (body.isActive !== undefined && typeof body.isActive !== 'boolean') {
-    throw new ValidationError('isActive must be a boolean');
-  }
-
-  // visibleToRoles
-  if (body.visibleToRoles !== undefined) {
-    if (!Array.isArray(body.visibleToRoles)) {
-      throw new ValidationError('visibleToRoles must be an array');
-    }
-    const invalid = body.visibleToRoles.filter((r) => !VALID_ROLES.includes(r));
-    if (invalid.length > 0) {
-      throw new ValidationError(`Invalid roles: ${invalid.join(', ')}. Valid roles: ${VALID_ROLES.join(', ')}`);
-    }
-    if (body.visibleToRoles.length === 0) {
-      throw new ValidationError('At least one visible role must be selected');
-    }
-  }
-
-  // studentFilterType
-  if (body.studentFilterType !== undefined) {
-    if (!['all', 'custom'].includes(body.studentFilterType)) {
-      throw new ValidationError('studentFilterType must be "all" or "custom"');
-    }
-  }
-
-  // UUID array fields
-  const uuidArrayFields = ['allowedSchoolIds', 'allowedDepartmentIds', 'allowedProgramIds', 'allowedSectionIds'];
-  for (const field of uuidArrayFields) {
-    if (body[field] !== undefined) {
-      if (!Array.isArray(body[field])) {
-        throw new ValidationError(`${field} must be an array`);
+const validateEventSettingsUpdate = validateRequest({
+  body: z
+    .object({
+      isActive: z.boolean().optional(),
+      visibleToRoles: z
+        .array(z.enum(VALID_ROLES))
+        .min(1, "At least one visible role must be selected")
+        .optional(),
+      studentFilterType: z.enum(["all", "custom"]).optional(),
+      allowedSchoolIds: uuidArraySchema,
+      allowedDepartmentIds: uuidArraySchema,
+      allowedProgramIds: uuidArraySchema,
+      allowedSectionIds: uuidArraySchema,
+      allowedBatchYears: z
+        .array(
+          z.preprocess(
+            (value) => Number(value),
+            z.number().int().min(2000).max(2100),
+          ),
+        )
+        .optional(),
+      allowExtraPasses: z.boolean().optional(),
+      maxExtraPassesPerUser: z.preprocess(
+        (value) => {
+          if (value === undefined || value === null || value === "") return undefined;
+          return Number(value);
+        },
+        z.number().int().min(0).max(20).optional(),
+      ),
+    })
+    .strip()
+    .superRefine((body, ctx) => {
+      if (
+        body.allowExtraPasses === true &&
+        body.maxExtraPassesPerUser !== undefined &&
+        body.maxExtraPassesPerUser < 1
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["maxExtraPassesPerUser"],
+          message:
+            "maxExtraPassesPerUser must be at least 1 when allowExtraPasses is enabled",
+        });
       }
-      const invalid = body[field].filter((id) => !UUID_REGEX.test(id));
-      if (invalid.length > 0) {
-        throw new ValidationError(`${field} contains invalid UUID(s)`);
-      }
-    }
-  }
-
-  // allowedBatchYears
-  if (body.allowedBatchYears !== undefined) {
-    if (!Array.isArray(body.allowedBatchYears)) {
-      throw new ValidationError('allowedBatchYears must be an array');
-    }
-    const invalid = body.allowedBatchYears.filter((y) => !Number.isInteger(Number(y)) || Number(y) < 2000 || Number(y) > 2100);
-    if (invalid.length > 0) {
-      throw new ValidationError('allowedBatchYears contains invalid year values');
-    }
-  }
-
-  if (body.allowExtraPasses !== undefined && typeof body.allowExtraPasses !== 'boolean') {
-    throw new ValidationError('allowExtraPasses must be a boolean');
-  }
-
-  if (body.maxExtraPassesPerUser !== undefined) {
-    const max = Number(body.maxExtraPassesPerUser);
-    if (!Number.isInteger(max) || max < 0 || max > 20) {
-      throw new ValidationError('maxExtraPassesPerUser must be an integer between 0 and 20');
-    }
-  }
-
-  if (body.allowExtraPasses === true && body.maxExtraPassesPerUser !== undefined && Number(body.maxExtraPassesPerUser) < 1) {
-    throw new ValidationError('maxExtraPassesPerUser must be at least 1 when allowExtraPasses is enabled');
-  }
-
-  next();
-};
+    }),
+});
 
 module.exports = {
   validateEventSettingsUpdate,

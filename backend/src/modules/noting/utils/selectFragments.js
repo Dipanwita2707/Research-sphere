@@ -171,6 +171,7 @@ const noteFieldsForDetail = {
   festivalMeta: true,
   subEvents: true,
   eventClubId: true,
+  eventVisibilitySettings: true,
   // Club fields
   clubName: true,
   clubCategoryId: true,
@@ -252,6 +253,12 @@ function getListNoteSelect() {
       },
       currentHolder: {
         select: userBasic,
+      },
+      _count: {
+        select: {
+          attachments: true,
+          history: true,
+        },
       },
     },
   };

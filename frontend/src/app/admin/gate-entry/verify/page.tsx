@@ -17,7 +17,7 @@ function VerifyPassPageContent() {
   const router = useRouter();
   const { user } = useAuthStore();
   const toast = useToast();
-  const { t } = useLanguage(); // Get translation function
+  const { t, displayText } = useLanguage(); // Get translation and display helpers
   
   const [activeTab, setActiveTab] = useState<'manual' | 'qr'>('manual');
   const [searchType, setSearchType] = useState<'passId' | 'mobile' | 'visitorName' | 'vehicleNumber'>('passId');
@@ -70,6 +70,8 @@ function VerifyPassPageContent() {
   // Checkout credentials modal
   const [showCheckoutCredentialsModal, setShowCheckoutCredentialsModal] = useState(false);
   const [checkoutCredentials, setCheckoutCredentials] = useState<{checkoutId: string; checkoutCode: string; expiresAt: string} | null>(null);
+  const cardClass = 'bg-white rounded-2xl border border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)]';
+  const inputClass = 'w-full px-4 py-3 text-sm md:text-base border border-[#b3cde0] rounded-xl bg-white focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] transition-all';
 
   // Page-level access control - Only Admin and Guard can verify passes
   useEffect(() => {
@@ -135,7 +137,7 @@ function VerifyPassPageContent() {
       } catch (err: any) {
         console.error('[QR Scanner] Failed to initialize:', err);
         if (err?.message?.includes('Permission') || err?.message?.includes('NotAllowed') || err?.name === 'NotAllowedError') {
-          toast.error('Camera permission denied. Please allow camera access and refresh.');
+          toast.error(t('verifyPass.err.cameraPermissionDenied'));
         }
       }
     };
@@ -210,7 +212,7 @@ function VerifyPassPageContent() {
           const passData = response.pass;
           
           if (!passData) {
-            setError('Pass not found for checkout QR');
+            setError(t('verifyPass.err.checkoutQrScanNotFound'));
             setPass(null);
             setActiveTab('manual');
             return;
@@ -233,14 +235,14 @@ function VerifyPassPageContent() {
                 });
                 setPass(checkoutResult.pass);
                 setIsCancelledPass(false);
-                toast.success('Checkout recorded successfully! Visitor may exit.', 'Checkout Complete');
+                toast.success(t('verifyPass.toast.autoCheckoutSuccess'), t('verifyPass.toast.autoCheckoutSuccessTitle'));
               } catch (err: any) {
                 // Auto-checkout failed — fall back to showing pass for manual checkout
                 setIsCancelledPass(true);
                 setCheckoutQRRemaining(response.checkoutQRRemaining || 0);
                 setCheckoutExpiresAt(passData.checkoutQrExpiresAt || null);
                 setPass(passData);
-                toast.error(err.response?.data?.message || 'Checkout failed — please try manual code entry.', 'Checkout Error');
+                toast.error(err.response?.data?.message || t('verifyPass.err.autoCheckoutFailed'), t('verifyPass.toast.autoCheckoutFailedTitle'));
               } finally {
                 setActionLoading(false);
               }
@@ -315,7 +317,7 @@ function VerifyPassPageContent() {
       // Check if today is within valid date range
       if (todayDate.getTime() < passDate.getTime() || todayDate.getTime() > endPassDate.getTime()) {
         const dateRangeStr = visitEndDate 
-          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate!.split('T')[0]}`
+          ? `${passData.visitDate.split('T')[0]} ${t('common.to')} ${passData.visitEndDate!.split('T')[0]}`
           : passData.visitDate.split('T')[0];
         
         setError(
@@ -380,7 +382,7 @@ function VerifyPassPageContent() {
       setActiveTab('manual'); // Switch to manual tab to show results
     } catch (err: any) {
       console.error('QR scan error:', err);
-      setError(err.response?.data?.message || 'Invalid QR Code or Pass not found');
+      setError(err.response?.data?.message || t('verifyPass.err.invalidQrOrPass'));
       setPass(null);
       setActiveTab('manual'); // Switch to show error
     } finally {
@@ -406,7 +408,7 @@ function VerifyPassPageContent() {
       const passData = response.pass;
       
       if (!passData) {
-        setError('No pass found matching your search criteria');
+        setError(t('verifyPass.err.noPassFound'));
         setPass(null);
         return;
       }
@@ -442,7 +444,7 @@ function VerifyPassPageContent() {
       // Check if today is within valid date range
       if (todayDate.getTime() < passDate.getTime() || todayDate.getTime() > endPassDate.getTime()) {
         const dateRangeStr = visitEndDate 
-          ? `${passData.visitDate.split('T')[0]} to ${passData.visitEndDate!.split('T')[0]}`
+          ? `${passData.visitDate.split('T')[0]} ${t('common.to')} ${passData.visitEndDate!.split('T')[0]}`
           : passData.visitDate.split('T')[0];
         
         setError(
@@ -758,7 +760,7 @@ function VerifyPassPageContent() {
             } catch {}
             if (!checkoutCode) {
               checkoutProcessingRef.current = false;
-              toast.error('Invalid QR — please scan the NEW checkout QR generated after cancellation.', 'Wrong QR Code');
+              toast.error(t('verifyPass.toast.checkoutCodeInvalid'), t('verifyPass.toast.invalidCodeTitle'));
               scanner.stop().catch(() => {});
               return;
             }
@@ -904,7 +906,12 @@ function VerifyPassPageContent() {
         toast.success(t('verifyPass.toast.cancelSuccess'), t('verifyPass.toast.cancelSuccessTitle'));
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || t('verifyPass.toast.cancelFailed'), t('common.error'));
+      const backendMessage = err.response?.data?.message || '';
+      const roomCancelBlocked = backendMessage.toLowerCase().includes('cancel the room');
+      toast.error(
+        roomCancelBlocked ? t('verifyPass.toast.roomCancelFirst') : (backendMessage || t('verifyPass.toast.cancelFailed')),
+        t('common.error')
+      );
     } finally {
       setCancellingPass(false);
     }
@@ -960,17 +967,9 @@ function VerifyPassPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
+    <div className="min-h-screen bg-[#f8fafc] p-3 md:p-8">
       <div className="max-w-5xl mx-auto">
-        {/* Hero Header with Gradient Background - Master Dashboard Style */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-visible animate-fade-in">
-          {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-10 overflow-hidden rounded-2xl">
-            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
-          </div>
-          
-          {/* Content */}
+        <div className="relative bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] rounded-2xl border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] p-6 md:p-8 mb-6 animate-fade-in">
           <div className="relative z-10">
             {/* Header with Language Selector */}
             <div className="flex items-start justify-between gap-4">
@@ -980,7 +979,7 @@ function VerifyPassPageContent() {
                 </div>
                 <div className="flex-1">
                   <h1 className="text-2xl md:text-4xl font-bold text-white">{t('verifyPass.title')}</h1>
-                  <p className="text-blue-100 text-sm md:text-base mt-1">{t('verifyPass.subtitle')}</p>
+                  <p className="text-[#b3cde0] text-sm md:text-base mt-1">{t('verifyPass.subtitle')}</p>
                 </div>
               </div>
               {/* Language Selector */}
@@ -992,15 +991,15 @@ function VerifyPassPageContent() {
         </div>
 
         {/* Tabs Card - Master Dashboard Style */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 mb-6 overflow-hidden animate-slide-up">
-          <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
+        <div className={`${cardClass} mb-6 overflow-hidden animate-slide-up`}>
+          <div className="border-b border-[#b3cde0] bg-[#f1f5f9]">
             <div className="flex">
               <button
                 onClick={() => setActiveTab('manual')}
                 className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-bold transition-all transform ${
                   activeTab === 'manual'
-                    ? 'border-b-4 border-blue-600 text-blue-600 bg-gradient-to-r from-blue-50 to-cyan-50 scale-105'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-50'
+                    ? 'border-b-4 border-[#005b96] text-[#005b96] bg-[#b3cde0]/20 scale-105'
+                    : 'text-[#6497b1] hover:text-[#03396c] hover:bg-[#b3cde0]/10'
                 }`}
               >
                 <div className="flex items-center justify-center gap-1 md:gap-2">
@@ -1012,8 +1011,8 @@ function VerifyPassPageContent() {
                 onClick={() => setActiveTab('qr')}
                 className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-bold transition-all transform ${
                   activeTab === 'qr'
-                    ? 'border-b-4 border-blue-600 text-blue-600 bg-gradient-to-r from-blue-50 to-cyan-50 scale-105'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gradient-to-r hover:from-gray-100 hover:to-gray-50'
+                    ? 'border-b-4 border-[#005b96] text-[#005b96] bg-[#b3cde0]/20 scale-105'
+                    : 'text-[#6497b1] hover:text-[#03396c] hover:bg-[#b3cde0]/10'
                 }`}
               >
                 <div className="flex items-center justify-center gap-1 md:gap-2">
@@ -1031,14 +1030,14 @@ function VerifyPassPageContent() {
             <div className="p-4 md:p-6">
               <div className="grid grid-cols-1 gap-4 md:gap-5 mb-5">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-                    <Search className="w-4 h-4 text-blue-600" />
+                  <label className="block text-sm font-bold text-[#03396c] mb-2 flex items-center gap-2">
+                    <Search className="w-4 h-4 text-[#005b96]" />
                     {t('verifyPass.searchBy')}
                   </label>
                   <select
                     value={searchType}
                     onChange={(e) => setSearchType(e.target.value as any)}
-                    className="w-full px-4 py-3 text-sm md:text-base border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 bg-white"
+                    className={inputClass}
                   >
                     <option value="passId">{t('verifyPass.searchOptions.passId')}</option>
                     <option value="visitorName">{t('verifyPass.searchOptions.visitorName')}</option>
@@ -1048,7 +1047,7 @@ function VerifyPassPageContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                  <label className="block text-sm font-bold text-[#03396c] mb-2">
                     {searchType === 'passId' && t('verifyPass.enterPassId')}
                     {searchType === 'visitorName' && t('verifyPass.enterVisitorName')}
                     {searchType === 'mobile' && t('verifyPass.enterMobile')}
@@ -1066,12 +1065,12 @@ function VerifyPassPageContent() {
                         searchType === 'mobile' ? t('verifyPass.placeholderMobile') :
                         t('verifyPass.placeholderVehicle')
                       }
-                      className="flex-1 px-4 py-3 text-sm md:text-base border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400"
+                      className={`flex-1 ${inputClass}`}
                     />
                     <button
                       onClick={handleSearch}
                       disabled={loading}
-                      className="px-5 md:px-7 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-bold"
+                      className="px-5 md:px-7 py-3 bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-bold"
                     >
                       {loading ? (
                         <>
@@ -1090,14 +1089,14 @@ function VerifyPassPageContent() {
               </div>
 
               {error && (
-                <div className="mt-5 p-4 md:p-5 bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-xl animate-shake">
+                <div className="mt-5 p-4 md:p-5 bg-[#b3cde0]/20 border-l-4 border-[#005b96] rounded-xl animate-shake">
                   <div className="flex items-start gap-3">
-                    <div className="bg-red-500 p-2 rounded-lg">
+                    <div className="bg-[#005b96] p-2 rounded-lg">
                       <AlertCircle className="w-5 h-5 text-white flex-shrink-0" />
                     </div>
                     <div className="flex-1">
-                      <p className="font-bold text-sm md:text-base text-red-800 mb-1">{t('verifyPass.err.verificationFailed')}</p>
-                      <p className="text-xs md:text-sm text-red-700 whitespace-pre-line">{error}</p>
+                      <p className="font-bold text-sm md:text-base text-[#011f4b] mb-1">{t('verifyPass.err.verificationFailed')}</p>
+                      <p className="text-xs md:text-sm text-[#03396c] whitespace-pre-line">{error}</p>
                     </div>
                   </div>
                 </div>
@@ -1110,11 +1109,11 @@ function VerifyPassPageContent() {
             <div className="p-4 md:p-8">
               <div className="max-w-2xl mx-auto">
                 <div className="mb-5 md:mb-6 text-center animate-fade-in">
-                  <div className="inline-block bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-2xl mb-3 shadow-lg">
+                  <div className="inline-block bg-gradient-to-br from-[#03396c] to-[#005b96] p-4 rounded-2xl mb-3 shadow-lg">
                     <Camera className="w-6 h-6 md:w-7 md:h-7 text-white" />
                   </div>
-                  <h3 className="text-lg md:text-2xl font-bold text-gray-900 mb-2">{t('verifyPass.scannerCamera')}</h3>
-                  <p className="text-sm md:text-base text-gray-600">{t('verifyPass.positionQR')}</p>
+                  <h3 className="text-lg md:text-2xl font-bold text-[#011f4b] mb-2">{t('verifyPass.scannerCamera')}</h3>
+                  <p className="text-sm md:text-base text-[#6497b1]">{t('verifyPass.positionQR')}</p>
                   {!scannerInitialized && (
                     <div className="mt-4 flex items-center justify-center gap-2 text-blue-600 animate-pulse">
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -1137,24 +1136,24 @@ function VerifyPassPageContent() {
                   </div>
                 )}
 
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-2xl p-4 md:p-6 shadow-lg animate-slide-up">
+                <div className="bg-[#b3cde0]/20 border border-[#6497b1] rounded-2xl p-4 md:p-6 shadow-lg animate-slide-up">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="bg-gradient-to-br from-blue-500 to-indigo-500 p-2 rounded-lg">
+                    <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-2 rounded-lg">
                       <AlertCircle className="w-5 h-5 text-white" />
                     </div>
-                    <h4 className="font-bold text-base md:text-lg text-gray-900">{t('verifyPass.qr.instructions')}</h4>
+                    <h4 className="font-bold text-base md:text-lg text-[#011f4b]">{t('verifyPass.qr.instructions')}</h4>
                   </div>
-                  <div className="space-y-2.5 md:space-y-3 text-xs md:text-sm text-gray-700\">
-                    <p className="flex items-start gap-3 bg-white/70 p-3 rounded-lg\">
-                      <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-lg\">Step 1:</span>
+                  <div className="space-y-2.5 md:space-y-3 text-xs md:text-sm text-[#03396c]">
+                    <p className="flex items-start gap-3 bg-white p-3 rounded-lg border border-[#b3cde0]">
+                      <span className="font-bold text-[#005b96] bg-[#b3cde0]/30 px-2 py-1 rounded-lg">{t('common.step')} 1:</span>
                       <span className="flex-1">{t('verifyPass.qr.step1')}</span>
                     </p>
-                    <p className="flex items-start gap-3 bg-white/70 p-3 rounded-lg">
-                      <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-lg">Step 2:</span>
+                    <p className="flex items-start gap-3 bg-white p-3 rounded-lg border border-[#b3cde0]">
+                      <span className="font-bold text-[#005b96] bg-[#b3cde0]/30 px-2 py-1 rounded-lg">{t('common.step')} 2:</span>
                       <span className="flex-1">{t('verifyPass.qr.step2')}</span>
                     </p>
-                    <p className="flex items-start gap-3 bg-white/70 p-3 rounded-lg">
-                      <span className="font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded-lg">Step 3:</span>
+                    <p className="flex items-start gap-3 bg-white p-3 rounded-lg border border-[#b3cde0]">
+                      <span className="font-bold text-[#005b96] bg-[#b3cde0]/30 px-2 py-1 rounded-lg">{t('common.step')} 3:</span>
                       <span className="flex-1">{t('verifyPass.qr.step3')}</span>
                     </p>
                     <p className="flex items-start gap-3 bg-green-50 border border-green-200 p-3 rounded-lg">
@@ -1182,12 +1181,12 @@ function VerifyPassPageContent() {
 
         {/* Pass Details Section - Master Dashboard Style */}
         {pass && (
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden animate-slide-up">
+          <div className={`${cardClass} overflow-hidden animate-slide-up`}>
             {/* Status Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-cyan-600 px-4 md:px-6 py-4 md:py-5">
+            <div className="bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] px-4 md:px-6 py-4 md:py-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-xs md:text-sm font-medium mb-1">{t('verifyPass.details.passId')}</p>
+                  <p className="text-[#b3cde0] text-xs md:text-sm font-medium mb-1">{t('verifyPass.details.passId')}</p>
                   <p className="text-white text-lg md:text-2xl font-bold break-all">{pass.passId}</p>
                 </div>
                 <div className="flex flex-col items-end gap-2">
@@ -1222,12 +1221,12 @@ function VerifyPassPageContent() {
                   <div className="flex items-start gap-3">
                     <XCircle className="w-7 h-7 md:w-8 md:h-8 text-red-600 flex-shrink-0 mt-1" />
                     <div className="flex-1">
-                      <h3 className="text-xl md:text-2xl font-bold text-red-900 mb-2">❌ Pass Cancelled Before Check-In</h3>
+                      <h3 className="text-xl md:text-2xl font-bold text-red-900 mb-2">❌ {t('verifyPass.warnings.cancelledBeforeCheckinTitle')}</h3>
                       <p className="text-sm md:text-base text-red-700 font-medium mb-2">
-                        This pass was cancelled before the visitor checked in. The pass is no longer valid for entry.
+                        {t('verifyPass.warnings.cancelledBeforeCheckinMsg')}
                       </p>
                       <p className="text-xs md:text-sm text-red-600">
-                        No checkout action is required as the visitor never entered the premises.
+                        {t('verifyPass.warnings.cancelledBeforeCheckinNote')}
                       </p>
                     </div>
                   </div>
@@ -1236,7 +1235,7 @@ function VerifyPassPageContent() {
                   {pass.cancellationTime && (
                     <div className="mt-3 pt-3 border-t border-red-200">
                       <p className="text-xs md:text-sm text-gray-700">
-                        <strong>Cancelled At:</strong> {new Date(pass.cancellationTime).toLocaleString()}
+                        <strong>{t('verifyPass.warnings.cancelledAt')}</strong> {new Date(pass.cancellationTime).toLocaleString()}
                       </p>
                     </div>
                   )}
@@ -1303,9 +1302,9 @@ function VerifyPassPageContent() {
                   <div className="flex items-start gap-2 md:gap-3">
                     <AlertCircle className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h4 className="font-bold text-sm md:text-base text-yellow-900 mb-1">⏰ QR Code Not Yet Active</h4>
+                      <h4 className="font-bold text-sm md:text-base text-yellow-900 mb-1">{t('verifyPass.warnings.qrNotActiveTitle')}</h4>
                       <p className="text-xs md:text-sm text-yellow-700">
-                        This QR code will activate 5 hours before entry time ({pass.entryTime || pass.expectedEntryTime}).
+                        {t('verifyPass.warnings.qrNotActiveMsg')} ({pass.entryTime || pass.expectedEntryTime}).
                         {pass.qrActivationTime && (
                           <><br/>{t('verifyPass.warnings.activationTime')} {new Date(pass.qrActivationTime).toLocaleString()}</>
                         )}
@@ -1345,7 +1344,7 @@ function VerifyPassPageContent() {
                     {pass.visitorName && (
                       <div>
                         <p className="text-xs md:text-sm text-gray-600">{t('verifyPass.fields.name')}</p>
-                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.visitorName}</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{displayText(pass.visitorName)}</p>
                       </div>
                     )}
                     {pass.mobileNumber && (
@@ -1405,7 +1404,7 @@ function VerifyPassPageContent() {
                     {pass.personToMeetName && (
                       <div>
                         <p className="text-xs md:text-sm text-gray-600">{t('verifyPass.fields.personToMeet')}</p>
-                        <p className="font-medium text-sm md:text-base text-gray-900">{pass.personToMeetName}</p>
+                        <p className="font-medium text-sm md:text-base text-gray-900">{displayText(pass.personToMeetName)}</p>
                       </div>
                     )}
                     {pass.visitDate && (
@@ -1510,7 +1509,7 @@ function VerifyPassPageContent() {
                   <h3 className="font-semibold text-sm md:text-base text-gray-900 mb-3 flex items-center gap-2">
                     📅 {t('verifyPass.multiDay.historyTitle')}
                     <span className="ml-2 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-bold">
-                      {pass.dailyEntries.length} {pass.dailyEntries.length === 1 ? 'cycle' : 'cycles'}
+                      {pass.dailyEntries.length} {pass.dailyEntries.length === 1 ? t('verifyPass.multiDay.cycle') : t('verifyPass.multiDay.cycles')}
                     </span>
                   </h3>
                   <div className="overflow-x-auto">
@@ -1521,7 +1520,7 @@ function VerifyPassPageContent() {
                           <th className="px-3 py-2 text-left font-semibold text-purple-700">{t('verifyPass.multiDay.date')}</th>
                           <th className="px-3 py-2 text-left font-semibold text-purple-700">{t('verifyPass.multiDay.entryTime')}</th>
                           <th className="px-3 py-2 text-left font-semibold text-purple-700">{t('verifyPass.multiDay.exitTime')}</th>
-                          <th className="px-3 py-2 text-left font-semibold text-purple-700">Status</th>
+                          <th className="px-3 py-2 text-left font-semibold text-purple-700">{t('common.status')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1533,12 +1532,12 @@ function VerifyPassPageContent() {
                               ↓ {entry.entryTime ? new Date(entry.entryTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}
                             </td>
                             <td className="px-3 py-2 text-blue-700 font-medium">
-                              {entry.exitTime ? `↑ ${new Date(entry.exitTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : <span className="text-green-600 animate-pulse">Inside</span>}
+                              {entry.exitTime ? `↑ ${new Date(entry.exitTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : <span className="text-green-600 animate-pulse">{t('common.inside')}</span>}
                             </td>
                             <td className="px-3 py-2">
                               {entry.exitTime
-                                ? <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs">Exited</span>
-                                : <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Inside</span>}
+                                ? <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-xs">{t('common.exited')}</span>
+                                : <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">{t('common.inside')}</span>}
                             </td>
                           </tr>
                         ))}
@@ -1550,19 +1549,19 @@ function VerifyPassPageContent() {
 
               {/* Guard Action Section */}
               <div className="mt-4 md:mt-6 pt-4 md:pt-6 border-t">
-                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-3 md:p-4 mb-3 md:mb-4">
+                <div className="bg-[#f1f5f9] border border-[#b3cde0] rounded-lg p-3 md:p-4 mb-3 md:mb-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-sm md:text-base text-gray-900 flex items-center gap-2">
+                    <h3 className="font-semibold text-sm md:text-base text-[#011f4b] flex items-center gap-2">
                       {t('verifyPass.details.guardActions')}
                     </h3>
-                    <div className="flex items-center gap-1 text-xs md:text-sm text-gray-600">
+                    <div className="flex items-center gap-1 text-xs md:text-sm text-[#6497b1]">
                       <Clock className="w-3 h-3 md:w-4 md:h-4" />
                       <span className="font-medium">{new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
-                  <p className="text-xs md:text-sm text-gray-600">
+                  <p className="text-xs md:text-sm text-[#6497b1]">
                     {isCancelledPass && pass.cancellationType === 'after_check_in' && t('verifyPass.guard.checkoutMsg')}
-                    {isCancelledPass && pass.cancellationType === 'before_check_in' && 'Pass was cancelled before check-in. No action required.'}
+                    {isCancelledPass && pass.cancellationType === 'before_check_in' && t('verifyPass.guard.noActionNeededMsg')}
                     {canAllowEntry && !isCancelledPass && t('verifyPass.guard.allowEntryMsg')}
                     {canRecordExit && !isCancelledPass && t('verifyPass.guard.exitOptionsMsg')}
                     {canDenyEntry && !isCancelledPass && t('verifyPass.guard.denyEntryMsg')}
@@ -1659,9 +1658,9 @@ function VerifyPassPageContent() {
       {/* Verification Modal */}
       {showVerificationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-[#6497b1] shadow-[0_14px_34px_rgba(1,31,75,0.2)] max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-lg">
+            <div className="bg-gradient-to-r from-[#011f4b] to-[#03396c] px-6 py-4 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {t('verifyPass.modal.verifyIdentity')}
@@ -1680,19 +1679,19 @@ function VerifyPassPageContent() {
                   <XCircle className="w-6 h-6" />
                 </button>
               </div>
-              <p className="text-blue-100 text-sm mt-1">{t('verifyPass.modal.chooseMethod')}</p>
+              <p className="text-[#b3cde0] text-sm mt-1">{t('verifyPass.modal.chooseMethod')}</p>
             </div>
 
             <div className="p-6">
               {!verificationMethod && (
                 <>
                   <div className="mb-6">
-                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+                    <div className="bg-[#b3cde0]/20 border-l-4 border-[#005b96] p-4 mb-4 rounded-r-lg">
                       <div className="flex items-start">
                         <AlertCircle className="w-5 h-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
                         <div>
-                          <h3 className="font-semibold text-yellow-900">{t('verifyPass.modal.identityRequired')}</h3>
-                          <p className="text-sm text-yellow-700 mt-1">
+                          <h3 className="font-semibold text-[#011f4b]">{t('verifyPass.modal.identityRequired')}</h3>
+                          <p className="text-sm text-[#03396c] mt-1">
                             {t('verifyPass.modal.identityMsg')}
                           </p>
                         </div>
@@ -1704,17 +1703,17 @@ function VerifyPassPageContent() {
                     {/* QR Code Option */}
                     <button
                       onClick={() => handleVerificationMethodSelect('qr')}
-                      className="group relative bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 border-2 border-blue-300 hover:border-blue-500 rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
+                      className="group relative bg-[#f8fafc] border border-[#b3cde0] hover:border-[#6497b1] rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
                     >
                       <div className="text-center">
-                        <div className="bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                        <div className="bg-[#005b96] text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                           <Camera className="w-8 h-8" />
                         </div>
                         <h3 className="font-bold text-lg text-gray-900 mb-2">{t('verifyPass.modal.scanQR')}</h3>
                         <p className="text-sm text-gray-600 mb-3">
                           {t('verifyPass.modal.scanQRMsg')}
                         </p>
-                        <div className="bg-blue-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
+                        <div className="bg-[#005b96] text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
                           {t('verifyPass.modal.openCamera')}
                         </div>
                       </div>
@@ -1723,17 +1722,17 @@ function VerifyPassPageContent() {
                     {/* Verification Code Option */}
                     <button
                       onClick={() => handleVerificationMethodSelect('code')}
-                      className="group relative bg-gradient-to-br from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 border-2 border-green-300 hover:border-green-500 rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
+                      className="group relative bg-[#f8fafc] border border-[#b3cde0] hover:border-[#6497b1] rounded-xl p-6 transition-all hover:shadow-lg active:scale-95"
                     >
                       <div className="text-center">
-                        <div className="bg-green-600 text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                        <div className="bg-[#03396c] text-white rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                           <span className="text-2xl font-bold">123</span>
                         </div>
                         <h3 className="font-bold text-lg text-gray-900 mb-2">{t('verifyPass.modal.enterCode')}</h3>
                         <p className="text-sm text-gray-600 mb-3">
                           {t('verifyPass.modal.enterCodeMsg')}
                         </p>
-                        <div className="bg-green-600 text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
+                        <div className="bg-[#03396c] text-white text-xs font-semibold py-2 px-4 rounded-full inline-block">
                           {t('verifyPass.modal.enterCode')}
                         </div>
                       </div>
@@ -1754,18 +1753,18 @@ function VerifyPassPageContent() {
                           verifyScannerRef.current = null;
                         }
                       }}
-                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                      className="text-[#005b96] hover:text-[#011f4b] font-medium flex items-center gap-2"
                     >
                       ← Back to options
                     </button>
                   </div>
                   
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <div className="bg-[#b3cde0]/20 border border-[#6497b1] rounded-lg p-4 mb-4">
+                    <h3 className="font-semibold text-[#011f4b] mb-2 flex items-center gap-2">
                       <Camera className="w-5 h-5" />
                       {t('verifyPass.modal.scanVisitorQR')}
                     </h3>
-                    <p className="text-sm text-blue-700">
+                    <p className="text-sm text-[#03396c]">
                       {t('verifyPass.modal.positionQR')}
                     </p>
                   </div>
@@ -1789,17 +1788,17 @@ function VerifyPassPageContent() {
                   <div className="mb-4">
                     <button
                       onClick={() => setVerificationMethod(null)}
-                      className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2"
+                      className="text-[#005b96] hover:text-[#011f4b] font-medium flex items-center gap-2"
                     >
                       {t('verifyPass.modal.backToOptions')}
                     </button>
                   </div>
                   
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                    <h3 className="font-semibold text-green-900 mb-2">
+                  <div className="bg-[#b3cde0]/20 border border-[#6497b1] rounded-lg p-4 mb-6">
+                    <h3 className="font-semibold text-[#011f4b] mb-2">
                       {t('verifyPass.modal.enter6Digit')}
                     </h3>
-                    <p className="text-sm text-green-700">
+                    <p className="text-sm text-[#03396c]">
                       {t('verifyPass.modal.ask6Digit')}
                     </p>
                   </div>
@@ -1814,7 +1813,7 @@ function VerifyPassPageContent() {
                       onChange={(e) => setVerificationCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       placeholder={t('verifyPass.modal.enter6DigitPlaceholder')}
                       maxLength={6}
-                      className="w-full px-4 py-3 text-2xl font-bold text-center border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 tracking-widest"
+                      className="w-full px-4 py-3 text-2xl font-bold text-center border border-[#b3cde0] rounded-lg focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] tracking-widest"
                       autoFocus
                     />
                     <p className="text-xs text-gray-500 mt-2 text-center">
@@ -1825,7 +1824,7 @@ function VerifyPassPageContent() {
                   <button
                     onClick={handleCodeVerification}
                     disabled={actionLoading || verificationCodeInput.length !== 6}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-lg transition-all hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="w-full bg-[#005b96] hover:bg-[#03396c] text-white font-bold py-4 rounded-lg transition-all hover:shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {actionLoading ? (
                       <>
@@ -1849,9 +1848,9 @@ function VerifyPassPageContent() {
       {/* Checkout Verification Modal */}
       {showCheckoutVerificationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl border border-[#6497b1] shadow-[0_14px_34px_rgba(1,31,75,0.2)] max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 rounded-t-lg">
+            <div className="bg-gradient-to-r from-[#011f4b] to-[#03396c] px-6 py-4 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {t('verifyPass.checkoutModal.title')}
@@ -1870,7 +1869,7 @@ function VerifyPassPageContent() {
                   <XCircle className="w-6 h-6" />
                 </button>
               </div>
-              <p className="text-red-100 text-sm mt-1">{t('verifyPass.checkoutModal.subtitle')}</p>
+              <p className="text-[#b3cde0] text-sm mt-1">{t('verifyPass.checkoutModal.subtitle')}</p>
             </div>
 
             <div className="p-6">
@@ -2041,8 +2040,8 @@ function VerifyPassPageContent() {
       {/* Normal Exit Verification Modal */}
       {showExitVerificationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 rounded-t-lg">
+          <div className="bg-white rounded-2xl border border-[#6497b1] shadow-[0_14px_34px_rgba(1,31,75,0.2)] max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-[#011f4b] to-[#03396c] px-6 py-4 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {t('verifyPass.exitModal.title')}
@@ -2058,7 +2057,7 @@ function VerifyPassPageContent() {
                   <XCircle className="w-6 h-6" />
                 </button>
               </div>
-              <p className="text-blue-100 text-sm mt-1">{t('verifyPass.exitModal.subtitle')}</p>
+              <p className="text-[#b3cde0] text-sm mt-1">{t('verifyPass.exitModal.subtitle')}</p>
             </div>
 
             <div className="p-6">
@@ -2220,8 +2219,8 @@ function VerifyPassPageContent() {
       {/* Cancel First Modal */}
       {showCancelFirstModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-yellow-600 to-orange-600 px-6 py-4 rounded-t-lg">
+          <div className="bg-white rounded-2xl border border-[#6497b1] shadow-[0_14px_34px_rgba(1,31,75,0.2)] max-w-md w-full">
+            <div className="bg-gradient-to-r from-[#011f4b] to-[#03396c] px-6 py-4 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {t('verifyPass.cancelModal.title')}
@@ -2236,7 +2235,7 @@ function VerifyPassPageContent() {
                   <XCircle className="w-6 h-6" />
                 </button>
               </div>
-              <p className="text-orange-100 text-sm mt-1">{t('verifyPass.cancelModal.subtitle')}</p>
+              <p className="text-[#b3cde0] text-sm mt-1">{t('verifyPass.cancelModal.subtitle')}</p>
             </div>
 
             <div className="p-6">
@@ -2294,9 +2293,9 @@ function VerifyPassPageContent() {
       {/* Checkout Credentials Modal - Shows after cancellation */}
       {showCheckoutCredentialsModal && checkoutCredentials && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl max-w-lg w-full">
+          <div className="bg-white rounded-2xl border border-[#6497b1] shadow-[0_14px_34px_rgba(1,31,75,0.2)] max-w-lg w-full">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 rounded-t-lg">
+            <div className="bg-gradient-to-r from-[#011f4b] to-[#03396c] px-6 py-4 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {t('verifyPass.credModal.title')}

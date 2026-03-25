@@ -50,16 +50,16 @@ export default function PaymentPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [formData, status] = await Promise.all([
-        eventService.getRegistrationForm(eventId),
+      const [paymentContext, status] = await Promise.all([
+        eventService.getPaymentContext(eventId),
         eventService.getPaymentStatus(eventId).catch(() => null),
       ]);
       setEventData({
-        name: formData.event.name,
-        registrationFee: formData.event.registrationFee || 0,
-        amountPaid: formData.existingRegistration?.amountPaid,
-        paymentType: formData.event.paymentType,
-        participationType: formData.event.participationType || 'individual',
+        name: paymentContext.event.name,
+        registrationFee: paymentContext.event.registrationFee || 0,
+        amountPaid: paymentContext.existingRegistration?.amountPaid,
+        paymentType: paymentContext.event.paymentType,
+        participationType: paymentContext.event.participationType || 'individual',
       });
       setPaymentStatus(status);
     } catch (err) {

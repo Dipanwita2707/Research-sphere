@@ -15,6 +15,11 @@ import type {
   QRScanData,
   EventFilters,
   EventListResponse,
+  EventAdminOverview,
+  EventAdminUserAnalytics,
+  EventAdminActivityResponse,
+  EventAdminEventFilters,
+  EventAdminEventListResponse,
   EventPrize,
   PrizeFormData,
   StallApplication,
@@ -26,6 +31,8 @@ import type {
   CouponValidationResult,
   EventExtraPass,
   PassPreviewData,
+  EventRound,
+  RoundFormData,
 } from '../types/event.types';
 
 const BASE_URL = '/events';
@@ -49,6 +56,52 @@ export const eventService = {
     if (filters.myEvents) params.append('myEvents', 'true');
 
     const response = await api.get(`${BASE_URL}?${params.toString()}`);
+    return response.data.data;
+  },
+
+  async getAdminOverview(params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<EventAdminOverview> {
+    const response = await api.get(`${BASE_URL}/admin/analytics/overview`, { params });
+    return response.data.data;
+  },
+
+  async getAdminUsers(params?: {
+    startDate?: string;
+    endDate?: string;
+  }): Promise<EventAdminUserAnalytics> {
+    const response = await api.get(`${BASE_URL}/admin/analytics/users`, { params });
+    return response.data.data;
+  },
+
+  async getAdminActivity(params?: {
+    startDate?: string;
+    endDate?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<EventAdminActivityResponse> {
+    const response = await api.get(`${BASE_URL}/admin/analytics/activity`, { params });
+    return response.data.data;
+  },
+
+  async getAdminEvents(
+    filters: EventAdminEventFilters = {},
+    page: number = 1,
+    limit: number = 20,
+  ): Promise<EventAdminEventListResponse> {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+
+    if (filters.search?.trim()) params.append('search', filters.search.trim());
+    if (filters.status) params.append('status', filters.status);
+    if (filters.createdById) params.append('createdById', filters.createdById);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    if (filters.approvalStatus) params.append('approvalStatus', filters.approvalStatus);
+
+    const response = await api.get(`${BASE_URL}/admin/events?${params.toString()}`);
     return response.data.data;
   },
 
@@ -136,6 +189,34 @@ export const eventService = {
 
     const response = await api.get(`${BASE_URL}/${id}/registrations?${params.toString()}`);
     return response.data.data;
+  },
+
+  async exportEventRegistrationsCsv(
+    id: string,
+    status?: string,
+    filters?: Record<string, string | number | undefined>
+  ): Promise<{ blob: Blob; filename: string }> {
+    const params = new URLSearchParams();
+    if (status && status !== 'all') params.append('status', status);
+
+    if (filters) {
+      for (const [key, val] of Object.entries(filters)) {
+        if (val !== undefined && val !== '' && val !== null) {
+          params.append(key, String(val));
+        }
+      }
+    }
+
+    const response = await api.get(`${BASE_URL}/${id}/registrations/export?${params.toString()}`, {
+      responseType: 'blob',
+    });
+    const disposition = response.headers['content-disposition'] || '';
+    const filenameMatch = disposition.match(/filename="?([^"]+)"?/i);
+
+    return {
+      blob: response.data,
+      filename: filenameMatch?.[1] || `event_registrations_${new Date().toISOString().split('T')[0]}.csv`,
+    };
   },
 
   /**
@@ -237,6 +318,11 @@ export const eventService = {
     return response.data.data;
   },
 
+  async getScanContext(eventId: string): Promise<Pick<Event, 'id' | 'eventId' | 'name' | 'venue' | 'status'>> {
+    const response = await api.get(`${BASE_URL}/${eventId}/scan-context`);
+    return response.data.data;
+  },
+
   /**
    * Cancel registration
    */
@@ -305,6 +391,26 @@ export const eventService = {
    */
   async getRegistrationForm(eventId: string): Promise<any> {
     const response = await api.get(`${BASE_URL}/${eventId}/registration-form`);
+    return response.data.data;
+  },
+
+  async getPaymentContext(eventId: string): Promise<{
+    event: {
+      id: string;
+      name: string;
+      paymentType: string;
+      participationType: string;
+      registrationFee?: number;
+    };
+    existingRegistration: {
+      id: string;
+      registrationId: string;
+      status: string;
+      paymentStatus?: string | null;
+      amountPaid?: number | null;
+    } | null;
+  }> {
+    const response = await api.get(`${BASE_URL}/${eventId}/payment-context`);
     return response.data.data;
   },
 
@@ -1322,5 +1428,33 @@ export const eventService = {
   async downloadCertificate(verificationCode: string): Promise<{ downloadUrl: string }> {
     const response = await api.get(`${BASE_URL}/certificates/download/${verificationCode}`);
     return response.data.data;
+  },
+
+  // ============================================
+  // Rounds
+  // ============================================
+
+  async getRounds(eventId: string): Promise<EventRound[]> {
+    const response = await api.get(`${BASE_URL}/${eventId}/rounds`);
+    return response.data?.data ?? response.data;
+  },
+
+  async createRound(eventId: string, data: RoundFormData): Promise<EventRound> {
+    const response = await api.post(`${BASE_URL}/${eventId}/rounds`, data);
+    return response.data?.data ?? response.data;
+  },
+
+  async updateRound(eventId: string, roundId: string, data: Partial<RoundFormData>): Promise<EventRound> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/rounds/${roundId}`, data);
+    return response.data?.data ?? response.data;
+  },
+
+  async deleteRound(eventId: string, roundId: string): Promise<void> {
+    await api.delete(`${BASE_URL}/${eventId}/rounds/${roundId}`);
+  },
+
+  async reorderRounds(eventId: string, roundOrders: { id: string; sortOrder: number }[]): Promise<EventRound[]> {
+    const response = await api.patch(`${BASE_URL}/${eventId}/rounds/reorder`, { roundOrders });
+    return response.data?.data ?? response.data;
   },
 };

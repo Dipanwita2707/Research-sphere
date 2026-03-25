@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import {
   useNotingList,
+  useNotingTabSummary,
   useDeleteDraft,
   useMyCopies,
   useNotingPermissions,
@@ -70,6 +71,26 @@ const stripHtml = (html: string) => {
   return html.replace(/<[^>]*>/g, "").trim();
 };
 
+const NOTE_STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "pending", label: "Pending" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "reverted", label: "Reverted" },
+] as const;
+
+const COPY_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending" },
+  { value: "replied", label: "Replied" },
+  { value: "forwarded", label: "Forwarded" },
+  { value: "completed", label: "Completed" },
+] as const;
+
+const CATEGORY_OPTIONS = [
+  { value: "academic", label: "Academic" },
+  { value: "administrative", label: "Administrative" },
+] as const;
+
 export default function NotingListPage() {
   const { toast } = useToast();
   const router = useRouter();
@@ -82,7 +103,9 @@ export default function NotingListPage() {
   // ── Student access check (computed early to disable queries) ──────────────
   // Noting is blocked for ALL students, including club chairpersons
   const isStudent = !!user && (user.role?.name === "student" || user.userType === "student");
+  const roleName = user?.role?.name || user?.userType || "";
   const { data: notingPerms, isLoading: permsLoading } = useNotingPermissions();
+  const canViewAdminDashboard = roleName === "admin" || roleName === "superadmin";
   const studentHasAccess = !isStudent;
 
   // ── URL is the single source of truth ────────────────────────────────────
@@ -108,23 +131,28 @@ export default function NotingListPage() {
     ? (rawCopiesFilter as "all" | "my_work" | "complaints")
     : "all";
 
-  // Filter panel is open when any filter param is present in URL
-  const showFilters = !!(status || category || startDate || endDate);
+  const tabStatusOptions = {
+    mine: NOTE_STATUS_OPTIONS,
+    pending: [],
+    handled_approved: [],
+    handled_rejected: [],
+    copies: COPY_STATUS_OPTIONS,
+  } as const;
+  const currentStatusOptions = tabStatusOptions[filter];
+  const currentStatusValues: string[] = currentStatusOptions.map((option) => option.value);
+  const currentSearchPlaceholder =
+    filter === "copies"
+      ? "Search by Note ID, sender, or description..."
+      : "Search by Note ID or description...";
 
-  // ── Search input: local state only (debounced before hitting URL/query) ───
-  // The input box updates instantly; the URL + TanStack key update after 350 ms.
+  const hasActiveFilters = !!(status || category || startDate || endDate);
+  const [filterPanelOpenByUser, setFilterPanelOpenByUser] = useState(false);
+  const isFilterPanelOpen = hasActiveFilters || filterPanelOpenByUser;
+
+  // ── Search input: local state, debounced before hitting URL/query ─────────
   const [searchInput, setSearchInput] = useState(
     () => searchParams.get("search") ?? "",
   );
-  const debouncedSearch = useDebounce(searchInput, 350);
-
-  // Sync debounced search value into the URL (also resets page to 1)
-  useEffect(() => {
-    const current = searchParams.get("search") ?? "";
-    if (debouncedSearch === current) return;
-    setParams({ search: debouncedSearch || undefined, page: undefined });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch]);
 
   // ── Single URL-param updater ──────────────────────────────────────────────
   // Wrapping router.replace in startTransition marks the navigation as
@@ -148,11 +176,37 @@ export default function NotingListPage() {
     [router, pathname, searchParams],
   );
 
+  const debouncedSearch = useDebounce(searchInput, {
+    delay: 350,
+    onSettle: (v) => {
+      const str = (v as string) || "";
+      const current = searchParams.get("search") ?? "";
+      if (str === current) return;
+      setParams({ search: str || undefined, page: undefined });
+    },
+  });
+
+  useEffect(() => {
+    if (!status) return;
+    if (currentStatusValues.includes(status)) return;
+    setParams({ status: undefined, page: undefined });
+  }, [currentStatusValues, setParams, status]);
+
   // Convenience setters — each resets page to 1 on user-driven filter changes
   const setFilter = useCallback(
-    (val: typeof filter) =>
-      setParams({ tab: val === "mine" ? undefined : val, page: undefined }),
-    [setParams],
+    (val: typeof filter) => {
+      const nextStatusValues: string[] = tabStatusOptions[val].map((option) => option.value);
+      setParams({
+        tab: val === "mine" ? undefined : val,
+        page: undefined,
+        copies: val === "copies" && copiesFilter !== "all" ? copiesFilter : undefined,
+        status:
+          status && nextStatusValues.includes(status)
+            ? status
+            : undefined,
+      });
+    },
+    [copiesFilter, setParams, status, tabStatusOptions],
   );
   const setPage = useCallback(
     (val: number | ((prev: number) => number)) => {
@@ -206,6 +260,7 @@ export default function NotingListPage() {
 
   const { data: listResult, isLoading: listLoading } =
     useNotingList(listParams);
+  const { data: tabSummary } = useNotingTabSummary({ enabled: studentHasAccess });
   const deleteMutation = useDeleteDraft();
 
   const notes = listResult?.data ?? [];
@@ -222,24 +277,66 @@ export default function NotingListPage() {
   } = useMyCopies({
     page,
     limit: PAGE_SIZE,
+    search: debouncedSearch || undefined,
+    status: filter === "copies" && currentStatusValues.includes(status) ? status : undefined,
+    category: category || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
     enabled: filter === "copies" && !!user && studentHasAccess,
   });
-
-  const myCopies = copiesData?.copies ?? [];
+  const myCopies: NoteCopy[] = copiesData?.copies ?? [];
   const myManagerId = copiesData?.myManagerId ?? null;
   const copiesPagination = copiesData?.pagination;
+  const pendingPreviewIds = tabSummary?.pendingPreviewIds ?? [];
+  const copyPreviewIds = tabSummary?.copyPreviewIds ?? [];
 
-  // ── Background prefetch: warm the copies cache while the user is on another tab ──
-  // This ensures the copies tab loads instantly when the user clicks it.
+  const [seenPendingIds, setSeenPendingIds] = useState<string[]>([]);
+  const [seenCopyIds, setSeenCopyIds] = useState<string[]>([]);
+
+  const persistSeenIds = useCallback((key: string, ids: string[]) => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(key, JSON.stringify(ids));
+  }, []);
+
   useEffect(() => {
-    if (filter !== "copies" && user && studentHasAccess) {
-      queryClient.prefetchQuery({
-        queryKey: NOTING_QUERY_KEYS.myCopies(1, PAGE_SIZE),
-        queryFn: () => notingService.getMyCopies({ page: 1, limit: PAGE_SIZE }),
-        staleTime: 2 * 60 * 1000,
-      });
+    if (!user?.id || typeof window === "undefined") return;
+    try {
+      const pendingRaw = window.localStorage.getItem(`noting:pending-seen:${user.id}`);
+      const copyRaw = window.localStorage.getItem(`noting:copy-seen:${user.id}`);
+      setSeenPendingIds(pendingRaw ? JSON.parse(pendingRaw) : []);
+      setSeenCopyIds(copyRaw ? JSON.parse(copyRaw) : []);
+    } catch {
+      setSeenPendingIds([]);
+      setSeenCopyIds([]);
     }
-  }, [filter, user, queryClient]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (filter !== "pending" || !user?.id || pendingPreviewIds.length === 0) return;
+    setSeenPendingIds((prev) => {
+      const next = Array.from(new Set([...prev, ...pendingPreviewIds]));
+      persistSeenIds(`noting:pending-seen:${user.id}`, next);
+      return next;
+    });
+  }, [filter, pendingPreviewIds, persistSeenIds, user?.id]);
+
+  useEffect(() => {
+    if (filter !== "copies" || !user?.id || copyPreviewIds.length === 0) return;
+    setSeenCopyIds((prev) => {
+      const next = Array.from(new Set([...prev, ...copyPreviewIds]));
+      persistSeenIds(`noting:copy-seen:${user.id}`, next);
+      return next;
+    });
+  }, [copyPreviewIds, filter, persistSeenIds, user?.id]);
+
+  const pendingNewCount = useMemo(
+    () => pendingPreviewIds.filter((id) => !seenPendingIds.includes(id)).length,
+    [pendingPreviewIds, seenPendingIds],
+  );
+  const copiesNewCount = useMemo(
+    () => copyPreviewIds.filter((id) => !seenCopyIds.includes(id)).length,
+    [copyPreviewIds, seenCopyIds],
+  );
 
   const pagination =
     filter === "copies"
@@ -315,17 +412,22 @@ export default function NotingListPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // debouncedSearch already handles the query; just prevent default
+    setParams({
+      search: searchInput.trim() || undefined,
+      page: undefined,
+    });
   };
 
   const resetFilters = useCallback(() => {
     setSearchInput("");
+    setFilterPanelOpenByUser(false);
     setParams({
       search: undefined,
       status: undefined,
       category: undefined,
       startDate: undefined,
       endDate: undefined,
+      copies: undefined,
       page: undefined,
     });
   }, [setParams]);
@@ -338,42 +440,50 @@ export default function NotingListPage() {
         label: "My Notes",
         desc: "Notes created by you",
         icon: Send,
-        count: counts.mine,
+        count: tabSummary?.mine ?? counts.mine,
       },
       {
         key: "pending" as const,
         label: "Pending for Me",
         desc: "Awaiting your review",
         icon: Inbox,
-        count: counts.pending,
+        count: tabSummary?.pending ?? counts.pending,
+        newCount: pendingNewCount,
       },
       {
         key: "handled_approved" as const,
         label: "Approved / Recommended",
         desc: "Notes you approved or recommended",
         icon: CheckCircle,
-        count: 0,
+        count: tabSummary?.handledApproved ?? 0,
       },
       {
         key: "handled_rejected" as const,
         label: "Rejected / Not Recommended",
         desc: "Notes you rejected or did not recommend",
         icon: XCircle,
-        count: 0,
+        count: tabSummary?.handledRejected ?? 0,
       },
       {
         key: "copies" as const,
         label: "Copies for Me",
         desc: "Copies assigned to you",
         icon: Copy,
-        count: copiesPagination?.total ?? myCopies.length,
+        count: tabSummary?.copies ?? copiesPagination?.total ?? 0,
+        newCount: copiesNewCount,
       },
     ],
     [
+      copiesNewCount,
+      copiesPagination?.total,
       counts.mine,
       counts.pending,
-      copiesPagination?.total,
-      myCopies.length,
+      pendingNewCount,
+      tabSummary?.copies,
+      tabSummary?.handledApproved,
+      tabSummary?.handledRejected,
+      tabSummary?.mine,
+      tabSummary?.pending,
     ],
   );
 
@@ -439,16 +549,27 @@ export default function NotingListPage() {
               Create, track, and manage approval requests
             </p>
           </div>
-          {notingPerms?.noting_create && (
-            <Link
-              href="/noting/new"
-              onClick={() => useNotingDraftStore.getState().clearDraft()}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)] hover:shadow-[0_4px_12px_rgba(0,91,150,0.35)] w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4 flex-shrink-0" />
-              Create New Note
-            </Link>
-          )}
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {canViewAdminDashboard && (
+              <Link
+                href="/noting/admin"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-200 text-sm font-medium rounded-xl border border-[#b3cde0]/60 dark:border-gray-600 hover:bg-[#f8fbfd] dark:hover:bg-gray-700 transition-all duration-200 w-full sm:w-auto"
+              >
+                <History className="w-4 h-4 flex-shrink-0" />
+                Admin Dashboard
+              </Link>
+            )}
+            {notingPerms?.noting_create && (
+              <Link
+                href="/noting/new"
+                onClick={() => useNotingDraftStore.getState().clearDraft()}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)] hover:shadow-[0_4px_12px_rgba(0,91,150,0.35)] w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4 flex-shrink-0" />
+                Create New Note
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Tab Filters - scrollable on mobile */}
@@ -477,6 +598,11 @@ export default function NotingListPage() {
                     {tab.count}
                   </span>
                 )}
+                {"newCount" in tab && !!tab.newCount && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white">
+                    New {tab.newCount}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -496,7 +622,7 @@ export default function NotingListPage() {
                 onChange={(e) => {
                   setSearchInput(e.target.value);
                 }}
-                placeholder="Search by Note ID or description..."
+                placeholder={currentSearchPlaceholder}
                 className="w-full pl-9 pr-9 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
               />
               {searchInput && (
@@ -519,51 +645,43 @@ export default function NotingListPage() {
                 <Search className="w-3.5 h-3.5" />
                 Search
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setParams(
-                    showFilters
-                      ? {
-                        status: undefined,
-                        category: undefined,
-                        startDate: undefined,
-                        endDate: undefined,
-                        page: undefined,
-                      }
-                      : {},
-                  )
-                }
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl border text-sm font-medium flex items-center justify-center gap-1.5 transition-all duration-200 ${showFilters
-                  ? "bg-[#b3cde0]/20 dark:bg-[#005b96]/20 text-[#011f4b] border-[#6497b1]"
-                  : "bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-300 border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700"
-                  }`}
-              >
-                <Filter className="w-3.5 h-3.5" />
-                Filters
-              </button>
-            </div>
-          </form>
-
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-[#b3cde0]/30 dark:border-gray-700">
-              <div>
-                <label className="block text-xs font-medium text-[#03396c] dark:text-gray-400 mb-1">
-                  Status
-                </label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
+                <button
+                  type="button"
+                  onClick={() => setFilterPanelOpenByUser((prev) => !prev)}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl border text-sm font-medium flex items-center justify-center gap-1.5 transition-all duration-200 ${isFilterPanelOpen || hasActiveFilters
+                    ? "bg-[#b3cde0]/20 dark:bg-[#005b96]/20 text-[#011f4b] border-[#6497b1]"
+                    : "bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-300 border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700"
+                    }`}
                 >
-                  <option value="">All Statuses</option>
-                  <option value="draft">Draft</option>
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="reverted">Reverted</option>
-                </select>
+                  <Filter className="w-3.5 h-3.5" />
+                  Filters
+                </button>
               </div>
+            </form>
+
+          {isFilterPanelOpen && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-[#b3cde0]/30 dark:border-gray-700">
+              {currentStatusOptions.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-[#03396c] dark:text-gray-400 mb-1">
+                    {filter === "copies" ? "Copy Status" : "Status"}
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
+                  >
+                    <option value="">
+                      {filter === "copies" ? "All Copy Statuses" : "All Statuses"}
+                    </option>
+                    {currentStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-[#03396c] dark:text-gray-400 mb-1">
                   Category
@@ -574,9 +692,11 @@ export default function NotingListPage() {
                   className="w-full px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
                 >
                   <option value="">All Categories</option>
-                  <option value="academic">Academic</option>
-                  <option value="administrative">Administrative</option>
-                  <option value="hrm">HRM</option>
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -886,23 +1006,33 @@ export default function NotingListPage() {
               const hasApproverActed =
                 approverActions.length > 0 ||
                 (note.history === undefined && (note._count?.history ?? 0) > 1);
-              const canEditOrDelete =
+              // For reverted notes, only the creator can edit (revert sends it back for modifications)
+              // Reverted notes cannot be deleted since they've been through the approval flow
+              const canEdit =
                 filter === "mine" &&
                 note.status !== "approved" &&
                 note.status !== "rejected" &&
+                (note.status === "reverted"
+                  ? note.createdById === currentUserId
+                  : !hasApproverActed);
+              const canDelete =
+                filter === "mine" &&
+                note.status !== "approved" &&
+                note.status !== "rejected" &&
+                note.status !== "reverted" &&
                 !hasApproverActed;
 
               return (
                 <Link
                   key={note.id}
                   href={
-                    note.status === "draft" || note.status === "reverted"
+                    note.status === "draft" || (note.status === "reverted" && note.createdById === currentUserId)
                       ? `/noting/new?draft=${note.id}`
                       : `/noting/${note.id}`
                   }
                   className="group block"
                   onMouseEnter={() => {
-                    if (note.status !== "draft" && note.status !== "reverted") {
+                    if (note.status !== "draft" && !(note.status === "reverted" && note.createdById === currentUserId)) {
                       queryClient.prefetchQuery({
                         queryKey: NOTING_QUERY_KEYS.detail(note.id),
                         queryFn: () => notingService.getById(note.id),
@@ -1005,7 +1135,7 @@ export default function NotingListPage() {
                             className="flex items-center gap-0.5"
                             onClick={(e) => e.preventDefault()}
                           >
-                            {canEditOrDelete &&
+                            {canEdit &&
                               note.status !== "approved" &&
                               note.status !== "rejected" && (
                                 <Link
@@ -1017,7 +1147,7 @@ export default function NotingListPage() {
                                   <Pencil className="w-3.5 h-3.5" />
                                 </Link>
                               )}
-                            {canEditOrDelete && (
+                            {canDelete && (
                               <button
                                 type="button"
                                 onClick={(e) => handleDeleteDraft(e, note)}

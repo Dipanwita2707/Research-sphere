@@ -9,12 +9,14 @@ const clubController = require("../controllers/clubController");
 const auditController = require("../controllers/auditController");
 const { protect } = require("../../../shared/middleware/auth");
 const {
+  validateClubCreation,
   validateClubId,
   validateAddMember,
   validateRemoveMember,
   validateGetClubs,
   validateClubApplicationCreate,
   validateClubApplicationReview,
+  validateMemberRoleUpdate,
 } = require("../validators");
 const {
   canViewClub,
@@ -32,7 +34,7 @@ router.get(
 );
 
 // Create club creation noting (faculty submits → noting created → DSW approves → club created)
-router.post("/", protect, clubController.createClub);
+router.post("/", protect, validateClubCreation, clubController.createClub);
 
 // Get my club creation requests (pending notings initiated by the logged-in student)
 router.get("/my-requests", protect, clubController.getMyClubRequests);
@@ -117,6 +119,7 @@ router.patch(
   "/:clubId/members/:memberId/role",
   protect,
   canManageMembers,
+  validateMemberRoleUpdate,
   clubController.updateMemberRole,
 );
 

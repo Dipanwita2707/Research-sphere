@@ -374,10 +374,11 @@ async function sendExitRecorded(pass) {
  *    - without hostel booking → simple extension for outside visitor
  */
 async function sendPassExtended(pass, newEndDate, reason) {
-  const hasHostel      = !!(pass.hostel_booking || pass.hostel_name);
-  const hostelName     = pass.hostel_booking?.hostelName || pass.hostel_booking?.room?.hostel?.name || pass.hostel_name || 'Guest House';
-  const roomNumber     = pass.hostel_booking?.roomNumber || pass.hostel_booking?.room?.room_number  || pass.room_number || '—';
-  const newCheckout    = pass.hostel_booking?.check_out_datetime || pass.hostel_booking?.checkOutDate || newEndDate;
+  const latestBooking  = pass.hostel_booking || (Array.isArray(pass.hostel_bookings) ? pass.hostel_bookings[0] : null);
+  const hasHostel      = !!(latestBooking || pass.hostel_name);
+  const hostelName     = latestBooking?.hostelName || latestBooking?.room?.hostel?.name || pass.hostel_name || 'Guest House';
+  const roomNumber     = latestBooking?.roomNumber || latestBooking?.room?.room_number  || pass.room_number || '—';
+  const newCheckout    = latestBooking?.check_out_datetime || latestBooking?.checkOutDate || newEndDate;
   const extensionCount = pass.extension_count || 1;
 
   let extraSection = '';
@@ -572,6 +573,36 @@ async function sendCheckoutReminder({ parentEmail, parentName, visitorName, pass
 }
 
 /**
+ * 10b. Checkout Penalty Applied — sent to parent when 5 PM deadline is missed
+ */
+async function sendCheckoutPenaltyApplied({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, newCheckoutDatetime, additionalAmount }) {
+  const html = shell('Checkout Deadline Missed – Extra Charge Applied ⚠️', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The 5:00 PM checkout deadline for <strong>${visitorName}</strong> was missed.
+      As per guest house rules, an additional one day charge has been applied.
+    </p>
+
+    ${infoTable([
+      ['Pass ID', passId],
+      ['Guest House', hostelName],
+      ['Room', roomNumber],
+      ['Missed Deadline', '5:00 PM'],
+      ['Additional Charge', `INR ${Number(additionalAmount || 0).toFixed(2)}`],
+      ['New Checkout Deadline', formatDate(newCheckoutDatetime)],
+    ])}
+
+    ${alertBox('⚠️', `Please ensure checkout is completed before <strong>${formatDate(newCheckoutDatetime)}</strong> to avoid further additional charges.`, '#fff7ed', BRAND.warning)}
+  `, BRAND.warning);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Extra day charge applied (checkout deadline missed)`,
+    html,
+  });
+}
+
+/**
  * 11. Early Check-in Request Approved — sent to parent
  */
 async function sendCheckinRequestApproved({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, requestedTime }) {
@@ -626,6 +657,121 @@ async function sendCheckinRequestRejected({ parentEmail, parentName, visitorName
   });
 }
 
+/**
+ * 13. Room Cancellation Request Approved — sent to parent
+ */
+async function sendRoomCancellationApproved({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, refundAmount, refundPercent, appliedSlab }) {
+  const html = shell('Room Cancellation Approved ✅', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The room cancellation request for <strong>${visitorName}</strong> has been <strong>approved</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',        passId],
+      ['Guest House',    hostelName],
+      ['Room',           roomNumber],
+      ['Refund Slab',    appliedSlab || '—'],
+      ['Refund %',       `${refundPercent ?? 0}%`],
+      ['Refund Amount',  `INR ${Number(refundAmount || 0).toFixed(2)}`],
+    ])}
+
+    ${alertBox('✅', `Room cancellation approved. Refund amount: <strong>INR ${Number(refundAmount || 0).toFixed(2)}</strong>. Pass cancellation is now allowed.`, '#f0fdf4', BRAND.success)}
+  `, BRAND.success);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Room Cancellation Approved`,
+    html,
+  });
+}
+
+/**
+ * 14. Room Cancellation Request Rejected — sent to parent
+ */
+async function sendRoomCancellationRejected({ parentEmail, parentName, visitorName, passId, roomNumber, hostelName, reason }) {
+  const html = shell('Room Cancellation Request Declined', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">Dear <strong>${parentName}</strong>,</p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      The room cancellation request for <strong>${visitorName}</strong> has been <strong>declined</strong>.
+    </p>
+
+    ${infoTable([
+      ['Pass ID',      passId],
+      ['Guest House',  hostelName],
+      ['Room',         roomNumber],
+      ['Reason',       reason || 'Not specified'],
+    ])}
+
+    ${alertBox('❌', `Room cancellation request was declined. Reason: <strong>${reason || 'Not specified'}</strong>.`, '#fef2f2', BRAND.danger)}
+  `, BRAND.danger);
+
+  await send({
+    to: parentEmail,
+    subject: `[Gate Pass] ${passId} – Room Cancellation Request Declined`,
+    html,
+  });
+}
+
+/**
+ * 15. Resend Pass Notification (status-aware snapshot)
+ * Ensures current pass status is clearly reflected in the resent email.
+ */
+async function sendPassStatusUpdate(pass) {
+  const currentStatus = (pass.pass_status || pass.status || 'created').toLowerCase();
+
+  const statusMetaMap = {
+    created: { label: 'CREATED', color: BRAND.primary },
+    pending: { label: 'PENDING', color: BRAND.warning },
+    active: { label: 'ACTIVE', color: BRAND.primary },
+    checked_in: { label: 'CHECKED IN', color: BRAND.success },
+    checked_out: { label: 'CHECKED OUT', color: '#6d28d9' },
+    completed: { label: 'COMPLETED', color: '#6d28d9' },
+    cancelled: { label: 'CANCELLED', color: BRAND.danger },
+    denied: { label: 'DENIED', color: BRAND.danger },
+    expired: { label: 'EXPIRED', color: BRAND.warning },
+  };
+
+  const statusMeta = statusMetaMap[currentStatus] || {
+    label: currentStatus.replace(/_/g, ' ').toUpperCase(),
+    color: BRAND.primary,
+  };
+
+  const qrAttachment = makeQRAttachment(pass.qr_code, 'mainqr');
+  const showQr = !!(pass.qr_code && (currentStatus === 'created' || currentStatus === 'pending' || currentStatus === 'active'));
+
+  const html = shell('Gate Pass Notification (Resent)', `
+    <p style="margin:0 0 16px;font-size:15px;color:#1e293b">
+      Hello <strong>${pass.visitor_name}</strong>,
+    </p>
+    <p style="margin:0 0 16px;font-size:14px;color:#475569">
+      As requested, here are your latest gate pass details.
+    </p>
+
+    ${infoTable([
+      ['Pass ID', pass.pass_id],
+      ['Current Status', badge(statusMeta.label, statusMeta.color)],
+      ['Visit Date', formatDateOnly(pass.visit_date)],
+      ['Entry Time', pass.entry_time || pass.expected_entry_time || '—'],
+      ['Mobile', pass.mobile_number || '—'],
+      ['Email', pass.email || '—'],
+      ['Purpose', pass.purpose_of_visit || '—'],
+      ['Last Updated', formatDate(pass.updated_at || new Date())],
+    ])}
+
+    ${showQr ? qrBlock(pass.qr_code, pass.verification_code, 'mainqr', 'Gate Entry QR (Use if still valid)') : ''}
+
+    ${alertBox('ℹ️', 'This is a status update email. Please use only currently valid pass details at the gate.', '#eff6ff', BRAND.primary)}
+  `, statusMeta.color);
+
+  await send({
+    to: pass.email,
+    subject: `[Gate Pass] ${pass.pass_id} – Current status: ${statusMeta.label}`,
+    html,
+    attachments: showQr ? [qrAttachment] : [],
+  });
+}
+
 module.exports = {
   send,
   sendPassCreated,
@@ -638,6 +784,10 @@ module.exports = {
   sendHostelBookingCreated,
   sendHostelBookingConfirmed,
   sendCheckoutReminder,
+  sendCheckoutPenaltyApplied,
   sendCheckinRequestApproved,
   sendCheckinRequestRejected,
+  sendRoomCancellationApproved,
+  sendRoomCancellationRejected,
+  sendPassStatusUpdate,
 };

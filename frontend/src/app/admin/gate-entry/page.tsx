@@ -58,18 +58,45 @@ interface Pass {
     hostelName?: string;
     bookingStatus?: string;
     paymentStatus?: string;
+    checkInDate?: string;
+    checkOutDate?: string;
     requestedCheckinTime?: string;
     checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
     checkinRequestRejectReason?: string;
+    roomCancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    roomCancelRequestReason?: string;
+    roomCancelRequestRejectReason?: string;
+    roomCancelRequestedAt?: string;
+    roomCancelReviewedAt?: string;
   };
+  hostelBookings?: Array<{
+    id?: string;
+    totalPrice?: number;
+    roomNumber?: string;
+    hostelName?: string;
+    bookingStatus?: string;
+    paymentStatus?: string;
+    checkInDate?: string;
+    checkOutDate?: string;
+    requestedCheckinTime?: string;
+    checkinRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    checkinRequestRejectReason?: string;
+    roomCancelRequestStatus?: 'pending' | 'approved' | 'rejected' | null;
+    roomCancelRequestReason?: string;
+    roomCancelRequestRejectReason?: string;
+    roomCancelRequestedAt?: string;
+    roomCancelReviewedAt?: string;
+  }>;
   createdAt: string;
   createdBy?: {
+    id?: string;
     employeeDetails?: {
       displayName?: string;
     };
     username?: string;
   };
   creator?: {
+    id?: string;
     username: string;
   };
   // Old fields (for backward compatibility - optional)
@@ -98,9 +125,12 @@ const STATUS_CONFIG = {
 function AllPassesPageContent() {
   const { user } = useAuthStore();
   const toast = useToast();
-  const { t } = useLanguage(); // Get translation function
+  const { t, displayText } = useLanguage(); // Get translation and display helpers
   const searchParams = useSearchParams();
   const reviewBookingId = searchParams.get('reviewBooking');
+  const reviewRoomCancellationId = searchParams.get('reviewRoomCancellation');
+  const cardClass = 'bg-white rounded-2xl border border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)]';
+  const inputClass = 'w-full px-4 py-3 border border-[#b3cde0] rounded-xl bg-white focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] transition-all';
 
   // Helper: get translated status label
   const getStatusLabel = (status: string): string => {
@@ -111,6 +141,91 @@ function AllPassesPageContent() {
       return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG]?.label || status;
     }
     return translated;
+  };
+
+  // Normalize backend enum/text values to localized labels.
+  const getPurposeLabel = (purpose?: string, purposeOther?: string): string => {
+    if (!purpose) return '';
+    const normalized = purpose.trim().toLowerCase();
+
+    if (normalized === 'other' && purposeOther) {
+      return purposeOther;
+    }
+
+    const keys = [
+      `createPass.generalPurpose.${normalized}`,
+      `createPass.studentPurpose.${normalized}`,
+    ];
+
+    for (const key of keys) {
+      const translated = t(key as any);
+      if (translated !== key) {
+        return translated;
+      }
+    }
+
+    return purpose;
+  };
+
+  const getRelationLabel = (relation?: string): string => {
+    if (!relation) return '';
+
+    const normalized = relation.trim().toLowerCase();
+    const relationKeyMap: Record<string, string> = {
+      father: 'createPass.father',
+      mother: 'createPass.mother',
+      mom: 'createPass.mother',
+      guardian: 'createPass.guardian',
+      parent: 'createPass.parentOther',
+      other: 'createPass.generalPurpose.other',
+      spouse: 'createPass.generalPurpose.other',
+      sibling: 'createPass.generalPurpose.other',
+      friend: 'createPass.generalPurpose.other',
+      family: 'createPass.generalPurpose.other',
+    };
+
+    const key = relationKeyMap[normalized];
+    if (!key) return relation;
+
+    const translated = t(key as any);
+    return translated === key ? relation : translated;
+  };
+
+  const shouldShowInlineRelation = (relation?: string): boolean => {
+    if (!relation) return false;
+
+    const normalized = relation.trim().toLowerCase();
+    // Hide generic relation labels in list row; show only meaningful specific relation tags.
+    return !['parent', 'parent (other)', 'other', 'na', 'n/a'].includes(normalized);
+  };
+
+  const getCreatorLabel = (username?: string): string => {
+    if (!username) return t('allPasses.system');
+
+    const normalized = username.trim().toLowerCase();
+    const roleKeyMap: Record<string, string> = {
+      admin: 'common.role.admin',
+      superadmin: 'common.role.admin',
+      dsw: 'common.role.dsw',
+      staff: 'common.role.staff',
+      guard: 'common.role.guard',
+      faculty: 'common.role.faculty',
+      student: 'common.role.student',
+      system: 'allPasses.system',
+    };
+
+    const key = roleKeyMap[normalized];
+    if (!key) return username;
+
+    const translated = t(key as any);
+    return translated === key ? username : translated;
+  };
+
+  const getRequestStatusLabel = (status?: string | null): string => {
+    if (!status) return '';
+    const key = `status.${status}`;
+    const translated = t(key as any);
+    return translated === key ? status : translated;
   };
   
   // Safe date formatting utilities
@@ -153,7 +268,13 @@ function AllPassesPageContent() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectingBookingId, setRejectingBookingId] = useState<string | null>(null);
+  const [showRoomCancelReasonModal, setShowRoomCancelReasonModal] = useState(false);
+  const [roomCancelReason, setRoomCancelReason] = useState('');
+  const [roomCancelAction, setRoomCancelAction] = useState<'request' | 'reject' | null>(null);
+  const [roomCancelBookingId, setRoomCancelBookingId] = useState<string | null>(null);
   const [processingCheckin, setProcessingCheckin] = useState(false);
+  const [processingRoomCancel, setProcessingRoomCancel] = useState(false);
+  const [resendingPassId, setResendingPassId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,      // Active Today
@@ -213,28 +334,29 @@ function AllPassesPageContent() {
     }
   }, [selectedPass]);
 
-  // Auto-open pass detail modal when navigating from notification with reviewBooking param
+  // Auto-open pass detail modal when navigating from notification with reviewBooking/reviewRoomCancellation param
   useEffect(() => {
-    if (reviewBookingId && passes.length > 0 && !selectedPass) {
+    const bookingIdToReview = reviewBookingId || reviewRoomCancellationId;
+    if (bookingIdToReview && passes.length > 0 && !selectedPass) {
       const matchingPass = passes.find(
-        (p) => p.hostelBooking?.id === reviewBookingId
+        (p) => getPassBookings(p).some((booking) => booking.id === bookingIdToReview)
       );
       if (matchingPass) {
         setSelectedPass(matchingPass);
       }
     }
-  }, [reviewBookingId, passes]);
+  }, [reviewBookingId, reviewRoomCancellationId, passes]);
 
   // Early check-in approve handler
   const handleApproveCheckin = useCallback(async (bookingId: string) => {
     setProcessingCheckin(true);
     try {
       await gateEntryService.approveEarlyCheckin(bookingId);
-      toast.success('Early check-in request approved successfully', 'Approved');
+      toast.success(t('toast.checkinApproved'), t('common.approved'));
       fetchPasses();
       setSelectedPass(null);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to approve request', 'Error');
+      toast.error(err.response?.data?.message || t('toast.err.approveCheckIn'), t('common.error'));
     } finally {
       setProcessingCheckin(false);
     }
@@ -244,24 +366,105 @@ function AllPassesPageContent() {
   const handleRejectCheckin = useCallback(async () => {
     if (!rejectingBookingId) return;
     if (!rejectReason.trim()) {
-      toast.error('Please provide a reason for rejection', 'Reason Required');
+      toast.error(t('toast.err.reasonRequiredMsg'), t('toast.err.reasonRequired'));
       return;
     }
     setProcessingCheckin(true);
     try {
       await gateEntryService.rejectEarlyCheckin(rejectingBookingId, rejectReason.trim());
-      toast.success('Early check-in request rejected', 'Rejected');
+      toast.success(t('toast.checkinRejected'), t('common.rejected'));
       fetchPasses();
       setSelectedPass(null);
       setShowRejectModal(false);
       setRejectReason('');
       setRejectingBookingId(null);
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to reject request', 'Error');
+      toast.error(err.response?.data?.message || t('toast.err.rejectCheckin'), t('common.error'));
     } finally {
       setProcessingCheckin(false);
     }
   }, [rejectingBookingId, rejectReason]);
+
+  const handleRequestRoomCancel = useCallback(async (bookingId: string, reason: string) => {
+    setProcessingRoomCancel(true);
+    try {
+      await gateEntryService.requestRoomCancellation(bookingId, reason);
+      toast.success(t('room.cancelRequestSent'), t('btn.submitted'));
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('toast.err.requestRoomCancel'), t('common.error'));
+    } finally {
+      setProcessingRoomCancel(false);
+    }
+  }, []);
+
+  const handleApproveRoomCancel = useCallback(async (bookingId: string) => {
+    setProcessingRoomCancel(true);
+    try {
+      await gateEntryService.approveRoomCancellationRequest(bookingId);
+      toast.success(t('room.cancelApproved'), t('common.approved'));
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('toast.err.approveRoomCancel'), t('common.error'));
+    } finally {
+      setProcessingRoomCancel(false);
+    }
+  }, []);
+
+  const handleRejectRoomCancel = useCallback(async (bookingId: string, reason: string) => {
+    if (!reason.trim()) {
+      toast.error(t('toast.err.rejectionReasonRequired'), t('toast.err.reasonRequired'));
+      return;
+    }
+    setProcessingRoomCancel(true);
+    try {
+      await gateEntryService.rejectRoomCancellationRequest(bookingId, reason.trim());
+      toast.success(t('room.cancelRejected'), t('common.rejected'));
+      fetchPasses();
+      setSelectedPass(null);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || t('toast.err.rejectRoomCancel'), t('common.error'));
+    } finally {
+      setProcessingRoomCancel(false);
+    }
+  }, []);
+
+  const openRoomCancelReasonModal = useCallback((bookingId: string, action: 'request' | 'reject') => {
+    setRoomCancelBookingId(bookingId);
+    setRoomCancelAction(action);
+    setRoomCancelReason('');
+    setShowRoomCancelReasonModal(true);
+  }, []);
+
+  const closeRoomCancelReasonModal = useCallback(() => {
+    setShowRoomCancelReasonModal(false);
+    setRoomCancelReason('');
+    setRoomCancelAction(null);
+    setRoomCancelBookingId(null);
+  }, []);
+
+  const submitRoomCancelReason = useCallback(async () => {
+    if (!roomCancelBookingId || !roomCancelAction) {
+      closeRoomCancelReasonModal();
+      return;
+    }
+
+    const trimmedReason = roomCancelReason.trim();
+    if (roomCancelAction === 'reject' && !trimmedReason) {
+      toast.error(t('toast.err.rejectionReasonRequired'), t('toast.err.reasonRequired'));
+      return;
+    }
+
+    if (roomCancelAction === 'request') {
+      await handleRequestRoomCancel(roomCancelBookingId, trimmedReason);
+    } else {
+      await handleRejectRoomCancel(roomCancelBookingId, trimmedReason);
+    }
+
+    closeRoomCancelReasonModal();
+  }, [roomCancelBookingId, roomCancelAction, roomCancelReason, closeRoomCancelReasonModal, handleRequestRoomCancel, handleRejectRoomCancel]);
 
   const fetchPasses = async () => {
     try {
@@ -285,13 +488,13 @@ function AllPassesPageContent() {
       console.error('Error fetching passes:', err);
       // More user-friendly error messages
       if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
-        setError('Cannot connect to server. Please check if the backend is running.');
+        setError(t('allPasses.error.network'));
       } else if (err.response?.status === 401) {
-        setError('Session expired. Please login again.');
+        setError(t('allPasses.error.sessionExpired'));
       } else if (err.response?.status === 403) {
-        setError('You do not have permission to view gate passes.');
+        setError(t('allPasses.error.noPermission'));
       } else {
-        setError(err.response?.data?.message || err.message || 'Failed to load passes');
+        setError(err.response?.data?.message || err.message || t('allPasses.error.loadFailed'));
       }
       setPasses([]);
     } finally {
@@ -315,6 +518,18 @@ function AllPassesPageContent() {
         QR: {qrStatus}
       </span>
     );
+  };
+
+  const getPassBookings = (pass: Pass) => {
+    if (Array.isArray(pass.hostelBookings) && pass.hostelBookings.length > 0) {
+      return pass.hostelBookings;
+    }
+    return pass.hostelBooking ? [pass.hostelBooking] : [];
+  };
+
+  const hasAnyActiveRoomBooking = (pass: Pass) => {
+    const bookings = getPassBookings(pass);
+    return bookings.some((booking) => !['cancelled', 'completed'].includes((booking.bookingStatus || '').toLowerCase()));
   };
 
   // Filter and search logic
@@ -362,13 +577,36 @@ function AllPassesPageContent() {
     });
   }, [passes, searchTerm, statusFilter, dateFilter]);
 
-  const handleResendNotification = (pass: Pass) => {
-    toast.success(`${t('allPasses.resend.message')} ${pass.mobileNumber}${pass.email ? ` and ${pass.email}` : ''}`, t('allPasses.resend.title'));
+  const handleResendNotification = async (pass: Pass) => {
+    try {
+      setResendingPassId(pass.passId);
+
+      const result = await gateEntryService.resendNotification(pass.passId);
+      const targetEmail = result.data?.email || pass.email;
+
+      toast.success(
+        targetEmail
+          ? `${t('allPasses.resend.message')} ${targetEmail}`
+          : result.message,
+        t('allPasses.resend.title')
+      );
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || t('allPasses.cancel.failed');
+      toast.error(errorMessage, t('common.error'));
+    } finally {
+      setResendingPassId(null);
+    }
   };
 
   const handleCancelPass = async (passId: string) => {
     const pass = passes.find(p => p.passId === passId);
     if (pass) {
+      if (hasAnyActiveRoomBooking(pass)) {
+        setSelectedPass(pass);
+        toast.warning(t('allPasses.roomCancelRequiredToast'), t('allPasses.cancelRoomFirstTitle'));
+        return;
+      }
+
       console.log('[CANCEL MODAL] Full pass object:', JSON.stringify(pass, null, 2));
       console.log('[CANCEL MODAL] Pass data:', {
         passId: pass.passId,
@@ -505,7 +743,7 @@ function AllPassesPageContent() {
     setCancellingPass(true);
     try {
       // For after check-in, use a generic reason if not provided
-      const reason = cancelReason.trim() || 'Cancelled after check-in by admin';
+      const reason = cancelReason.trim() || t('allPasses.cancel.afterCheckInReason');
       const response = await gateEntryService.cancelPass(selectedPass.passId, reason) as any;
       const cancelledPass = response.pass || response.data;
       const cancellationType = cancelledPass.cancellation_type || cancelledPass.cancellationType;
@@ -531,7 +769,7 @@ function AllPassesPageContent() {
         if (hostelRefund) {
           // Show success with refund details
           toast.success(
-            `Pass cancelled successfully. Refund of ₹${hostelRefund.refund_amount || hostelRefund.refundAmount} will be processed.`,
+            `${t('allPasses.cancel.successWithRefund')} ₹${hostelRefund.refund_amount || hostelRefund.refundAmount}`,
             t('allPasses.cancel.successTitle')
           );
         } else {
@@ -555,7 +793,7 @@ function AllPassesPageContent() {
       } else {
         // Fallback for unknown cancellation type
         toast.success(
-          backendMessage || 'Pass cancelled successfully.',
+          backendMessage || t('allPasses.cancel.successBeforeCheckIn'),
           t('allPasses.cancel.successTitle')
         );
       }
@@ -563,7 +801,12 @@ function AllPassesPageContent() {
       await fetchPasses();
     } catch (err: any) {
       console.error('Error cancelling pass:', err);
-      toast.error(err.response?.data?.message || t('allPasses.cancel.failedMsg'), t('common.error'));
+      const backendMessage = err.response?.data?.message || '';
+      const roomCancelBlocked = backendMessage.toLowerCase().includes('cancel the room');
+      toast.error(
+        roomCancelBlocked ? t('toast.err.firstCancelRoom') : (backendMessage || t('allPasses.cancel.failedMsg')),
+        t('common.error')
+      );
     } finally {
       setCancellingPass(false);
     }
@@ -571,23 +814,23 @@ function AllPassesPageContent() {
 
   const handleExport = () => {
     // Prepare CSV data from filtered passes - only simplified fields
-    const headers = ['Pass ID', 'Visitor Name', 'Mobile', 'Relation', 'Persons', 'Purpose', 'Visit Date', 'Entry Time', 'Exit Time', 'Status', 'Vehicle', 'Stay Required', 'Hostel'];
+    const headers = [t('csv.passId'), t('csv.visitorName'), t('csv.mobile'), t('csv.relation'), t('csv.persons'), t('csv.purpose'), t('csv.visitDate'), t('csv.entryTime'), t('csv.exitTime'), t('csv.status'), t('csv.vehicle'), t('csv.stayRequired'), t('csv.hostel')];
     const csvRows = [
       headers.join(','),
       ...filteredPasses.map(pass => [
         pass.passId,
-        `"${pass.visitorName}"`,
+        `"${displayText(pass.visitorName)}"`,
         pass.mobileNumber,
-        pass.visitorRelation || '',
+        getRelationLabel(pass.visitorRelation),
         pass.numberOfPersons || 1,
-        `"${pass.purposeOfVisit}"`,
+        `"${getPurposeLabel(pass.purposeOfVisit, pass.purposeOther)}"`,
         pass.visitDate.split('T')[0],
         pass.expectedEntryTime,
         pass.expectedExitTime,
         pass.status,
         pass.vehicleNumber || '',
-        pass.stayRequired ? 'Yes' : 'No',
-        pass.hostelName || ''
+        pass.stayRequired ? t('common.yes') : t('common.no'),
+        displayText(pass.hostelName || '')
       ].join(','))
     ];
 
@@ -612,20 +855,20 @@ function AllPassesPageContent() {
   // Error State
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 p-8 animate-shake">
+      <div className="min-h-screen bg-[#f8fafc] p-6 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-[0_12px_28px_rgba(1,31,75,0.18)] border border-[#6497b1] p-8 animate-shake">
           <div className="text-center">
-            <div className="bg-gradient-to-br from-red-500 to-pink-500 p-4 rounded-2xl inline-block mb-4">
+            <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-4 rounded-2xl inline-block mb-4">
               <AlertCircle className="w-16 h-16 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('allPasses.errorTitle')}</h2>
-            <p className="text-gray-600 mb-6">{error}</p>
+            <h2 className="text-2xl font-bold text-[#011f4b] mb-2">{t('allPasses.errorTitle')}</h2>
+            <p className="text-[#6497b1] mb-6">{error}</p>
             <button
               onClick={() => {
                 setError(null);
                 fetchPasses();
               }}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 mx-auto"
+              className="px-6 py-3 bg-[#005b96] text-white font-bold rounded-xl hover:bg-[#03396c] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 mx-auto"
             >
               <RefreshCw className="w-5 h-5" />
               {t('allPasses.tryAgain')}
@@ -637,17 +880,9 @@ function AllPassesPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-3 md:p-8">
+    <div className="min-h-screen bg-[#f8fafc] p-3 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Hero Header with Gradient Background - Master Dashboard Style */}
-        <div className="relative bg-gradient-to-r from-blue-600 to-cyan-600 rounded-2xl shadow-[0_8px_30px_rgba(37,99,235,0.25)] p-6 md:p-8 mb-6 overflow-visible animate-fade-in">
-          {/* Animated Background Pattern */}
-          <div className="absolute inset-0 opacity-10 overflow-hidden rounded-2xl">
-            <div className="absolute top-0 left-0 w-64 h-64 bg-white rounded-full blur-3xl animate-pulse-glow"></div>
-            <div className="absolute bottom-0 right-0 w-96 h-96 bg-cyan-300 rounded-full blur-3xl animate-pulse-glow" style={{animationDelay: '1s'}}></div>
-          </div>
-          
-          {/* Content */}
+        <div className="relative bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] rounded-2xl border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] p-6 md:p-8 mb-6 animate-fade-in">
           <div className="relative z-10">
             <div className="flex flex-col gap-4">
               {/* Top Row: Title and Language Selector */}
@@ -658,7 +893,7 @@ function AllPassesPageContent() {
                   </div>
                   <div className="flex-1">
                     <h1 className="text-2xl md:text-4xl font-bold text-white">{t('allPasses.title')}</h1>
-                    <p className="text-indigo-100 text-sm md:text-base mt-1">
+                    <p className="text-[#b3cde0] text-sm md:text-base mt-1">
                       {(() => {
                         const role = (user?.role?.name || '').toLowerCase();
                         const isAdmin = role === 'admin' || role === 'superadmin';
@@ -687,16 +922,16 @@ function AllPassesPageContent() {
                   onClick={() => {
                     fetchPasses();
                   }}
-                  className="px-3 md:px-4 py-2.5 bg-white/20 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/30 transition-all flex items-center gap-2 text-sm md:text-base font-medium hover-lift"
+                  className="px-3 md:px-4 py-2.5 bg-white/15 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/25 transition-all flex items-center gap-2 text-sm md:text-base font-medium hover-lift"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span className="hidden sm:inline">{t('allPasses.refresh')}</span>
                 </button>
                 <Link
                   href="/admin/gate-entry/create-pass"
-                  className="px-3 md:px-4 py-2.5 bg-white text-blue-600 rounded-xl hover:bg-blue-50 transition-all flex items-center gap-2 text-sm md:text-base font-bold shadow-lg hover:shadow-xl hover-lift"
+                  className="px-3 md:px-4 py-2.5 bg-white text-[#03396c] rounded-xl hover:bg-[#b3cde0]/25 transition-all flex items-center gap-2 text-sm md:text-base font-bold shadow-lg hover:shadow-xl hover-lift"
                 >
-                  ➕ <span className="hidden sm:inline">{t('allPasses.createNew')}</span><span className="sm:hidden">New</span>
+                  ➕ <span className="hidden sm:inline">{t('allPasses.createNew')}</span><span className="sm:hidden">{t('allPasses.createNew')}</span>
                 </Link>
               </div>
             </div>
@@ -705,77 +940,77 @@ function AllPassesPageContent() {
 
         {/* Stats Cards - Master Dashboard Style with Gradient Icons */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 mb-6">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-1">
+          <div className={`${cardClass} p-4 md:p-5 hover-lift animate-slide-up stagger-item-1`}>
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-gray-500 to-gray-600 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.totalPasses')}</div>
-                <div className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</div>
+                <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.totalPasses')}</div>
+                <div className="text-xl md:text-2xl font-bold text-[#011f4b]">{stats.total}</div>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-2">
+          <div className={`${cardClass} p-4 md:p-5 hover-lift animate-slide-up stagger-item-2`}>
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.activeToday')}</div>
-                <div className="text-xl md:text-2xl font-bold text-blue-600">{stats.active}</div>
+                <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.activeToday')}</div>
+                <div className="text-xl md:text-2xl font-bold text-[#005b96]">{stats.active}</div>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-3">
+          <div className={`${cardClass} p-4 md:p-5 hover-lift animate-slide-up stagger-item-3`}>
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#005b96] to-[#6497b1] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.22)]">
                 <Clock className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.pending')}</div>
-                <div className="text-xl md:text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.pending')}</div>
+                <div className="text-xl md:text-2xl font-bold text-[#03396c]">{stats.pending}</div>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-4">
+          <div className={`${cardClass} p-4 md:p-5 hover-lift animate-slide-up stagger-item-4`}>
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-green-500 to-emerald-500 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.completed')}</div>
-                <div className="text-xl md:text-2xl font-bold text-green-600">{stats.completed}</div>
+                <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.completed')}</div>
+                <div className="text-xl md:text-2xl font-bold text-[#005b96]">{stats.completed}</div>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-5 hover-lift animate-slide-up stagger-item-5">
+          <div className={`${cardClass} p-4 md:p-5 hover-lift animate-slide-up stagger-item-5`}>
             <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-br from-red-500 to-pink-500 p-3 rounded-xl shadow-lg">
+              <div className="bg-gradient-to-br from-[#005b96] to-[#6497b1] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.22)]">
                 <AlertCircle className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-xs md:text-sm text-gray-600">{t('allPasses.expired')}</div>
-                <div className="text-xl md:text-2xl font-bold text-red-600">{stats.expired}</div>
+                <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.expired')}</div>
+                <div className="text-xl md:text-2xl font-bold text-[#03396c]">{stats.expired}</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters Card - Master Dashboard Style with Gradient Header */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 md:p-6 mb-6 animate-slide-up">
+        <div className={`${cardClass} p-4 md:p-6 mb-6 animate-slide-up`}>
           {/* Filter Section Header */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="bg-gradient-to-br from-cyan-500 to-blue-500 p-2.5 rounded-xl shadow-lg">
+            <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-2.5 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
               <Filter className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">{t('allPasses.filterSearch')}</h2>
+            <h2 className="text-lg md:text-xl font-bold text-[#011f4b]">{t('allPasses.filterSearch')}</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {/* Search */}
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-gray-700 mb-2">{t('allPasses.searchPasses')}</label>
+              <label className="block text-xs font-bold text-[#03396c] mb-2">{t('allPasses.searchPasses')}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                 <input
@@ -783,19 +1018,19 @@ function AllPassesPageContent() {
                   placeholder={t('common.passIdNameMobile')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400"
+                  className={`${inputClass} pl-10 pr-4`}
                 />
               </div>
             </div>
 
             {/* Status Filter */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">{t('allPasses.status')}</label>
+              <label className="block text-xs font-bold text-[#03396c] mb-2">{t('allPasses.status')}</label>
               <div className="relative">
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400 bg-white"
+                  className={`${inputClass} pl-10`}
                 >
                   <option value="all">{t('common.allStatus')}</option>
                   <option value="pending">{t('allPasses.filter.pending')}</option>
@@ -812,12 +1047,12 @@ function AllPassesPageContent() {
 
             {/* Date Filter */}
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-2">{t('allPasses.dateRange')}</label>
+              <label className="block text-xs font-bold text-[#03396c] mb-2">{t('allPasses.dateRange')}</label>
               <div className="relative">
                 <select
                   value={dateFilter}
                   onChange={(e) => setDateFilter(e.target.value)}
-                  className="w-full px-4 py-3 pl-10 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all hover:border-cyan-400 bg-white"
+                  className={`${inputClass} pl-10`}
                 >
                   <option value="all">{t('common.allDates')}</option>
                   <option value="today">{t('allPasses.filter.today')}</option>
@@ -829,16 +1064,16 @@ function AllPassesPageContent() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-5 pt-5 border-t border-gray-200 gap-3">
-            <div className="text-sm text-gray-600 flex items-center gap-2">
-              <div className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-5 pt-5 border-t border-[#b3cde0] gap-3">
+            <div className="text-sm text-[#6497b1] flex items-center gap-2">
+              <div className="bg-[#005b96] text-white px-3 py-1.5 rounded-lg font-bold text-xs">
                 {filteredPasses.length}
               </div>
               <span>{t('common.of')} {passes.length} {t('common.passes')}</span>
             </div>
             <button
               onClick={handleExport}
-              className="px-4 py-2.5 text-sm bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
+              className="px-4 py-2.5 text-sm bg-[#005b96] text-white font-bold rounded-xl hover:bg-[#03396c] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               {t('allPasses.exportCSV')}
@@ -847,10 +1082,10 @@ function AllPassesPageContent() {
         </div>
 
         {/* Passes Table - Master Dashboard Style Card */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden animate-slide-up">
+        <div className={`${cardClass} overflow-hidden animate-slide-up`}>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-[#f1f5f9] border-b border-[#b3cde0]">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                     {t('allPasses.col.passId')}
@@ -865,7 +1100,7 @@ function AllPassesPageContent() {
                     {t('allPasses.col.dateTime')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    Verification Codes
+                    {t('allPasses.col.verificationCodes')}
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                     {t('allPasses.col.status')}
@@ -890,13 +1125,13 @@ function AllPassesPageContent() {
                     const statusConfig = STATUS_CONFIG[(pass.passStatus || pass.status) as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
                     const StatusIcon = statusConfig.icon;
                     return (
-                      <tr key={pass.id} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-300 animate-fade-in" style={{animationDelay: `${index * 50}ms`}}>
+                      <tr key={pass.id} className="hover:bg-[#b3cde0]/20 transition-all duration-300 animate-fade-in" style={{animationDelay: `${index * 50}ms`}}>
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <QrCode className="w-4 h-4 text-gray-400" />
                             <div>
                               <div className="text-sm font-medium text-gray-900">{pass.passId}</div>
-                              <div className="text-xs text-gray-500">{t('allPasses.by')} {pass.creator?.username || t('allPasses.system')}</div>
+                              <div className="text-xs text-gray-500">{t('allPasses.by')} {getCreatorLabel(pass.creator?.username)}</div>
                             </div>
                           </div>
                         </td>
@@ -904,14 +1139,14 @@ function AllPassesPageContent() {
                           <div className="flex items-start gap-2">
                             <User className="w-4 h-4 text-gray-400 mt-1" />
                             <div>
-                              <div className="text-sm font-medium text-gray-900">{pass.visitorName}</div>
+                              <div className="text-sm font-medium text-gray-900">{displayText(pass.visitorName)}</div>
                               <div className="text-xs text-gray-500 flex items-center gap-1">
                                 <Phone className="w-3 h-3" />
                                 {pass.mobileNumber}
                               </div>
-                              {pass.visitorRelation && (
-                                <div className="text-xs text-blue-600 mt-1">
-                                  {pass.visitorRelation}
+                              {shouldShowInlineRelation(pass.visitorRelation) && (
+                                <div className="text-xs text-[#005b96] mt-1">
+                                  {getRelationLabel(pass.visitorRelation)}
                                 </div>
                               )}
                               {pass.numberOfPersons && pass.numberOfPersons > 1 && (
@@ -930,10 +1165,15 @@ function AllPassesPageContent() {
                         </td>
                         <td className="px-4 py-4">
                           <div className="text-sm">
-                            <div className="font-medium text-gray-900">{pass.purposeOfVisit === 'other' && pass.purposeOther ? pass.purposeOther : pass.purposeOfVisit}</div>
+                            <div className="font-medium text-gray-900">{getPurposeLabel(pass.purposeOfVisit, pass.purposeOther)}</div>
                             {pass.stayRequired && (
                               <div className="text-xs text-purple-600 mt-1">
-                                🏠 {t('allPasses.multiDayStay')} {pass.hostelName}
+                                🏠 {t('allPasses.multiDayStay')} {displayText(pass.hostelName)}
+                              </div>
+                            )}
+                            {pass.hostelBooking?.bookingStatus !== 'cancelled' && (
+                              <div className="text-xs text-[#03396c] mt-1 font-medium">
+                                {t('allPasses.roomCancelRequiredInline')}
                               </div>
                             )}
                           </div>
@@ -963,7 +1203,7 @@ function AllPassesPageContent() {
                           <div className="text-sm space-y-1">
                             {pass.verificationCode && (
                               <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-500">Entry:</span>
+                                <span className="text-xs text-gray-500">{t('label.entry')}:</span>
                                 <span className="font-mono font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded">
                                   {pass.verificationCode}
                                 </span>
@@ -971,7 +1211,7 @@ function AllPassesPageContent() {
                             )}
                             {pass.checkoutVerificationCode && (
                               <div className="flex items-center gap-1">
-                                <span className="text-xs text-gray-500">Checkout:</span>
+                                <span className="text-xs text-gray-500">{t('label.checkout')}:</span>
                                 <span className="font-mono font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
                                   {pass.checkoutVerificationCode}
                                 </span>
@@ -992,7 +1232,7 @@ function AllPassesPageContent() {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setSelectedPass(pass)}
-                              className="text-blue-600 hover:text-blue-800"
+                              className="text-[#005b96] hover:text-[#011f4b]"
                               title={t('allPasses.action.viewDetails')}
                             >
                               <Eye className="w-4 h-4" />
@@ -1003,10 +1243,7 @@ function AllPassesPageContent() {
                              (pass.passStatus !== 'expired' && pass.status !== 'expired') &&
                              canCancelPass(user as any, pass as any) && (
                               <button
-                                onClick={() => {
-                                  setSelectedPass(pass);
-                                  setShowCancelModal(true);
-                                }}
+                                onClick={() => handleCancelPass(pass.passId)}
                                 className="text-red-600 hover:text-red-800"
                                 title={t('allPasses.action.cancelPass')}
                               >
@@ -1020,10 +1257,15 @@ function AllPassesPageContent() {
                               <>
                                 <button
                                   onClick={() => handleResendNotification(pass)}
+                                  disabled={resendingPassId === pass.passId}
                                   className="text-green-600 hover:text-green-800"
                                   title={t('allPasses.action.resendNotif')}
                                 >
-                                  <Send className="w-4 h-4" />
+                                  {resendingPassId === pass.passId ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Send className="w-4 h-4" />
+                                  )}
                                 </button>
                                 {canCancelPass(user as any, pass as any) && (
                                   <button
@@ -1050,12 +1292,12 @@ function AllPassesPageContent() {
         {/* Pass Detail Modal */}
         {selectedPass && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h3 className="text-xl font-semibold text-gray-900">{t('allPasses.detail.title')}</h3>
+            <div className="bg-white rounded-2xl border border-[#6497b1] shadow-[0_14px_34px_rgba(1,31,75,0.2)] max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-[#b3cde0] px-6 py-4 flex items-center justify-between">
+                <h3 className="text-xl font-semibold text-[#011f4b]">{t('allPasses.detail.title')}</h3>
                 <button
                   onClick={() => setSelectedPass(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-[#6497b1] hover:text-[#03396c]"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -1064,10 +1306,10 @@ function AllPassesPageContent() {
               <div className="p-6 space-y-6">
                 {/* Pass ID & QR */}
                 <div className="text-center border-b border-gray-200 pb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-3">
-                    <QrCode className="w-8 h-8 text-blue-600" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-[#b3cde0]/35 rounded-full mb-3 border border-[#6497b1]">
+                    <QrCode className="w-8 h-8 text-[#005b96]" />
                   </div>
-                  <h4 className="text-2xl font-bold text-gray-900">{selectedPass.passId}</h4>
+                  <h4 className="text-2xl font-bold text-[#011f4b]">{selectedPass.passId}</h4>
                   <div className="flex items-center justify-center gap-2 mt-2">
                     <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${STATUS_CONFIG[(selectedPass.passStatus || selectedPass.status) as keyof typeof STATUS_CONFIG]?.color || 'bg-gray-100 text-gray-800'}`}>
                       {STATUS_CONFIG[(selectedPass.passStatus || selectedPass.status) as keyof typeof STATUS_CONFIG]?.label || selectedPass.passStatus || selectedPass.status}
@@ -1080,15 +1322,15 @@ function AllPassesPageContent() {
                     <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
                       {selectedPass.verificationCode && (
                         <div className="flex flex-col items-center gap-1 bg-green-50 px-4 py-2 rounded-lg border border-green-200">
-                          <span className="text-xs text-green-700 font-medium">Entry Code</span>
+                          <span className="text-xs text-green-700 font-medium">{t('label.entryCode')}</span>
                           <span className="font-mono text-2xl font-bold text-green-600 tracking-wider">
                             {selectedPass.verificationCode}
                           </span>
                         </div>
                       )}
                       {selectedPass.checkoutVerificationCode && (
-                        <div className="flex flex-col items-center gap-1 bg-orange-50 px-4 py-2 rounded-lg border border-orange-200">
-                          <span className="text-xs text-orange-700 font-medium">Checkout Code</span>
+                        <div className="flex flex-col items-center gap-1 bg-[#b3cde0]/25 px-4 py-2 rounded-lg border border-[#6497b1]">
+                          <span className="text-xs text-orange-700 font-medium">{t('label.checkoutCode')}</span>
                           <span className="font-mono text-2xl font-bold text-orange-600 tracking-wider">
                             {selectedPass.checkoutVerificationCode}
                           </span>
@@ -1104,7 +1346,7 @@ function AllPassesPageContent() {
                     <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.visitorInfo')}</h5>
                     <dl className="space-y-2 text-sm">
                       {selectedPass.visitorName && (
-                        <div><dt className="text-gray-600">{t('allPasses.detail.name')}</dt><dd className="font-medium">{selectedPass.visitorName}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.name')}</dt><dd className="font-medium">{displayText(selectedPass.visitorName)}</dd></div>
                       )}
                       {selectedPass.mobileNumber && (
                         <div><dt className="text-gray-600">{t('allPasses.detail.mobile')}</dt><dd className="font-medium">{selectedPass.mobileNumber}</dd></div>
@@ -1113,7 +1355,7 @@ function AllPassesPageContent() {
                         <div><dt className="text-gray-600">{t('allPasses.detail.email')}</dt><dd className="font-medium">{selectedPass.email}</dd></div>
                       )}
                       {selectedPass.visitorRelation && (
-                        <div><dt className="text-gray-600">{t('allPasses.detail.relation')}</dt><dd className="font-medium">{selectedPass.visitorRelation}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.relation')}</dt><dd className="font-medium">{getRelationLabel(selectedPass.visitorRelation)}</dd></div>
                       )}
                       {selectedPass.numberOfPersons && selectedPass.numberOfPersons > 0 && (
                         <div><dt className="text-gray-600">{t('allPasses.detail.persons')}</dt><dd className="font-medium text-green-600">👥 {selectedPass.numberOfPersons}</dd></div>
@@ -1125,7 +1367,7 @@ function AllPassesPageContent() {
                     <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.visitInfo')}</h5>
                     <dl className="space-y-2 text-sm">
                       {selectedPass.purposeOfVisit && (
-                        <div><dt className="text-gray-600">{t('allPasses.detail.purpose')}</dt><dd className="font-medium">{selectedPass.purposeOfVisit === 'other' && selectedPass.purposeOther ? selectedPass.purposeOther : selectedPass.purposeOfVisit}</dd></div>
+                        <div><dt className="text-gray-600">{t('allPasses.detail.purpose')}</dt><dd className="font-medium">{getPurposeLabel(selectedPass.purposeOfVisit, selectedPass.purposeOther)}</dd></div>
                       )}
                       {selectedPass.visitDate && (
                         <div><dt className="text-gray-600">{t('allPasses.detail.visitDate')}</dt><dd className="font-medium">{selectedPass.visitDate}</dd></div>
@@ -1158,18 +1400,156 @@ function AllPassesPageContent() {
                   )}
 
                   {selectedPass.stayRequired && (
-                    <div>
+                    <div className="md:col-span-2">
                       <h5 className="font-semibold text-gray-900 mb-3">{t('allPasses.detail.stayInfo')}</h5>
-                      <dl className="space-y-2 text-sm">
-                        <div><dt className="text-gray-600">{t('allPasses.detail.checkInDate')}</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkInDate || selectedPass.visitDate)}</dd></div>
-                        <div><dt className="text-gray-600">{t('allPasses.detail.checkOutDate')}</dt><dd className="font-medium">{safeFormatDate(selectedPass.checkOutDate)}</dd></div>
-                        {selectedPass.hostelName && (
-                          <div><dt className="text-gray-600">{t('allPasses.detail.hostel')}</dt><dd className="font-medium">{selectedPass.hostelName}</dd></div>
+                      <div className="space-y-3">
+                        {getPassBookings(selectedPass).map((booking, index) => {
+                          const requestStatus = booking.roomCancelRequestStatus || null;
+                          const isPending = requestStatus === 'pending';
+                          const isApproved = requestStatus === 'approved';
+                          const isRejected = requestStatus === 'rejected';
+                          const bookingStatus = (booking.bookingStatus || '').toLowerCase();
+                          const canRequest = booking.id
+                            && !['cancelled', 'completed'].includes(bookingStatus)
+                            && !isPending
+                            && !isApproved
+                            && ((selectedPass.creator?.id && selectedPass.creator.id === (user as any)?.id)
+                              || ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()));
+
+                          return (
+                            <div key={booking.id || index} className="border border-[#b3cde0] rounded-lg p-4 bg-[#f8fafc]">
+                              <div className="flex items-center justify-between mb-3">
+                                <h6 className="font-semibold text-gray-900">{t('room.booking')} {index + 1}</h6>
+                                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+                                  booking.bookingStatus === 'cancelled' ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700'
+                                }`}>
+                                  {booking.bookingStatus || 'unknown'}
+                                </span>
+                              </div>
+
+                              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                <div><dt className="text-gray-600">{t('label.hostel')}</dt><dd className="font-medium">{booking.hostelName || 'N/A'}</dd></div>
+                                <div><dt className="text-gray-600">{t('label.room')}</dt><dd className="font-medium">{booking.roomNumber || 'N/A'}</dd></div>
+                                <div><dt className="text-gray-600">{t('label.checkIn')}</dt><dd className="font-medium">{safeFormatDate(booking.checkInDate || selectedPass.visitDate)}</dd></div>
+                                <div><dt className="text-gray-600">{t('label.checkOut')}</dt><dd className="font-medium">{safeFormatDate(booking.checkOutDate)}</dd></div>
+                              </dl>
+
+                              {requestStatus && (
+                                <div className={`mt-3 rounded-md border px-3 py-2 text-sm ${
+                                  isPending ? 'border-amber-300 bg-amber-50 text-amber-800'
+                                    : isApproved ? 'border-green-300 bg-green-50 text-green-800'
+                                      : 'border-red-300 bg-red-50 text-red-800'
+                                }`}>
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-semibold uppercase tracking-wide text-xs">{t('room.cancelRequestStatus')}: {getRequestStatusLabel(requestStatus)}</span>
+                                  </div>
+                                  {booking.roomCancelRequestReason && (
+                                    <p className="mt-1">{t('room.requestReason')} <span className="font-medium">{booking.roomCancelRequestReason}</span></p>
+                                  )}
+                                  {isRejected && booking.roomCancelRequestRejectReason && (
+                                    <p className="mt-1">{t('room.rejectionReason')} <span className="font-medium">{booking.roomCancelRequestRejectReason}</span></p>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="mt-3 flex gap-2">
+                                {canRequest && (
+                                  <button
+                                    onClick={() => openRoomCancelReasonModal(booking.id!, 'request')}
+                                    disabled={processingRoomCancel}
+                                    className="px-3 py-2 bg-[#005b96] text-white rounded-lg hover:bg-[#03396c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                                  >
+                                    {processingRoomCancel ? t('btn.processSubmitting') : t('btn.requestRoomCancellation')}
+                                  </button>
+                                )}
+
+                                {isPending && booking.id && ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()) && (
+                                  <>
+                                    <button
+                                      onClick={() => handleApproveRoomCancel(booking.id!)}
+                                      disabled={processingRoomCancel}
+                                      className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors disabled:opacity-50"
+                                    >
+                                      {processingRoomCancel ? t('btn.processing') : t('common.approved')}
+                                    </button>
+                                    <button
+                                      onClick={() => openRoomCancelReasonModal(booking.id!, 'reject')}
+                                      disabled={processingRoomCancel}
+                                      className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors disabled:opacity-50"
+                                    >
+                                      {t('common.rejected')}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Room Cancellation Request Section */}
+                  {selectedPass.hostelBooking?.roomCancelRequestStatus && (
+                    <div className="md:col-span-2">
+                      <div className={`border-2 rounded-lg p-5 ${
+                        selectedPass.hostelBooking.roomCancelRequestStatus === 'pending'
+                          ? 'border-amber-300 bg-amber-50'
+                          : selectedPass.hostelBooking.roomCancelRequestStatus === 'approved'
+                            ? 'border-green-300 bg-green-50'
+                            : 'border-red-300 bg-red-50'
+                      }`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h5 className="font-semibold text-lg flex items-center gap-2 text-gray-800">
+                            <AlertCircle className="w-5 h-5" />
+                            {t('room.cancelRequestStatus')}
+                          </h5>
+                          <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide ${
+                            selectedPass.hostelBooking.roomCancelRequestStatus === 'pending'
+                              ? 'bg-amber-200 text-amber-800'
+                              : selectedPass.hostelBooking.roomCancelRequestStatus === 'approved'
+                                ? 'bg-green-200 text-green-800'
+                                : 'bg-red-200 text-red-800'
+                          }`}>
+                            {getRequestStatusLabel(selectedPass.hostelBooking.roomCancelRequestStatus)}
+                          </span>
+                        </div>
+
+                        {selectedPass.hostelBooking.roomCancelRequestReason && (
+                          <p className="text-sm text-gray-700 mb-3">
+                            {t('room.requestReason')} <span className="font-medium">{selectedPass.hostelBooking.roomCancelRequestReason}</span>
+                          </p>
                         )}
-                        {selectedPass.roomNumber && (
-                          <div><dt className="text-gray-600">{t('allPasses.detail.roomNumber')}</dt><dd className="font-medium">{selectedPass.roomNumber}</dd></div>
+
+                        {selectedPass.hostelBooking.roomCancelRequestStatus === 'rejected' && selectedPass.hostelBooking.roomCancelRequestRejectReason && (
+                          <p className="text-sm text-red-700 mb-3">
+                            {t('room.rejectionReason')} <span className="font-medium">{selectedPass.hostelBooking.roomCancelRequestRejectReason}</span>
+                          </p>
                         )}
-                      </dl>
+
+                        {selectedPass.hostelBooking.roomCancelRequestStatus === 'pending' &&
+                          selectedPass.hostelBooking.id &&
+                          ['admin', 'superadmin'].includes((user?.role?.name || '').toLowerCase()) && (
+                          <div className="flex gap-3 mt-2 pt-4 border-t border-gray-200">
+                            <button
+                              onClick={() => handleApproveRoomCancel(selectedPass.hostelBooking!.id!)}
+                              disabled={processingRoomCancel}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              {processingRoomCancel ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
+                              {t('room.approveCancel')}
+                            </button>
+                            <button
+                              onClick={() => openRoomCancelReasonModal(selectedPass.hostelBooking!.id!, 'reject')}
+                              disabled={processingRoomCancel}
+                              className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            >
+                              <XCircle className="w-5 h-5" />
+                              {t('room.rejectCancel')}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -1192,7 +1572,7 @@ function AllPassesPageContent() {
                                 : 'text-red-800'
                           }`}>
                             <Clock className="w-5 h-5" />
-                            Early Check-in Request
+                            {t('checkin.earlyCheckin')}
                           </h5>
                           <span className={`text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide ${
                             selectedPass.hostelBooking.checkinRequestStatus === 'pending'
@@ -1201,18 +1581,18 @@ function AllPassesPageContent() {
                                 ? 'bg-green-200 text-green-800'
                                 : 'bg-red-200 text-red-800'
                           }`}>
-                            {selectedPass.hostelBooking.checkinRequestStatus}
+                            {getRequestStatusLabel(selectedPass.hostelBooking.checkinRequestStatus)}
                           </span>
                         </div>
 
                         {/* Request details */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                           <div className="bg-white/60 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">Visitor Name</p>
-                            <p className="font-semibold text-gray-900">{selectedPass.visitorName}</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('label.visitorName')}</p>
+                            <p className="font-semibold text-gray-900">{displayText(selectedPass.visitorName)}</p>
                           </div>
                           <div className="bg-white/60 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">Requested Check-in Time</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('label.requestedCheckinTime')}</p>
                             <p className="font-semibold text-gray-900">
                               {selectedPass.hostelBooking.requestedCheckinTime
                                 ? new Date(selectedPass.hostelBooking.requestedCheckinTime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
@@ -1220,19 +1600,19 @@ function AllPassesPageContent() {
                             </p>
                           </div>
                           <div className="bg-white/60 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">Guest House</p>
-                            <p className="font-semibold text-gray-900">{selectedPass.hostelBooking.hostelName || selectedPass.hostelName || '—'}</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('label.guestHouse')}</p>
+                            <p className="font-semibold text-gray-900">{displayText(selectedPass.hostelBooking.hostelName || selectedPass.hostelName || '—')}</p>
                           </div>
                           <div className="bg-white/60 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">Room Number</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('label.roomNumber')}</p>
                             <p className="font-semibold text-gray-900">{selectedPass.hostelBooking.roomNumber || selectedPass.roomNumber || '—'}</p>
                           </div>
                           <div className="bg-white/60 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">Pass ID</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('label.passId')}</p>
                             <p className="font-semibold text-gray-900">{selectedPass.passId}</p>
                           </div>
                           <div className="bg-white/60 rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">Mobile Number</p>
+                            <p className="text-xs text-gray-500 mb-1">{t('label.mobile')}</p>
                             <p className="font-semibold text-gray-900">{selectedPass.mobileNumber || '—'}</p>
                           </div>
                         </div>
@@ -1258,7 +1638,7 @@ function AllPassesPageContent() {
                               ) : (
                                 <CheckCircle className="w-5 h-5" />
                               )}
-                              Accept Request
+                              {t('checkin.acceptRequest')}
                             </button>
                             <button
                               onClick={() => {
@@ -1270,7 +1650,7 @@ function AllPassesPageContent() {
                               className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                             >
                               <XCircle className="w-5 h-5" />
-                              Reject Request
+                              {t('checkin.rejectRequest')}
                             </button>
                           </div>
                         )}
@@ -1280,23 +1660,23 @@ function AllPassesPageContent() {
 
                   {selectedPass.checkoutQrCode && (
                     <div className="md:col-span-2">
-                      <div className="border-2 border-orange-300 rounded-lg p-4 bg-orange-50">
-                        <h5 className="font-semibold text-orange-800 mb-3 flex items-center gap-2">
+                      <div className="border border-[#6497b1] rounded-lg p-4 bg-[#b3cde0]/20">
+                        <h5 className="font-semibold text-[#03396c] mb-3 flex items-center gap-2">
                           <AlertCircle className="w-5 h-5" />
-                          Checkout QR Code (1 Hour Validity)
+                          {t('qr.checkoutQr')}
                         </h5>
                         <div className="flex flex-col md:flex-row items-center gap-4">
                           <img 
                             src={selectedPass.checkoutQrCode} 
                             alt="Checkout QR" 
-                            className="w-48 h-48 border-2 border-orange-400 rounded" 
+                            className="w-48 h-48 border-2 border-[#6497b1] rounded" 
                           />
                           <div className="text-sm space-y-2">
                             <p className="text-gray-700">
-                              <strong>Expires:</strong> {safeFormatDateTime(selectedPass.checkoutQrExpiresAt)}
+                              <strong>{t('qr.expires')}:</strong> {safeFormatDateTime(selectedPass.checkoutQrExpiresAt)}
                             </p>
-                            <p className="text-orange-600 font-medium">
-                              ⏰ Valid for 1 hour only. Visitor must exit within this time.
+                            <p className="text-[#03396c] font-medium">
+                              {t('qr.validFor1Hour')}
                             </p>
                           </div>
                         </div>
@@ -1306,16 +1686,16 @@ function AllPassesPageContent() {
 
                   {selectedPass.extensionCount && selectedPass.extensionCount > 0 && (
                     <div className="md:col-span-2">
-                      <div className="border-2 border-blue-300 rounded-lg p-4 bg-blue-50">
-                        <h5 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                      <div className="border border-[#6497b1] rounded-lg p-4 bg-[#b3cde0]/20">
+                        <h5 className="font-semibold text-[#03396c] mb-3 flex items-center gap-2">
                           <Calendar className="w-5 h-5" />
-                          Pass Extension Information
+                          {t('extension.title')}
                         </h5>
                         <dl className="space-y-2 text-sm">
-                          <div><dt className="text-gray-600">Extended:</dt><dd className="font-medium text-blue-600">{selectedPass.extensionCount} time(s)</dd></div>
+                          <div><dt className="text-gray-600">{t('extension.extended')}:</dt><dd className="font-medium text-blue-600">{selectedPass.extensionCount} {t('extension.times')}</dd></div>
                           <div>
-                            <dt className="text-gray-600">Reason:</dt>
-                            <dd className="font-medium">{selectedPass.extensionReason || 'Not provided'}</dd>
+                            <dt className="text-gray-600">{t('extension.reason')}:</dt>
+                            <dd className="font-medium">{selectedPass.extensionReason || t('extension.notProvided')}</dd>
                           </div>
                         </dl>
                       </div>
@@ -1381,7 +1761,7 @@ function AllPassesPageContent() {
                       setSelectedPassForExtend(selectedPass);
                       setShowExtendModal(true);
                     }}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                    className="px-4 py-2 bg-[#005b96] text-white rounded-lg hover:bg-[#03396c] transition-colors flex items-center justify-center gap-2"
                   >
                     <Clock className="w-4 h-4" />
                     {t('allPasses.detail.extendPass')}
@@ -1389,14 +1769,19 @@ function AllPassesPageContent() {
                 )}
                 <button
                   onClick={() => handleResendNotification(selectedPass)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+                  disabled={resendingPassId === selectedPass.passId}
+                  className="flex-1 px-4 py-2 border border-[#6497b1] rounded-lg hover:bg-[#b3cde0]/20 transition-colors flex items-center justify-center gap-2"
                 >
-                  <Send className="w-4 h-4" />
+                  {resendingPassId === selectedPass.passId ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                   {t('allPasses.detail.resendNotif')}
                 </button>
                 <button
                   onClick={() => setSelectedPass(null)}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-[#005b96] text-white rounded-lg hover:bg-[#03396c] transition-colors"
                 >
                   {t('allPasses.detail.close')}
                 </button>
@@ -1437,11 +1822,11 @@ function AllPassesPageContent() {
         {/* Reject Early Check-in Modal */}
         {showRejectModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full">
-              <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-red-800 flex items-center gap-2">
+            <div className="bg-white rounded-2xl shadow-[0_14px_34px_rgba(1,31,75,0.2)] border border-[#6497b1] max-w-md w-full">
+              <div className="flex justify-between items-center p-6 pb-4 border-b border-[#b3cde0]">
+                <h3 className="text-lg font-semibold text-[#011f4b] flex items-center gap-2">
                   <XCircle className="w-5 h-5" />
-                  Reject Early Check-in
+                  {t('checkin.rejectTitle')}
                 </h3>
                 <button
                   onClick={() => {
@@ -1456,17 +1841,17 @@ function AllPassesPageContent() {
               </div>
               <div className="p-6">
                 <p className="text-sm text-gray-600 mb-4">
-                  Please provide a reason for rejecting this early check-in request. The student and their parent will be notified.
+                  {t('checkin.rejectMessage')}
                 </p>
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rejection Reason <span className="text-red-500">*</span>
+                    {t('room.rejectionReasonLabel')} <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={rejectReason}
                     onChange={(e) => setRejectReason(e.target.value)}
-                    placeholder="e.g., Room is not ready before standard check-in time..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    placeholder={t('checkin.rejectPlaceholder')}
+                    className="w-full px-4 py-2 border border-[#b3cde0] rounded-lg focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] resize-none"
                     rows={3}
                     autoFocus
                   />
@@ -1481,19 +1866,19 @@ function AllPassesPageContent() {
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
                     disabled={processingCheckin}
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     onClick={handleRejectCheckin}
                     disabled={!rejectReason.trim() || processingCheckin}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#005b96] text-white rounded-lg hover:bg-[#03396c] text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {processingCheckin ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <XCircle className="w-4 h-4" />
                     )}
-                    Confirm Rejection
+                    {t('checkin.confirmRejection')}
                   </button>
                 </div>
               </div>
@@ -1504,11 +1889,11 @@ function AllPassesPageContent() {
         {/* Cancel Pass Confirmation Modal */}
         {showCancelModal && selectedPass && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col">
+            <div className="bg-white rounded-2xl shadow-[0_14px_34px_rgba(1,31,75,0.2)] border border-[#6497b1] max-w-xl w-full max-h-[90vh] flex flex-col">
               {/* Fixed Header - Different styles for before/after check-in */}
               {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? (
-                <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200 bg-white rounded-t-xl flex-shrink-0">
-                  <h3 className="text-xl font-semibold text-gray-900">{t('allPasses.cancel.title')}</h3>
+                <div className="flex justify-between items-center p-6 pb-4 border-b border-[#b3cde0] bg-white rounded-t-2xl flex-shrink-0">
+                  <h3 className="text-xl font-semibold text-[#011f4b]">{t('allPasses.cancel.title')}</h3>
                   <button
                     onClick={() => {
                       setShowCancelModal(false);
@@ -1523,10 +1908,10 @@ function AllPassesPageContent() {
                   </button>
                 </div>
               ) : (
-                <div className="bg-gradient-to-r from-yellow-600 to-orange-600 px-6 py-4 rounded-t-xl flex-shrink-0">
+                <div className="bg-gradient-to-r from-[#03396c] to-[#005b96] px-6 py-4 rounded-t-2xl flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                      🔔 Cancel Pass & Record Checkout
+                      🔔 {t('allPasses.cancel.checkoutTitle')}
                     </h2>
                     <button
                       onClick={() => {
@@ -1541,7 +1926,7 @@ function AllPassesPageContent() {
                       <X className="w-6 h-6" />
                     </button>
                   </div>
-                  <p className="text-orange-100 text-sm mt-1">Cancel checked-in pass and proceed with checkout</p>
+                  <p className="text-[#b3cde0] text-sm mt-1">{t('allPasses.cancel.checkoutSubtitle')}</p>
                 </div>
               )}
 
@@ -1549,13 +1934,43 @@ function AllPassesPageContent() {
               <div className="p-6 pt-4 overflow-y-auto flex-1">
 
               {/* Warning Message - Dynamic based on pass status */}
+              {hasAnyActiveRoomBooking(selectedPass) && (
+                <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-700 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-amber-900">{t('allPasses.roomCancelRequiredFirst')}</h4>
+                      <p className="text-sm text-amber-800 mt-1">
+                        {t('allPasses.roomCancelRequiredDesc')}
+                      </p>
+                      {(() => {
+                        const actionableBooking = getPassBookings(selectedPass).find(
+                          (booking) => booking.id
+                            && !['cancelled', 'completed'].includes((booking.bookingStatus || '').toLowerCase())
+                            && !['pending', 'approved'].includes(booking.roomCancelRequestStatus || '')
+                        );
+                        return actionableBooking ? (
+                        <button
+                          onClick={() => openRoomCancelReasonModal(actionableBooking.id!, 'request')}
+                          disabled={processingRoomCancel}
+                          className="mt-3 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {processingRoomCancel ? t('btn.processSubmitting') : t('btn.requestRoomCancellation')}
+                        </button>
+                        ) : null;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <p className="text-sm text-blue-800 font-medium mb-1">
-                    📌 Note: This pass has not been checked in yet.
+                <div className="bg-[#b3cde0]/20 border border-[#6497b1] rounded-lg p-4 mb-6">
+                  <p className="text-sm text-[#03396c] font-medium mb-1">
+                    📌 {t('allPasses.cancel.warningBeforeCheckIn')}
                   </p>
-                  <p className="text-xs text-blue-700">
-                    Cancelling will {selectedPass.stayRequired ? 'cancel guest house booking and ' : ''}revoke pass access.
+                  <p className="text-xs text-[#005b96]">
+                    {selectedPass.stayRequired ? t('allPasses.cancel.beforeCheckInDescWithStay') : t('allPasses.cancel.beforeCheckInDescWithoutStay')}
                   </p>
                 </div>
               ) : (
@@ -1563,25 +1978,25 @@ function AllPassesPageContent() {
                   <div className="flex items-start">
                     <AlertCircle className="w-6 h-6 text-orange-600 mr-3 mt-0.5 flex-shrink-0" />
                     <div>
-                      <h3 className="font-semibold text-orange-900 mb-2">⚠️ Pass Must Be Cancelled Before Checkout</h3>
+                      <h3 className="font-semibold text-orange-900 mb-2">⚠️ {t('allPasses.cancel.mustCancelBeforeCheckout')}</h3>
                       <p className="text-sm text-orange-700">
-                        This pass is currently checked-in. You can cancel it now and proceed with checkout:
+                        {t('allPasses.cancel.checkedInHelp')}
                       </p>
                       <ol className="text-sm text-orange-700 mt-2 ml-4 list-decimal space-y-1">
-                        <li>System will generate 1-hour checkout QR</li>
-                        <li>Visitor will receive QR via email/WhatsApp</li>
-                        <li>Then verify using QR code or verification code to checkout</li>
+                        <li>{t('allPasses.cancel.stepGenerateQr')}</li>
+                        <li>{t('allPasses.cancel.stepSendQr')}</li>
+                        <li>{t('allPasses.cancel.stepVerifyCheckout')}</li>
                       </ol>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+              <div className="bg-[#f8fafc] border border-[#b3cde0] rounded-lg p-4 mb-4">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">{t('allPasses.cancel.passDetails')}</h4>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><span className="font-medium">{t('allPasses.cancel.passId')}</span> {selectedPass.passId}</p>
-                  <p><span className="font-medium">{t('allPasses.cancel.visitor')}</span> {selectedPass.visitorName}</p>
+                  <p><span className="font-medium">{t('allPasses.cancel.visitor')}</span> {displayText(selectedPass.visitorName)}</p>
                   <p><span className="font-medium">{t('allPasses.cancel.mobile')}</span> {selectedPass.mobileNumber}</p>
                   <p><span className="font-medium">{t('allPasses.cancel.status')}</span> {selectedPass.passStatus}</p>
                 </div>
@@ -1608,19 +2023,19 @@ function AllPassesPageContent() {
                     <div className="space-y-3">
                       {/* Room and Check-in Details */}
                       <div className="text-sm text-gray-700 bg-white rounded-md p-3 border border-green-200">
-                        <p className="mb-1"><span className="font-medium">Room:</span> {refundPreview.roomNumber}</p>
-                        <p className="mb-1"><span className="font-medium">Check-in:</span> {refundPreview.checkInDate}</p>
+                        <p className="mb-1"><span className="font-medium">{t('allPasses.cancel.previewRoom')}</span> {refundPreview.roomNumber}</p>
+                        <p className="mb-1"><span className="font-medium">{t('allPasses.cancel.previewCheckIn')}</span> {refundPreview.checkInDate}</p>
                       </div>
 
                       {/* Time Remaining */}
                       <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                        <p className="text-xs font-semibold text-blue-800 mb-1">⏰ Time Before Check-in</p>
+                        <p className="text-xs font-semibold text-blue-800 mb-1">⏰ {t('allPasses.cancel.previewTimeBeforeCheckIn')}</p>
                         <p className="text-lg font-bold text-blue-900">{refundPreview.timeRemaining}</p>
                       </div>
 
                       {/* Cancellation Policy */}
                       <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
-                        <p className="text-xs font-semibold text-gray-700 mb-2">📋 Cancellation Policy</p>
+                        <p className="text-xs font-semibold text-gray-700 mb-2">📋 {t('allPasses.cancel.previewPolicy')}</p>
                         <div className="space-y-1 text-xs text-gray-600">
                           <p className={refundPreview.appliedSlab === '3+ days before check-in' ? 'font-bold text-green-700' : ''}>
                             • 3+ days before → 90% refund {refundPreview.appliedSlab === '3+ days before check-in' ? '✅' : ''}
@@ -1636,14 +2051,14 @@ function AllPassesPageContent() {
                           </p>
                         </div>
                         <p className="text-xs font-semibold text-green-700 mt-2">
-                          Applicable: {refundPreview.appliedSlab} ({refundPreview.refundPercent}% refund)
+                          {t('allPasses.cancel.previewApplicable')} {refundPreview.appliedSlab} ({refundPreview.refundPercent}% refund)
                         </p>
                       </div>
 
                       {/* Refund Calculation */}
                       <div className="border-t border-green-300 pt-3 space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Original Amount:</span>
+                          <span className="text-gray-600">{t('allPasses.cancel.originalAmount')}:</span>
                           <span className="font-semibold text-gray-800">₹{Number(refundPreview.originalAmount || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between text-red-600">
@@ -1651,7 +2066,7 @@ function AllPassesPageContent() {
                           <span className="font-semibold">− ₹{Number(refundPreview.cancellationFeeAmount || 0).toFixed(2)}</span>
                         </div>
                         <div className="flex justify-between border-t border-green-300 pt-2 text-base">
-                          <span className="font-bold text-green-800">Refund Amount:</span>
+                          <span className="font-bold text-green-800">{t('allPasses.cancel.refundAmount')}:</span>
                           <span className="font-bold text-green-700">₹{Number(refundPreview.refundAmount || 0).toFixed(2)}</span>
                         </div>
                       </div>
@@ -1664,7 +2079,7 @@ function AllPassesPageContent() {
               </div>
 
               {/* Fixed Footer with Reason & Actions */}
-              <div className="p-6 pt-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex-shrink-0">
+              <div className="p-6 pt-4 border-t border-[#b3cde0] bg-[#f8fafc] rounded-b-2xl flex-shrink-0">
               {/* Show reason input only for BEFORE check-in cancellations */}
               {(selectedPass.passStatus === 'created' || selectedPass.status === 'created') && (
                 <div className="mb-4">
@@ -1675,7 +2090,7 @@ function AllPassesPageContent() {
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
                     placeholder={t('allPasses.cancel.reasonPlaceholder')}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                    className="w-full px-4 py-2 border border-[#b3cde0] rounded-lg focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] resize-none"
                     rows={3}
                     required
                     disabled={cancellingPass}
@@ -1691,14 +2106,17 @@ function AllPassesPageContent() {
                     setRefundPreview(null);
                     setSelectedPass(null);
                   }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1 px-4 py-2 border border-[#6497b1] rounded-lg hover:bg-[#b3cde0]/20 transition-colors"
                   disabled={cancellingPass}
                 >
-                  {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? t('allPasses.cancel.keepPass') : 'Cancel'}
+                  {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? t('allPasses.cancel.keepPass') : t('common.cancel')}
                 </button>
                 <button
                   onClick={handleCancelPassConfirm}
-                  disabled={(selectedPass.passStatus === 'created' || selectedPass.status === 'created') ? (!cancelReason.trim() || cancellingPass) : cancellingPass}
+                  disabled={
+                    hasAnyActiveRoomBooking(selectedPass) ||
+                    ((selectedPass.passStatus === 'created' || selectedPass.status === 'created') ? (!cancelReason.trim() || cancellingPass) : cancellingPass)
+                  }
                   className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {cancellingPass ? (
@@ -1712,11 +2130,60 @@ function AllPassesPageContent() {
                   ) : (
                     <>
                       <X className="w-4 h-4" />
-                      {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? t('allPasses.cancel.confirm') : 'Cancel Pass & Proceed to Checkout'}
+                      {selectedPass.passStatus === 'created' || selectedPass.status === 'created' ? t('allPasses.cancel.confirm') : t('allPasses.cancel.confirmCheckout')}
                     </>
                   )}
                 </button>
               </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {showRoomCancelReasonModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-[0_14px_34px_rgba(1,31,75,0.2)] border border-[#6497b1] max-w-md w-full">
+              <div className="flex justify-between items-center p-5 border-b border-[#b3cde0]">
+                <h3 className="text-lg font-semibold text-[#011f4b]">
+                  {roomCancelAction === 'request' ? t('room.requestRoomCancelTitle') : t('room.rejectRoomCancelTitle')}
+                </h3>
+                <button
+                  onClick={closeRoomCancelReasonModal}
+                  className="text-gray-400 hover:text-gray-600"
+                  disabled={processingRoomCancel}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-5">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {roomCancelAction === 'request' ? t('room.reasonOptional') : t('room.rejectionReasonLabel')}
+                  {roomCancelAction === 'reject' ? <span className="text-red-500"> *</span> : null}
+                </label>
+                <textarea
+                  value={roomCancelReason}
+                  onChange={(e) => setRoomCancelReason(e.target.value)}
+                  placeholder={roomCancelAction === 'request' ? t('room.reasonRequestPlaceholder') : t('room.reasonRejectPlaceholder')}
+                  className="w-full px-4 py-2 border border-[#b3cde0] rounded-lg focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] resize-none"
+                  rows={4}
+                  autoFocus
+                />
+                <div className="flex gap-3 mt-4">
+                  <button
+                    onClick={closeRoomCancelReasonModal}
+                    className="flex-1 px-4 py-2 border border-[#6497b1] rounded-lg hover:bg-[#b3cde0]/20 text-sm font-medium transition-colors"
+                    disabled={processingRoomCancel}
+                  >
+                    {t('common.cancel')}
+                  </button>
+                  <button
+                    onClick={submitRoomCancelReason}
+                    disabled={processingRoomCancel || (roomCancelAction === 'reject' && !roomCancelReason.trim())}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#005b96] text-white rounded-lg hover:bg-[#03396c] text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingRoomCancel ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                    {roomCancelAction === 'request' ? t('room.submitRequest') : t('room.rejectRequest')}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

@@ -36,18 +36,62 @@ const buildExtraPassSummary = (registration) => {
  * Get registration form for an event (includes custom fields and user profile data)
  */
 const getRegistrationForm = async (eventId, userId) => {
-  // Parallelize event + user profile fetch (both are independent)
-  const [event, userProfile] = await Promise.all([
-    resolveEvent(eventId, {
+  const cache = require('../../../shared/config/redis');
+
+  // PERF: Cache event+customFields with stampede protection (shared across all users, 60s TTL)
+  const eventCacheKey = `event:regform:${eventId}`;
+  const { data: event } = await cache.getOrSet(eventCacheKey, async () => {
+    return await resolveEvent(eventId, {
       include: {
         EventCustomField: {
           where: { isActive: true },
           orderBy: { sortOrder: 'asc' },
         },
       },
-    }),
-    getUserProfileData(userId),
+    });
+  }, 60);
+
+  // User-specific data: profile + existing registration (parallel, cached)
+  const userProfileCacheKey = `user:profile:${userId}`;
+  const existRegCacheKey = `event:existreg:${event.id}:${userId}`;
+
+  let [cachedProfile, cachedExistReg] = await Promise.all([
+    cache.get(userProfileCacheKey),
+    cache.get(existRegCacheKey),
   ]);
+
+  const promises = [];
+  if (cachedProfile === null) {
+    promises.push(
+      getUserProfileData(userId).then(p => { cachedProfile = p; cache.set(userProfileCacheKey, p, 120); })
+    );
+  }
+  if (cachedExistReg === null) {
+    promises.push(
+      prisma.eventRegistration.findFirst({
+        where: {
+          eventId: event.id,
+          userId: userId,
+        },
+        include: {
+          EventFieldResponse: {
+            include: {
+              EventCustomField: true,
+            },
+          },
+          EventTeam: {
+            include: {
+              EventTeamMember: true,
+            },
+          },
+        },
+      }).then(reg => { cachedExistReg = reg || false; cache.set(existRegCacheKey, reg || false, 30); })
+    );
+  }
+  if (promises.length > 0) await Promise.all(promises);
+
+  const userProfile = cachedProfile;
+  const existingRegistration = cachedExistReg === false ? null : cachedExistReg;
 
   // Build profileFields map — indicates which fields have data from the user's profile
   // Frontend uses this to hide fields that are already known (silent auto-fill)
@@ -63,25 +107,6 @@ const getRegistrationForm = async (eventId, userId) => {
     passOutYear: !!userProfile.passOutYear,
   };
 
-  // Check if user already registered
-  const existingRegistration = await prisma.eventRegistration.findFirst({
-    where: {
-      eventId: event.id,
-      userId: userId,
-    },
-    include: {
-      EventFieldResponse: {
-        include: {
-          EventCustomField: true,
-        },
-      },
-      EventTeam: {
-        include: {
-          EventTeamMember: true,
-        },
-      },
-    },
-  });
 
   return {
     event: {
@@ -124,6 +149,41 @@ const getRegistrationForm = async (eventId, userId) => {
       isTeamLeader: existingRegistration.isTeamLeader,
       team: existingRegistration.EventTeam,
     } : null,
+  };
+};
+
+/**
+ * Get minimal payment context for the current user's registration page.
+ */
+const getPaymentContext = async (eventId, userId) => {
+  const [event, existingRegistration] = await Promise.all([
+    resolveEvent(eventId, {
+      select: {
+        id: true,
+        name: true,
+        paymentType: true,
+        participationType: true,
+        registrationFee: true,
+      },
+    }),
+    prisma.eventRegistration.findFirst({
+      where: {
+        eventId,
+        userId,
+      },
+      select: {
+        id: true,
+        registrationId: true,
+        status: true,
+        paymentStatus: true,
+        amountPaid: true,
+      },
+    }),
+  ]);
+
+  return {
+    event,
+    existingRegistration,
   };
 };
 
@@ -441,31 +501,28 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
       await applyCouponInTransaction(tx, couponId, reg.id, userId, baseAmount);
     }
 
-    // Save custom field responses
-    for (const field of event.EventCustomField) {
-      if (restFormData[field.fieldName] !== undefined) {
-        await tx.eventFieldResponse.upsert({
-          where: {
-            registrationId_fieldId: {
-              registrationId: reg.id,
-              fieldId: field.id,
-            },
-          },
-          create: {
-            registrationId: reg.id,
-            fieldId: field.id,
-            value: typeof restFormData[field.fieldName] === 'string'
-              ? restFormData[field.fieldName]
-              : JSON.stringify(restFormData[field.fieldName]),
-          },
-          update: {
-            value: typeof restFormData[field.fieldName] === 'string'
-              ? restFormData[field.fieldName]
-              : JSON.stringify(restFormData[field.fieldName]),
-            updatedAt: new Date(),
-          },
-        });
-      }
+    // Replace field responses in bulk to avoid row-by-row upserts.
+    const fieldResponses = event.EventCustomField
+      .filter((field) => restFormData[field.fieldName] !== undefined)
+      .map((field) => ({
+        registrationId: reg.id,
+        fieldId: field.id,
+        value: typeof restFormData[field.fieldName] === 'string'
+          ? restFormData[field.fieldName]
+          : JSON.stringify(restFormData[field.fieldName]),
+      }));
+
+    if (fieldResponses.length > 0) {
+      await tx.eventFieldResponse.deleteMany({
+        where: { registrationId: reg.id },
+      });
+      await tx.eventFieldResponse.createMany({
+        data: fieldResponses,
+      });
+    } else if (existingRegistration) {
+      await tx.eventFieldResponse.deleteMany({
+        where: { registrationId: reg.id },
+      });
     }
 
     return reg;
@@ -751,6 +808,7 @@ const getRegistrationDashboard = async (userId) => {
 
 module.exports = {
   getRegistrationForm,
+  getPaymentContext,
   getUserProfileData,
   submitRegistrationForm,
   createExtraPass,

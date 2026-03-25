@@ -59,7 +59,7 @@ app.use(cookieParser());
 
 // Compression for responses (reduces bandwidth for 25k users)
 const compression = require("compression");
-app.use(compression());
+app.use(compression({ threshold: 1024 }));
 
 // Audit logging middleware - captures all API requests
 app.use(
@@ -70,14 +70,21 @@ app.use(
   }),
 );
 
-// Logging — pretty colorful request logs (replaces morgan + manual slow-request warning)
-if (config.env === "development") {
-  // Colorful per-request log line with duration + slow tag
+// Route logging — shows method, path, status, latency, query params.
+// In development: enabled by default. Set ENABLE_REQUEST_LOG=false to disable (e.g. load testing).
+// In production: disabled unless ENABLE_REQUEST_LOG=true.
+const shouldLogRequests =
+  config.env === "development"
+    ? process.env.ENABLE_REQUEST_LOG !== "false"
+    : process.env.ENABLE_REQUEST_LOG === "true";
+
+if (shouldLogRequests) {
   app.use((req, res, next) => {
     const start = Date.now();
     res.on("finish", () => {
       const duration = Date.now() - start;
-      log.req(req.method, req.originalUrl || req.url, res.statusCode, duration);
+      const path = req.originalUrl || req.url;
+      log.req(req.method, path, res.statusCode, duration);
     });
     next();
   });
@@ -182,6 +189,13 @@ app.use("/api/v1/dsw/categories", (req, res, next) => {
     "Cache-Control",
     "public, max-age=3600, stale-while-revalidate=86400",
   );
+  next();
+});
+// Event list & detail endpoints — short-lived client cache to reduce repeat fetches
+app.use("/api/v1/events", (req, res, next) => {
+  if (req.method === 'GET') {
+    res.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
+  }
   next();
 });
 

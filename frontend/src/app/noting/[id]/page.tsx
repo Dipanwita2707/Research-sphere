@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
@@ -152,7 +152,7 @@ export default function NoteDetailPage() {
   }, [noteError, router, toast]);
 
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionType, setActionType] = useState<
+  const [actionType, setActionTypeInternal] = useState<
     | "approve"
     | "reject"
     | "revert"
@@ -161,6 +161,13 @@ export default function NoteDetailPage() {
     | "not_recommend"
     | null
   >(null);
+  const setActionType = useCallback((t: "approve" | "reject" | "revert" | "forward" | "recommend" | "not_recommend" | null) => {
+    setForwardUserId("");
+    setForwardMode(null);
+    setSearchQuery("");
+    setSelectedUser(null);
+    setActionTypeInternal(t);
+  }, []);
   const [remarks, setRemarks] = useState("");
   const [forwardUserId, setForwardUserId] = useState("");
   const [forwardMode, setForwardMode] = useState<"auto" | "manual" | null>(
@@ -240,15 +247,6 @@ export default function NoteDetailPage() {
     showForwardBtn ||
     showRecommendBtn ||
     showNotRecommendBtn;
-
-  useEffect(() => {
-    if (actionType === "forward") {
-      setForwardUserId("");
-      setForwardMode(null);
-      setSearchQuery("");
-      setSelectedUser(null);
-    }
-  }, [actionType]);
 
   // Search is now handled by useSearchEmployees hook above (debounce + caching built-in)
 
@@ -483,12 +481,19 @@ export default function NoteDetailPage() {
 
   const approverActions =
     note.history?.filter((h) => h.performedById !== note.createdById) || [];
-  const canEditOrDelete =
+  const canEdit =
     note.createdById === currentUserId &&
     (note.status === "reverted" ||
       (approverActions.length === 0 &&
         note.status !== "approved" &&
         note.status !== "rejected"));
+  // Reverted notes cannot be deleted — they've already been through the approval flow
+  const canDelete =
+    note.createdById === currentUserId &&
+    note.status !== "reverted" &&
+    approverActions.length === 0 &&
+    note.status !== "approved" &&
+    note.status !== "rejected";
 
   const StatusIcon = STATUS_ICONS[note.status] || Clock;
 
@@ -504,7 +509,7 @@ export default function NoteDetailPage() {
             <ArrowLeft className="w-4 h-4" />
             Back to Noting
           </Link>
-          {canEditOrDelete && (
+          {canEdit && (
             <div className="flex items-center gap-2">
               <Link
                 href={`/noting/new?draft=${id}`}
@@ -513,6 +518,7 @@ export default function NoteDetailPage() {
                 <Pencil className="w-3.5 h-3.5" />
                 Edit
               </Link>
+              {canDelete && (
               <button
                 onClick={() => {
                   if (
@@ -534,6 +540,7 @@ export default function NoteDetailPage() {
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete
               </button>
+              )}
             </div>
           )}
         </div>

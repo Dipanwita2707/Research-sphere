@@ -21,16 +21,18 @@ class GatePassService {
    */
   transformPassToFrontend(pass) {
     if (!pass) return null;
-    
+
+    const latestHostelBooking = pass.hostel_booking || (Array.isArray(pass.hostel_bookings) ? pass.hostel_bookings[0] : null);
+
     console.log(`[TRANSFORM INPUT] Pass ${pass.pass_id}: extension_count=${pass.extension_count}, extension_reason="${pass.extension_reason}"`);
-    
+
     // For multiday passes with hostel booking, use check_out_datetime as visitEndDate
     let visitEndDate = pass.visit_end_date;
-    if (pass.hostel_booking?.check_out_datetime) {
-      visitEndDate = pass.hostel_booking.check_out_datetime;
+    if (latestHostelBooking?.check_out_datetime) {
+      visitEndDate = latestHostelBooking.check_out_datetime;
       console.log(`[TRANSFORM] Pass ${pass.pass_id}: Using hostel check_out_datetime ${visitEndDate} instead of visit_end_date ${pass.visit_end_date}`);
     }
-    
+
     // Format dates to ISO string for consistent frontend handling
     const formatDateForFrontend = (date) => {
       if (!date) return null;
@@ -39,7 +41,26 @@ class GatePassService {
       }
       return date;
     };
-    
+
+    const normalizeBooking = (booking) => ({
+      ...booking,
+      check_in_datetime: formatDateForFrontend(booking.check_in_datetime),
+      check_out_datetime: formatDateForFrontend(booking.check_out_datetime),
+      totalPrice: booking.total_price,
+      bookingStatus: booking.booking_status,
+      paymentStatus: booking.payment_status,
+      hostelName: booking.room?.hostel?.name,
+      roomNumber: booking.room?.room_number,
+      requestedCheckinTime: booking.requested_checkin_time ? formatDateForFrontend(booking.requested_checkin_time) : null,
+      checkinRequestStatus: booking.checkin_request_status || null,
+      checkinRequestRejectReason: booking.checkin_request_reject_reason || null,
+      roomCancelRequestStatus: booking.room_cancel_request_status || null,
+      roomCancelRequestReason: booking.room_cancel_request_reason || null,
+      roomCancelRequestRejectReason: booking.room_cancel_request_reject_reason || null,
+      roomCancelRequestedAt: booking.room_cancel_request_requested_at ? formatDateForFrontend(booking.room_cancel_request_requested_at) : null,
+      roomCancelReviewedAt: booking.room_cancel_request_reviewed_at ? formatDateForFrontend(booking.room_cancel_request_reviewed_at) : null
+    });
+
     const transformed = {
       ...pass,
       passId: pass.pass_id,
@@ -70,10 +91,10 @@ class GatePassService {
       vehicleType: pass.vehicle_type,
       vehicleModel: pass.vehicle_model,
       stayRequired: pass.stay_required,
-      checkInDate: formatDateForFrontend(pass.check_in_date || pass.hostel_booking?.check_in_datetime),
-      checkOutDate: formatDateForFrontend(pass.check_out_date || pass.hostel_booking?.check_out_datetime),
-      hostelName: pass.hostel_booking?.room?.hostel?.name,
-      roomNumber: pass.hostel_booking?.room?.room_number,
+      checkInDate: formatDateForFrontend(pass.check_in_date || latestHostelBooking?.check_in_datetime),
+      checkOutDate: formatDateForFrontend(pass.check_out_date || latestHostelBooking?.check_out_datetime),
+      hostelName: latestHostelBooking?.room?.hostel?.name,
+      roomNumber: latestHostelBooking?.room?.room_number,
       createdAt: formatDateForFrontend(pass.created_at),
       updatedAt: formatDateForFrontend(pass.updated_at),
       createdBy: pass.user_login_gate_pass_created_by_idTouser_login,
@@ -81,19 +102,10 @@ class GatePassService {
       cancellationType: pass.cancellation_type,
       hostelRefund: pass.hostel_refund,
       checkoutQr: pass.checkout_qr,
-      hostelBooking: pass.hostel_booking ? {
-        ...pass.hostel_booking,
-        check_in_datetime: formatDateForFrontend(pass.hostel_booking.check_in_datetime),
-        check_out_datetime: formatDateForFrontend(pass.hostel_booking.check_out_datetime),
-        totalPrice: pass.hostel_booking.total_price,
-        bookingStatus: pass.hostel_booking.booking_status,
-        paymentStatus: pass.hostel_booking.payment_status,
-        hostelName: pass.hostel_booking.room?.hostel?.name,
-        roomNumber: pass.hostel_booking.room?.room_number,
-        requestedCheckinTime: pass.hostel_booking.requested_checkin_time ? formatDateForFrontend(pass.hostel_booking.requested_checkin_time) : null,
-        checkinRequestStatus: pass.hostel_booking.checkin_request_status || null,
-        checkinRequestRejectReason: pass.hostel_booking.checkin_request_reject_reason || null
-      } : null,
+      hostelBooking: latestHostelBooking ? normalizeBooking(latestHostelBooking) : null,
+      hostelBookings: Array.isArray(pass.hostel_bookings)
+        ? pass.hostel_bookings.map(normalizeBooking)
+        : (latestHostelBooking ? [normalizeBooking(latestHostelBooking)] : []),
       // Multi-day daily check-in/check-out data
       // All passes support unlimited in/out cycling
       isMultiDayDaily: true,
@@ -107,9 +119,9 @@ class GatePassService {
         exitGate: e.exit_gate
       }))
     };
-    
+
     console.log(`[TRANSFORM DEBUG] Pass ${pass.pass_id}: visitEndDate = ${transformed.visitEndDate}, checkOutDate = ${transformed.checkOutDate}, extensionCount = ${transformed.extensionCount}, extensionReason = "${transformed.extensionReason}"`);
-    
+
     // Clean up - remove snake_case duplicates (keep original for nested queries)
     return transformed;
   }
@@ -119,7 +131,7 @@ class GatePassService {
    */
   async generatePassId() {
     const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    
+
     // Get count of passes created today
     const count = await prisma.gate_pass.count({
       where: {
@@ -128,7 +140,7 @@ class GatePassService {
         }
       }
     });
-    
+
     const sequenceNumber = (count + 1).toString().padStart(3, '0');
     return `UNI-PASS-${today}-${sequenceNumber}`;
   }
@@ -153,11 +165,11 @@ class GatePassService {
     try {
       // Normalize visitor name for case-insensitive comparison
       const normalizedName = visitorName.trim();
-      
+
       // Parse dates for comparison
       const startDate = new Date(visitDate);
       const endDate = visitEndDate ? new Date(visitEndDate) : startDate;
-      
+
       console.log('[DUPLICATE CHECK] Checking for:', {
         mobile: mobileNumber,
         name: normalizedName,
@@ -270,7 +282,7 @@ class GatePassService {
         margin: 1,
         width: 300
       });
-      
+
       return qrCodeDataURL;
     } catch (error) {
       logger.error('Error generating QR code:', error);
@@ -289,11 +301,11 @@ class GatePassService {
     // Get the start and end of the visit date in IST
     const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
     const visitDateObj = new Date(visit_date);
-    
+
     // Create IST midnight for the visit date
     const startOfDayIST = new Date(visitDateObj.getTime() + istOffset);
     startOfDayIST.setUTCHours(0, 0, 0, 0);
-    
+
     // Create IST end of day
     const endOfDayIST = new Date(startOfDayIST.getTime() + 24 * 60 * 60 * 1000 - 1);
 
@@ -366,16 +378,16 @@ class GatePassService {
   getSuggestedTime(exitTime) {
     // Parse exit time (HH:MM format)
     const [hour, minute] = exitTime.split(':').map(Number);
-    
+
     // Add 15 minutes buffer
     let suggestedHour = hour;
     let suggestedMinute = minute + 15;
-    
+
     if (suggestedMinute >= 60) {
       suggestedHour += 1;
       suggestedMinute -= 60;
     }
-    
+
     // Format as HH:MM
     return `${suggestedHour.toString().padStart(2, '0')}:${suggestedMinute.toString().padStart(2, '0')}`;
   }
@@ -389,11 +401,11 @@ class GatePassService {
       if (!data.visitor_name || !data.mobile_number) {
         throw new Error('Visitor name and mobile number are required');
       }
-      
+
       if (!data.visit_date || !data.entry_time) {
         throw new Error('Missing required visit timing information');
       }
-      
+
       if (!data.purpose_of_visit) {
         throw new Error('Purpose of visit is required');
       }
@@ -408,10 +420,10 @@ class GatePassService {
 
       if (duplicateCheck.isDuplicate) {
         const conflictingPass = duplicateCheck.conflictingPasses[0];
-        const dateRange = conflictingPass.visitEndDate 
+        const dateRange = conflictingPass.visitEndDate
           ? `${new Date(conflictingPass.visitDate).toLocaleDateString()} to ${new Date(conflictingPass.visitEndDate).toLocaleDateString()}`
           : new Date(conflictingPass.visitDate).toLocaleDateString();
-        
+
         throw new Error(
           `${data.visitor_name} (${data.mobile_number}) already has an active pass (${conflictingPass.passId}) for ${dateRange}. ` +
           `Status: ${conflictingPass.status}. Please cancel or complete the existing pass before creating a new one.`
@@ -435,19 +447,27 @@ class GatePassService {
         throw new Error('Vehicle model is required when vehicle is selected');
       }
 
+      // Backward-compatible purpose normalization:
+      // Some deployed DBs still have legacy visit_purpose_enum without "emergency".
+      // Persist as "other" while preserving semantic meaning in purpose_other.
+      const normalizedPurpose = data.purpose_of_visit === 'emergency' ? 'other' : data.purpose_of_visit;
+      const normalizedPurposeOther = data.purpose_of_visit === 'emergency'
+        ? (data.purpose_other || 'Emergency')
+        : (data.purpose_other || null);
+
       const pass_id = await this.generatePassId();
-      
+
       // Parse and validate date - normalize to midnight IST
       const visitDateRaw = new Date(data.visit_date);
       if (isNaN(visitDateRaw.getTime())) {
         throw new Error('Invalid visit date format');
       }
-      
+
       // Normalize to midnight IST to ensure consistent date storage
       const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
       const visit_date = new Date(visitDateRaw.getTime() + istOffset);
       visit_date.setUTCHours(0, 0, 0, 0);
-      
+
       console.log('[CREATE PASS] Visit Date normalized to IST:', visit_date.toISOString());
 
       // Parse entry time (HH:MM format)
@@ -463,34 +483,34 @@ class GatePassService {
       if (data.person_to_meet_id) {
         const employeeService = require('./employee.service');
         const employee = await employeeService.getEmployeeByUserLoginId(data.person_to_meet_id);
-        
+
         if (!employee) {
           throw new Error('Selected employee not found or inactive');
         }
-        
+
         person_to_meet_name = employee.name;
 
         // TODO: Person availability check - requires expected_exit_time
         // Can be added back if needed for scheduling conflicts
       }
-      
+
       // Generate QR Code
       const qrCodeDataURL = await this.generateQRCode(pass_id);
-      
+
       // Generate 6-digit verification code
       const verification_code = this.generateVerificationCode();
-      
+
       // Calculate checkout QR expiry (midnight of the day AFTER visit_end_date or visit_date)
-      const effectiveEndDate = data.visit_end_date 
+      const effectiveEndDate = data.visit_end_date
         ? new Date(new Date(data.visit_end_date).getTime() + istOffset)
         : visit_date;
       effectiveEndDate.setUTCHours(0, 0, 0, 0);
-      
+
       // Add 1 day to get midnight of the next day (12:00 AM)
       const checkout_qr_expires_at = new Date(effectiveEndDate.getTime() + 24 * 60 * 60 * 1000);
-      
+
       console.log('[CREATE PASS] Checkout QR expires at:', checkout_qr_expires_at.toISOString());
-      
+
       // Create the pass
       const gatePass = await prisma.gate_pass.create({
         data: {
@@ -508,10 +528,10 @@ class GatePassService {
           photo: data.photo || null,
           gender: data.gender || null,
           age: data.age ? parseInt(data.age) : null,
-          
+
           // Visit details
-          purpose_of_visit: data.purpose_of_visit,
-          purpose_other: data.purpose_other || null,
+          purpose_of_visit: normalizedPurpose,
+          purpose_other: normalizedPurposeOther,
           department_to_visit: data.department_to_visit || null,
           person_to_meet_name: person_to_meet_name || null,
           visit_date: visit_date,
@@ -519,27 +539,27 @@ class GatePassService {
           entry_time: data.entry_time,
           expected_entry_time: data.entry_time, // Backward compatibility
           expected_exit_time: data.expected_exit_time || null,
-          
+
           // Stay details
           stay_required: data.stay_required || false,
-          
+
           // Vehicle details
           has_vehicle: data.has_vehicle || false,
           vehicle_type: data.vehicle_type || null,
           vehicle_number: data.vehicle_number || null,
           vehicle_model: data.vehicle_model || null,
-          
+
           // Additional info
           number_of_persons: parseInt(data.number_of_persons) || 1,
           items_carrying: data.items_carrying || null,
           special_instructions: data.special_instructions || null,
-          
+
           // Status fields
           status: 'active', // Legacy field
           qr_status: 'inactive', // New field - QR activates 5 hours before entry
           pass_status: 'created', // New field - replaces status
           checkout_qr_expires_at: checkout_qr_expires_at, // Expiry at midnight after visit end date
-          
+
           // Relations - use connect syntax for FK fields
           user_login_gate_pass_created_by_idTouser_login: {
             connect: { id: created_by_id }
@@ -569,7 +589,7 @@ class GatePassService {
         activationDate = '(day before)';
       }
       const activationTimeStr = `${activationDate} ${activationHour.toString().padStart(2, '0')}:${entryM.toString().padStart(2, '0')}`;
-      
+
       // Calculate expiration (end of visit_end_date or visit_date at 23:59)
       const endDateStr = data.visit_end_date || visit_date.toISOString().split('T')[0];
 
@@ -637,7 +657,7 @@ class GatePassService {
         if (user) {
           // Use new permission system: Admin and Guard (staff) see all passes
           showAllPasses = hasViewAllPermission(user);
-          
+
           console.log(`[PASS FILTER] User: ${userId}, Role: ${user.role}, VIEW_ALL Permission: ${showAllPasses}`);
         }
       }
@@ -695,7 +715,10 @@ class GatePassService {
                 }
               }
             },
-            hostel_booking: {
+            hostel_bookings: {
+              orderBy: {
+                created_at: 'desc'
+              },
               select: {
                 id: true,
                 check_in_datetime: true,
@@ -708,6 +731,11 @@ class GatePassService {
                 requested_checkin_time: true,
                 checkin_request_status: true,
                 checkin_request_reject_reason: true,
+                room_cancel_request_status: true,
+                room_cancel_request_reason: true,
+                room_cancel_request_reject_reason: true,
+                room_cancel_request_requested_at: true,
+                room_cancel_request_reviewed_at: true,
                 room: {
                   select: {
                     id: true,
@@ -806,7 +834,7 @@ class GatePassService {
 
       // Determine if user should see all passes or only their own (using new permission system)
       let showAllPasses = false;
-      
+
       if (userId) {
         const user = await prisma.userLogin.findUnique({
           where: { id: userId },
@@ -818,7 +846,7 @@ class GatePassService {
         if (user) {
           // Use new permission system: Admin and Guard (staff) see all stats
           showAllPasses = hasViewAllPermission(user);
-          
+
           console.log(`[STATS FILTER] User: ${userId}, Role: ${user.role}, VIEW_ALL Permission: ${showAllPasses}`);
         }
       }
@@ -831,7 +859,7 @@ class GatePassService {
       const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
       const todayIST = new Date(today.getTime() + istOffset);
       todayIST.setUTCHours(0, 0, 0, 0);
-      
+
       const tomorrowIST = new Date(todayIST.getTime() + 24 * 60 * 60 * 1000);
 
       console.log('[STATS CHECK] Today IST:', todayIST.toISOString(), 'Tomorrow IST:', tomorrowIST.toISOString());
@@ -839,19 +867,19 @@ class GatePassService {
       const [total, active, pending, completed, expired] = await Promise.all([
         prisma.gate_pass.count({ where: whereBase }),
         // Active Today - active status on today's date
-        prisma.gate_pass.count({ 
-          where: { 
+        prisma.gate_pass.count({
+          where: {
             ...whereBase,
-            status: 'active', 
+            status: 'active',
             visit_date: { gte: todayIST, lt: tomorrowIST }
-          } 
+          }
         }),
         // Pending - all active and checked_in passes (not completed/cancelled/expired)
-        prisma.gate_pass.count({ 
-          where: { 
+        prisma.gate_pass.count({
+          where: {
             ...whereBase,
             status: { in: ['active', 'checked_in', 'pending'] }
-          } 
+          }
         }),
         // Completed
         prisma.gate_pass.count({ where: { ...whereBase, status: 'completed' } }),
@@ -919,16 +947,16 @@ class GatePassService {
         if (!pass.checkout_qr_code || !pass.checkout_qr_expires_at) {
           throw new Error('No valid checkout QR found for this pass');
         }
-        
+
         const now = new Date();
         if (now > pass.checkout_qr_expires_at) {
           throw new Error('Checkout QR code has expired. Please contact admin to regenerate checkout credentials.');
         }
-        
+
         if (pass.pass_status !== 'cancelled') {
           throw new Error('This pass is not cancelled. Use regular checkout process.');
         }
-        
+
         logger.info(`[VERIFY] Checkout QR valid for pass: ${pass.pass_id}, expires: ${pass.checkout_qr_expires_at}`);
         return pass;
       }
@@ -947,28 +975,28 @@ class GatePassService {
         const todayStr = nowIST.toISOString().split('T')[0];
         const visitDateStr = new Date(pass.visit_date).toISOString().split('T')[0];
         const endDateStr = pass.visit_end_date ? new Date(pass.visit_end_date).toISOString().split('T')[0] : visitDateStr;
-        
+
         // Check if today is within the visit date range
         const isWithinRange = todayStr >= visitDateStr && todayStr <= endDateStr;
-        
+
         if (isWithinRange && pass.entry_time) {
           // For first day, check activation window. For subsequent days, activate immediately.
           const isFirstDay = todayStr === visitDateStr;
           let shouldActivate = !isFirstDay; // subsequent days: always activate
-          
+
           if (isFirstDay) {
-          const [hours, minutes] = pass.entry_time.split(':').map(Number);
-          const entryTimeInMinutes = hours * 60 + minutes;
-          // Use toISOString() to extract hours/minutes from the IST-shifted Date
-          // (avoids double-counting IST on machines already in IST timezone)
-          const istTimeStr = nowIST.toISOString().split('T')[1]; // e.g. "09:30:00.000Z"
-          const currentTimeInMinutes = parseInt(istTimeStr.split(':')[0]) * 60 + parseInt(istTimeStr.split(':')[1]);
-          const activationWindowMinutes = 5 * 60; // 5 hours
-          
-          // Activate if within activation window or entry time has passed
+            const [hours, minutes] = pass.entry_time.split(':').map(Number);
+            const entryTimeInMinutes = hours * 60 + minutes;
+            // Use toISOString() to extract hours/minutes from the IST-shifted Date
+            // (avoids double-counting IST on machines already in IST timezone)
+            const istTimeStr = nowIST.toISOString().split('T')[1]; // e.g. "09:30:00.000Z"
+            const currentTimeInMinutes = parseInt(istTimeStr.split(':')[0]) * 60 + parseInt(istTimeStr.split(':')[1]);
+            const activationWindowMinutes = 5 * 60; // 5 hours
+
+            // Activate if within activation window or entry time has passed
             shouldActivate = (entryTimeInMinutes - currentTimeInMinutes) <= activationWindowMinutes;
           }
-          
+
           if (shouldActivate) {
             pass = await prisma.gate_pass.update({
               where: { id: pass.id },
@@ -1277,8 +1305,14 @@ class GatePassService {
 
       // Check if pass has hostel booking
       if (pass.stay_required) {
-        const hostelBooking = await prisma.hostelBooking.findUnique({
-          where: { gate_pass_id: pass.id },
+        const hostelBooking = await prisma.hostelBooking.findFirst({
+          where: {
+            gate_pass_id: pass.id,
+            booking_status: { in: ['pending', 'confirmed'] }
+          },
+          orderBy: {
+            created_at: 'desc'
+          },
           include: {
             room: {
               include: {
@@ -1294,15 +1328,15 @@ class GatePassService {
           // Dynamic refund calculation based on time before check-in
           const now = new Date();
           const checkInDate = new Date(hostelBooking.check_in_datetime);
-          
+
           // Calculate hours until check-in
           const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
           const hoursUntilCheckIn = timeUntilCheckIn / (1000 * 60 * 60);
           const daysUntilCheckIn = hoursUntilCheckIn / 24;
-          
+
           let refundPercent = 0;
           let appliedSlab = '';
-          
+
           if (daysUntilCheckIn >= 3) {
             refundPercent = 90;
             appliedSlab = '3+ days before check-in';
@@ -1441,6 +1475,25 @@ class GatePassService {
         throw new Error('User not found');
       }
 
+      const activeRoomBooking = await prisma.hostelBooking.findFirst({
+        where: {
+          gate_pass_id: pass.id,
+          booking_status: { in: ['pending', 'confirmed'] }
+        },
+        orderBy: {
+          created_at: 'desc'
+        },
+        select: {
+          id: true,
+          booking_status: true,
+          room_cancel_request_status: true
+        }
+      });
+
+      if (activeRoomBooking && activeRoomBooking.booking_status !== 'cancelled') {
+        throw new Error('First cancel the room, then only you can cancel the pass.');
+      }
+
       const role = user.role?.toLowerCase() || '';
       const designation = user.employeeDetails?.designation?.toLowerCase() || '';
       const isAdmin = role === 'admin';
@@ -1497,8 +1550,14 @@ class GatePassService {
       logger.info(`[CANCEL AFTER CHECK-IN] Pass ${pass.pass_id}, User: ${userId}`);
 
       // Cancel associated hostel booking so room becomes available again
-      const hostelBooking = await prisma.hostelBooking.findUnique({
-        where: { gate_pass_id: pass.id },
+      const hostelBooking = await prisma.hostelBooking.findFirst({
+        where: {
+          gate_pass_id: pass.id,
+          booking_status: { in: ['pending', 'confirmed'] }
+        },
+        orderBy: {
+          created_at: 'desc'
+        },
         include: { room: { include: { hostel: true } } }
       });
       if (hostelBooking && hostelBooking.booking_status !== 'cancelled') {
@@ -1565,7 +1624,7 @@ class GatePassService {
 
       // Generate NEW unique checkout ID and QR code with 1-hour validity
       const checkoutQRData = await this.generateCheckoutQR(pass.id);
-      
+
       logger.info(`[CANCEL AFTER CHECK-IN] New checkout ID: ${checkoutQRData.checkout_unique_id}, verification code: ${checkoutQRData.checkout_verification_code}`);
 
       // Update pass status to cancelled with new checkout unique ID and verification code
@@ -1617,8 +1676,14 @@ class GatePassService {
       logger.info(`[CANCEL FROM CHECKED_OUT] Pass ${pass.pass_id}, User: ${userId}`);
 
       // Cancel associated hostel booking so room becomes available
-      const hostelBooking = await prisma.hostelBooking.findUnique({
-        where: { gate_pass_id: pass.id },
+      const hostelBooking = await prisma.hostelBooking.findFirst({
+        where: {
+          gate_pass_id: pass.id,
+          booking_status: { in: ['pending', 'confirmed'] }
+        },
+        orderBy: {
+          created_at: 'desc'
+        },
         include: { room: { include: { hostel: true } } }
       });
       if (hostelBooking && hostelBooking.booking_status !== 'cancelled') {
@@ -1725,7 +1790,7 @@ class GatePassService {
       // Generate unique checkout ID (different from pass_id)
       const today = new Date();
       const dateStr = today.toISOString().split('T')[0].replace(/-/g, '');
-      
+
       // Get count of checkouts today to generate sequence number
       const checkoutCountToday = await prisma.gate_pass.count({
         where: {
@@ -1747,7 +1812,7 @@ class GatePassService {
 
       const timestamp = Date.now();
       const expiresAt = new Date(timestamp + 60 * 60 * 1000); // 1 hour from now
-      
+
       // Generate checkout QR data — keep minimal to reduce QR density and improve scannability
       const checkoutData = {
         type: 'CHECKOUT',
@@ -1822,7 +1887,7 @@ class GatePassService {
         if (exitData.verificationCode !== pass.checkout_verification_code) {
           throw new Error('Invalid checkout verification code. Use the NEW code generated after cancellation — the original pass code will not work here.');
         }
-        
+
         logger.info(`[CHECKOUT] Cancelled pass checkout: ${pass.pass_id}, checkout ID: ${pass.checkout_unique_id}, QR expires: ${pass.checkout_qr_expires_at}`);
       } else if (pass.pass_status !== 'checked_out' && pass.pass_status !== 'cancelled') {
         throw new Error(`Cannot checkout pass with status: ${pass.pass_status}`);
@@ -1872,6 +1937,12 @@ class GatePassService {
     return Math.max(baseDays, 1);
   }
 
+  normalizeCheckoutDeadlineDatetime(dateInput) {
+    const checkout = new Date(dateInput);
+    checkout.setHours(17, 0, 0, 0);
+    return checkout;
+  }
+
   /**
    * Parse and validate extend date (must be strictly after current end date).
    */
@@ -1919,7 +1990,11 @@ class GatePassService {
     const pass = await prisma.gate_pass.findUnique({
       where: { pass_id },
       include: {
-        hostel_booking: {
+        hostel_bookings: {
+          orderBy: {
+            created_at: 'desc'
+          },
+          take: 1,
           include: {
             room: {
               include: {
@@ -1934,6 +2009,8 @@ class GatePassService {
     if (!pass) {
       throw new Error('Pass not found');
     }
+
+    pass.hostel_booking = (pass.hostel_bookings && pass.hostel_bookings[0]) || null;
 
     if (pass.status === 'checked_out' || pass.pass_status === 'checked_out') {
       throw new Error('Cannot extend a pass that has been checked out');
@@ -1971,22 +2048,23 @@ class GatePassService {
     }
 
     const extensionStart = new Date(booking.check_out_datetime);
+    const extensionCheckoutDeadline = this.normalizeCheckoutDeadlineDatetime(visit_end_date);
     const sameRoomAvailable = await this.isRoomAvailableForExtension(
       booking.room_id,
       booking.id,
       extensionStart,
-      visit_end_date
+      extensionCheckoutDeadline
     );
 
     const hostelBookingService = require('./hostelBooking.service');
     const availableHostels = await hostelBookingService.getAvailableHostels(
       extensionStart,
-      visit_end_date,
+      extensionCheckoutDeadline,
       pass.created_by_id
     );
 
     const currentBillableDays = booking.billable_days || 1;
-    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, visit_end_date);
+    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, extensionCheckoutDeadline);
     const additionalNights = Math.max(newBillableDays - currentBillableDays, 0);
     const pricePerDay = parseFloat(booking.price_per_day || booking.room?.price_per_night || 0);
     const additionalAmount = Number((additionalNights * pricePerDay).toFixed(2));
@@ -2020,7 +2098,11 @@ class GatePassService {
     const pass = await prisma.gate_pass.findUnique({
       where: { pass_id },
       include: {
-        hostel_booking: {
+        hostel_bookings: {
+          orderBy: {
+            created_at: 'desc'
+          },
+          take: 1,
           include: {
             room: {
               include: {
@@ -2035,6 +2117,8 @@ class GatePassService {
     if (!pass) {
       throw new Error('Pass not found');
     }
+
+    pass.hostel_booking = (pass.hostel_bookings && pass.hostel_bookings[0]) || null;
 
     if (!pass.hostel_booking) {
       const updatedPass = await this.extendPass(pass_id, newEndDate, extensionReason);
@@ -2058,6 +2142,7 @@ class GatePassService {
     const useSameRoom = decision.useSameRoom !== false;
     const selectedRoomId = decision.selectedRoomId || null;
     const visit_end_date = new Date(options.proposedEndDate);
+    const extensionCheckoutDeadline = this.normalizeCheckoutDeadlineDatetime(visit_end_date);
     const checkout_qr_expires_at = new Date(visit_end_date.getTime() + 24 * 60 * 60 * 1000);
 
     let finalRoomId = booking.room_id;
@@ -2088,19 +2173,22 @@ class GatePassService {
       finalRoomId,
       booking.id,
       extensionStart,
-      visit_end_date
+      extensionCheckoutDeadline
     );
 
     if (!finalRoomAvailable) {
       throw new Error('Selected room is no longer available for extension period. Please re-check availability.');
     }
 
-    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, visit_end_date);
+    const newBillableDays = this.calculateExtensionBillableDays(booking.check_in_datetime, extensionCheckoutDeadline);
     const newPricePerDay = parseFloat(finalRoom.price_per_night || booking.price_per_day || 0);
     const newTotalPrice = Number((newBillableDays * newPricePerDay).toFixed(2));
     const currentTotalPrice = parseFloat(booking.total_price || 0);
     const additionalAmount = Number(Math.max(newTotalPrice - currentTotalPrice, 0).toFixed(2));
     const requiresPayment = additionalAmount > 0;
+    let additionalNightsResult = Math.max(newBillableDays - (booking.billable_days || 1), 0);
+    let additionalAmountResult = additionalAmount;
+    let requiresPaymentResult = requiresPayment;
 
     const hostelBookingService = require('./hostelBooking.service');
 
@@ -2116,35 +2204,68 @@ class GatePassService {
         }
       });
 
-      const bookingPatch = {
-        room_id: finalRoom.id,
-        room_number: finalRoom.room_number,
-        hostel_name: finalRoom.hostel?.name || booking.hostel_name,
-        check_out_datetime: visit_end_date,
-        billable_days: newBillableDays,
-        price_per_day: newPricePerDay,
-        total_price: newTotalPrice,
-        updated_at: new Date()
-      };
+      if (finalRoom.id === booking.room_id) {
+        const bookingPatch = {
+          check_out_datetime: extensionCheckoutDeadline,
+          billable_days: newBillableDays,
+          price_per_day: newPricePerDay,
+          total_price: newTotalPrice,
+          updated_at: new Date()
+        };
 
-      if (requiresPayment) {
-        const paymentQR = await hostelBookingService.generatePaymentQR(booking.id, additionalAmount);
-        bookingPatch.payment_qr_code = paymentQR;
-        bookingPatch.payment_reference = `EXT-${booking.id.substring(0, 8).toUpperCase()}`;
-        bookingPatch.payment_status = 'pending';
-        bookingPatch.booking_status = 'pending';
+        if (requiresPaymentResult) {
+          const paymentQR = await hostelBookingService.generatePaymentQR(booking.id, additionalAmount);
+          bookingPatch.payment_qr_code = paymentQR;
+          bookingPatch.payment_reference = `EXT-${booking.id.substring(0, 8).toUpperCase()}`;
+          bookingPatch.payment_status = 'pending';
+          bookingPatch.booking_status = 'pending';
+        }
+
+        await tx.hostelBooking.update({
+          where: { id: booking.id },
+          data: bookingPatch
+        });
+      } else {
+        const extensionBillableDays = this.calculateExtensionBillableDays(extensionStart, extensionCheckoutDeadline);
+        const extensionTotalPrice = Number((extensionBillableDays * newPricePerDay).toFixed(2));
+        additionalNightsResult = extensionBillableDays;
+        additionalAmountResult = extensionTotalPrice;
+        requiresPaymentResult = additionalAmountResult > 0;
+
+        const paymentQR = requiresPaymentResult
+          ? await hostelBookingService.generatePaymentQR(booking.id, additionalAmountResult)
+          : null;
+
+        await tx.hostelBooking.create({
+          data: {
+            gate_pass: { connect: { id: pass.id } },
+            room: { connect: { id: finalRoom.id } },
+            room_number: finalRoom.room_number,
+            hostel_name: finalRoom.hostel?.name || booking.hostel_name,
+            check_in_datetime: extensionStart,
+            check_out_datetime: extensionCheckoutDeadline,
+            guest_count: booking.guest_count || 1,
+            billable_days: extensionBillableDays,
+            price_per_day: newPricePerDay,
+            total_price: extensionTotalPrice,
+            booking_status: requiresPaymentResult ? 'pending' : 'confirmed',
+            payment_status: requiresPaymentResult ? 'pending' : 'completed',
+            payment_qr_code: paymentQR,
+            payment_reference: requiresPaymentResult ? `EXT-${booking.id.substring(0, 8).toUpperCase()}` : booking.payment_reference,
+            created_by: { connect: { id: booking.created_by_id } }
+          }
+        });
       }
-
-      await tx.hostelBooking.update({
-        where: { id: booking.id },
-        data: bookingPatch
-      });
     });
 
     const updatedPass = await prisma.gate_pass.findUnique({
       where: { pass_id },
       include: {
-        hostel_booking: {
+        hostel_bookings: {
+          orderBy: {
+            created_at: 'desc'
+          },
+          take: 1,
           include: {
             room: {
               include: {
@@ -2175,9 +2296,9 @@ class GatePassService {
         selectedRoomId: finalRoom.id,
         selectedRoomNumber: finalRoom.room_number,
         selectedHostelName: finalRoom.hostel?.name || booking.hostel_name,
-        additionalNights: Math.max(newBillableDays - (booking.billable_days || 1), 0),
-        additionalAmount,
-        requiresPayment
+        additionalNights: additionalNightsResult,
+        additionalAmount: additionalAmountResult,
+        requiresPayment: requiresPaymentResult
       }
     };
   }
@@ -2190,7 +2311,12 @@ class GatePassService {
       const pass = await prisma.gate_pass.findUnique({
         where: { pass_id },
         include: {
-          hostel_booking: true
+          hostel_bookings: {
+            orderBy: {
+              created_at: 'desc'
+            },
+            take: 1
+          }
         }
       });
 
@@ -2214,7 +2340,9 @@ class GatePassService {
       const currentEndDate = pass.visit_end_date || pass.visit_date;
       const visit_end_date = this.normalizeExtensionDate(newEndDate, currentEndDate);
 
-      if (pass.hostel_booking) {
+      const latestHostelBooking = (pass.hostel_bookings && pass.hostel_bookings[0]) || null;
+
+      if (latestHostelBooking) {
         throw new Error('Guest house booking found. Please use extension check flow before confirming extension.');
       }
 
@@ -2245,7 +2373,11 @@ class GatePassService {
       const updatedPass = await prisma.gate_pass.findUnique({
         where: { pass_id },
         include: {
-          hostel_booking: {
+          hostel_bookings: {
+            orderBy: {
+              created_at: 'desc'
+            },
+            take: 1,
             include: {
               room: {
                 include: {
@@ -2346,7 +2478,7 @@ class GatePassService {
         const targetDate = new Date(date);
         const startOfDay = new Date(targetDate);
         startOfDay.setHours(0, 0, 0, 0);
-        
+
         const endOfDay = new Date(targetDate);
         endOfDay.setHours(23, 59, 59, 999);
 
@@ -2359,7 +2491,7 @@ class GatePassService {
         const today = new Date();
         const startOfDay = new Date(today);
         startOfDay.setHours(0, 0, 0, 0);
-        
+
         const endOfDay = new Date(today);
         endOfDay.setHours(23, 59, 59, 999);
 
@@ -2543,23 +2675,23 @@ class GatePassService {
         pending,
         expired,
         cancelled,
-        
+
         // Grouping queries
         byPurpose,
         byStatus,
         vehiclesByType,
-        
+
         // Aggregate queries
         totalWithVehicle,
         totalWithoutVehicle,
         extensionStats,
-        
+
         // Group by queries for performance
         guardCheckIns,
         guardCheckOuts,
         dailyPasses,
         passCreators,
-        
+
         // Recent data
         recentActivity,
 
@@ -2606,7 +2738,7 @@ class GatePassService {
         prisma.gate_pass.count({
           where: { ...whereClause, pass_status: 'cancelled' }
         }),
-        
+
         // 8-10: Group by queries
         prisma.gate_pass.groupBy({
           by: ['purpose_of_visit'],
@@ -2627,7 +2759,7 @@ class GatePassService {
             vehicle_type: { not: null }
           }
         }),
-        
+
         // 11-12: Vehicle counts
         prisma.gate_pass.count({
           where: { ...whereClause, has_vehicle: true }
@@ -2635,7 +2767,7 @@ class GatePassService {
         prisma.gate_pass.count({
           where: { ...whereClause, has_vehicle: false }
         }),
-        
+
         // 13: Extension stats
         prisma.gate_pass.aggregate({
           _sum: { extension_count: true },
@@ -2646,7 +2778,7 @@ class GatePassService {
             extension_count: { gt: 0 }
           }
         }),
-        
+
         // 14-15: Guard performance
         prisma.gate_pass.groupBy({
           by: ['entry_guard_id'],
@@ -2664,7 +2796,7 @@ class GatePassService {
             exit_guard_id: { not: null }
           }
         }),
-        
+
         // 16: Daily trend (last 30 days)
         prisma.gate_pass.groupBy({
           by: ['visit_date'],
@@ -2676,7 +2808,7 @@ class GatePassService {
             visit_date: 'asc'
           }
         }),
-        
+
         // 17: Top creators
         prisma.gate_pass.groupBy({
           by: ['created_by_id'],
@@ -2689,7 +2821,7 @@ class GatePassService {
           },
           take: 10
         }),
-        
+
         // 18: Recent activity (only last 10 for speed)
         prisma.gate_pass_history.findMany({
           take: 10,
@@ -2883,7 +3015,7 @@ class GatePassService {
         let name = 'Unknown';
         if (g.employeeDetails) {
           name = g.employeeDetails.displayName ||
-                 `${g.employeeDetails.firstName} ${g.employeeDetails.lastName || ''}`.trim();
+            `${g.employeeDetails.firstName} ${g.employeeDetails.lastName || ''}`.trim();
         } else if (g.studentLogin) {
           name = `${g.studentLogin.firstName} ${g.studentLogin.lastName || ''}`.trim();
         } else {
@@ -2921,7 +3053,7 @@ class GatePassService {
         if (activity.user_login) {
           if (activity.user_login.employeeDetails) {
             performedBy = activity.user_login.employeeDetails.displayName ||
-                         `${activity.user_login.employeeDetails.firstName} ${activity.user_login.employeeDetails.lastName || ''}`.trim();
+              `${activity.user_login.employeeDetails.firstName} ${activity.user_login.employeeDetails.lastName || ''}`.trim();
           } else if (activity.user_login.studentLogin) {
             performedBy = `${activity.user_login.studentLogin.firstName} ${activity.user_login.studentLogin.lastName || ''}`.trim();
           } else {
@@ -2980,10 +3112,10 @@ class GatePassService {
       creators.forEach(c => {
         let name = 'Unknown';
         let deptName = 'N/A';
-        
+
         if (c.employeeDetails) {
           name = c.employeeDetails.displayName ||
-                 `${c.employeeDetails.firstName} ${c.employeeDetails.lastName || ''}`.trim();
+            `${c.employeeDetails.firstName} ${c.employeeDetails.lastName || ''}`.trim();
           deptName = c.employeeDetails.primaryDepartment?.departmentName || 'N/A';
         } else if (c.studentLogin) {
           name = `${c.studentLogin.firstName} ${c.studentLogin.lastName || ''}`.trim();
@@ -2991,7 +3123,7 @@ class GatePassService {
         } else {
           name = c.uid;
         }
-        
+
         creatorMap[c.id] = {
           name,
           department: deptName

@@ -24,6 +24,83 @@ export interface SubEventPrize {
   additionalPerks?: string;
 }
 
+// ─── Sponsorship Types ───
+export type SponsorType = 'corporate' | 'individual' | 'organization' | 'other';
+export type ContributionType = 'cash' | 'in_kind' | 'both';
+export type PaymentStatus = 'received' | 'pending' | 'partial' | 'not_received';
+export type OriginSource = 'noting' | 'event';
+export type InKindDeliveryStatus = 'pending' | 'received' | 'not_received';
+export type PaymentMethod = 'cash' | 'upi' | 'card' | 'net_banking' | 'other';
+
+export interface AssignedUser {
+  id: string;
+  uid: string;
+  displayName: string;
+  department?: string;
+}
+
+export interface ReceiptMeta {
+  filePath: string;
+  fileName: string;
+}
+
+export interface InKindItem {
+  itemName: string;
+  category: string;
+  quantity: number | '';
+  estimatedValue: number | '';
+  description: string;
+  assignedTo: AssignedUser | null;
+  deliveryStatus?: InKindDeliveryStatus;
+}
+
+export interface SponsorData {
+  id?: string;
+  originSource?: OriginSource;
+  name: string;
+  sponsorType: SponsorType;
+  contactPerson: string;
+  designation: string;
+  phone: string;
+  email: string;
+  notes: string;
+  contributionType: ContributionType;
+  cashAmount: number | '';
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod | '';
+  paymentMethodOtherLabel: string;
+  transactionId: string;
+  receipt: ReceiptMeta | null;
+  sponsorLogo?: ReceiptMeta | null;
+  cashAssignedTo: AssignedUser | null;
+  inKindItems: InKindItem[];
+  /** ISO timestamp — once set, the sponsor entry is locked and cannot be edited */
+  savedAt?: string;
+  /** Snapshot of the sponsor data as it was when it came from noting (for diff display) */
+  originalSnapshot?: Partial<SponsorData>;
+}
+
+export const defaultSponsor: SponsorData = {
+  name: '',
+  sponsorType: 'corporate',
+  contactPerson: '',
+  designation: '',
+  phone: '',
+  email: '',
+  notes: '',
+  contributionType: 'cash',
+  cashAmount: '',
+  paymentStatus: 'pending',
+  paymentMethod: '',
+  paymentMethodOtherLabel: '',
+  transactionId: '',
+  receipt: null,
+  sponsorLogo: null,
+  cashAssignedTo: null,
+  inKindItems: [],
+  originSource: undefined,
+};
+
 export interface VenueFormData {
   eventName: string;
   eventType: string;
@@ -39,7 +116,7 @@ export interface VenueFormData {
   eventDutyLeaveEligibility: string[];
   eventDutyLeaveRoleType?: 'participants' | 'organizers' | 'both';
   eventHasSponsorship: boolean | null;
-  eventSponsors: Array<{ name: string; amount: number | ''; type: 'cash' | 'in_kind'; notes: string }>;
+  eventSponsors: SponsorData[];
   eventHasResources: boolean | null;
   eventResources: Array<{ type: string; description: string; pricePerPiece: number | ''; quantity: number | '' }>;
   eventCertification: boolean | null;
@@ -116,9 +193,12 @@ interface SubEventCardProps {
   disabled?: boolean;
   festivalStartDate?: string;
   festivalEndDate?: string;
+  onUploadReceipt?: (file: File) => Promise<{ filePath: string; fileName: string } | null>;
+  onUploadSponsorLogo?: (file: File) => Promise<{ filePath: string; fileName: string } | null>;
+  searchEmployees?: (query: string) => Promise<Array<{ id: string; uid: string; displayName: string; department?: string }>>;
 }
 
-const SubEventCard: React.FC<SubEventCardProps> = ({ index, data, onChange, onRemove, disabled, festivalStartDate, festivalEndDate }) => {
+const SubEventCard: React.FC<SubEventCardProps> = ({ index, data, onChange, onRemove, disabled, festivalStartDate, festivalEndDate, onUploadReceipt, onUploadSponsorLogo, searchEmployees }) => {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -175,6 +255,9 @@ const SubEventCard: React.FC<SubEventCardProps> = ({ index, data, onChange, onRe
             fieldsetPrefix={data.id}
             festivalStartDate={festivalStartDate}
             festivalEndDate={festivalEndDate}
+            onUploadReceipt={onUploadReceipt}
+            onUploadSponsorLogo={onUploadSponsorLogo}
+            searchEmployees={searchEmployees}
           />
 
           {/* Stall config (only for stall type) */}
@@ -205,6 +288,9 @@ interface FestivalFormProps {
   onChange: (data: FestivalFormData) => void;
   disabled?: boolean;
   coordinatorReadOnly?: boolean;
+  onUploadReceipt?: (file: File) => Promise<{ filePath: string; fileName: string } | null>;
+  onUploadSponsorLogo?: (file: File) => Promise<{ filePath: string; fileName: string } | null>;
+  searchEmployees?: (query: string) => Promise<Array<{ id: string; uid: string; displayName: string; department?: string }>>;
 }
 
 const STAGE_LABELS: { id: Stage; label: string }[] = [
@@ -219,7 +305,7 @@ const newSubEvent = (): SubEventData => ({
   venueFormData: { ...defaultVenueForm },
 });
 
-export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disabled, coordinatorReadOnly = false }) => {
+export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disabled, coordinatorReadOnly = false, onUploadReceipt, onUploadSponsorLogo, searchEmployees }) => {
   const [stage, setStage] = useState<Stage>('meta');
   const [dateError, setDateError] = useState<string>('');
 
@@ -353,6 +439,9 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
               disabled={disabled}
               festivalStartDate={data.startDate || undefined}
               festivalEndDate={data.endDate || undefined}
+              onUploadReceipt={onUploadReceipt}
+              onUploadSponsorLogo={onUploadSponsorLogo}
+              searchEmployees={searchEmployees}
             />
           ))}
           <button
@@ -445,11 +534,17 @@ export const FestivalForm: React.FC<FestivalFormProps> = ({ data, onChange, disa
                 setStage('subevents');
               } else if (stage === 'subevents') {
                 // Validate each sub-event has required fields
+                const seenSubEventNames = new Set<string>();
                 for (let i = 0; i < data.subEvents.length; i++) {
                   const se = data.subEvents[i];
                   const v = se.venueFormData;
                   const label = `Sub-Event #${i + 1}`;
                   if (!v.eventName?.trim()) { setDateError(`${label}: Please enter the Event Name.`); return; }
+                  const normalizedName = v.eventName.trim().toLocaleLowerCase();
+                  if (seenSubEventNames.has(normalizedName)) {
+                    setDateError(`${label}: Event name must be unique within the festival.`); return;
+                  }
+                  seenSubEventNames.add(normalizedName);
                   if (!v.eventType) { setDateError(`${label}: Please select the Event Type.`); return; }
                   if (!v.eventStartDate) { setDateError(`${label}: Please select the Start Date.`); return; }
                   if (!v.eventEndDate) { setDateError(`${label}: Please select the End Date.`); return; }

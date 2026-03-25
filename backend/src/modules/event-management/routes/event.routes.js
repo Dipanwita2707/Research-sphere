@@ -11,6 +11,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 const eventController = require('../controllers/event.controller');
 const {
   validateEventUpdate,
@@ -31,6 +32,7 @@ const feedbackController = require('../controllers/feedback.controller');
 const paymentController = require('../controllers/payment.controller');
 const registrationController = require('../controllers/registration.controller');
 const customFieldController = require('../controllers/customField.controller');
+const eventAdminController = require('../controllers/eventAdmin.controller');
 const rateLimit = require('express-rate-limit');
 const { PUBLIC_RATE_LIMIT } = require('../constants/event.constants');
 
@@ -43,6 +45,8 @@ const couponRoutes = require('./coupon.routes');
 const bulkEmailRoutes = require('./bulkEmail.routes');
 const certificateRoutes = require('./certificate.routes');
 const settingsRoutes = require('./settings.routes');
+const roundRoutes = require('./round.routes');
+const { requireEventStatisticsAdmin } = require('../middleware/statisticsAuth.middleware');
 
 // Rate limiter for public (unauthenticated) endpoints to prevent abuse
 const publicEndpointLimiter = rateLimit({
@@ -55,6 +59,10 @@ const publicEndpointLimiter = rateLimit({
 
 const eventManagePerm = checkAnyPermission(
   ['event_manage_own', 'event_manage_all'],
+  { checkDefaultPermissions: true }
+);
+const eventAnalyticsPerm = checkAnyPermission(
+  ['event_view_reports', 'event_manage_all'],
   { checkDefaultPermissions: true }
 );
 
@@ -120,10 +128,16 @@ const allowEventScan = async (req, res, next) => {
     const eventId = req.params?.id;
     const userId = user.id;
     if (eventId && userId) {
-      const volunteer = await prisma.eventVolunteer.findFirst({
-        where: { eventId, userId, canScanQr: true },
-      });
-      if (volunteer) return next();
+      const cacheKey = `event:scanperm:${eventId}:${userId}`;
+      const { data: volunteerAllowed } = await cache.getOrSet(cacheKey, async () => {
+        const volunteer = await prisma.eventVolunteer.findFirst({
+          where: { eventId, userId, canScanQr: true },
+          select: { id: true },
+        });
+        return !!volunteer;
+      }, 60);
+
+      if (volunteerAllowed) return next();
     }
 
     return res.status(403).json({
@@ -157,6 +171,12 @@ router.get('/hierarchy/data', eventSettingsController.getHierarchyData);
 // Registration helpers (must be before /:id to avoid being captured as :id param)
 router.get('/profile-data', registrationController.getProfileData);
 router.get('/registration-dashboard', registrationController.getRegistrationDashboard);
+router.get('/admin/analytics/overview', eventAnalyticsPerm, eventAdminController.getOverviewAnalytics);
+router.get('/admin/analytics/users', eventAnalyticsPerm, eventAdminController.getUserAnalytics);
+router.get('/admin/analytics/activity', eventAnalyticsPerm, eventAdminController.getActivityAnalytics);
+router.get('/admin/events', eventAnalyticsPerm, eventAdminController.listAllEvents);
+router.get('/:id/payment-context', validateEventId, registrationController.getPaymentContext);
+router.get('/:id/scan-context', validateEventId, allowEventScan, eventController.getScanContext);
 
 // Get event by ID
 router.get('/:id', validateEventId, eventController.getEvent);
@@ -171,10 +191,13 @@ router.post('/:id/publish', validateEventId, checkPermission('event_publish', { 
 router.post('/:id/register', validateEventId, eventController.registerForEvent);
 
 // Get event statistics
-router.get('/:id/statistics', validateEventId, checkAnyPermission(['event_view_reports', 'event_manage_own', 'event_manage_all'], { checkDefaultPermissions: true }), eventController.getEventStatistics);
+router.get('/:id/statistics', validateEventId, requireEventStatisticsAdmin, eventController.getEventStatistics);
 
 // Registration filter options
 router.get('/:id/registrations/filter-options', validateEventId, eventManagePerm, eventController.getRegistrationFilterOptions);
+
+// Stream registrations as CSV
+router.get('/:id/registrations/export', validateEventId, eventManagePerm, eventController.exportEventRegistrationsCsv);
 
 // Get event registrations (creator)
 router.get('/:id/registrations', validateEventId, eventManagePerm, eventController.getEventRegistrations);
@@ -229,5 +252,6 @@ router.use(couponRoutes);
 router.use(bulkEmailRoutes);
 router.use(certificateRoutes);
 router.use(settingsRoutes);
+router.use(roundRoutes);
 
 module.exports = router;

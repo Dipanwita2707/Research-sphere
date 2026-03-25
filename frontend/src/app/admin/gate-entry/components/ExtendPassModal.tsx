@@ -26,7 +26,7 @@ export default function ExtendPassModal({
   onSuccess
 }: ExtendPassModalProps) {
   const { error: showError, success: showSuccess } = useToast();
-  const { t } = useLanguage();
+  const { t, displayText } = useLanguage();
   const [newEndDate, setNewEndDate] = useState(currentEndDate || currentVisitDate);
   const [extensionReason, setExtensionReason] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -103,7 +103,7 @@ export default function ExtendPassModal({
       } catch (error: any) {
         if (!mounted) return;
         setExtensionOptions(null);
-        showError(error?.response?.data?.message || 'Failed to check room availability');
+        showError(error?.response?.data?.message || t('extend.errRoomAvailability'));
       } finally {
         if (mounted) {
           setIsCheckingOptions(false);
@@ -153,7 +153,7 @@ export default function ExtendPassModal({
 
     if (hasHostelBooking && extensionOptions?.hasHostelBooking) {
       if ((mustChooseAlternate || !useSameRoom) && !selectedRoomId) {
-        showError('Please select an available room to continue');
+        showError(t('extend.errSelectRoom'));
         return;
       }
     }
@@ -181,11 +181,11 @@ export default function ExtendPassModal({
             setExtensionPaymentAmount(amount);
             setPaymentBooking(bookingResult.booking);
             setShowPaymentModal(true);
-            showSuccess(`Pass extended. Please complete additional payment: INR ${amount}`);
+            showSuccess(t('extend.paymentPending').replace('{amount}', String(amount)));
             return;
           }
 
-          showError('Pass extended but payment details could not be loaded. Please refresh and complete payment from booking section.');
+          showError(t('extend.paymentDetailsMissing'));
           await onSuccess((response as any).pass);
           onClose();
           return;
@@ -211,7 +211,7 @@ export default function ExtendPassModal({
         <div className="p-6 pb-4 border-b border-gray-100">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">
-            {showPaymentModal ? 'Extension Payment' : t('extend.title')}
+            {showPaymentModal ? t('extend.paymentTitle') : t('extend.title')}
           </h2>
           <button
             onClick={onClose}
@@ -225,7 +225,7 @@ export default function ExtendPassModal({
         <div className={`rounded-lg p-4 ${showPaymentModal ? 'bg-green-50 border border-green-200' : 'bg-blue-50 border border-blue-200'}`}>
           <p className={`text-sm ${showPaymentModal ? 'text-green-800' : 'text-blue-800'}`}>
             {showPaymentModal
-              ? 'Review QR and complete additional payment for pass extension.'
+              ? t('extend.paymentNote')
               : t('extend.note')}
           </p>
         </div>
@@ -300,24 +300,24 @@ export default function ExtendPassModal({
 
           {hasHostelBooking && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-amber-900">Guest House Extension</h4>
+              <h4 className="text-sm font-semibold text-amber-900">{t('extend.guestHouseExtension')}</h4>
 
               {isCheckingOptions && (
-                <p className="text-sm text-amber-800">Checking room availability...</p>
+                <p className="text-sm text-amber-800">{t('extend.checkingAvailability')}</p>
               )}
 
               {!isCheckingOptions && extensionOptions?.hasHostelBooking && (
                 <>
                   <div className="text-sm text-amber-900 space-y-1">
                     <p>
-                      Current room: <span className="font-semibold">{extensionOptions.currentRoom?.roomNumber || 'N/A'}</span>
-                      {extensionOptions.currentRoom?.hostelName ? ` (${extensionOptions.currentRoom.hostelName})` : ''}
+                      {t('extend.currentRoom')}: <span className="font-semibold">{extensionOptions.currentRoom?.roomNumber || 'N/A'}</span>
+                      {extensionOptions.currentRoom?.hostelName ? ` (${displayText(extensionOptions.currentRoom.hostelName)})` : ''}
                     </p>
                     <p>
-                      Extra nights: <span className="font-semibold">{extensionOptions.additionalNights}</span>
+                      {t('extend.extraNights')}: <span className="font-semibold">{extensionOptions.additionalNights}</span>
                     </p>
                     <p>
-                      Additional amount: <span className="font-semibold">INR {extensionOptions.additionalAmount}</span>
+                      {t('extend.additionalAmount')}: <span className="font-semibold">INR {extensionOptions.additionalAmount}</span>
                     </p>
                   </div>
 
@@ -331,7 +331,7 @@ export default function ExtendPassModal({
                           onChange={() => setUseSameRoom(true)}
                           disabled={isLoading}
                         />
-                        Keep same room
+                        {t('extend.keepSameRoom')}
                       </label>
                       <label className="flex items-center gap-2 text-sm text-gray-800">
                         <input
@@ -341,19 +341,19 @@ export default function ExtendPassModal({
                           onChange={() => setUseSameRoom(false)}
                           disabled={isLoading}
                         />
-                        Choose different room
+                        {t('extend.chooseDifferentRoom')}
                       </label>
                     </div>
                   ) : (
                     <p className="text-sm text-red-700 font-medium">
-                      Current room is not available for selected extension date. Please select another room.
+                      {t('extend.currentRoomUnavailable')}
                     </p>
                   )}
 
                   {(!extensionOptions.sameRoomAvailable || !useSameRoom) && (
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Guest House</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('extend.selectGuestHouse')}</label>
                         <select
                           value={selectedHostelId}
                           onChange={(e) => setSelectedHostelId(e.target.value)}
@@ -361,25 +361,25 @@ export default function ExtendPassModal({
                           disabled={isLoading}
                         >
                           {!extensionOptions.alternativeHostels?.length && (
-                            <option value="">No guest house available</option>
+                            <option value="">{t('extend.noGuestHouseAvailable')}</option>
                           )}
                           {(extensionOptions.alternativeHostels || []).map((hostel) => (
                             <option key={hostel.id} value={hostel.id}>
-                              {hostel.name} ({hostel.availableRoomsCount || hostel.hostelRooms?.length || 0} rooms)
+                              {displayText(hostel.name)} ({hostel.availableRoomsCount || hostel.hostelRooms?.length || 0} rooms)
                             </option>
                           ))}
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Select Room</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('extend.selectRoomLabel')}</label>
                         <select
                           value={selectedRoomId}
                           onChange={(e) => setSelectedRoomId(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                           disabled={isLoading}
                         >
-                          <option value="">Choose room</option>
+                          <option value="">{t('extend.chooseRoom')}</option>
                           {selectedHostelRooms.map((room) => (
                             <option key={room.id} value={room.id}>
                               {room.roomNumber} - {room.roomType} - INR {room.pricePerNight}/day
@@ -387,7 +387,7 @@ export default function ExtendPassModal({
                           ))}
                         </select>
                         {selectedHostelId && selectedHostelRooms.length === 0 && (
-                          <p className="mt-1 text-xs text-red-600">No rooms available for this guest house on selected extension dates.</p>
+                          <p className="mt-1 text-xs text-red-600">{t('extend.noRoomsForGuestHouse')}</p>
                         )}
                       </div>
                     </div>
