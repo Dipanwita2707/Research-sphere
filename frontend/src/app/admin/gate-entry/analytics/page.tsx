@@ -800,7 +800,7 @@ function GateEntryAnalyticsPageContent() {
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip
                         contentStyle={{ backgroundColor: '#fff', border: '1px solid #E5E7EB', borderRadius: '8px' }}
-                        formatter={(value: any, name: string) => [name === 'revenue' ? formatCurrency(value) : value, name === 'revenue' ? t('analytics.gh.revenue') : t('analytics.gh.bookingsCount')]}
+                        formatter={(value: any, name?: string) => [name === 'revenue' ? formatCurrency(value) : value, name === 'revenue' ? t('analytics.gh.revenue') : t('analytics.gh.bookingsCount')]}
                       />
                       <Legend />
                       <Bar dataKey="bookings" fill="#6366F1" name={t('analytics.gh.bookingsCount')} radius={[4, 4, 0, 0]} />

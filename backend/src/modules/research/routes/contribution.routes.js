@@ -272,6 +272,13 @@ router.get(
   researchReviewController.getReviewStatistics
 );
 
+router.get(
+  '/review/health',
+  protect,
+  requirePermission('central-department', 'research_approve'),
+  researchReviewController.getWorkflowHealthSummary
+);
+
 // Get schools for filtering (DRD - reviewers and approvers)
 router.get(
   '/review/schools',

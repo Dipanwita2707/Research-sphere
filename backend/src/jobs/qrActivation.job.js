@@ -242,11 +242,11 @@ const sendCheckoutReminders = async () => {
       include: {
         gate_pass: {
           include: {
-            created_by: {
+            user_login_gate_pass_created_by_idTouser_login: {
               include: {
-                studentDetails: {
+                studentLogin: {
                   include: {
-                    parentDetails: {
+                    parents: {
                       where: { isPrimaryContact: true },
                       take: 1
                     }
@@ -270,8 +270,8 @@ const sendCheckoutReminders = async () => {
     let sentCount = 0;
     for (const booking of bookings) {
       const pass = booking.gate_pass;
-      const student = pass?.created_by;
-      const parentDetails = student?.studentDetails?.[0]?.parentDetails?.[0];
+      const student = pass?.user_login_gate_pass_created_by_idTouser_login;
+      const parent = student?.studentLogin?.parents?.[0];
 
       // 1) Send notification to student's dashboard
       if (student?.id) {
@@ -292,10 +292,10 @@ const sendCheckoutReminders = async () => {
       }
 
       // 2) Send email to parent (fire-and-forget)
-      if (parentDetails?.email) {
+      if (parent?.email) {
         emailService.sendCheckoutReminder({
-          parentEmail: parentDetails.email,
-          parentName: parentDetails.fatherName || parentDetails.motherName || 'Parent',
+          parentEmail: parent.email,
+          parentName: `${parent.firstName || ''} ${parent.lastName || ''}`.trim() || 'Parent',
           visitorName: pass.visitor_name,
           passId: pass.pass_id,
           roomNumber: booking.room?.room_number || '—',

@@ -12,6 +12,8 @@ import {
   Role,
   RoleDepartmentType,
   RolePermissions,
+  RoleAnalyticsScope,
+  RoleAnalyticsCategoryScope,
 } from '@/features/admin-management/services/roleManagement.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
@@ -79,6 +81,7 @@ export default function UserRoleManagement() {
   });
   const [roleSchoolPermissions, setRoleSchoolPermissions] = useState<Record<string, boolean>>({});
   const [roleCentralPermissions, setRoleCentralPermissions] = useState<Record<string, boolean>>({});
+  const [roleAnalyticsScope, setRoleAnalyticsScope] = useState<RoleAnalyticsScope>({});
   const [rolePermissionTab, setRolePermissionTab] = useState<'central' | 'school'>('central');
   const [roleCentralDeptFilter, setRoleCentralDeptFilter] = useState<string>('all');
   const [roleSchoolCategoryFilter, setRoleSchoolCategoryFilter] = useState<string>('all');
@@ -105,6 +108,38 @@ export default function UserRoleManagement() {
   const [showUserPermissionModal, setShowUserPermissionModal] = useState(false);
   const [showRoleAssignmentModal, setShowRoleAssignmentModal] = useState(false);
   const [departmentsInRole, setDepartmentsInRole] = useState<{ type: 'central' | 'school', deptId: string, deptName: string, permCount: number, permissions: string[] }[]>([]);
+
+  // Analytics scope per central-dept key ("central_<id>")
+  interface AnalyticsScopeEntry {
+    iprSchools: string[]; iprDepts: string[];
+    researchSchools: string[]; researchDepts: string[];
+    bookSchools: string[]; bookDepts: string[];
+    conferenceSchools: string[]; conferenceDepts: string[];
+    grantsSchools: string[]; grantsDepts: string[];
+  }
+  const emptyScope = (): AnalyticsScopeEntry => ({
+    iprSchools: [], iprDepts: [],
+    researchSchools: [], researchDepts: [],
+    bookSchools: [], bookDepts: [],
+    conferenceSchools: [], conferenceDepts: [],
+    grantsSchools: [], grantsDepts: [],
+  });
+  const [analyticsScope, setAnalyticsScope] = useState<Record<string, AnalyticsScopeEntry>>({});
+  const toggleScopeItem = (deptKey: string, field: keyof AnalyticsScopeEntry, id: string) => {
+    setAnalyticsScope(prev => {
+      const scope = prev[deptKey] || emptyScope();
+      const current = scope[field] as string[];
+      return { ...prev, [deptKey]: { ...scope, [field]: current.includes(id) ? current.filter(x => x !== id) : [...current, id] } };
+    });
+  };
+
+  const DRD_ANALYTICS_CATEGORIES_MODAL = [
+    { id: 'ipr', label: 'IPR', schoolsField: 'iprSchools' as keyof AnalyticsScopeEntry, deptsField: 'iprDepts' as keyof AnalyticsScopeEntry },
+    { id: 'research', label: 'Research', schoolsField: 'researchSchools' as keyof AnalyticsScopeEntry, deptsField: 'researchDepts' as keyof AnalyticsScopeEntry },
+    { id: 'book', label: 'Book / Chapter', schoolsField: 'bookSchools' as keyof AnalyticsScopeEntry, deptsField: 'bookDepts' as keyof AnalyticsScopeEntry },
+    { id: 'conference', label: 'Conference', schoolsField: 'conferenceSchools' as keyof AnalyticsScopeEntry, deptsField: 'conferenceDepts' as keyof AnalyticsScopeEntry },
+    { id: 'grants', label: 'Grants', schoolsField: 'grantsSchools' as keyof AnalyticsScopeEntry, deptsField: 'grantsDepts' as keyof AnalyticsScopeEntry },
+  ];
 
   useEffect(() => {
     fetchData();
@@ -194,6 +229,7 @@ export default function UserRoleManagement() {
       });
       setRoleSchoolPermissions(role.permissions?.schoolDeptPermissions || {});
       setRoleCentralPermissions(role.permissions?.centralDeptPermissions || {});
+      setRoleAnalyticsScope(role.permissions?.analyticsScope || {});
     } else {
       setEditingRole(null);
       setRoleFormData({
@@ -205,6 +241,7 @@ export default function UserRoleManagement() {
       });
       setRoleSchoolPermissions({});
       setRoleCentralPermissions({});
+      setRoleAnalyticsScope({});
     }
     setRoleCentralDeptFilter('all');
     setRoleSchoolCategoryFilter('all');
@@ -235,6 +272,10 @@ export default function UserRoleManagement() {
     }
     if (hasCentralPerms) {
       permissions.centralDeptPermissions = roleCentralPermissions;
+    }
+    // Include analytics scope (per-category schools/departments)
+    if (Object.keys(roleAnalyticsScope).length > 0) {
+      permissions.analyticsScope = roleAnalyticsScope;
     }
 
     try {
@@ -627,6 +668,7 @@ export default function UserRoleManagement() {
     if (!selectedUser) return;
 
     const allPerms: Record<string, Record<string, boolean>> = {};
+    const scopeUpdates: Record<string, AnalyticsScopeEntry> = {};
 
     depts.forEach(dept => {
       const deptKey = `${dept.type}_${dept.deptId}`;
@@ -637,6 +679,19 @@ export default function UserRoleManagement() {
         const existing = selectedUser.centralDeptPermissions.find(p => p.centralDeptId === dept.deptId);
         if (existing) {
           existingPermissions = { ...(existing.permissions || {}) };
+          // Populate analytics scope from existing record
+          scopeUpdates[deptKey] = {
+            iprSchools: (existing.assignedIprAnalyticsSchoolIds as string[] | undefined) || [],
+            iprDepts: (existing.assignedIprAnalyticsDepartmentIds as string[] | undefined) || [],
+            researchSchools: (existing.assignedResearchAnalyticsSchoolIds as string[] | undefined) || [],
+            researchDepts: (existing.assignedResearchAnalyticsDepartmentIds as string[] | undefined) || [],
+            bookSchools: (existing.assignedBookAnalyticsSchoolIds as string[] | undefined) || [],
+            bookDepts: (existing.assignedBookAnalyticsDepartmentIds as string[] | undefined) || [],
+            conferenceSchools: (existing.assignedConferenceAnalyticsSchoolIds as string[] | undefined) || [],
+            conferenceDepts: (existing.assignedConferenceAnalyticsDepartmentIds as string[] | undefined) || [],
+            grantsSchools: (existing.assignedGrantAnalyticsSchoolIds as string[] | undefined) || [],
+            grantsDepts: (existing.assignedGrantAnalyticsDepartmentIds as string[] | undefined) || [],
+          };
         }
       } else {
         const existing = selectedUser.schoolDeptPermissions.find(p => p.departmentId === dept.deptId);
@@ -654,6 +709,9 @@ export default function UserRoleManagement() {
     });
 
     setAllDepartmentPermissions(allPerms);
+    if (Object.keys(scopeUpdates).length > 0) {
+      setAnalyticsScope(prev => ({ ...prev, ...scopeUpdates }));
+    }
   };
 
   const loadExistingUserPermissions = (deptType: 'central' | 'school', deptId: string) => {
@@ -720,11 +778,22 @@ export default function UserRoleManagement() {
             isPrimary: false, // Can set primary separately if needed
           });
         } else {
+          const scope = analyticsScope[deptKey] || emptyScope();
           await permissionManagementService.grantCentralDeptPermissions({
             userId: selectedUser.id,
             centralDeptId: deptId,
             permissions: permissions,
             isPrimary: false,
+            assignedIprAnalyticsSchoolIds: scope.iprSchools,
+            assignedIprAnalyticsDepartmentIds: scope.iprDepts,
+            assignedResearchAnalyticsSchoolIds: scope.researchSchools,
+            assignedResearchAnalyticsDepartmentIds: scope.researchDepts,
+            assignedBookAnalyticsSchoolIds: scope.bookSchools,
+            assignedBookAnalyticsDepartmentIds: scope.bookDepts,
+            assignedConferenceAnalyticsSchoolIds: scope.conferenceSchools,
+            assignedConferenceAnalyticsDepartmentIds: scope.conferenceDepts,
+            assignedGrantAnalyticsSchoolIds: scope.grantsSchools,
+            assignedGrantAnalyticsDepartmentIds: scope.grantsDepts,
           });
         }
       }
@@ -1722,10 +1791,10 @@ export default function UserRoleManagement() {
                                         </button>
 
                                         {isExpanded && (
+                                          <>
                                           <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
                                             {perms.map(perm => {
                                               const isChecked = allDepartmentPermissions[deptKey]?.[perm.key] ?? mergedPerms[perm.key] ?? false;
-                                              const isFromRole = mergedPerms[perm.key] && !allDepartmentPermissions[deptKey]?.hasOwnProperty(perm.key);
                                               return (
                                               <label
                                                 key={perm.key}
@@ -1763,6 +1832,93 @@ export default function UserRoleManagement() {
                                               );
                                             })}
                                           </div>
+
+                                          {/* DRD Analytics Scope — Compact Dropdowns */}
+                                          {category === 'DRD Analytics' && (() => {
+                                            const scope = analyticsScope[deptKey] || emptyScope();
+                                            const applicantEnabled = !!(allDepartmentPermissions[deptKey]?.applicant_analytics ?? mergedPerms.applicant_analytics);
+                                            if (!applicantEnabled) return null;
+                                            return (
+                                              <div className="px-3 pb-3">
+                                                <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-900/20 p-3">
+                                                  <p className="text-xs font-semibold text-blue-800 dark:text-blue-200 mb-3">
+                                                    Applicant Analytics — Scope per Category
+                                                  </p>
+                                                  <div className="space-y-2">
+                                                    {DRD_ANALYTICS_CATEGORIES_MODAL.map(cat => {
+                                                      const catSchools = scope[cat.schoolsField] as string[];
+                                                      const catDepts = scope[cat.deptsField] as string[];
+                                                      return (
+                                                        <div key={cat.id} className="rounded-lg border border-blue-100 dark:border-blue-700 bg-white dark:bg-gray-800 p-2.5">
+                                                          <p className="text-[11px] font-semibold text-gray-800 dark:text-white mb-1.5">{cat.label}</p>
+                                                          <div className="grid grid-cols-2 gap-2">
+                                                            {/* School multi-select */}
+                                                            <div>
+                                                              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Schools</label>
+                                                              <select
+                                                                multiple
+                                                                value={catSchools}
+                                                                onChange={(e) => {
+                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
+                                                                  setAnalyticsScope(prev => {
+                                                                    const s = prev[deptKey] || emptyScope();
+                                                                    return { ...prev, [deptKey]: { ...s, [cat.schoolsField]: selected } };
+                                                                  });
+                                                                }}
+                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
+                                                              >
+                                                                {schools.map(s => (
+                                                                  <option key={s.id} value={s.id}>{s.facultyCode || s.facultyName}</option>
+                                                                ))}
+                                                              </select>
+                                                              {catSchools.length > 0 && (
+                                                                <span className="text-[9px] text-blue-600 dark:text-blue-400">{catSchools.length} selected</span>
+                                                              )}
+                                                            </div>
+                                                            {/* Department multi-select */}
+                                                            <div>
+                                                              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Departments</label>
+                                                              <select
+                                                                multiple
+                                                                value={catDepts}
+                                                                onChange={(e) => {
+                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
+                                                                  setAnalyticsScope(prev => {
+                                                                    const s = prev[deptKey] || emptyScope();
+                                                                    return { ...prev, [deptKey]: { ...s, [cat.deptsField]: selected } };
+                                                                  });
+                                                                }}
+                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
+                                                              >
+                                                                {schools.map(s => {
+                                                                  const schoolDepts = departments.filter(d => d.facultyId === s.id);
+                                                                  if (schoolDepts.length === 0) return null;
+                                                                  return (
+                                                                    <optgroup key={s.id} label={s.facultyCode || s.facultyName}>
+                                                                      {schoolDepts.map(d => (
+                                                                        <option key={d.id} value={d.id}>{d.departmentName}</option>
+                                                                      ))}
+                                                                    </optgroup>
+                                                                  );
+                                                                })}
+                                                              </select>
+                                                              {catDepts.length > 0 && (
+                                                                <span className="text-[9px] text-blue-600 dark:text-blue-400">{catDepts.length} selected</span>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                  <p className="text-[9px] text-gray-400 mt-2 italic">Hold Ctrl/Cmd to select multiple. Leave empty = all access.</p>
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
+                                          </>
                                         )}
                                       </div>
                                     );
@@ -2343,6 +2499,100 @@ export default function UserRoleManagement() {
                                               </label>
                                             ))}
                                           </div>
+
+                                          {/* Analytics Scope — Compact Dropdowns for DRD Analytics */}
+                                          {category === 'DRD Analytics' && (() => {
+                                            const applicantOn = roleCentralPermissions['applicant_analytics'];
+                                            if (!applicantOn) return null;
+
+                                            const ROLE_CAT_LIST: Array<{ id: keyof RoleAnalyticsScope; label: string }> = [
+                                              { id: 'ipr', label: 'IPR / Patent' },
+                                              { id: 'research', label: 'Research Paper' },
+                                              { id: 'book', label: 'Book / Chapter' },
+                                              { id: 'conference', label: 'Conference Paper' },
+                                              { id: 'grants', label: 'Grant / Funding' },
+                                            ];
+
+                                            return (
+                                              <div className="px-4 pb-3 border-t border-gray-200 dark:border-gray-600 mt-1 pt-3">
+                                                <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/60 dark:bg-blue-900/20 p-3">
+                                                  <p className="text-xs font-bold text-blue-800 dark:text-blue-200 mb-3 flex items-center gap-1.5">
+                                                    <Building2 className="h-3.5 w-3.5" />
+                                                    Applicant Analytics — Scope per Category
+                                                  </p>
+                                                  <div className="space-y-2">
+                                                    {ROLE_CAT_LIST.map(cat => {
+                                                      const scope = (roleAnalyticsScope[cat.id] as RoleAnalyticsCategoryScope | undefined) || { schools: [], departments: [] };
+                                                      return (
+                                                        <div key={cat.id} className="rounded-lg border border-blue-100 dark:border-blue-700 bg-white dark:bg-gray-800 p-2.5">
+                                                          <p className="text-[11px] font-semibold text-gray-800 dark:text-white mb-1.5">{cat.label}</p>
+                                                          <div className="grid grid-cols-2 gap-2">
+                                                            {/* School multi-select */}
+                                                            <div>
+                                                              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Schools</label>
+                                                              <select
+                                                                multiple
+                                                                value={scope.schools}
+                                                                onChange={(e) => {
+                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
+                                                                  setRoleAnalyticsScope(prev => ({
+                                                                    ...prev,
+                                                                    [cat.id]: { ...(prev[cat.id] as RoleAnalyticsCategoryScope || { schools: [], departments: [] }), schools: selected },
+                                                                  }));
+                                                                }}
+                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
+                                                              >
+                                                                {schools.map(s => (
+                                                                  <option key={s.id} value={s.id}>{s.facultyCode || s.facultyName}</option>
+                                                                ))}
+                                                              </select>
+                                                              {scope.schools.length > 0 && (
+                                                                <span className="text-[9px] text-blue-600 dark:text-blue-400">{scope.schools.length} selected</span>
+                                                              )}
+                                                            </div>
+                                                            {/* Department multi-select */}
+                                                            <div>
+                                                              <label className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mb-0.5 block">Departments</label>
+                                                              <select
+                                                                multiple
+                                                                value={scope.departments}
+                                                                onChange={(e) => {
+                                                                  const selected = Array.from(e.target.selectedOptions, o => o.value);
+                                                                  setRoleAnalyticsScope(prev => ({
+                                                                    ...prev,
+                                                                    [cat.id]: { ...(prev[cat.id] as RoleAnalyticsCategoryScope || { schools: [], departments: [] }), departments: selected },
+                                                                  }));
+                                                                }}
+                                                                className="w-full text-[10px] border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-1.5 py-1 focus:ring-1 focus:ring-blue-400 focus:border-blue-400"
+                                                                style={{ minHeight: '56px', maxHeight: '80px' }}
+                                                              >
+                                                                {schools.map(s => {
+                                                                  const schoolDepts = departments.filter(d => d.facultyId === s.id);
+                                                                  if (schoolDepts.length === 0) return null;
+                                                                  return (
+                                                                    <optgroup key={s.id} label={s.facultyCode || s.facultyName}>
+                                                                      {schoolDepts.map(d => (
+                                                                        <option key={d.id} value={d.id}>{d.departmentName}</option>
+                                                                      ))}
+                                                                    </optgroup>
+                                                                  );
+                                                                })}
+                                                              </select>
+                                                              {scope.departments.length > 0 && (
+                                                                <span className="text-[9px] text-blue-600 dark:text-blue-400">{scope.departments.length} selected</span>
+                                                              )}
+                                                            </div>
+                                                          </div>
+                                                        </div>
+                                                      );
+                                                    })}
+                                                  </div>
+                                                  <p className="text-[9px] text-gray-400 mt-2 italic">Hold Ctrl/Cmd to select multiple. Leave empty = all access.</p>
+                                                </div>
+                                              </div>
+                                            );
+                                          })()}
                                           </>
                                         )}
                                       </div>

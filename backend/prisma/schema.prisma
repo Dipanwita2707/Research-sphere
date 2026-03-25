@@ -54,13 +54,13 @@ model UserLogin {
   checkinRequestsReviewed                           HostelBooking[]                      @relation("CheckinRequestReviewedBy")
   refundsProcessed                                  RefundTransaction[]                  @relation("RefundProcessedBy")
   gate_pass_history                                 gate_pass_history[]
-  daily_entry_guard                                  gate_pass_daily_entry[]      @relation("DailyEntryGuard")
-  daily_exit_guard                                   gate_pass_daily_entry[]      @relation("DailyExitGuard")
-  emailLogsSent                                     EventEmailLog[]              @relation("EmailLogSentBy")
-  certificateTemplatesCreated                       EventCertificateTemplate[]   @relation("CertTemplateCreatedBy")
-  certificateLogsSent                               EventCertificateLog[]        @relation("CertLogSentBy")
-  couponsCreated                                    EventCoupon[]                @relation("CouponCreatedBy")
-  couponUsages                                      CouponUsage[]                @relation("CouponUsageUser")
+  daily_entry_guard                                 gate_pass_daily_entry[]              @relation("DailyEntryGuard")
+  daily_exit_guard                                  gate_pass_daily_entry[]              @relation("DailyExitGuard")
+  emailLogsSent                                     EventEmailLog[]                      @relation("EmailLogSentBy")
+  certificateTemplatesCreated                       EventCertificateTemplate[]           @relation("CertTemplateCreatedBy")
+  certificateLogsSent                               EventCertificateLog[]                @relation("CertLogSentBy")
+  couponsCreated                                    EventCoupon[]                        @relation("CouponCreatedBy")
+  couponUsages                                      CouponUsage[]                        @relation("CouponUsageUser")
   grantApplications                                 GrantApplication[]                   @relation("GrantApplications")
   grantApplicationEditSuggestions                   GrantApplicationEditSuggestion[]     @relation("GrantApplicationEditSuggestions")
   grantApplicationReviews                           GrantApplicationReview[]             @relation("GrantApplicationReviews")
@@ -127,23 +127,26 @@ model UserLogin {
   clubAuditLogs                                     ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
   reportingStructure                                ReportingStructure?                  @relation("UserReporting")
   directReports                                     ReportingStructure[]                 @relation("ManagerReporting")
-  sentInvitations                                    EventTeamInvitation[]                @relation("InvitationInviter")
-  receivedInvitations                                EventTeamInvitation[]                @relation("InvitationInvitee")
-  teamJoinRequests                                   EventTeamRequest[]                   @relation("RequestRequester")
-  eventTeamMemberships                               EventTeamMember[]                    @relation("TeamMemberUser")
+  sentInvitations                                   EventTeamInvitation[]                @relation("InvitationInviter")
+  receivedInvitations                               EventTeamInvitation[]                @relation("InvitationInvitee")
+  teamJoinRequests                                  EventTeamRequest[]                   @relation("RequestRequester")
+  eventTeamMemberships                              EventTeamMember[]                    @relation("TeamMemberUser")
   // TMS Relations
-  tmsTicketsCreated                                  TmsTicket[]                          @relation("TmsTicketCreatedBy")
-  tmsTicketsAssigned                                 TmsTicket[]                          @relation("TmsTicketAssignedTo")
-  tmsTimelineEntries                                 TmsTimeline[]                        @relation("TmsTimelinePerformedBy")
-  tmsSubCategoryMappings                             TmsSubCategory[]                     @relation("TmsSubCategoryEmployee")
-  tmsCategoryMappings                                TmsCategory[]                        @relation("TmsCategoryEmployee")
-  tmsMasterCategoryMappings                          TmsMasterCategory[]                  @relation("TmsMasterCategoryEmployee")
-  tmsRatings                                         TmsRating[]                          @relation("TmsRatingByUser")
-  tmsRoleHandlers                                    TmsRoleHandler[]                     @relation("TmsRoleHandlerEmployee")
-  stallApplications                                  StallApplication[]                   @relation("StallApplicant")
-  stallsOwned                                        Stall[]                              @relation("StallOwner")
-  payments                                           Payment[]                            @relation("PaymentUser")
+  tmsTicketsCreated                                 TmsTicket[]                          @relation("TmsTicketCreatedBy")
+  tmsTicketsAssigned                                TmsTicket[]                          @relation("TmsTicketAssignedTo")
+  tmsTimelineEntries                                TmsTimeline[]                        @relation("TmsTimelinePerformedBy")
+  tmsSubCategoryMappings                            TmsSubCategory[]                     @relation("TmsSubCategoryEmployee")
+  tmsCategoryMappings                               TmsCategory[]                        @relation("TmsCategoryEmployee")
+  tmsMasterCategoryMappings                         TmsMasterCategory[]                  @relation("TmsMasterCategoryEmployee")
+  tmsRatings                                        TmsRating[]                          @relation("TmsRatingByUser")
+  tmsRoleHandlers                                   TmsRoleHandler[]                     @relation("TmsRoleHandlerEmployee")
+  stallApplications                                 StallApplication[]                   @relation("StallApplicant")
+  stallsOwned                                       Stall[]                              @relation("StallOwner")
+  payments                                          Payment[]                            @relation("PaymentUser")
 
+  @@index([role])
+  @@index([status])
+  @@index([role, status], map: "user_login_role_status_idx")
   @@map("user_login")
 }
 
@@ -515,6 +518,7 @@ model DepartmentPermission {
 
   @@unique([userId, departmentId])
   @@index([userId])
+  @@index([userId, isActive], map: "department_permission_user_active_idx")
   @@index([departmentId])
   @@index([isPrimary])
   @@map("department_permission")
@@ -536,14 +540,29 @@ model CentralDepartmentPermission {
   assignedBookSchoolIds              Json?             @default("[]") @map("assigned_book_school_ids")
   assignedConferenceSchoolIds        Json?             @default("[]") @map("assigned_conference_school_ids")
   assignedGrantSchoolIds             Json?             @default("[]") @map("assigned_grant_school_ids")
+  assignedIprAnalyticsSchoolIds      Json?             @default("[]") @map("assigned_ipr_analytics_school_ids")
+  assignedResearchAnalyticsSchoolIds Json?             @default("[]") @map("assigned_research_analytics_school_ids")
+  assignedBookAnalyticsSchoolIds     Json?             @default("[]") @map("assigned_book_analytics_school_ids")
+  assignedConferenceAnalyticsSchoolIds Json?           @default("[]") @map("assigned_conference_analytics_school_ids")
+  assignedGrantAnalyticsSchoolIds    Json?             @default("[]") @map("assigned_grant_analytics_school_ids")
   assignedMonthlyReportDepartmentIds Json?             @default("[]") @map("assigned_monthly_report_department_ids")
   assignedMonthlyReportSchoolIds     Json?             @default("[]") @map("assigned_monthly_report_school_ids")
+  // ── Per-category analytics department scope ──
+  assignedIprAnalyticsDepartmentIds        Json?  @default("[]") @map("assigned_ipr_analytics_department_ids")
+  assignedResearchAnalyticsDepartmentIds   Json?  @default("[]") @map("assigned_research_analytics_department_ids")
+  assignedBookAnalyticsDepartmentIds       Json?  @default("[]") @map("assigned_book_analytics_department_ids")
+  assignedConferenceAnalyticsDepartmentIds Json?  @default("[]") @map("assigned_conference_analytics_department_ids")
+  assignedGrantAnalyticsDepartmentIds      Json?  @default("[]") @map("assigned_grant_analytics_department_ids")
+  // ── DRD Member analytics scope (supervisor view) ──
+  assignedDrdMemberAnalyticsSchoolIds      Json?  @default("[]") @map("assigned_drd_member_analytics_school_ids")
+  assignedDrdMemberAnalyticsDepartmentIds  Json?  @default("[]") @map("assigned_drd_member_analytics_department_ids")
   assignedByUser                     UserLogin?        @relation("AssignedCentralDeptPermissions", fields: [assignedBy], references: [id])
   centralDept                        CentralDepartment @relation(fields: [centralDeptId], references: [id], onDelete: Cascade)
   user                               UserLogin         @relation("UserCentralDeptPermissions", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, centralDeptId])
   @@index([userId])
+  @@index([userId, isActive], map: "central_department_permission_user_active_idx")
   @@index([centralDeptId])
   @@index([isPrimary])
   @@map("central_department_permission")
@@ -838,6 +857,11 @@ model IprApplication {
   @@index([departmentId])
   @@index([status])
   @@index([sourceProvisionalId])
+  @@index([applicantUserId, createdAt(sort: Desc)], map: "ipr_application_applicant_created_at_idx")
+  @@index([applicantUserId, status, submittedAt(sort: Desc)], map: "ipr_application_applicant_status_submitted_idx")
+  @@index([currentReviewerId, status], map: "ipr_application_reviewer_status_idx")
+  @@index([schoolId, status, submittedAt(sort: Desc)], map: "ipr_application_school_status_submitted_idx")
+  @@index([departmentId, status, submittedAt(sort: Desc)], map: "ipr_application_department_status_submitted_idx")
   @@map("ipr_application")
 }
 
@@ -928,6 +952,8 @@ model IprReview {
 
   @@index([iprApplicationId])
   @@index([reviewerId])
+  @@index([reviewerId, reviewedAt(sort: Desc)], map: "ipr_review_reviewer_reviewed_at_idx")
+  @@index([decision, iprApplicationId], map: "ipr_review_decision_application_idx")
   @@map("ipr_review")
 }
 
@@ -1360,6 +1386,13 @@ model ResearchContribution {
   @@index([schoolId])
   @@index([departmentId])
   @@index([conferenceSubType])
+  @@index([applicantUserId, createdAt(sort: Desc)], map: "research_contribution_applicant_created_at_idx")
+  @@index([applicantUserId, publicationType, submittedAt(sort: Desc), status], map: "research_contribution_applicant_pub_submitted_status_idx")
+  @@index([schoolId, publicationType, status, submittedAt(sort: Desc)], map: "research_contribution_school_pub_status_submitted_idx")
+  @@index([departmentId, publicationType, status, submittedAt(sort: Desc)], map: "research_contribution_department_pub_status_submitted_idx")
+  @@index([currentReviewerId, status], map: "research_contribution_reviewer_status_idx")
+  @@index([schoolId, status, submittedAt(sort: Desc)], map: "research_contribution_school_status_submitted_idx")
+  @@index([departmentId, status, submittedAt(sort: Desc)], map: "research_contribution_department_status_submitted_idx")
   @@map("research_contribution")
 }
 
@@ -1458,6 +1491,8 @@ model ResearchContributionReview {
 
   @@index([reviewerId])
   @@index([researchContributionId], map: "research_contribution_review_contribution_id_idx")
+  @@index([reviewerId, reviewedAt(sort: Desc)], map: "research_contribution_review_reviewer_reviewed_at_idx")
+  @@index([decision, researchContributionId], map: "research_contribution_review_decision_contribution_idx")
   @@map("research_contribution_review")
 }
 
@@ -1661,7 +1696,9 @@ model ResearchProgressTracker {
   @@index([publicationType])
   @@index([currentStatus])
   @@index([schoolId])
+  @@index([schoolId, createdAt(sort: Desc)], map: "research_progress_tracker_school_created_idx")
   @@index([departmentId])
+  @@index([departmentId, createdAt(sort: Desc)], map: "research_progress_tracker_dept_created_idx")
   @@index([title])
   @@index([trackingNumber])
   @@map("research_progress_tracker")
@@ -1743,6 +1780,11 @@ model GrantApplication {
   @@index([projectCategory])
   @@index([schoolId])
   @@index([departmentId])
+  @@index([applicantUserId, createdAt(sort: Desc)], map: "grant_application_applicant_created_at_idx")
+  @@index([applicantUserId, status, submittedAt(sort: Desc)], map: "grant_application_applicant_status_submitted_idx")
+  @@index([currentReviewerId, status], map: "grant_application_reviewer_status_idx")
+  @@index([schoolId, status, submittedAt(sort: Desc)], map: "grant_application_school_status_submitted_idx")
+  @@index([departmentId, status, submittedAt(sort: Desc)], map: "grant_application_department_status_submitted_idx")
   @@map("grant_application")
 }
 
@@ -1814,6 +1856,8 @@ model GrantApplicationReview {
 
   @@index([grantApplicationId])
   @@index([reviewerId])
+  @@index([reviewerId, reviewedAt(sort: Desc)], map: "grant_application_review_reviewer_reviewed_at_idx")
+  @@index([decision, grantApplicationId], map: "grant_application_review_decision_application_idx")
   @@map("grant_application_review")
 }
 
@@ -1882,57 +1926,57 @@ model Note {
   eventStartDate                   DateTime?
   eventEndDate                     DateTime?
   eventPaymentType                 EventPaymentType?
-  eventParticipationType ParticipationType?       @map("event_participation_type")
-  eventRegistrationFeeIndividual Float?            @map("event_registration_fee_individual")
-  eventRegistrationFeeTeam       Float?            @map("event_registration_fee_team")
-  eventApproxCapacity Int?                        @map("event_approx_capacity")
-  eventDutyLeaveAvailable Boolean?                @map("event_duty_leave_available")
-  eventDutyLeaveEligibility Json?                  @map("event_duty_leave_eligibility") // Deprecated: only students eligible. Kept for backward compat.
-  eventDutyLeaveRoleType   String?                 @map("event_duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
-  eventHasSponsorship Boolean?                    @map("event_has_sponsorship")
-  eventSponsors       Json?                       @map("event_sponsors") // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
-  eventHasResources   Boolean?                    @map("event_has_resources")
-  eventResources      Json?                       @map("event_resources") // [{type, description, pricePerPiece, quantity, cost, totalCost}]
-  eventCertification  Boolean?                    @map("event_certification") // Certificate milega ya nahi
-  eventCapacityFixed  Int?                        @map("event_capacity_fixed") // Internal capacity fixed (different from approx)
-  eventPrizesAwards   Json?                       @map("event_prizes_awards") // [{position, rank, title, prizeType, prizeAmount?, additionalPerks?, sortOrder}] - matches EventPrize
+  eventParticipationType           ParticipationType?          @map("event_participation_type")
+  eventRegistrationFeeIndividual   Float?                      @map("event_registration_fee_individual")
+  eventRegistrationFeeTeam         Float?                      @map("event_registration_fee_team")
+  eventApproxCapacity              Int?                        @map("event_approx_capacity")
+  eventDutyLeaveAvailable          Boolean?                    @map("event_duty_leave_available")
+  eventDutyLeaveEligibility        Json?                       @map("event_duty_leave_eligibility") // Deprecated: only students eligible. Kept for backward compat.
+  eventDutyLeaveRoleType           String?                     @map("event_duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
+  eventHasSponsorship              Boolean?                    @map("event_has_sponsorship")
+  eventSponsors                    Json?                       @map("event_sponsors") // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  eventHasResources                Boolean?                    @map("event_has_resources")
+  eventResources                   Json?                       @map("event_resources") // [{type, description, pricePerPiece, quantity, cost, totalCost}]
+  eventCertification               Boolean?                    @map("event_certification") // Certificate milega ya nahi
+  eventCapacityFixed               Int?                        @map("event_capacity_fixed") // Internal capacity fixed (different from approx)
+  eventPrizesAwards                Json?                       @map("event_prizes_awards") // [{position, rank, title, prizeType, prizeAmount?, additionalPerks?, sortOrder}] - matches EventPrize
   // Stall & Festival Noting Fields
-  notingEventType     String?                     @map("noting_event_type") @db.VarChar(32) // venue | stall | festival
-  stallConfig         Json?                       @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[]}
-  festivalMeta        Json?                       @map("festival_meta") // {name, startDate, endDate, description, coordinator}
-  subEvents           Json?                       @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
+  notingEventType                  String?                     @map("noting_event_type") @db.VarChar(32) // venue | stall | festival
+  stallConfig                      Json?                       @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[]}
+  festivalMeta                     Json?                       @map("festival_meta") // {name, startDate, endDate, description, coordinator}
+  subEvents                        Json?                       @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
   // Optional club association for event notings — when set, the club's chairperson
   // automatically receives full event management permissions upon event creation.
-  eventClubId         String?                     @map("event_club_id") @db.Uuid
-  eventClub           Club?                       @relation("EventNotingClub", fields: [eventClubId], references: [id])
-  clubName            String?                     @map("club_name") @db.VarChar(256)
-  clubCategoryId      String?                     @map("club_category_id") @db.Uuid
-  clubPurpose         String?                     @map("club_purpose") @db.Text
-  clubAcademicSession String?                     @map("club_academic_session") @db.VarChar(64)
-  clubTargetStudentGroup String[]                 @default([]) @map("club_target_student_group")
-  clubMeetingFrequency   ClubMeetingFrequencyEnum? @map("club_meeting_frequency")
-  clubExpectedActivityTypes String[]              @default([]) @map("club_expected_activity_types")
-  clubEstimatedAnnualActivityCount Int?           @map("club_estimated_annual_activity_count")
-  clubExpectedStudentStrength Int?                @map("club_expected_student_strength")
-  clubFacultyFacilitatorId String?                @map("club_faculty_facilitator_id") @db.Uuid
-  clubChairpersonId        String?                @map("club_chairperson_id") @db.Uuid
-  clubInitialMembers       String[]               @default([]) @map("club_initial_members")
-  clubProposedEmail        String?                @map("club_proposed_email") @db.VarChar(256)
-  clubSocialMediaHandles   Json?                  @map("club_social_media_handles") // {facebook?, instagram?, twitter?, linkedin?}
-  clubCodeOfConductAccepted Boolean?              @map("club_code_of_conduct_accepted")
-  clubAntiDiscriminationAccepted Boolean?         @map("club_anti_discrimination_accepted")
-  autoForwardedToManager   Boolean                @default(false) @map("auto_forwarded_to_manager")
-  manualForwardReason      String?                @map("manual_forward_reason") @db.Text
-  reportingChainHistory    Json?                  @map("reporting_chain_history")
-  Event               Event[]
-  createdBy           UserLogin                   @relation("NoteCreatedBy", fields: [createdById], references: [id])
-  currentHolder       UserLogin?                  @relation("NoteCurrentHolder", fields: [currentHolderId], references: [id])
-  attachments         NoteAttachment[]
-  history             NoteHistory[]
-  points              NotePoint[]
-  clubCreation        Club?                       @relation("ClubCreationNoting")
-  clubChangeRequest   ClubChangeRequest?          @relation("ClubChangeRequestNoting")
-  copies              NoteCopy[]
+  eventClubId                      String?                     @map("event_club_id") @db.Uuid
+  eventClub                        Club?                       @relation("EventNotingClub", fields: [eventClubId], references: [id])
+  clubName                         String?                     @map("club_name") @db.VarChar(256)
+  clubCategoryId                   String?                     @map("club_category_id") @db.Uuid
+  clubPurpose                      String?                     @map("club_purpose") @db.Text
+  clubAcademicSession              String?                     @map("club_academic_session") @db.VarChar(64)
+  clubTargetStudentGroup           String[]                    @default([]) @map("club_target_student_group")
+  clubMeetingFrequency             ClubMeetingFrequencyEnum?   @map("club_meeting_frequency")
+  clubExpectedActivityTypes        String[]                    @default([]) @map("club_expected_activity_types")
+  clubEstimatedAnnualActivityCount Int?                        @map("club_estimated_annual_activity_count")
+  clubExpectedStudentStrength      Int?                        @map("club_expected_student_strength")
+  clubFacultyFacilitatorId         String?                     @map("club_faculty_facilitator_id") @db.Uuid
+  clubChairpersonId                String?                     @map("club_chairperson_id") @db.Uuid
+  clubInitialMembers               String[]                    @default([]) @map("club_initial_members")
+  clubProposedEmail                String?                     @map("club_proposed_email") @db.VarChar(256)
+  clubSocialMediaHandles           Json?                       @map("club_social_media_handles") // {facebook?, instagram?, twitter?, linkedin?}
+  clubCodeOfConductAccepted        Boolean?                    @map("club_code_of_conduct_accepted")
+  clubAntiDiscriminationAccepted   Boolean?                    @map("club_anti_discrimination_accepted")
+  autoForwardedToManager           Boolean                     @default(false) @map("auto_forwarded_to_manager")
+  manualForwardReason              String?                     @map("manual_forward_reason") @db.Text
+  reportingChainHistory            Json?                       @map("reporting_chain_history")
+  Event                            Event[]
+  createdBy                        UserLogin                   @relation("NoteCreatedBy", fields: [createdById], references: [id])
+  currentHolder                    UserLogin?                  @relation("NoteCurrentHolder", fields: [currentHolderId], references: [id])
+  attachments                      NoteAttachment[]
+  history                          NoteHistory[]
+  points                           NotePoint[]
+  clubCreation                     Club?                       @relation("ClubCreationNoting")
+  clubChangeRequest                ClubChangeRequest?          @relation("ClubChangeRequestNoting")
+  copies                           NoteCopy[]
 
   @@index([status])
   @@index([category, subcategory])
@@ -2012,24 +2056,24 @@ model NotingAuthority {
 
 // Post-approval copy sharing with escalation tracking
 model NoteCopy {
-  id               String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  noteId           String          @map("note_id") @db.Uuid
-  sentById         String          @map("sent_by_id") @db.Uuid
-  assignedToId     String          @map("assigned_to_id") @db.Uuid
-  remarks          String
-  status           String          @default("pending") @db.VarChar(32) // pending | replied | forwarded | completed
-  escalationLevel  Int             @default(0) @map("escalation_level") // 0=initial, 1+=escalated
-  escalatedToId    String?         @map("escalated_to_id") @db.Uuid // boss who was auto-notified
-  rootCopyId       String?         @map("root_copy_id") @db.Uuid // links all copies in escalation chain for global completion
-  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  note             Note            @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  sentBy           UserLogin       @relation("NoteCopySentBy", fields: [sentById], references: [id])
-  assignedTo       UserLogin       @relation("NoteCopyAssignedTo", fields: [assignedToId], references: [id])
-  escalatedTo      UserLogin?      @relation("NoteCopyEscalatedTo", fields: [escalatedToId], references: [id])
-  replies          NoteCopyReply[]
-  rootCopy         NoteCopy?       @relation("CopyChain", fields: [rootCopyId], references: [id])
-  chainCopies      NoteCopy[]      @relation("CopyChain")
+  id              String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  noteId          String          @map("note_id") @db.Uuid
+  sentById        String          @map("sent_by_id") @db.Uuid
+  assignedToId    String          @map("assigned_to_id") @db.Uuid
+  remarks         String
+  status          String          @default("pending") @db.VarChar(32) // pending | replied | forwarded | completed
+  escalationLevel Int             @default(0) @map("escalation_level") // 0=initial, 1+=escalated
+  escalatedToId   String?         @map("escalated_to_id") @db.Uuid // boss who was auto-notified
+  rootCopyId      String?         @map("root_copy_id") @db.Uuid // links all copies in escalation chain for global completion
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  note            Note            @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  sentBy          UserLogin       @relation("NoteCopySentBy", fields: [sentById], references: [id])
+  assignedTo      UserLogin       @relation("NoteCopyAssignedTo", fields: [assignedToId], references: [id])
+  escalatedTo     UserLogin?      @relation("NoteCopyEscalatedTo", fields: [escalatedToId], references: [id])
+  replies         NoteCopyReply[]
+  rootCopy        NoteCopy?       @relation("CopyChain", fields: [rootCopyId], references: [id])
+  chainCopies     NoteCopy[]      @relation("CopyChain")
 
   @@index([noteId])
   @@index([rootCopyId])
@@ -2061,18 +2105,18 @@ model NoteCopyReply {
 }
 
 model ReportingStructure {
-  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId        String     @unique @map("user_id") @db.Uuid
-  managerId     String?    @map("manager_id") @db.Uuid
-  hierarchyDepth Int       @default(0) @map("hierarchy_depth")
-  hierarchyPath String?    @map("hierarchy_path") @db.Text
-  isActive      Boolean    @default(true) @map("is_active")
-  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdById   String     @map("created_by_id") @db.Uuid
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId         String   @unique @map("user_id") @db.Uuid
+  managerId      String?  @map("manager_id") @db.Uuid
+  hierarchyDepth Int      @default(0) @map("hierarchy_depth")
+  hierarchyPath  String?  @map("hierarchy_path") @db.Text
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdById    String   @map("created_by_id") @db.Uuid
 
-  user          UserLogin  @relation("UserReporting", fields: [userId], references: [id], onDelete: Cascade)
-  manager       UserLogin? @relation("ManagerReporting", fields: [managerId], references: [id], onDelete: SetNull)
+  user    UserLogin  @relation("UserReporting", fields: [userId], references: [id], onDelete: Cascade)
+  manager UserLogin? @relation("ManagerReporting", fields: [managerId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([managerId])
@@ -2177,23 +2221,23 @@ model gate_pass_history {
 }
 
 model gate_pass_daily_entry {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  gate_pass_id    String    @db.Uuid
-  day_number      Int
-  entry_date      DateTime  @db.Date
-  entry_time      DateTime  @db.Timestamptz(6)
-  exit_time       DateTime? @db.Timestamptz(6)
-  entry_gate      String?   @db.VarChar(100)
-  exit_gate       String?   @db.VarChar(100)
-  entry_guard_id  String?   @db.Uuid
-  exit_guard_id   String?   @db.Uuid
-  entry_remarks   String?
-  exit_remarks    String?
-  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  gate_pass_id   String    @db.Uuid
+  day_number     Int
+  entry_date     DateTime  @db.Date
+  entry_time     DateTime  @db.Timestamptz(6)
+  exit_time      DateTime? @db.Timestamptz(6)
+  entry_gate     String?   @db.VarChar(100)
+  exit_gate      String?   @db.VarChar(100)
+  entry_guard_id String?   @db.Uuid
+  exit_guard_id  String?   @db.Uuid
+  entry_remarks  String?
+  exit_remarks   String?
+  created_at     DateTime  @default(now()) @db.Timestamptz(6)
 
-  gate_pass       gate_pass  @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
-  entry_guard     UserLogin? @relation("DailyEntryGuard", fields: [entry_guard_id], references: [id])
-  exit_guard      UserLogin? @relation("DailyExitGuard", fields: [exit_guard_id], references: [id])
+  gate_pass   gate_pass  @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  entry_guard UserLogin? @relation("DailyEntryGuard", fields: [entry_guard_id], references: [id])
+  exit_guard  UserLogin? @relation("DailyExitGuard", fields: [exit_guard_id], references: [id])
 
   @@index([gate_pass_id, entry_date])
   @@index([gate_pass_id])
@@ -2217,131 +2261,131 @@ model gate_pass_notification {
 }
 
 model Event {
-  id                         String              @id
-  eventId                    String              @unique
-  notingId                   String?             @db.Uuid
-  name                       String
-  eventType                  EventType
-  description                String?
-  longDescription            String?
-  startDate                  DateTime
-  endDate                    DateTime
-  paymentType                EventPaymentType
-  venue                      String?
-  maxCapacity                Int?
-  approxCapacity             Int?                        @map("approx_capacity")
-  registrationFee            Float?
-  teamRegistrationFee       Float?                       @map("team_registration_fee")
-  registrationStartDate      DateTime?
-  registrationEndDate        DateTime?
-  status                     EventStatus         @default(draft)
-  publishedAt                DateTime?
+  id                    String           @id
+  eventId               String           @unique
+  notingId              String?          @db.Uuid
+  name                  String
+  eventType             EventType
+  description           String?
+  longDescription       String?
+  startDate             DateTime
+  endDate               DateTime
+  paymentType           EventPaymentType
+  venue                 String?
+  maxCapacity           Int?
+  approxCapacity        Int?             @map("approx_capacity")
+  registrationFee       Float?
+  teamRegistrationFee   Float?           @map("team_registration_fee")
+  registrationStartDate DateTime?
+  registrationEndDate   DateTime?
+  status                EventStatus      @default(draft)
+  publishedAt           DateTime?
 
   // Event Branding
-  bannerImageUrl             String?
-  logoImageUrl               String?
+  bannerImageUrl String?
+  logoImageUrl   String?
 
   // Opportunity Mode & Participation
-  opportunityMode            OpportunityMode?    @default(online)
-  participationType          ParticipationType?  @default(individual)
+  opportunityMode            OpportunityMode?   @default(online)
+  participationType          ParticipationType? @default(individual)
   minTeamSize                Int?
   maxTeamSize                Int?
-  interCollegeAllowed        Boolean?            @default(false)
-  interSpecializationAllowed Boolean?            @default(false)
+  interCollegeAllowed        Boolean?           @default(false)
+  interSpecializationAllowed Boolean?           @default(false)
 
   // Contact Details
-  contactPersonName          String?
-  contactEmail               String?
-  contactMobile              String?
-  alternateContact           String?
-  websiteUrl                 String?
-  socialMediaLinks           Json?
+  contactPersonName String?
+  contactEmail      String?
+  contactMobile     String?
+  alternateContact  String?
+  websiteUrl        String?
+  socialMediaLinks  Json?
 
   // Duty Leave & Sponsorship (from Noting)
-  dutyLeaveAvailable         Boolean?                    @map("duty_leave_available")
-  dutyLeaveEligibility        Json?                       @map("duty_leave_eligibility") // Deprecated: only students eligible
-  dutyLeaveRoleType           String?                     @map("duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
-  hasSponsorship             Boolean?                    @map("has_sponsorship")
-  sponsors                   Json?                       // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
-  showSponsorshipPublicly    Boolean?            @default(false)  @map("show_sponsorship_publicly")  // Creator decides at publish: show sponsorship to users
-  hasResources               Boolean?                    @map("has_resources")
-  resources                  Json?
-  capacityFixed              Int?                        @map("capacity_fixed")  // Internal capacity fixed from noting
+  dutyLeaveAvailable      Boolean? @map("duty_leave_available")
+  dutyLeaveEligibility    Json?    @map("duty_leave_eligibility") // Deprecated: only students eligible
+  dutyLeaveRoleType       String?  @map("duty_leave_role_type") @db.VarChar(32) // participants | organizers | both
+  hasSponsorship          Boolean? @map("has_sponsorship")
+  sponsors                Json? // [{name, amount, type: cash|in_kind, notes?}] - Cash: amount(₹); In-kind: notes=description
+  showSponsorshipPublicly Boolean? @default(false) @map("show_sponsorship_publicly") // Creator decides at publish: show sponsorship to users
+  hasResources            Boolean? @map("has_resources")
+  resources               Json?
+  capacityFixed           Int?     @map("capacity_fixed") // Internal capacity fixed from noting
 
   // Additional Information
-  eligibilityCriteria        String?
-  eligibilityDisplayFormat   String?             @map("eligibility_display_format") @db.VarChar(32) // points | paragraph | both
-  rulesAndGuidelines         String?
-  rulesDisplayFormat        String?             @map("rules_display_format") @db.VarChar(32) // points | paragraph | both
-  prizeDetails               String?
-  certificateAvailable       Boolean?            @default(false)
-  faqs                       Json?
+  eligibilityCriteria      String?
+  eligibilityDisplayFormat String?  @map("eligibility_display_format") @db.VarChar(32) // points | paragraph | both
+  rulesAndGuidelines       String?
+  rulesDisplayFormat       String?  @map("rules_display_format") @db.VarChar(32) // points | paragraph | both
+  prizeDetails             String?
+  certificateAvailable     Boolean? @default(false)
+  faqs                     Json?
 
   // Advanced Registration Settings
-  autoApproveRegistration    Boolean             @default(true)           // Auto-approve or manual approval
-  maxTeamLimit               Int?                                          // Max number of teams allowed
-  teamRegistrationDeadline   DateTime?                                     // Separate deadline for team finalization
-  allowEditAfterSubmission   Boolean             @default(false)           // Allow editing after submission
-  requireFormSubmission      Boolean             @default(false)           // Require form before team creation
-  lookingForTeammatesEnabled Boolean             @default(true)            // Enable "Looking for Teammates" feature
+  autoApproveRegistration    Boolean   @default(true) // Auto-approve or manual approval
+  maxTeamLimit               Int? // Max number of teams allowed
+  teamRegistrationDeadline   DateTime? // Separate deadline for team finalization
+  allowEditAfterSubmission   Boolean   @default(false) // Allow editing after submission
+  requireFormSubmission      Boolean   @default(false) // Require form before team creation
+  lookingForTeammatesEnabled Boolean   @default(true) // Enable "Looking for Teammates" feature
 
   // Team Settings (additional)
-  allowCrossInstituteTeams   Boolean             @default(false)           // Allow teams from different institutes
-  allowTeamEditAfterSubmission Boolean           @default(false)           // Allow team editing after submission
-  autoApproveTeams           Boolean             @default(true)            // Auto-approve teams
+  allowCrossInstituteTeams     Boolean @default(false) // Allow teams from different institutes
+  allowTeamEditAfterSubmission Boolean @default(false) // Allow team editing after submission
+  autoApproveTeams             Boolean @default(true) // Auto-approve teams
 
   // Registration Control Settings
-  registrationCap            Int?                                          // Overall registration limit
-  showParticipantsPublicly   Boolean             @default(false)           // Show participants publicly
-  allowWithdrawRegistration  Boolean             @default(true)            // Allow withdraw registration
-  lockTeamAfterDeadline      Boolean             @default(true)            // Lock team after deadline
-  allowExtraPasses           Boolean             @default(false)
-  maxExtraPassesPerUser      Int                 @default(0)
+  registrationCap           Int? // Overall registration limit
+  showParticipantsPublicly  Boolean @default(false) // Show participants publicly
+  allowWithdrawRegistration Boolean @default(true) // Allow withdraw registration
+  lockTeamAfterDeadline     Boolean @default(true) // Lock team after deadline
+  allowExtraPasses          Boolean @default(false)
+  maxExtraPassesPerUser     Int     @default(0)
 
   // Team Discovery Settings
-  allowPublicTeamListing     Boolean             @default(true)            // Allow public team listing
-  allowJoinRequests          Boolean             @default(true)            // Allow join requests
-  allowInviteSystem          Boolean             @default(true)            // Allow invite system
+  allowPublicTeamListing Boolean @default(true) // Allow public team listing
+  allowJoinRequests      Boolean @default(true) // Allow join requests
+  allowInviteSystem      Boolean @default(true) // Allow invite system
 
   // Prize Settings
-  prizesEnabled              Boolean             @default(false)           // Enable prize section
+  prizesEnabled Boolean @default(false) // Enable prize section
 
   // Stall & Festival Event Fields
-  notingEventType            String?             @map("noting_event_type") @db.VarChar(32) // venue | stall | festival
-  stallConfig                Json?               @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[], applicationDeadline}
-  hasStalls                  Boolean             @default(false) @map("has_stalls")
-  applicationDeadline        DateTime?           @map("application_deadline") // Deadline for stall applications
-  festivalMeta               Json?               @map("festival_meta") // {name, startDate, endDate, description, coordinator}
-  subEvents                  Json?               @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
-  festivalNotingId           String?             @map("festival_noting_id") @db.Uuid // links sub-events to parent festival noting
+  notingEventType     String?   @map("noting_event_type") @db.VarChar(32) // venue | stall | festival
+  stallConfig         Json?     @map("stall_config") // {enableStudentApplied, maxStudentStalls, enableCreatorMade, creatorStalls[], applicationDeadline}
+  hasStalls           Boolean   @default(false) @map("has_stalls")
+  applicationDeadline DateTime? @map("application_deadline") // Deadline for stall applications
+  festivalMeta        Json?     @map("festival_meta") // {name, startDate, endDate, description, coordinator}
+  subEvents           Json?     @map("sub_events") // [{eventType, venueFormData, stallConfig?}]
+  festivalNotingId    String?   @map("festival_noting_id") @db.Uuid // links sub-events to parent festival noting
 
   // Metadata
-  createdById                String              @db.Uuid
-  createdAt                  DateTime            @default(now())
-  updatedAt                  DateTime
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
 
   // Relations
-  user_login                 UserLogin           @relation(fields: [createdById], references: [id])
-  note                       Note?               @relation(fields: [notingId], references: [id])
-  EventEntry                 EventEntry[]
-  EventExtraPass             EventExtraPass[]
-  EventRegistration          EventRegistration[]
-  EventVolunteer             EventVolunteer[]
-  EventCustomField           EventCustomField[]
-  EventTeam                  EventTeam[]
-  EventPrize                 EventPrize[]
-  Payment                    Payment[]
-  StallApplication           StallApplication[]
-  Stall                      Stall[]
-  EventFeedback              EventFeedback[]
-  StallFeedback              StallFeedback[]
-  EventVisibility            EventVisibility?
-  EventEmailLog              EventEmailLog[]
-  EventEmailCredit           EventEmailCredit?
-  EmailCreditLog             EmailCreditLog[]
-  EventCoupon                EventCoupon[]
-  EventCertificateTemplate   EventCertificateTemplate[]
-  EventCertificateLog        EventCertificateLog[]
+  user_login               UserLogin                  @relation(fields: [createdById], references: [id])
+  note                     Note?                      @relation(fields: [notingId], references: [id])
+  EventEntry               EventEntry[]
+  EventExtraPass           EventExtraPass[]
+  EventRegistration        EventRegistration[]
+  EventVolunteer           EventVolunteer[]
+  EventCustomField         EventCustomField[]
+  EventTeam                EventTeam[]
+  EventPrize               EventPrize[]
+  Payment                  Payment[]
+  StallApplication         StallApplication[]
+  Stall                    Stall[]
+  EventFeedback            EventFeedback[]
+  StallFeedback            StallFeedback[]
+  EventVisibility          EventVisibility?
+  EventEmailLog            EventEmailLog[]
+  EventEmailCredit         EventEmailCredit?
+  EmailCreditLog           EmailCreditLog[]
+  EventCoupon              EventCoupon[]
+  EventCertificateTemplate EventCertificateTemplate[]
+  EventCertificateLog      EventCertificateLog[]
 
   @@index([createdById])
   @@index([eventId])
@@ -2359,23 +2403,23 @@ model Event {
 // Event Visibility / Settings
 // ============================================
 model EventVisibility {
-  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId               String   @unique                         // one-to-one with Event
-  isActive              Boolean  @default(true)                   // Global ON/OFF toggle (admin-controlled)
-  autoClosed            Boolean  @default(false) @map("auto_closed")          // true = system auto-closed due to date expiry
-  manuallyOverridden    Boolean  @default(false) @map("manually_overridden")  // true = admin manually toggled after date expiry
-  visibleToRoles        Json     @default("[]")                   // ["student","faculty","staff","parent","admin"]
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId              String   @unique // one-to-one with Event
+  isActive             Boolean  @default(true) // Global ON/OFF toggle (admin-controlled)
+  autoClosed           Boolean  @default(false) @map("auto_closed") // true = system auto-closed due to date expiry
+  manuallyOverridden   Boolean  @default(false) @map("manually_overridden") // true = admin manually toggled after date expiry
+  visibleToRoles       Json     @default("[]") // ["student","faculty","staff","parent","admin"]
   // Student-level granular filters (applied only when "student" is in visibleToRoles)
-  studentFilterType     String   @default("all") @map("student_filter_type") @db.VarChar(32)  // all | custom
-  allowedSchoolIds      Json     @default("[]") @map("allowed_school_ids")          // UUID[] of FacultySchoolList
-  allowedDepartmentIds  Json     @default("[]") @map("allowed_department_ids")      // UUID[] of Department
-  allowedProgramIds     Json     @default("[]") @map("allowed_program_ids")         // UUID[] of Program
-  allowedBatchYears     Json     @default("[]") @map("allowed_batch_years")         // Int[] e.g. [2023, 2024]
-  allowedSectionIds     Json     @default("[]") @map("allowed_section_ids")         // UUID[] of Section
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  studentFilterType    String   @default("all") @map("student_filter_type") @db.VarChar(32) // all | custom
+  allowedSchoolIds     Json     @default("[]") @map("allowed_school_ids") // UUID[] of FacultySchoolList
+  allowedDepartmentIds Json     @default("[]") @map("allowed_department_ids") // UUID[] of Department
+  allowedProgramIds    Json     @default("[]") @map("allowed_program_ids") // UUID[] of Program
+  allowedBatchYears    Json     @default("[]") @map("allowed_batch_years") // Int[] e.g. [2023, 2024]
+  allowedSectionIds    Json     @default("[]") @map("allowed_section_ids") // UUID[] of Section
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  event                 Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([isActive])
@@ -2405,48 +2449,48 @@ model EventEntry {
 }
 
 model EventRegistration {
-  id                          String                           @id
-  registrationId              String                           @unique
-  eventId                     String
-  userId                      String                           @db.Uuid
-  teamId                String?                      @db.Uuid                    // Team association for team events
-  status                RegistrationStatus           @default(pending)
-  qrCode                String                       @unique
-  paymentStatus         PaymentStatus?
-  paymentId             String?
-  amountPaid            Float?
-  hasEntered            Boolean                      @default(false)
-  enteredAt             DateTime?
-  extraPassCount        Int                          @default(0)
-  totalAllowedEntries   Int                          @default(1)
-  checkedInCount        Int                          @default(0)
-  checkedOutCount       Int                          @default(0)
-  studentInsideAssumed  Boolean                      @default(false)
-  registeredAt          DateTime                     @default(now())
-  updatedAt             DateTime
+  id                   String             @id
+  registrationId       String             @unique
+  eventId              String
+  userId               String             @db.Uuid
+  teamId               String?            @db.Uuid // Team association for team events
+  status               RegistrationStatus @default(pending)
+  qrCode               String             @unique
+  paymentStatus        PaymentStatus?
+  paymentId            String?
+  amountPaid           Float?
+  hasEntered           Boolean            @default(false)
+  enteredAt            DateTime?
+  extraPassCount       Int                @default(0)
+  totalAllowedEntries  Int                @default(1)
+  checkedInCount       Int                @default(0)
+  checkedOutCount      Int                @default(0)
+  studentInsideAssumed Boolean            @default(false)
+  registeredAt         DateTime           @default(now())
+  updatedAt            DateTime
 
   // Form submission data
-  formData              Json?                                                      // Store form field responses
-  formSubmittedAt       DateTime?
+  formData        Json? // Store form field responses
+  formSubmittedAt DateTime?
 
   // Registration tracking
-  isTeamLeader          Boolean                      @default(false)              // Is this user the team leader
-  lookingForTeammates   Boolean                      @default(false)              // User is seeking teammates
+  isTeamLeader        Boolean @default(false) // Is this user the team leader
+  lookingForTeammates Boolean @default(false) // User is seeking teammates
 
   // Coupon / discount fields
-  couponId              String?                      @db.Uuid @map("coupon_id")   // Applied coupon
-  discountAmount        Float?                       @map("discount_amount")       // Discount applied in ₹
-  originalAmount        Float?                       @map("original_amount")       // Amount before discount
+  couponId       String? @map("coupon_id") @db.Uuid // Applied coupon
+  discountAmount Float?  @map("discount_amount") // Discount applied in ₹
+  originalAmount Float?  @map("original_amount") // Amount before discount
 
-  EventEntry            EventEntry[]
-  Event                 Event                        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user_login            UserLogin                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  EventTeam             EventTeam?                   @relation(fields: [teamId], references: [id])
-  EventFieldResponse    EventFieldResponse[]
-  EventExtraPass        EventExtraPass[]
-  Payment               Payment[]
-  EventCoupon           EventCoupon?                 @relation(fields: [couponId], references: [id])
-  CouponUsage           CouponUsage?
+  EventEntry         EventEntry[]
+  Event              Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user_login         UserLogin            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  EventTeam          EventTeam?           @relation(fields: [teamId], references: [id])
+  EventFieldResponse EventFieldResponse[]
+  EventExtraPass     EventExtraPass[]
+  Payment            Payment[]
+  EventCoupon        EventCoupon?         @relation(fields: [couponId], references: [id])
+  CouponUsage        CouponUsage?
 
   @@unique([eventId, userId])
   @@index([eventId])
@@ -2465,16 +2509,16 @@ model EventRegistration {
 }
 
 model EventExtraPass {
-  id              String            @id
-  eventId         String
-  registrationId  String
-  createdById     String            @db.Uuid
-  guestName       String
-  guestEmail      String
-  mobileNumber    String
-  relationship    String
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime
+  id             String   @id
+  eventId        String
+  registrationId String
+  createdById    String   @db.Uuid
+  guestName      String
+  guestEmail     String
+  mobileNumber   String
+  relationship   String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime
 
   Event             Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
   EventRegistration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
@@ -2507,11 +2551,11 @@ model EventVolunteer {
 
 // Event feedback (10 points 1-10 + short description)
 model EventFeedback {
-  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  points            Json     // [1-10, 1-10, ...] 10 ratings
-  shortDescription  String?  @map("short_description") @db.Text
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId          String
+  points           Json // [1-10, 1-10, ...] 10 ratings
+  shortDescription String?  @map("short_description") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   Event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
@@ -2526,23 +2570,23 @@ model EventFeedback {
 
 // Custom fields configured by event organizer
 model EventCustomField {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  fieldName         String                @map("field_name") @db.VarChar(128)
-  fieldLabel        String                @map("field_label") @db.VarChar(256)
-  fieldType         EventFieldType        @map("field_type")
-  isRequired        Boolean               @default(false) @map("is_required")
-  placeholder       String?               @db.VarChar(256)
-  helpText          String?               @map("help_text") @db.VarChar(512)
-  options           Json?                                                          // For dropdown/radio/checkbox options
-  validationRules   Json?                 @map("validation_rules")                 // Min/max length, regex pattern, etc.
-  defaultValue      String?               @map("default_value")
-  sortOrder         Int                   @default(0) @map("sort_order")
-  isActive          Boolean               @default(true) @map("is_active")
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId         String
+  fieldName       String         @map("field_name") @db.VarChar(128)
+  fieldLabel      String         @map("field_label") @db.VarChar(256)
+  fieldType       EventFieldType @map("field_type")
+  isRequired      Boolean        @default(false) @map("is_required")
+  placeholder     String?        @db.VarChar(256)
+  helpText        String?        @map("help_text") @db.VarChar(512)
+  options         Json? // For dropdown/radio/checkbox options
+  validationRules Json?          @map("validation_rules") // Min/max length, regex pattern, etc.
+  defaultValue    String?        @map("default_value")
+  sortOrder       Int            @default(0) @map("sort_order")
+  isActive        Boolean        @default(true) @map("is_active")
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  Event             Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  Event              Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
   EventFieldResponse EventFieldResponse[]
 
   @@index([eventId])
@@ -2552,16 +2596,16 @@ model EventCustomField {
 
 // User responses to custom fields
 model EventFieldResponse {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  registrationId    String
-  fieldId           String              @db.Uuid
-  value             String?                                                        // Text value
-  fileUrl           String?             @map("file_url")                           // For file uploads
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  registrationId String
+  fieldId        String   @db.Uuid
+  value          String? // Text value
+  fileUrl        String?  @map("file_url") // For file uploads
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  EventRegistration EventRegistration   @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  EventCustomField  EventCustomField    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  EventRegistration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  EventCustomField  EventCustomField  @relation(fields: [fieldId], references: [id], onDelete: Cascade)
 
   @@unique([registrationId, fieldId])
   @@index([registrationId])
@@ -2571,25 +2615,25 @@ model EventFieldResponse {
 
 // Teams for team-based events
 model EventTeam {
-  id                    String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId               String
-  teamId                String                @unique @map("team_id") @db.VarChar(64)    // Human-readable team ID
-  name                  String                @db.VarChar(256)
-  leaderId              String                @map("leader_id") @db.Uuid
-  status                EventTeamStatus       @default(forming)
-  lookingForMembers     Boolean               @default(true) @map("looking_for_members")
-  isComplete            Boolean               @default(false) @map("is_complete")        // Team has min members
-  isLocked              Boolean               @default(false) @map("is_locked")          // Team finalized
-  metadata              Json                  @default("{}")
-  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId           String
+  teamId            String          @unique @map("team_id") @db.VarChar(64) // Human-readable team ID
+  name              String          @db.VarChar(256)
+  leaderId          String          @map("leader_id") @db.Uuid
+  status            EventTeamStatus @default(forming)
+  lookingForMembers Boolean         @default(true) @map("looking_for_members")
+  isComplete        Boolean         @default(false) @map("is_complete") // Team has min members
+  isLocked          Boolean         @default(false) @map("is_locked") // Team finalized
+  metadata          Json            @default("{}")
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  Event                 Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  EventTeamMember       EventTeamMember[]
-  EventTeamInvitation   EventTeamInvitation[]
-  EventTeamRequest      EventTeamRequest[]
-  EventRegistration     EventRegistration[]
-  Payment               Payment[]
+  Event               Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  EventTeamMember     EventTeamMember[]
+  EventTeamInvitation EventTeamInvitation[]
+  EventTeamRequest    EventTeamRequest[]
+  EventRegistration   EventRegistration[]
+  Payment             Payment[]
 
   @@unique([eventId, name])
   @@index([eventId])
@@ -2601,16 +2645,16 @@ model EventTeam {
 
 // Team membership
 model EventTeamMember {
-  id                String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  teamId            String                @db.Uuid
-  userId            String                @db.Uuid
-  role              EventTeamMemberRole   @default(member)
-  status            EventTeamMemberStatus @default(confirmed)
-  joinedAt          DateTime              @default(now()) @map("joined_at") @db.Timestamptz(6)
-  leftAt            DateTime?             @map("left_at") @db.Timestamptz(6)
+  id       String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId   String                @db.Uuid
+  userId   String                @db.Uuid
+  role     EventTeamMemberRole   @default(member)
+  status   EventTeamMemberStatus @default(confirmed)
+  joinedAt DateTime              @default(now()) @map("joined_at") @db.Timestamptz(6)
+  leftAt   DateTime?             @map("left_at") @db.Timestamptz(6)
 
-  EventTeam         EventTeam             @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user              UserLogin             @relation("TeamMemberUser", fields: [userId], references: [id])
+  EventTeam EventTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      UserLogin @relation("TeamMemberUser", fields: [userId], references: [id])
 
   @@unique([teamId, userId])
   @@index([teamId])
@@ -2622,19 +2666,19 @@ model EventTeamMember {
 
 // Invitations sent by team leader to potential members
 model EventTeamInvitation {
-  id                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  teamId            String                    @db.Uuid
-  inviterId         String                    @map("inviter_id") @db.Uuid            // Team leader who sent invite
-  inviteeId         String                    @map("invitee_id") @db.Uuid            // User being invited
-  status            EventInvitationStatus     @default(pending)
-  message           String?                   @db.VarChar(500)
-  expiresAt         DateTime?                 @map("expires_at") @db.Timestamptz(6)
-  respondedAt       DateTime?                 @map("responded_at") @db.Timestamptz(6)
-  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id          String                @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId      String                @db.Uuid
+  inviterId   String                @map("inviter_id") @db.Uuid // Team leader who sent invite
+  inviteeId   String                @map("invitee_id") @db.Uuid // User being invited
+  status      EventInvitationStatus @default(pending)
+  message     String?               @db.VarChar(500)
+  expiresAt   DateTime?             @map("expires_at") @db.Timestamptz(6)
+  respondedAt DateTime?             @map("responded_at") @db.Timestamptz(6)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  EventTeam         EventTeam                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  inviter           UserLogin                 @relation("InvitationInviter", fields: [inviterId], references: [id])
-  invitee           UserLogin                 @relation("InvitationInvitee", fields: [inviteeId], references: [id])
+  EventTeam EventTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inviter   UserLogin @relation("InvitationInviter", fields: [inviterId], references: [id])
+  invitee   UserLogin @relation("InvitationInvitee", fields: [inviteeId], references: [id])
 
   @@unique([teamId, inviteeId])
   @@index([teamId])
@@ -2646,17 +2690,17 @@ model EventTeamInvitation {
 
 // Requests sent by users to join teams
 model EventTeamRequest {
-  id                String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  teamId            String                    @db.Uuid
-  requesterId       String                    @map("requester_id") @db.Uuid          // User requesting to join
-  status            EventRequestStatus        @default(pending)
-  message           String?                   @db.VarChar(500)
-  respondedById     String?                   @map("responded_by_id") @db.Uuid       // Team leader who responded
-  respondedAt       DateTime?                 @map("responded_at") @db.Timestamptz(6)
-  createdAt         DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  id            String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  teamId        String             @db.Uuid
+  requesterId   String             @map("requester_id") @db.Uuid // User requesting to join
+  status        EventRequestStatus @default(pending)
+  message       String?            @db.VarChar(500)
+  respondedById String?            @map("responded_by_id") @db.Uuid // Team leader who responded
+  respondedAt   DateTime?          @map("responded_at") @db.Timestamptz(6)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  EventTeam         EventTeam                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  requester         UserLogin                 @relation("RequestRequester", fields: [requesterId], references: [id])
+  EventTeam EventTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  requester UserLogin @relation("RequestRequester", fields: [requesterId], references: [id])
 
   @@unique([teamId, requesterId])
   @@index([teamId])
@@ -2667,21 +2711,21 @@ model EventTeamRequest {
 
 // Event prizes/rewards
 model EventPrize {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  position          Int                 @default(1)                                     // 1 = 1st, 2 = 2nd, etc.
-  rank              String              @db.VarChar(64)                                 // "Winner", "Runner-up", "Custom"
-  title             String              @db.VarChar(128)                                // Display title
-  description       String?             @db.VarChar(512)
-  prizeType         PrizeType           @default(certificate) @map("prize_type")
-  prizeAmount       Float?              @map("prize_amount")                            // For cash prizes
-  additionalPerks   Json?               @map("additional_perks")                        // Certificate, internship, etc.
-  sortOrder         Int                 @default(0) @map("sort_order")
-  isActive          Boolean             @default(true) @map("is_active")
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId         String
+  position        Int       @default(1) // 1 = 1st, 2 = 2nd, etc.
+  rank            String    @db.VarChar(64) // "Winner", "Runner-up", "Custom"
+  title           String    @db.VarChar(128) // Display title
+  description     String?   @db.VarChar(512)
+  prizeType       PrizeType @default(certificate) @map("prize_type")
+  prizeAmount     Float?    @map("prize_amount") // For cash prizes
+  additionalPerks Json?     @map("additional_perks") // Certificate, internship, etc.
+  sortOrder       Int       @default(0) @map("sort_order")
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  Event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  Event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
   @@index([sortOrder])
@@ -2713,18 +2757,18 @@ enum BookingStatusEnum {
 }
 
 model Hostel {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name            String       @unique @db.VarChar(200)
-  description     String?      @db.Text
-  address         String?      @db.Text
-  phone           String?      @db.VarChar(20)
-  email           String?      @db.VarChar(100)
-  hostel_category String?      @db.VarChar(50)
-  is_active       Boolean      @default(true)
-  created_at      DateTime     @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String   @unique @db.VarChar(200)
+  description     String?  @db.Text
+  address         String?  @db.Text
+  phone           String?  @db.VarChar(20)
+  email           String?  @db.VarChar(100)
+  hostel_category String?  @db.VarChar(50)
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
-  rooms           HostelRoom[]
+  rooms HostelRoom[]
 
   @@index([is_active])
   @@index([hostel_category])
@@ -2732,20 +2776,20 @@ model Hostel {
 }
 
 model HostelRoom {
-  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  hostel_id       String            @db.Uuid
-  room_number     String            @db.VarChar(50)
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  hostel_id       String       @db.Uuid
+  room_number     String       @db.VarChar(50)
   floor_number    Int?
-  room_type       RoomTypeEnum      @default(standard)
-  max_occupancy   Int               @default(2)
-  price_per_night Decimal           @default(1000) @db.Decimal(10, 2)
-  amenities       String?           @db.Text
-  is_available    Boolean           @default(true)
-  created_at      DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at      DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
+  room_type       RoomTypeEnum @default(standard)
+  max_occupancy   Int          @default(2)
+  price_per_night Decimal      @default(1000) @db.Decimal(10, 2)
+  amenities       String?      @db.Text
+  is_available    Boolean      @default(true)
+  created_at      DateTime     @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime     @default(now()) @updatedAt @db.Timestamptz(6)
 
-  hostel          Hostel            @relation(fields: [hostel_id], references: [id], onDelete: Cascade)
-  bookings        HostelBooking[]
+  hostel   Hostel          @relation(fields: [hostel_id], references: [id], onDelete: Cascade)
+  bookings HostelBooking[]
 
   @@unique([hostel_id, room_number])
   @@index([hostel_id])
@@ -2755,22 +2799,22 @@ model HostelRoom {
 }
 
 model HostelBooking {
-  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  gate_pass_id        String             @unique @db.Uuid
-  room_id             String?            @db.Uuid
-  room_number         String?            @db.VarChar(50)
-  hostel_name         String?            @db.VarChar(100)
-  guest_count         Int                @default(1)
-  check_in_datetime   DateTime?          @db.Timestamptz(6)
-  check_out_datetime  DateTime?          @db.Timestamptz(6)
-  billable_days       Int                @default(1)
-  check_in_remarks    String?            @db.Text
-  total_price         Decimal?           @db.Decimal(10, 2)
-  price_per_day       Decimal?           @db.Decimal(10, 2)
-  payment_status      String?            @default("pending") @db.VarChar(32)
-  payment_qr_code     String?            @db.Text
-  payment_reference   String?            @db.VarChar(100)
-  booking_status      BookingStatusEnum? @default(pending)
+  id                             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gate_pass_id                   String             @unique @db.Uuid
+  room_id                        String?            @db.Uuid
+  room_number                    String?            @db.VarChar(50)
+  hostel_name                    String?            @db.VarChar(100)
+  guest_count                    Int                @default(1)
+  check_in_datetime              DateTime?          @db.Timestamptz(6)
+  check_out_datetime             DateTime?          @db.Timestamptz(6)
+  billable_days                  Int                @default(1)
+  check_in_remarks               String?            @db.Text
+  total_price                    Decimal?           @db.Decimal(10, 2)
+  price_per_day                  Decimal?           @db.Decimal(10, 2)
+  payment_status                 String?            @default("pending") @db.VarChar(32)
+  payment_qr_code                String?            @db.Text
+  payment_reference              String?            @db.VarChar(100)
+  booking_status                 BookingStatusEnum? @default(pending)
   verified_by_id                 String?            @db.Uuid
   created_by_id                  String             @db.Uuid
   verified_at                    DateTime?          @db.Timestamptz(6)
@@ -2783,12 +2827,12 @@ model HostelBooking {
   created_at                     DateTime           @default(now()) @db.Timestamptz(6)
   updated_at                     DateTime           @default(now()) @updatedAt @db.Timestamptz(6)
 
-  gate_pass                      gate_pass          @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
-  room                           HostelRoom?        @relation(fields: [room_id], references: [id])
-  verified_by                    UserLogin?         @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
-  created_by                     UserLogin          @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
-  checkin_request_reviewed_by    UserLogin?         @relation("CheckinRequestReviewedBy", fields: [checkin_request_reviewed_by_id], references: [id])
-  refund_transactions            RefundTransaction[]
+  gate_pass                   gate_pass           @relation(fields: [gate_pass_id], references: [id], onDelete: Cascade)
+  room                        HostelRoom?         @relation(fields: [room_id], references: [id])
+  verified_by                 UserLogin?          @relation("BookingVerifiedBy", fields: [verified_by_id], references: [id])
+  created_by                  UserLogin           @relation("BookingCreatedBy", fields: [created_by_id], references: [id])
+  checkin_request_reviewed_by UserLogin?          @relation("CheckinRequestReviewedBy", fields: [checkin_request_reviewed_by_id], references: [id])
+  refund_transactions         RefundTransaction[]
 
   @@index([gate_pass_id])
   @@index([room_id])
@@ -2862,11 +2906,11 @@ enum EventFieldType {
 }
 
 enum EventTeamStatus {
-  forming         // Team is being created
-  complete        // Team has minimum members
-  confirmed       // Team is finalized
-  disqualified    // Team disqualified
-  withdrawn       // Team withdrew
+  forming // Team is being created
+  complete // Team has minimum members
+  confirmed // Team is finalized
+  disqualified // Team disqualified
+  withdrawn // Team withdrew
 
   @@map("event_team_status_enum")
 }
@@ -3393,13 +3437,13 @@ enum PaymentStatus {
 }
 
 enum RegistrationStatus {
-  draft               // Form started but not submitted
-  pending             // Submitted, awaiting approval
-  confirmed           // Registration confirmed
-  cancelled           // Registration cancelled
-  waitlisted          // On waitlist
-  rejected            // Registration rejected by organizer
-  incomplete_team     // Team-based: team not complete yet
+  draft // Form started but not submitted
+  pending // Submitted, awaiting approval
+  confirmed // Registration confirmed
+  cancelled // Registration cancelled
+  waitlisted // On waitlist
+  rejected // Registration rejected by organizer
+  incomplete_team // Team-based: team not complete yet
 }
 
 // ============================================
@@ -3407,22 +3451,22 @@ enum RegistrationStatus {
 // ============================================
 
 model EventCoupon {
-  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String              @map("event_id")                 // links to Event.id
-  code              String              @map("code") @db.VarChar(64)     // coupon code (unique per event)
-  discountType      CouponDiscountType  @map("discount_type")            // percentage | fixed
-  discountValue     Float               @map("discount_value")           // % or ₹ amount
-  maxDiscountCap    Float?              @map("max_discount_cap")         // max ₹ cap for percentage discounts
-  minAmount         Float?              @map("min_amount")               // minimum amount to apply coupon
-  maxUses           Int?                @map("max_uses")                 // null = unlimited
-  maxUsesPerUser    Int?                @default(1) @map("max_uses_per_user") // null = unlimited per user
-  usedCount         Int                 @default(0) @map("used_count")   // atomic counter
-  expiresAt         DateTime?           @map("expires_at") @db.Timestamptz(6)
-  isActive          Boolean             @default(true) @map("is_active")
-  description       String?             @db.VarChar(512)
-  createdById       String              @db.Uuid @map("created_by_id")
-  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String             @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId        String             @map("event_id") // links to Event.id
+  code           String             @map("code") @db.VarChar(64) // coupon code (unique per event)
+  discountType   CouponDiscountType @map("discount_type") // percentage | fixed
+  discountValue  Float              @map("discount_value") // % or ₹ amount
+  maxDiscountCap Float?             @map("max_discount_cap") // max ₹ cap for percentage discounts
+  minAmount      Float?             @map("min_amount") // minimum amount to apply coupon
+  maxUses        Int?               @map("max_uses") // null = unlimited
+  maxUsesPerUser Int?               @default(1) @map("max_uses_per_user") // null = unlimited per user
+  usedCount      Int                @default(0) @map("used_count") // atomic counter
+  expiresAt      DateTime?          @map("expires_at") @db.Timestamptz(6)
+  isActive       Boolean            @default(true) @map("is_active")
+  description    String?            @db.VarChar(512)
+  createdById    String             @map("created_by_id") @db.Uuid
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   event             Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
   createdBy         UserLogin           @relation("CouponCreatedBy", fields: [createdById], references: [id])
@@ -3438,18 +3482,18 @@ model EventCoupon {
 }
 
 model CouponUsage {
-  id             String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  couponId       String          @db.Uuid @map("coupon_id")
-  registrationId String          @unique @map("registration_id")  // one coupon usage per registration
-  userId         String          @db.Uuid @map("user_id")
-  discountAmount Float           @map("discount_amount")          // actual ₹ discount applied
-  originalAmount Float           @map("original_amount")          // amount before discount
-  finalAmount    Float           @map("final_amount")             // amount after discount
-  usedAt         DateTime        @default(now()) @map("used_at") @db.Timestamptz(6)
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  couponId       String   @map("coupon_id") @db.Uuid
+  registrationId String   @unique @map("registration_id") // one coupon usage per registration
+  userId         String   @map("user_id") @db.Uuid
+  discountAmount Float    @map("discount_amount") // actual ₹ discount applied
+  originalAmount Float    @map("original_amount") // amount before discount
+  finalAmount    Float    @map("final_amount") // amount after discount
+  usedAt         DateTime @default(now()) @map("used_at") @db.Timestamptz(6)
 
-  coupon         EventCoupon     @relation(fields: [couponId], references: [id], onDelete: Cascade)
-  registration   EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  user           UserLogin       @relation("CouponUsageUser", fields: [userId], references: [id])
+  coupon       EventCoupon       @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  registration EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  user         UserLogin         @relation("CouponUsageUser", fields: [userId], references: [id])
 
   @@index([couponId])
   @@index([userId])
@@ -3462,20 +3506,20 @@ model CouponUsage {
 // ============================================
 
 model ClubCategory {
-  id          String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name        String          @db.VarChar(128)
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String   @db.VarChar(128)
   description String?
-  icon        String?         @db.VarChar(64) // Emoji icon for main categories
-  parentId    String?         @map("parent_id") @db.Uuid // NULL for main categories, UUID for sub-categories
-  isActive    Boolean         @default(true) @map("is_active")
-  sortOrder   Int             @default(0) @map("sort_order")
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  icon        String?  @db.VarChar(64) // Emoji icon for main categories
+  parentId    String?  @map("parent_id") @db.Uuid // NULL for main categories, UUID for sub-categories
+  isActive    Boolean  @default(true) @map("is_active")
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // Relations
-  parent      ClubCategory?   @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    ClubCategory[]  @relation("CategoryHierarchy")
-  clubs       Club[]
+  parent   ClubCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children ClubCategory[] @relation("CategoryHierarchy")
+  clubs    Club[]
 
   @@unique([name, parentId]) // Unique within parent (allows same name for different parents)
   @@index([parentId])
@@ -3484,37 +3528,37 @@ model ClubCategory {
 }
 
 model Club {
-  id                           String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId                       String                    @unique @map("club_id") @db.VarChar(64)
-  name                         String                    @unique @db.VarChar(256)
-  categoryId                   String                    @map("category_id") @db.Uuid
-  purpose                      String                    @db.Text
-  academicSession              String                    @map("academic_session") @db.VarChar(64)
-  facultyFacilitatorId         String                    @map("faculty_facilitator_id") @db.Uuid
-  chairpersonId                String                    @map("chairperson_id") @db.Uuid
-  targetStudentGroup           String[]                  @default([]) @map("target_student_group")
-  expectedActivityTypes        String[]                  @map("expected_activity_types")
-  codeOfConductAccepted        Boolean                   @map("code_of_conduct_accepted")
-  antiDiscriminationAccepted   Boolean                   @map("anti_discrimination_accepted")
-  meetingFrequency             ClubMeetingFrequencyEnum  @map("meeting_frequency")
-  estimatedAnnualActivityCount Int                       @map("estimated_annual_activity_count")
-  proposedEmail                String?                   @map("proposed_email") @db.VarChar(256)
-  socialMediaHandles           Json?                     @map("social_media_handles")
-  expectedStudentStrength      Int?                      @map("expected_student_strength")
-  status                       ClubStatusEnum            @default(draft)
-  lifecycleState               ClubLifecycleStateEnum    @default(draft) @map("lifecycle_state")
-  notingId                     String?                   @unique @map("noting_id") @db.Uuid
-  creatorId                    String?                   @map("creator_id") @db.Uuid
-  approvedAt                   DateTime?                 @map("approved_at") @db.Timestamptz(6)
-  createdAt                    DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                    DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  metadata                     Json                      @default("{}")
-  category                     ClubCategory              @relation(fields: [categoryId], references: [id])
-  facultyFacilitator           UserLogin                 @relation("ClubFacultyFacilitator", fields: [facultyFacilitatorId], references: [id])
-  chairperson                  UserLogin                 @relation("ClubChairperson", fields: [chairpersonId], references: [id])
-  creator                      UserLogin?                @relation("ClubCreator", fields: [creatorId], references: [id])
-  noting                       Note?                     @relation("ClubCreationNoting", fields: [notingId], references: [id])
-  eventNotings                 Note[]                    @relation("EventNotingClub")
+  id                           String                   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId                       String                   @unique @map("club_id") @db.VarChar(64)
+  name                         String                   @unique @db.VarChar(256)
+  categoryId                   String                   @map("category_id") @db.Uuid
+  purpose                      String                   @db.Text
+  academicSession              String                   @map("academic_session") @db.VarChar(64)
+  facultyFacilitatorId         String                   @map("faculty_facilitator_id") @db.Uuid
+  chairpersonId                String                   @map("chairperson_id") @db.Uuid
+  targetStudentGroup           String[]                 @default([]) @map("target_student_group")
+  expectedActivityTypes        String[]                 @map("expected_activity_types")
+  codeOfConductAccepted        Boolean                  @map("code_of_conduct_accepted")
+  antiDiscriminationAccepted   Boolean                  @map("anti_discrimination_accepted")
+  meetingFrequency             ClubMeetingFrequencyEnum @map("meeting_frequency")
+  estimatedAnnualActivityCount Int                      @map("estimated_annual_activity_count")
+  proposedEmail                String?                  @map("proposed_email") @db.VarChar(256)
+  socialMediaHandles           Json?                    @map("social_media_handles")
+  expectedStudentStrength      Int?                     @map("expected_student_strength")
+  status                       ClubStatusEnum           @default(draft)
+  lifecycleState               ClubLifecycleStateEnum   @default(draft) @map("lifecycle_state")
+  notingId                     String?                  @unique @map("noting_id") @db.Uuid
+  creatorId                    String?                  @map("creator_id") @db.Uuid
+  approvedAt                   DateTime?                @map("approved_at") @db.Timestamptz(6)
+  createdAt                    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                    DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata                     Json                     @default("{}")
+  category                     ClubCategory             @relation(fields: [categoryId], references: [id])
+  facultyFacilitator           UserLogin                @relation("ClubFacultyFacilitator", fields: [facultyFacilitatorId], references: [id])
+  chairperson                  UserLogin                @relation("ClubChairperson", fields: [chairpersonId], references: [id])
+  creator                      UserLogin?               @relation("ClubCreator", fields: [creatorId], references: [id])
+  noting                       Note?                    @relation("ClubCreationNoting", fields: [notingId], references: [id])
+  eventNotings                 Note[]                   @relation("EventNotingClub")
   members                      ClubMember[]
   applications                 ClubMemberApplication[]
   auditLogs                    ClubAuditLog[]
@@ -3533,27 +3577,27 @@ model Club {
 }
 
 model ClubMember {
-  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId    String   @map("club_id") @db.Uuid
-  studentId String   @map("student_id") @db.Uuid
-  joinedAt  DateTime @default(now()) @map("joined_at") @db.Timestamptz(6)
-  isActive  Boolean  @default(true) @map("is_active")
-  addedById String   @map("added_by_id") @db.Uuid
-  removedAt DateTime? @map("removed_at") @db.Timestamptz(6)
-  removedById String? @map("removed_by_id") @db.Uuid
-  metadata  Json     @default("{}")
-  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  student   UserLogin @relation("ClubMemberStudent", fields: [studentId], references: [id])
-  addedBy   UserLogin @relation("ClubMemberAddedBy", fields: [addedById], references: [id])
-  removedBy UserLogin? @relation("ClubMemberRemovedBy", fields: [removedById], references: [id])
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId      String     @map("club_id") @db.Uuid
+  studentId   String     @map("student_id") @db.Uuid
+  joinedAt    DateTime   @default(now()) @map("joined_at") @db.Timestamptz(6)
+  isActive    Boolean    @default(true) @map("is_active")
+  addedById   String     @map("added_by_id") @db.Uuid
+  removedAt   DateTime?  @map("removed_at") @db.Timestamptz(6)
+  removedById String?    @map("removed_by_id") @db.Uuid
+  metadata    Json       @default("{}")
+  club        Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  student     UserLogin  @relation("ClubMemberStudent", fields: [studentId], references: [id])
+  addedBy     UserLogin  @relation("ClubMemberAddedBy", fields: [addedById], references: [id])
+  removedBy   UserLogin? @relation("ClubMemberRemovedBy", fields: [removedById], references: [id])
 
   @@unique([clubId, studentId])
   @@index([clubId])
   @@index([studentId])
   @@index([isActive])
-  @@index([studentId, isActive])           // myClubs OR filter: members.some{studentId, isActive}
-  @@index([clubId, isActive])              // active member count (_count where isActive=true)
-  @@index([clubId, isActive, joinedAt])    // getClubById members: where isActive + orderBy joinedAt
+  @@index([studentId, isActive]) // myClubs OR filter: members.some{studentId, isActive}
+  @@index([clubId, isActive]) // active member count (_count where isActive=true)
+  @@index([clubId, isActive, joinedAt]) // getClubById members: where isActive + orderBy joinedAt
   @@map("club_member")
 }
 
@@ -3573,9 +3617,9 @@ model ClubMemberApplication {
   createdAt     DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  club        Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  applicant   UserLogin @relation("ClubApplicationApplicant", fields: [applicantId], references: [id])
-  reviewedBy  UserLogin? @relation("ClubApplicationReviewedBy", fields: [reviewedById], references: [id])
+  club       Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  applicant  UserLogin  @relation("ClubApplicationApplicant", fields: [applicantId], references: [id])
+  reviewedBy UserLogin? @relation("ClubApplicationReviewedBy", fields: [reviewedById], references: [id])
 
   @@index([clubId, status], map: "club_member_application_club_status_idx")
   @@index([applicantId], map: "club_member_application_applicant_idx")
@@ -3584,26 +3628,26 @@ model ClubMemberApplication {
 }
 
 model ClubChangeRequest {
-  id                 String                         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId             String                         @map("club_id") @db.Uuid
-  notingId           String                         @unique @map("noting_id") @db.Uuid
-  changeType         ClubChangeTypeEnum             @map("change_type")
-  requestedChanges   Json                           @map("requested_changes")
-  justification      String                         @db.Text
-  status             ClubChangeRequestStatusEnum    @default(pending)
-  requestedById      String                         @map("requested_by_id") @db.Uuid
-  approvedById       String?                        @map("approved_by_id") @db.Uuid
-  rejectedById       String?                        @map("rejected_by_id") @db.Uuid
-  approvedAt         DateTime?                      @map("approved_at") @db.Timestamptz(6)
-  rejectedAt         DateTime?                      @map("rejected_at") @db.Timestamptz(6)
-  rejectionReason    String?                        @map("rejection_reason")
-  createdAt          DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime                       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
-  club               Club                           @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  noting             Note                           @relation("ClubChangeRequestNoting", fields: [notingId], references: [id])
-  requestedBy        UserLogin                      @relation("ClubChangeRequestedBy", fields: [requestedById], references: [id])
-  approvedBy         UserLogin?                     @relation("ClubChangeApprovedBy", fields: [approvedById], references: [id])
-  rejectedBy         UserLogin?                     @relation("ClubChangeRejectedBy", fields: [rejectedById], references: [id])
+  id               String                      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId           String                      @map("club_id") @db.Uuid
+  notingId         String                      @unique @map("noting_id") @db.Uuid
+  changeType       ClubChangeTypeEnum          @map("change_type")
+  requestedChanges Json                        @map("requested_changes")
+  justification    String                      @db.Text
+  status           ClubChangeRequestStatusEnum @default(pending)
+  requestedById    String                      @map("requested_by_id") @db.Uuid
+  approvedById     String?                     @map("approved_by_id") @db.Uuid
+  rejectedById     String?                     @map("rejected_by_id") @db.Uuid
+  approvedAt       DateTime?                   @map("approved_at") @db.Timestamptz(6)
+  rejectedAt       DateTime?                   @map("rejected_at") @db.Timestamptz(6)
+  rejectionReason  String?                     @map("rejection_reason")
+  createdAt        DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  club             Club                        @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  noting           Note                        @relation("ClubChangeRequestNoting", fields: [notingId], references: [id])
+  requestedBy      UserLogin                   @relation("ClubChangeRequestedBy", fields: [requestedById], references: [id])
+  approvedBy       UserLogin?                  @relation("ClubChangeApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy       UserLogin?                  @relation("ClubChangeRejectedBy", fields: [rejectedById], references: [id])
 
   @@index([clubId])
   @@index([status])
@@ -3613,19 +3657,19 @@ model ClubChangeRequest {
 }
 
 model ClubAuditLog {
-  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  clubId        String   @map("club_id") @db.Uuid
-  action        String   @db.VarChar(128)
-  performedById String   @map("performed_by_id") @db.Uuid
-  previousState Json?    @map("previous_state")
-  newState      Json?    @map("new_state")
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  clubId        String    @map("club_id") @db.Uuid
+  action        String    @db.VarChar(128)
+  performedById String    @map("performed_by_id") @db.Uuid
+  previousState Json?     @map("previous_state")
+  newState      Json?     @map("new_state")
   changes       Json?
-  source        String   @default("dsw_ui") @db.VarChar(64)
-  ipAddress     String?  @map("ip_address") @db.VarChar(64)
-  userAgent     String?  @map("user_agent") @db.VarChar(512)
-  metadata      Json     @default("{}")
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  club          Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  source        String    @default("dsw_ui") @db.VarChar(64)
+  ipAddress     String?   @map("ip_address") @db.VarChar(64)
+  userAgent     String?   @map("user_agent") @db.VarChar(512)
+  metadata      Json      @default("{}")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  club          Club      @relation(fields: [clubId], references: [id], onDelete: Cascade)
   performedBy   UserLogin @relation("ClubAuditLogPerformedBy", fields: [performedById], references: [id])
 
   @@index([clubId])
@@ -3679,8 +3723,8 @@ model StallApplication {
   createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  event      Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  applicant  UserLogin @relation("StallApplicant", fields: [applicantId], references: [id])
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  applicant UserLogin @relation("StallApplicant", fields: [applicantId], references: [id])
 
   @@index([eventId])
   @@index([applicantId])
@@ -3691,23 +3735,23 @@ model StallApplication {
 }
 
 model Stall {
-  id             String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId        String    @map("event_id")
-  stallId        String    @unique @map("stall_id") @db.VarChar(16) // e.g. "ST04231"
-  stallName      String    @map("stall_name") @db.VarChar(256)
-  stallType      String?   @map("stall_type") @db.VarChar(64)
-  stallCategory  String?   @map("stall_category") @db.VarChar(64)
-  description    String?   @db.Text
-  ownerName      String?   @map("owner_name") @db.VarChar(256)
-  ownerId        String?   @map("owner_id") @db.Uuid
-  source         String    @default("creator") @db.VarChar(32) // creator | student-approved
-  size           String?   @db.VarChar(32)
-  location       String?   @db.VarChar(256) // assigned location on floor map
-  stallQrCode    String?   @map("stall_qr_code") @db.Text
-  isActive       Boolean   @default(true) @map("is_active")
-  stallMetadata  Json?     @map("stall_metadata") // { businessName, electricityRequired, waterRequired, specialRequirements, products[] }
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId       String   @map("event_id")
+  stallId       String   @unique @map("stall_id") @db.VarChar(16) // e.g. "ST04231"
+  stallName     String   @map("stall_name") @db.VarChar(256)
+  stallType     String?  @map("stall_type") @db.VarChar(64)
+  stallCategory String?  @map("stall_category") @db.VarChar(64)
+  description   String?  @db.Text
+  ownerName     String?  @map("owner_name") @db.VarChar(256)
+  ownerId       String?  @map("owner_id") @db.Uuid
+  source        String   @default("creator") @db.VarChar(32) // creator | student-approved
+  size          String?  @db.VarChar(32)
+  location      String?  @db.VarChar(256) // assigned location on floor map
+  stallQrCode   String?  @map("stall_qr_code") @db.Text
+  isActive      Boolean  @default(true) @map("is_active")
+  stallMetadata Json?    @map("stall_metadata") // { businessName, electricityRequired, waterRequired, specialRequirements, products[] }
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   event         Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
   owner         UserLogin?      @relation("StallOwner", fields: [ownerId], references: [id])
@@ -3767,8 +3811,6 @@ enum ClubTargetGroupEnum {
   @@map("club_target_group_enum")
 }
 
-
-
 enum ClubMeetingFrequencyEnum {
   monthly
   quarterly
@@ -3813,32 +3855,32 @@ enum ClubMemberApplicationStatus {
 // ============================================
 
 model Payment {
-  id                    String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  registrationId        String?
-  eventId               String
-  userId                String        @db.Uuid
-  teamId                String?       @db.Uuid
-  razorpayOrderId       String        @unique @map("razorpay_order_id")
-  razorpayPaymentId     String?       @unique @map("razorpay_payment_id")
-  razorpaySignature     String?       @map("razorpay_signature")
-  amount                Float
-  currency              String        @default("INR") @db.VarChar(3)
-  status                PaymentRecordStatus @default(created)
-  paymentFor            PaymentFor    @default(individual)
-  receipt               String        @unique @db.VarChar(128)
-  attempts              Int           @default(0)
-  paidAt                DateTime?     @map("paid_at") @db.Timestamptz(6)
-  failedAt              DateTime?     @map("failed_at") @db.Timestamptz(6)
-  refundedAt            DateTime?     @map("refunded_at") @db.Timestamptz(6)
-  webhookVerified       Boolean       @default(false) @map("webhook_verified")
-  metadata              Json?         @default("{}")
-  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  registrationId    String?
+  eventId           String
+  userId            String              @db.Uuid
+  teamId            String?             @db.Uuid
+  razorpayOrderId   String              @unique @map("razorpay_order_id")
+  razorpayPaymentId String?             @unique @map("razorpay_payment_id")
+  razorpaySignature String?             @map("razorpay_signature")
+  amount            Float
+  currency          String              @default("INR") @db.VarChar(3)
+  status            PaymentRecordStatus @default(created)
+  paymentFor        PaymentFor          @default(individual)
+  receipt           String              @unique @db.VarChar(128)
+  attempts          Int                 @default(0)
+  paidAt            DateTime?           @map("paid_at") @db.Timestamptz(6)
+  failedAt          DateTime?           @map("failed_at") @db.Timestamptz(6)
+  refundedAt        DateTime?           @map("refunded_at") @db.Timestamptz(6)
+  webhookVerified   Boolean             @default(false) @map("webhook_verified")
+  metadata          Json?               @default("{}")
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  EventRegistration     EventRegistration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
-  Event                 Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user_login            UserLogin          @relation("PaymentUser", fields: [userId], references: [id])
-  EventTeam             EventTeam?         @relation(fields: [teamId], references: [id])
+  EventRegistration EventRegistration? @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  Event             Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user_login        UserLogin          @relation("PaymentUser", fields: [userId], references: [id])
+  EventTeam         EventTeam?         @relation(fields: [teamId], references: [id])
 
   @@index([registrationId])
   @@index([eventId])
@@ -3869,6 +3911,7 @@ enum PaymentFor {
 
   @@map("payment_for_enum")
 }
+
 // ===========================================
 // TMS (Ticket Management System) Models
 // ===========================================
@@ -3909,55 +3952,55 @@ model TmsCategory {
 }
 
 model TmsSubCategory {
-  id           String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  name         String           @db.VarChar(256)
-  description  String?          @db.VarChar(512)
-  sortOrder    Int              @default(0) @map("sort_order")
-  isActive     Boolean          @default(true) @map("is_active")
-  categoryId   String           @map("category_id") @db.Uuid
-  category     TmsCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  employeeId   String?          @map("employee_id") @db.Uuid
-  employee     UserLogin?       @relation("TmsSubCategoryEmployee", fields: [employeeId], references: [id])
-  priority     TmsPriorityEnum  @default(medium)
-  slaHours     Int              @default(48) @map("sla_hours")
-  tickets      TmsTicket[]      @relation("TmsTicketSubCategory")
-  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String          @db.VarChar(256)
+  description String?         @db.VarChar(512)
+  sortOrder   Int             @default(0) @map("sort_order")
+  isActive    Boolean         @default(true) @map("is_active")
+  categoryId  String          @map("category_id") @db.Uuid
+  category    TmsCategory     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  employeeId  String?         @map("employee_id") @db.Uuid
+  employee    UserLogin?      @relation("TmsSubCategoryEmployee", fields: [employeeId], references: [id])
+  priority    TmsPriorityEnum @default(medium)
+  slaHours    Int             @default(48) @map("sla_hours")
+  tickets     TmsTicket[]     @relation("TmsTicketSubCategory")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("tms_sub_category")
 }
 
 model TmsTicket {
-  id                String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  requestId         String            @unique @map("request_id") @db.VarChar(32)
-  messageType       TmsMessageTypeEnum @map("message_type")
-  subject           String            @db.VarChar(256)
-  masterCategoryId  String            @map("master_category_id") @db.Uuid
-  masterCategory    TmsMasterCategory @relation("TmsTicketMasterCategory", fields: [masterCategoryId], references: [id])
-  categoryId        String            @map("category_id") @db.Uuid
-  category          TmsCategory       @relation("TmsTicketCategory", fields: [categoryId], references: [id])
-  subCategoryId     String            @map("sub_category_id") @db.Uuid
-  subCategory       TmsSubCategory    @relation("TmsTicketSubCategory", fields: [subCategoryId], references: [id])
-  contactNumber     String            @map("contact_number") @db.VarChar(20)
-  description       String
-  documentPath      String?           @map("document_path")
-  documentName      String?           @map("document_name") @db.VarChar(256)
-  priority          TmsPriorityEnum   @default(medium)
-  status            TmsTicketStatusEnum @default(open)
-  currentLevel      TmsEscalationLevelEnum @default(sub_category) @map("current_level")
-  createdById       String            @map("created_by_id") @db.Uuid
-  createdBy         UserLogin         @relation("TmsTicketCreatedBy", fields: [createdById], references: [id])
-  assignedToId      String?           @map("assigned_to_id") @db.Uuid
-  assignedTo        UserLogin?        @relation("TmsTicketAssignedTo", fields: [assignedToId], references: [id])
-  resolvedAt        DateTime?         @map("resolved_at") @db.Timestamptz(6)
-  closedAt          DateTime?         @map("closed_at") @db.Timestamptz(6)
-  lastEscalatedAt   DateTime?         @map("last_escalated_at") @db.Timestamptz(6)
-  escalationDeadline DateTime?        @map("escalation_deadline") @db.Timestamptz(6)
-  closureRemarks    String?           @map("closure_remarks")
-  timeline          TmsTimeline[]
-  rating            TmsRating?
-  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  requestId          String                 @unique @map("request_id") @db.VarChar(32)
+  messageType        TmsMessageTypeEnum     @map("message_type")
+  subject            String                 @db.VarChar(256)
+  masterCategoryId   String                 @map("master_category_id") @db.Uuid
+  masterCategory     TmsMasterCategory      @relation("TmsTicketMasterCategory", fields: [masterCategoryId], references: [id])
+  categoryId         String                 @map("category_id") @db.Uuid
+  category           TmsCategory            @relation("TmsTicketCategory", fields: [categoryId], references: [id])
+  subCategoryId      String                 @map("sub_category_id") @db.Uuid
+  subCategory        TmsSubCategory         @relation("TmsTicketSubCategory", fields: [subCategoryId], references: [id])
+  contactNumber      String                 @map("contact_number") @db.VarChar(20)
+  description        String
+  documentPath       String?                @map("document_path")
+  documentName       String?                @map("document_name") @db.VarChar(256)
+  priority           TmsPriorityEnum        @default(medium)
+  status             TmsTicketStatusEnum    @default(open)
+  currentLevel       TmsEscalationLevelEnum @default(sub_category) @map("current_level")
+  createdById        String                 @map("created_by_id") @db.Uuid
+  createdBy          UserLogin              @relation("TmsTicketCreatedBy", fields: [createdById], references: [id])
+  assignedToId       String?                @map("assigned_to_id") @db.Uuid
+  assignedTo         UserLogin?             @relation("TmsTicketAssignedTo", fields: [assignedToId], references: [id])
+  resolvedAt         DateTime?              @map("resolved_at") @db.Timestamptz(6)
+  closedAt           DateTime?              @map("closed_at") @db.Timestamptz(6)
+  lastEscalatedAt    DateTime?              @map("last_escalated_at") @db.Timestamptz(6)
+  escalationDeadline DateTime?              @map("escalation_deadline") @db.Timestamptz(6)
+  closureRemarks     String?                @map("closure_remarks")
+  timeline           TmsTimeline[]
+  rating             TmsRating?
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@index([requestId])
   @@index([status])
@@ -3970,18 +4013,18 @@ model TmsTicket {
 }
 
 model TmsTimeline {
-  id            String              @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  ticketId      String              @map("ticket_id") @db.Uuid
-  ticket        TmsTicket           @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  id            String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  ticketId      String                  @map("ticket_id") @db.Uuid
+  ticket        TmsTicket               @relation(fields: [ticketId], references: [id], onDelete: Cascade)
   action        TmsTimelineActionEnum
   fromLevel     TmsEscalationLevelEnum? @map("from_level")
   toLevel       TmsEscalationLevelEnum? @map("to_level")
   remarks       String?
-  performedById String?             @map("performed_by_id") @db.Uuid
-  performedBy   UserLogin?          @relation("TmsTimelinePerformedBy", fields: [performedById], references: [id])
-  isAutomatic   Boolean             @default(false) @map("is_automatic")
-  metadata      Json                @default("{}")
-  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  performedById String?                 @map("performed_by_id") @db.Uuid
+  performedBy   UserLogin?              @relation("TmsTimelinePerformedBy", fields: [performedById], references: [id])
+  isAutomatic   Boolean                 @default(false) @map("is_automatic")
+  metadata      Json                    @default("{}")
+  createdAt     DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([ticketId])
   @@index([createdAt])
@@ -4003,13 +4046,13 @@ model TmsRating {
 
 // Stores the employee assigned to handle tickets at Registrar / Dean / VC levels
 model TmsRoleHandler {
-  id         String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id         String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   role       TmsEscalationLevelEnum
-  employeeId String               @map("employee_id") @db.Uuid
-  employee   UserLogin            @relation("TmsRoleHandlerEmployee", fields: [employeeId], references: [id])
-  isActive   Boolean              @default(true) @map("is_active")
-  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  employeeId String                 @map("employee_id") @db.Uuid
+  employee   UserLogin              @relation("TmsRoleHandlerEmployee", fields: [employeeId], references: [id])
+  isActive   Boolean                @default(true) @map("is_active")
+  createdAt  DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([role])
   @@map("tms_role_handler")
@@ -4083,23 +4126,23 @@ enum refund_status_enum {
 
 // Template uploaded by the event organizer (image background + text config)
 model EventCertificateTemplate {
-  id                String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  eventId           String
-  name              String    @default("Certificate of Participation")
-  certificateType   String    @default("participation") @db.VarChar(32)  // participation | winner
-  templateS3Key     String?                                              // S3 key for uploaded template image
-  templateUrl       String?                                              // Full S3 URL
-  title             String    @default("Certificate of Participation")   // Text overlay title
-  content           String    @default("")                               // Body text with placeholders like [Candidate Name], [Event Name]
-  textColor         String    @default("#1c4980") @db.VarChar(16)
-  isDefault         Boolean   @default(false)                            // Preset templates
-  createdById       String    @db.Uuid
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventId         String
+  name            String   @default("Certificate of Participation")
+  certificateType String   @default("participation") @db.VarChar(32) // participation | winner
+  templateS3Key   String? // S3 key for uploaded template image
+  templateUrl     String? // Full S3 URL
+  title           String   @default("Certificate of Participation") // Text overlay title
+  content         String   @default("") // Body text with placeholders like [Candidate Name], [Event Name]
+  textColor       String   @default("#1c4980") @db.VarChar(16)
+  isDefault       Boolean  @default(false) // Preset templates
+  createdById     String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  event             Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  createdBy         UserLogin @relation("CertTemplateCreatedBy", fields: [createdById], references: [id])
-  certificateLogs   EventCertificateLog[]
+  event           Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy       UserLogin             @relation("CertTemplateCreatedBy", fields: [createdById], references: [id])
+  certificateLogs EventCertificateLog[]
 
   @@index([eventId])
   @@map("event_certificate_template")
@@ -4107,27 +4150,27 @@ model EventCertificateTemplate {
 
 // Log of certificate send operations
 model EventCertificateLog {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId         String
-  templateId      String    @db.Uuid
-  sentById        String    @db.Uuid
-  certificateType String    @default("participation") @db.VarChar(32)
+  templateId      String   @db.Uuid
+  sentById        String   @db.Uuid
+  certificateType String   @default("participation") @db.VarChar(32)
   title           String
   content         String
-  textColor       String    @default("#1c4980") @db.VarChar(16)
-  filter          String    @default("all") @db.VarChar(32)
-  registrationIds Json      @default("[]")
-  recipientCount  Int       @default(0)
-  sentCount       Int       @default(0)
-  failedCount     Int       @default(0)
-  status          String    @default("processing") @db.VarChar(16)  // processing | sent | partial | failed
-  errors          Json      @default("[]")
-  sentAt          DateTime  @default(now())
+  textColor       String   @default("#1c4980") @db.VarChar(16)
+  filter          String   @default("all") @db.VarChar(32)
+  registrationIds Json     @default("[]")
+  recipientCount  Int      @default(0)
+  sentCount       Int      @default(0)
+  failedCount     Int      @default(0)
+  status          String   @default("processing") @db.VarChar(16) // processing | sent | partial | failed
+  errors          Json     @default("[]")
+  sentAt          DateTime @default(now())
 
-  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  template        EventCertificateTemplate @relation(fields: [templateId], references: [id])
-  sentBy          UserLogin @relation("CertLogSentBy", fields: [sentById], references: [id])
-  recipients      CertificateRecipientLog[]
+  event      Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  template   EventCertificateTemplate  @relation(fields: [templateId], references: [id])
+  sentBy     UserLogin                 @relation("CertLogSentBy", fields: [sentById], references: [id])
+  recipients CertificateRecipientLog[]
 
   @@index([eventId])
   @@index([sentById])
@@ -4137,19 +4180,19 @@ model EventCertificateLog {
 
 // Per-recipient certificate delivery tracking
 model CertificateRecipientLog {
-  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  certificateLogId    String    @db.Uuid
-  email               String
-  name                String    @default("")
-  status              String    @default("pending") @db.VarChar(16)  // pending | sent | failed
-  failureReason       String?
-  certificateS3Key    String?                                        // S3 key for generated PDF
-  verificationCode    String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid  // Public verification ID
-  sentAt              DateTime?
-  failedAt            DateTime?
-  createdAt           DateTime  @default(now())
+  id               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  certificateLogId String    @db.Uuid
+  email            String
+  name             String    @default("")
+  status           String    @default("pending") @db.VarChar(16) // pending | sent | failed
+  failureReason    String?
+  certificateS3Key String? // S3 key for generated PDF
+  verificationCode String    @unique @default(dbgenerated("uuid_generate_v4()")) @db.Uuid // Public verification ID
+  sentAt           DateTime?
+  failedAt         DateTime?
+  createdAt        DateTime  @default(now())
 
-  certificateLog      EventCertificateLog @relation(fields: [certificateLogId], references: [id], onDelete: Cascade)
+  certificateLog EventCertificateLog @relation(fields: [certificateLogId], references: [id], onDelete: Cascade)
 
   @@index([certificateLogId])
   @@index([email])
@@ -4166,21 +4209,21 @@ model EventEmailLog {
   sentById        String    @db.Uuid
   subject         String
   body            String
-  filter          String    @default("all") @db.VarChar(32)   // all | confirmed | pending | cancelled
-  registrationIds Json      @default("[]")                    // string[] – if non-empty, targetted send
+  filter          String    @default("all") @db.VarChar(32) // all | confirmed | pending | cancelled
+  registrationIds Json      @default("[]") // string[] – if non-empty, targetted send
   recipientCount  Int       @default(0)
   sentCount       Int       @default(0)
   failedCount     Int       @default(0)
-  status          String    @default("sent") @db.VarChar(16)  // sent | partial | failed | scheduled | cancelled
+  status          String    @default("sent") @db.VarChar(16) // sent | partial | failed | scheduled | cancelled
   replyTo         String?
-  recipientEmails Json      @default("[]")                    // [{email, name}]
-  errors          Json      @default("[]")                    // string[]
+  recipientEmails Json      @default("[]") // [{email, name}]
+  errors          Json      @default("[]") // string[]
   sentAt          DateTime  @default(now())
-  scheduledAt     DateTime?                                   // non-null → scheduled send
+  scheduledAt     DateTime? // non-null → scheduled send
 
-  event           Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  sentBy          UserLogin @relation("EmailLogSentBy", fields: [sentById], references: [id])
-  recipients      EmailRecipientLog[]
+  event      Event               @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sentBy     UserLogin           @relation("EmailLogSentBy", fields: [sentById], references: [id])
+  recipients EmailRecipientLog[]
 
   @@index([eventId])
   @@index([sentById])
@@ -4189,20 +4232,20 @@ model EventEmailLog {
 
 // Per-recipient delivery & open tracking
 model EmailRecipientLog {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  emailLogId      String    @db.Uuid
-  email           String
-  name            String    @default("")
-  status          String    @default("sent") @db.VarChar(16)  // sent | delivered | bounced | failed
-  failureReason   String?
-  openCount       Int       @default(0)
-  firstOpenedAt   DateTime?
-  lastOpenedAt    DateTime?
-  deliveredAt     DateTime?
-  failedAt        DateTime?
-  createdAt       DateTime  @default(now())
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  emailLogId    String    @db.Uuid
+  email         String
+  name          String    @default("")
+  status        String    @default("sent") @db.VarChar(16) // sent | delivered | bounced | failed
+  failureReason String?
+  openCount     Int       @default(0)
+  firstOpenedAt DateTime?
+  lastOpenedAt  DateTime?
+  deliveredAt   DateTime?
+  failedAt      DateTime?
+  createdAt     DateTime  @default(now())
 
-  emailLog        EventEmailLog @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+  emailLog EventEmailLog @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
 
   @@index([emailLogId])
   @@index([email])
@@ -4217,8 +4260,8 @@ model EventEmailCredit {
   id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId      String   @unique
   event        Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  totalCredits Int      @default(0)     // totalRegistrations * 3, never decremented on cancel
-  usedCredits  Int      @default(0)     // incremented atomically when emails are sent
+  totalCredits Int      @default(0) // totalRegistrations * 3, never decremented on cancel
+  usedCredits  Int      @default(0) // incremented atomically when emails are sent
   updatedAt    DateTime @updatedAt
 
   @@map("event_email_credit")
@@ -4229,14 +4272,13 @@ model EmailCreditLog {
   id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   eventId     String
   event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  action      String   @db.VarChar(16)  // 'allocate' | 'deduct'
+  action      String   @db.VarChar(16) // 'allocate' | 'deduct'
   amount      Int
   description String?
-  emailLogId  String?                   // set when action = 'deduct'
+  emailLogId  String? // set when action = 'deduct'
   createdAt   DateTime @default(now())
 
   @@index([eventId])
   @@index([createdAt])
   @@map("email_credit_log")
 }
-

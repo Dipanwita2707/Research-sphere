@@ -8,6 +8,26 @@ const { getIp } = require('../../../shared/utils/auditLogger');
 const { auditService } = require('../../audit/services/audit.service');
 
 /**
+ * Build CentralDepartmentPermission analytics scope fields from a role's permissions.analyticsScope.
+ * Role analyticsScope format: { research: { schools: [...], departments: [...] }, ipr: {...}, ... }
+ */
+function buildAnalyticsScopeFromRole(rolePermissions) {
+  const s = rolePermissions?.analyticsScope || {};
+  return {
+    assignedIprAnalyticsSchoolIds:              s.ipr?.schools        || [],
+    assignedIprAnalyticsDepartmentIds:          s.ipr?.departments    || [],
+    assignedResearchAnalyticsSchoolIds:         s.research?.schools   || [],
+    assignedResearchAnalyticsDepartmentIds:     s.research?.departments || [],
+    assignedBookAnalyticsSchoolIds:             s.book?.schools       || [],
+    assignedBookAnalyticsDepartmentIds:         s.book?.departments   || [],
+    assignedConferenceAnalyticsSchoolIds:       s.conference?.schools || [],
+    assignedConferenceAnalyticsDepartmentIds:   s.conference?.departments || [],
+    assignedGrantAnalyticsSchoolIds:            s.grants?.schools     || [],
+    assignedGrantAnalyticsDepartmentIds:        s.grants?.departments || [],
+  };
+}
+
+/**
  * Get all available permission definitions for role creation
  */
 exports.getPermissionDefinitionsForRole = async (req, res) => {
@@ -297,13 +317,32 @@ exports.updateRole = async (req, res) => {
       userAgent: req.get('user-agent'),
     });
 
-    // Invalidate cache for all users who have this role assigned
+    // Invalidate cache and propagate permission+scope changes to existing DB records
     try {
       const usersWithRole = await prisma.userLogin.findMany({
         where: { assignedRoleIds: { array_contains: id } },
         select: { id: true },
       });
-      await Promise.all(usersWithRole.map(u => cache.invalidateUser(u.id)));
+
+      if (usersWithRole.length > 0) {
+        const userIds = usersWithRole.map((u) => u.id);
+
+        // Propagate updated analytics scope fields to active CentralDepartmentPermission records
+        // for all users who have this role in assignedRoleIds
+        if (permissions !== undefined) {
+          try {
+            const analyticsScopeData = buildAnalyticsScopeFromRole(permissions);
+            await prisma.centralDepartmentPermission.updateMany({
+              where: { userId: { in: userIds }, isActive: true },
+              data: analyticsScopeData,
+            });
+          } catch (scopeErr) {
+            console.error('Analytics scope propagation error (updateRole):', scopeErr);
+          }
+        }
+
+        await Promise.all(userIds.map((uid) => cache.invalidateUser(uid)));
+      }
     } catch (cacheErr) {
       console.error('Cache invalidation error (updateRole):', cacheErr);
     }
@@ -490,6 +529,9 @@ exports.applyRoleToUser = async (req, res) => {
         },
       });
 
+      // Extract analytics scope from the role (schools/depts per category)
+      const analyticsScopeData = buildAnalyticsScopeFromRole(rolePermissions);
+
       if (existingPerm) {
         // Update existing permissions
         results.centralDept = await prisma.centralDepartmentPermission.update({
@@ -498,6 +540,7 @@ exports.applyRoleToUser = async (req, res) => {
             permissions: rolePermissions.centralDeptPermissions,
             isPrimary: isPrimary || false,
             assignedBy: req.user?.id,
+            ...analyticsScopeData,
           },
         });
       } else {
@@ -510,6 +553,7 @@ exports.applyRoleToUser = async (req, res) => {
             isPrimary: isPrimary || false,
             isActive: true,
             assignedBy: req.user?.id,
+            ...analyticsScopeData,
           },
         });
       }

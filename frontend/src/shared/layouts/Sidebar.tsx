@@ -67,6 +67,9 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
     'ipr_review', 'ipr_approve', 'ipr_assign_school', 'ipr_recommend',
     'research_review', 'research_approve', 'research_assign_school',
     'book_review', 'book_approve', 'book_assign_school',
+    'applicant_analytics', 'drd_member_analytics',
+    'ipr_applicant_analytics', 'research_applicant_analytics', 'book_applicant_analytics',
+    'conference_applicant_analytics', 'grant_applicant_analytics',
     'drd_review', 'drd_approve', 'drd_recommend', 'drd_view_all',
     'view_all_ipr', 'review_ipr', 'approve_ipr', 'ipr'
   ];
@@ -88,6 +91,21 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
     }
   }
   logger.debug('No DRD permissions found in:', permissions);
+  return false;
+};
+
+const hasAnalyticsPermissions = (permissions: DepartmentPermission[]): boolean => {
+  const analyticsKeys = [
+    'applicant_analytics', 'drd_member_analytics',
+    'ipr_applicant_analytics', 'research_applicant_analytics',
+    'book_applicant_analytics', 'conference_applicant_analytics',
+    'grant_applicant_analytics',
+  ];
+  for (const dept of permissions) {
+    for (const perm of dept.permissions || []) {
+      if (analyticsKeys.some(k => perm.toLowerCase().includes(k))) return true;
+    }
+  }
   return false;
 };
 
@@ -132,6 +150,21 @@ const getNavItems = (
     items.push({ name: 'DRD Dashboard', href: '/drd', icon: UserCheck });
   }
   
+  // DRD Analytics - Show for users with analytics permissions OR admins
+  const hasAnalyticsAccess = hasAnalyticsPermissions(permissions) || isAdmin;
+  if (hasAnalyticsAccess) {
+    items.push({
+      name: 'DRD Analytics',
+      href: '/drd/analytics/overview',
+      icon: BarChart3,
+      subItems: [
+        { name: 'Overview', href: '/drd/analytics/overview', icon: LayoutDashboard },
+        { name: 'Applicant Analytics', href: '/drd/analytics/applicant', icon: FileText },
+        { name: 'DRD Member Performance', href: '/drd/analytics/drd-member', icon: Users },
+      ],
+    });
+  }
+  
   // Finance Dashboard - Show if user has finance permissions
   if (hasFinanceAccess) {
     items.push({ name: 'Finance', href: '/finance/dashboard', icon: DollarSign });
@@ -165,13 +198,7 @@ const getNavItems = (
     });
   }
   
-<<<<<<< HEAD
-  // Event Management - Not for staff/guard role (gate entry only access) (some items restricted)
-=======
   // Event Management - Not for staff/guard role (gate entry only access)
-  if (!isStaff) items.push({
-  // Event Management - Available for all authenticated users (some items restricted)
->>>>>>> cc0604855d357b93a99de816e8ea27d790c6c986
   const eventSubItems: NavItem[] = [
     ...(canBrowseEvents ? [{ name: 'Browse Events', href: '/events', icon: List }] : []),
     { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
@@ -187,23 +214,14 @@ const getNavItems = (
   if (hasVolunteerAssignments) {
     eventSubItems.push({ name: 'Volunteer', href: '/events/volunteer', icon: Shield });
   }
-<<<<<<< HEAD
-  if (!isStaff) items.push({
-=======
-  items.push({
->>>>>>> cc0604855d357b93a99de816e8ea27d790c6c986
-    name: 'Event Management',
-    href: canBrowseEvents ? '/events' : '/events/registrations',
-    icon: Calendar,
-    subItems: [
-      { name: 'Browse Events', href: '/events', icon: List },
-      { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
-      { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
-      { name: 'Stall Application', href: '/events/stall-opportunities', icon: Store },
-      { name: 'Volunteer', href: '/events/volunteer', icon: Shield },
-      { name: 'Event Feedback Scanner', href: '/event-feedback-scanner', icon: QrCode },
-    ]
-  });
+  if (!isStaff) {
+    items.push({
+      name: 'Event Management',
+      href: canBrowseEvents ? '/events' : '/events/registrations',
+      icon: Calendar,
+      subItems: eventSubItems,
+    });
+  }
   
   
   // Gate Entry - For staff/guard only (shown as main nav item)
@@ -246,6 +264,7 @@ const getNavItems = (
         { name: 'Book School Assignment', href: '/admin/book-school-assignment', icon: BookOpen },
         { name: 'Conference School Assignment', href: '/admin/conference-school-assignment', icon: Presentation },
         { name: 'Grant School Assignment', href: '/admin/grant-school-assignment', icon: DollarSign },
+        { name: 'DRD Analytics Assignment', href: '/admin/drd-analytics-assignment', icon: BarChart3 },
         { name: 'IPR Policies', href: '/admin/incentive-policies', icon: Settings },
         { name: 'Research Policies', href: '/admin/research-policies', icon: FileText },
         { name: 'Book Policies', href: '/admin/book-policies', icon: BookOpen },
