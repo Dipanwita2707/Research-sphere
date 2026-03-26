@@ -4,13 +4,15 @@ import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle, Menu, X, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { notificationService } from '@/shared/services/notification.service';
 import { useTheme } from '@/shared/providers/ThemeProvider';
-import api from '@/shared/api/api';
-import Link from 'next/link';
-import logger from '@/shared/utils/logger';
+ import Link from 'next/link';
 import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
 import { useMyClubs } from '@/features/dsw/hooks';
+import {
+  useHasVolunteerAssignments,
+  useStaffDashboardSummary,
+  useUnreadNotificationCount,
+} from '@/shared/hooks/useUserContextQueries';
 
 interface DepartmentPermission {
   category: string;
@@ -21,6 +23,7 @@ interface SubMenuItem {
   name: string;
   href?: string;
   description?: string;
+  prefetch?: boolean;
   children?: SubMenuItem[];
 }
 
@@ -84,11 +87,9 @@ export default function NavigationHeader() {
   const [mobileExpandedMenu, setMobileExpandedMenu] = useState<string | null>(null);
   const [mobileExpandedSubmenu, setMobileExpandedSubmenu] = useState<string | null>(null);
   const [activeSubmenu3, setActiveSubmenu3] = useState<string | null>(null); // Fourth level submenu
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{ name: string, href?: string, description?: string }>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ name: string, href?: string, description?: string, prefetch?: boolean }>>([]);
   const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -105,7 +106,22 @@ export default function NavigationHeader() {
   // so navigating between pages no longer fires a duplicate permissions request.
   const { data: notingPermsData } = useNotingPermissions({ enabled: !!user });
   const { data: myClubsData } = useMyClubs({ enabled: isStudent });
-  const hasNotingAccess = !!(notingPermsData?.noting_create);
+  const { data: unreadCount = 0 } = useUnreadNotificationCount({ enabled: !!user });
+  const { data: staffDashboardData } = useStaffDashboardSummary({ enabled: !!user });
+  const { data: hasVolunteerAssignments = false } = useHasVolunteerAssignments({ enabled: !!user });
+  const userPermissions = staffDashboardData?.permissions || [];
+  const hasNotingAccess = isAdmin || !!(
+    notingPermsData?.noting_create ||
+    notingPermsData?.noting_view_own ||
+    notingPermsData?.noting_view_department ||
+    notingPermsData?.noting_view_all ||
+    notingPermsData?.noting_approve ||
+    notingPermsData?.noting_forward ||
+    notingPermsData?.noting_return ||
+    notingPermsData?.noting_add_comment ||
+    notingPermsData?.noting_reject ||
+    notingPermsData?.noting_not_recommend
+  );
   const canViewNotingAdminDashboard = isAdmin;
   const isClubChairpersonFromNoting = !!(notingPermsData?.isClubChairperson);
   const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
@@ -113,7 +129,6 @@ export default function NavigationHeader() {
   ));
   const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
   const canBrowseEvents = true;
-  const [hasVolunteerAssignments, setHasVolunteerAssignments] = useState(false);
   const canViewEventDashboard =
     isAdmin ||
     hasPermission(userPermissions, 'event_view_reports') ||
@@ -141,54 +156,6 @@ export default function NavigationHeader() {
   const canApproveConference = hasPermission(userPermissions, 'conference_approve') || hasPermission(userPermissions, 'conference_paper_approve');
   const canReviewGrant = hasPermission(userPermissions, 'grant_review');
   const canApproveGrant = hasPermission(userPermissions, 'grant_approve');
-
-  // Defer non-critical API calls until after first paint to improve initial page load
-  useEffect(() => {
-    if (!user) return;
-    const defer = (fn: () => void) => {
-      if (typeof requestIdleCallback !== 'undefined') {
-        requestIdleCallback(() => fn(), { timeout: 100 });
-      } else {
-        setTimeout(fn, 0);
-      }
-    };
-    defer(() => fetchUnreadCount());
-    defer(() => fetchUserPermissions());
-    defer(() => fetchVolunteerFlag());
-    // Noting access for students now handled by useNotingPermissions hook above
-  }, [user]);
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const count = await notificationService.getUnreadCount();
-      setUnreadCount(count);
-    } catch (error) {
-      logger.error('Failed to fetch notification count:', error);
-    }
-  }, []);
-
-  const fetchUserPermissions = async () => {
-    try {
-      const response = await api.get('/dashboard/staff');
-      if (response.data.success) {
-        setUserPermissions(response.data.data.permissions || []);
-      }
-    } catch (error) {
-      logger.error('Error fetching permissions:', error);
-    }
-  };
-
-  const fetchVolunteerFlag = async () => {
-    try {
-      const res = await api.get('/events/volunteers/my');
-      const assignments = res.data?.data;
-      if (Array.isArray(assignments) && assignments.length > 0) {
-        setHasVolunteerAssignments(true);
-      }
-    } catch (error) {
-      logger.error('Error fetching volunteer flag:', error);
-    }
-  };
 
   // fetchNotingAccess removed — now handled by useNotingPermissions hook above
 
@@ -233,7 +200,7 @@ export default function NavigationHeader() {
       return;
     }
 
-    const results: Array<{ name: string, href?: string, description?: string }> = [];
+    const results: Array<{ name: string, href?: string, description?: string, prefetch?: boolean }> = [];
     const searchLower = query.toLowerCase();
 
     const searchInSubmenu = (items: SubMenuItem[]) => {
@@ -243,7 +210,8 @@ export default function NavigationHeader() {
           results.push({
             name: item.name,
             href: item.href,
-            description: item.description
+            description: item.description,
+            prefetch: item.prefetch,
           });
         }
         if (item.children) {
@@ -290,6 +258,9 @@ export default function NavigationHeader() {
     if (user?.role?.displayName) return user.role.displayName;
     return user?.username || 'User';
   };
+
+  const getLinkPrefetch = (href?: string, prefetch?: boolean) =>
+    href?.startsWith('/') ? prefetch : undefined;
 
   // Build menu items based on permissions
   const menuItems: MenuItem[] = [];
@@ -460,10 +431,10 @@ export default function NavigationHeader() {
   });
 
   // Add Noting approval - For Faculty, Staff, Admin only (blocked for all students)
-  if (!isStudent) {
+  if (!isStudent && hasNotingAccess) {
     const notingChildren: SubMenuItem[] = [
-      { name: '📝 Noting Workspace', href: '/noting', description: 'Create and track approval notes' },
-        ...(canViewNotingAdminDashboard ? [{ name: '📊 Noting Dashboard', href: '/noting/admin', description: 'Analytics, activity, and moderation overview' }] : []),
+      { name: '📝 Noting Workspace', href: '/noting', description: 'Create and track approval notes', prefetch: false },
+      ...(canViewNotingAdminDashboard ? [{ name: '📊 Noting Dashboard', href: '/noting/admin', description: 'Analytics, activity, and moderation overview', prefetch: false }] : []),
     ];
 
     navigationSubItems.push(
@@ -472,6 +443,7 @@ export default function NavigationHeader() {
             name: '📋 Noting & Approval',
             href: '/noting',
             description: 'Create and track approval notes',
+            prefetch: false,
           }
         : {
             name: '📋 Noting & Approval',
@@ -769,6 +741,7 @@ export default function NavigationHeader() {
                           <Link
                             key={subItem.href}
                             href={subItem.href}
+                            prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
                             onClick={() => {
                               setActiveDropdown(null);
                               setActiveSubmenu(null);
@@ -901,6 +874,7 @@ export default function NavigationHeader() {
                               <Link
                                 key={child.href || child.name}
                                 href={child.href!}
+                                prefetch={getLinkPrefetch(child.href, child.prefetch)}
                                 onClick={() => {
                                   setActiveSubmenu(null);
                                   setActiveDropdown(null);
@@ -1019,6 +993,7 @@ export default function NavigationHeader() {
                                 <Link
                                   key={grandChild.href || grandChild.name}
                                   href={grandChild.href}
+                                  prefetch={getLinkPrefetch(grandChild.href, grandChild.prefetch)}
                                   onClick={() => {
                                     setActiveSubmenu2(null);
                                     setActiveSubmenu(null);
@@ -1107,6 +1082,7 @@ export default function NavigationHeader() {
                                 <Link
                                   key={greatGrandChild.href || greatGrandChild.name}
                                   href={greatGrandChild.href}
+                                  prefetch={getLinkPrefetch(greatGrandChild.href, greatGrandChild.prefetch)}
                                   onClick={() => {
                                     setActiveSubmenu3(null);
                                     setActiveSubmenu2(null);
@@ -1207,6 +1183,7 @@ export default function NavigationHeader() {
                       <Link
                         key={index}
                         href={result.href}
+                        prefetch={getLinkPrefetch(result.href, result.prefetch)}
                         onClick={() => {
                           setShowSearch(false);
                           setSearchQuery('');
@@ -1425,6 +1402,7 @@ export default function NavigationHeader() {
                     {subItem.href ? (
                       <Link
                         href={subItem.href}
+                        prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
                         onClick={() => setMobileMenuOpen(false)}
                         className="flex items-center gap-2 px-6 py-2.5 text-white/80 hover:text-white hover:bg-white/10 text-sm transition-all"
                       >
@@ -1446,6 +1424,7 @@ export default function NavigationHeader() {
                                 <Link
                                   key={child.name}
                                   href={child.href}
+                                  prefetch={getLinkPrefetch(child.href, child.prefetch)}
                                   onClick={() => setMobileMenuOpen(false)}
                                   className="flex items-center gap-2 px-8 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
                                 >
@@ -1459,6 +1438,7 @@ export default function NavigationHeader() {
                                       <Link
                                         key={grandChild.name}
                                         href={grandChild.href}
+                                        prefetch={getLinkPrefetch(grandChild.href, grandChild.prefetch)}
                                         onClick={() => setMobileMenuOpen(false)}
                                         className="flex items-center gap-2 px-10 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
                                       >

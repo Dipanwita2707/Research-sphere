@@ -27,12 +27,21 @@ const NOTING_APPROVAL_KEYS = [
   'non_academic_resources_approve',
 ];
 
+const allowAdminOr = (middleware) => async (req, res, next) => {
+  if (['admin', 'superadmin'].includes(req.user?.role)) {
+    return next();
+  }
+  return middleware(req, res, next);
+};
+
 // All routes require authentication
 router.use(protect);
 
 // Configuration and preview routes - require at least noting_create or noting_view_own
 router.get('/config',
-  checkAnyPermission(['noting_create', 'noting_view_own', 'noting_view_all'], { checkDefaultPermissions: true }),
+  allowAdminOr(
+    checkAnyPermission(['noting_create', 'noting_view_own', 'noting_view_all'], { checkDefaultPermissions: true })
+  ),
   lookupCtrl.getConfig
 );
 router.get('/preview-id',

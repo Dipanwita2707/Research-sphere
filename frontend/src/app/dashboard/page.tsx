@@ -9,11 +9,6 @@ import { logger } from '@/shared/utils/logger';
 
 // Force reload - showing StudentDashboard for all users
 export default function DashboardPage() {
-  console.log('🔵 =================================');
-  console.log('🔵 DashboardPage component loaded');
-  console.log('🔵 Timestamp:', new Date().toISOString());
-  console.log('🔵 =================================');
-  
   const { user, isLoading } = useAuthStore();
 
   useEffect(() => {
@@ -42,17 +37,8 @@ export default function DashboardPage() {
 
   // Route to appropriate dashboard based on user type
   if (isStudent) {
-    console.log('🟢 =================================');
-    console.log('🟢 Rendering StudentDashboard component');
-    console.log('🟢 Component version: NEW_REDESIGNED_VERSION_WITH_4_STATS_CARDS');
-    console.log('🟢 User:', user?.username);
-    console.log('🟢 =================================');
     return <StudentDashboard />;
   }
 
-  console.log('🟣 =================================');
-  console.log('🟣 Rendering ModernStaffDashboard component');
-  console.log('🟣 User:', user?.username);
-  console.log('🟣 =================================');
   return <ModernStaffDashboard />;
 }

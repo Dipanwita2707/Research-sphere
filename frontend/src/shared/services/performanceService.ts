@@ -37,7 +37,7 @@ export const getUserPerformance = async (userId: number): Promise<PerformanceDat
       throw new Error('Invalid user ID');
     }
     
-    const response = await api.get(`/api/analytics/user/${userId}/performance`);
+    const response = await api.get(`/analytics/user/${userId}/performance`);
     return response.data;
   } catch (error) {
     logger.debug('Using fallback performance data (API not available)');
@@ -58,7 +58,7 @@ export const getUserPerformance = async (userId: number): Promise<PerformanceDat
  */
 export const getUserPerformanceStats = async (userId: number): Promise<PerformanceStats> => {
   try {
-    const response = await api.get(`/api/analytics/user/${userId}/stats`);
+    const response = await api.get(`/analytics/user/${userId}/stats`);
     return response.data;
   } catch (error) {
     logger.error('Error fetching user performance stats:', error);

@@ -33,6 +33,19 @@ const optionalEmailSchema = z
   .optional()
   .or(z.literal(""));
 
+function normalizeAcademicSession(value: string): string {
+  const sanitized = sanitizeSessionInput(value).trim();
+  const shortMatch = sanitized.match(/^(\d{4})-(\d{2})$/);
+
+  if (!shortMatch) {
+    return sanitized;
+  }
+
+  const [, startYear, endYearShort] = shortMatch;
+  const centuryPrefix = startYear.slice(0, 2);
+  return `${startYear}-${centuryPrefix}${endYearShort}`;
+}
+
 export const clubFormSchema = z.object({
   clubName: z
     .string()
@@ -51,7 +64,8 @@ export const clubFormSchema = z.object({
     .regex(
       /^\d{4}-\d{2,4}$/,
       "Format must be YYYY-YY or YYYY-YYYY (e.g. 2025-26 or 2025-2026)",
-    ),
+    )
+    .transform(normalizeAcademicSession),
   facultyFacilitatorId: z.string().trim().min(1, "Faculty Facilitator is required"),
   initialMembers: z
     .array(z.string().trim().min(1))
@@ -129,7 +143,7 @@ export function sanitizeClubFormPatch(
         maxLength: field === "clubName" ? 100 : 2000,
       }) as ClubFormData[keyof ClubFormData];
     case "academicSession":
-      return sanitizeSessionInput(String(value ?? "")) as ClubFormData[keyof ClubFormData];
+      return normalizeAcademicSession(String(value ?? "")) as ClubFormData[keyof ClubFormData];
     case "proposedEmail":
       return sanitizeEmailInput(String(value ?? "")) as ClubFormData[keyof ClubFormData];
     case "socialMediaHandles": {
@@ -158,7 +172,7 @@ export function sanitizeClubFormData(
       ? sanitizePlainTextInput(value.purpose, { maxLength: 2000 })
       : value.purpose,
     academicSession: value.academicSession
-      ? sanitizeSessionInput(value.academicSession)
+      ? normalizeAcademicSession(value.academicSession)
       : value.academicSession,
     proposedEmail: value.proposedEmail
       ? sanitizeEmailInput(value.proposedEmail)

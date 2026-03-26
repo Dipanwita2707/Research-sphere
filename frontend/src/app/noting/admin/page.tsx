@@ -257,7 +257,9 @@ export default function NotingAdminPage() {
     [startDate, endDate],
   );
 
-  const { data: config } = useNotingConfig();
+  const { data: config } = useNotingConfig({
+    enabled: canViewAnalytics && tab === 'notings',
+  });
   const { data: overview, isLoading: overviewLoading } = useNotingAdminOverview(sharedFilters, {
     enabled: canViewAnalytics && tab === 'overview',
   });
