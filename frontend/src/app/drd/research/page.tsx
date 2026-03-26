@@ -176,7 +176,7 @@ export default function DrdResearchDashboard() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Hero Header with Gradient */}
       <div className="relative overflow-hidden bg-sgt-gradient rounded-3xl p-8 text-white shadow-sgt-xl">
         {/* Background decorations */}

@@ -34,6 +34,7 @@ export default function DSWDashboard() {
         totalCategories: 0,
         pendingApprovals: 0,
         clubsByCategory: [],
+        clubsBySession: [],
         clubsByStatus: [],
       });
     } finally {

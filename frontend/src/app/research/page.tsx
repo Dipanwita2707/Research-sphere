@@ -96,8 +96,8 @@ export default function ResearchDashboard() {
         researchService.getContributedResearch().catch(() => ({ data: [] }))
       ]);
 
-      const myContributions = myContribRes?.data || [];
-      const contributed = contributedRes?.data || [];
+      const myContributions = myContribRes?.data?.contributions || myContribRes?.data || [];
+      const contributed = contributedRes?.data?.contributions || contributedRes?.data || [];
       
       setContributions(myContributions);
       setContributedResearch(contributed);

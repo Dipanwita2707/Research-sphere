@@ -220,12 +220,18 @@ class IprService {
   }
 
   // Get my IPR applications
-  async getMyApplications(): Promise<{
+  async getMyApplications(params?: { page?: number; limit?: number; status?: string; iprType?: string }): Promise<{
     data: IprApplication[];
     grouped: any;
     stats: any;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   }> {
-    const response = await api.get('/ipr/my-applications');
+    const response = await api.get('/ipr/my-applications', { params });
     return response.data;
   }
 
