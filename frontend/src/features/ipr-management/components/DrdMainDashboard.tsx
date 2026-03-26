@@ -174,7 +174,18 @@ export default function DrdMainDashboard() {
       'IPR School Assignment': ['ipr_assign_school'],
       'Research School Assignment': ['research_assign_school'],
       'Book School Assignment': ['book_assign_school'],
-      'Analytics & Reports': ['ipr_approve', 'research_approve', 'book_approve'],
+      'Analytics & Reports': [
+        'applicant_analytics',
+        'drd_member_analytics',
+        'ipr_applicant_analytics',
+        'research_applicant_analytics',
+        'book_applicant_analytics',
+        'conference_applicant_analytics',
+        'grant_applicant_analytics',
+        'ipr_approve',
+        'research_approve',
+        'book_approve',
+      ],
     };
     
     const requiredPerms = viewPermissionKeys[category] || [];
@@ -190,7 +201,18 @@ export default function DrdMainDashboard() {
       'IPR School Assignment': ['ipr_assign_school'],
       'Research School Assignment': ['research_assign_school'],
       'Book School Assignment': ['book_assign_school'],
-      'Analytics & Reports': ['ipr_approve', 'research_approve', 'book_approve'],
+      'Analytics & Reports': [
+        'applicant_analytics',
+        'drd_member_analytics',
+        'ipr_applicant_analytics',
+        'research_applicant_analytics',
+        'book_applicant_analytics',
+        'conference_applicant_analytics',
+        'grant_applicant_analytics',
+        'ipr_approve',
+        'research_approve',
+        'book_approve',
+      ],
     };
 
     return (actionPermissionMap[category] || []).filter(
@@ -645,7 +667,14 @@ function getPermissionLabel(permissionKey: string): string {
     'conference_file_new': 'File New Conference Papers',
     'conference_review': 'Review Conference Papers',
     'conference_approve': 'Final Approve/Reject Conferences',
-    'conference_assign_school': 'Assign Schools to Conference Reviewers'
+    'conference_assign_school': 'Assign Schools to Conference Reviewers',
+    'applicant_analytics': 'View Applicant Analytics',
+    'drd_member_analytics': 'View DRD Member Analytics',
+    'ipr_applicant_analytics': 'View IPR Applicant Analytics',
+    'research_applicant_analytics': 'View Research Applicant Analytics',
+    'book_applicant_analytics': 'View Book Applicant Analytics',
+    'conference_applicant_analytics': 'View Conference Applicant Analytics',
+    'grant_applicant_analytics': 'View Grant Applicant Analytics',
   };
   
   return labels[permissionKey] || permissionKey;

@@ -330,4 +330,11 @@ router.get('/refunds', gatePassController.getAllRefunds);
  */
 router.get('/refunds/:bookingId', gatePassController.getRefundByBooking);
 
+/**
+ * @route POST /api/v1/gate-entry/debug/checkout-automation
+ * @desc Manually trigger checkout reminder and penalty jobs (admin only)
+ * @access Private (Admin only)
+ */
+router.post('/debug/checkout-automation', canViewAnalytics, gatePassController.runCheckoutAutomationNow);
+
 module.exports = router;

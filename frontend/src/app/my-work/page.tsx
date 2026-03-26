@@ -117,7 +117,7 @@ export default function MyWorkDashboard() {
       logger.debug('Contributed Response:', contributedRes);
       
       // Handle API response format: { success: true, data: { contributions: [...] } }
-      const myContributions = myContribRes?.data?.contributions || myContribRes?.data?.myContributions || [];
+      const myContributions = myContribRes?.data?.contributions || myContribRes?.data?.myContributions || myContribRes?.data || [];
       const contributed = contributedRes?.data?.contributions || contributedRes?.data || [];
       
       logger.debug('Processed myContributions:', myContributions);

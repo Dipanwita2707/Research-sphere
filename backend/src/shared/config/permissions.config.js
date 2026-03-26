@@ -638,18 +638,14 @@ const getDefaultPermissions = (role) => {
       dsw_view_club: true, // Students can view clubs
       // Event Permissions
       event_manage_own: true,     // Students can manage events they create (via club)
-      // TMS Permissions
       tms_submit_ticket: true,    // Students can submit tickets
       tms_view_own_tickets: true  // Students can view their own tickets
     },
     faculty: {
       // DRD Permissions
       ipr_file_new: true, // Faculty can file IPR by default
-      research_file_new: true, // Faculty can file Research by default
-      book_file_new: true, // Faculty can file Book/Chapter by default
-      conference_file_new: true, // Faculty can file Conference by default
-      // DSW Permissions
-      dsw_create_club_noting: true, // Faculty can initiate club creation
+      // Admin does NOT get noting analytics/approval or IPR/Research filing by default
+      // These require explicit permission assignment
       dsw_view_club: true, // Faculty can view clubs
       dsw_request_club_change: true, // Faculty facilitators can request changes
       // Noting Permissions - Faculty can create notings (events, curriculum, etc.)
@@ -699,8 +695,13 @@ const getDefaultPermissions = (role) => {
       tms_view_assigned_tickets: true,
       tms_manage_categories: true,
       tms_view_analytics: true,
-      tms_close_ticket: true
-      // Admin does NOT get noting approval actions or IPR/Research filing by default
+      tms_close_ticket: true,
+      // DRD Analytics Permissions — admin can view all analytics dashboards
+      applicant_analytics: true,
+      drd_member_analytics: true,
+      // Admin does NOT get IPR/Research filing permissions by default
+      // Admin manages users/permissions/analytics, NOT IPR operations
+      // Admin does NOT get noting analytics/approval or IPR/Research filing by default
       // These require explicit permission assignment
     },
     superadmin: {
@@ -722,7 +723,10 @@ const getDefaultPermissions = (role) => {
       tms_view_assigned_tickets: true,
       tms_manage_categories: true,
       tms_view_analytics: true,
-      tms_close_ticket: true
+      tms_close_ticket: true,
+      // DRD Analytics Permissions
+      applicant_analytics: true,
+      drd_member_analytics: true
     },
   };
 

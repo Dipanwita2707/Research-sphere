@@ -10,6 +10,16 @@ const SCHOOL_DEPARTMENT_PERMISSIONS = {
     { key: "view_dashboard", label: "View Dashboard", category: "General" },
     { key: "view_reports", label: "View Reports", category: "General" },
     { key: "export_data", label: "Export Data", category: "General" },
+    {
+      key: "applicant_analytics",
+      label: "Applicant Analytics",
+      category: "DRD Analytics",
+    },
+    {
+      key: "drd_member_analytics",
+      label: "DRD Member Analytics",
+      category: "DRD Analytics",
+    },
   ],
 
   // Student Management
@@ -321,6 +331,24 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       type: "action",
       description:
         "DRD Head - Can assign schools to DRD member reviewers for Grant/Funding",
+    },
+
+    // ========== DRD Analytics Permissions ==========
+    {
+      key: "applicant_analytics",
+      label: "Applicant Analytics",
+      category: "DRD Analytics",
+      type: "view",
+      description:
+        "Can view applicant analytics across assigned schools and departments (IPR, Research, Book, Conference, Grant). Scope is configured per-user in the analytics assignment manager.",
+    },
+    {
+      key: "drd_member_analytics",
+      label: "DRD Member Analytics",
+      category: "DRD Analytics",
+      type: "view",
+      description:
+        "Can view DRD reviewer workload and performance analytics for assigned schools and departments.",
     },
   ],
 

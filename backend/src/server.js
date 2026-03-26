@@ -284,6 +284,14 @@ const startServer = async () => {
     // Initialize BullMQ email queue (graceful — no-op if Redis unavailable)
     const emailQueue = require('./jobs/emailQueue');
     await emailQueue.init();
+
+    // Initialize BullMQ research workflow queue (graceful — no-op if Redis unavailable)
+    const researchWorkflowQueue = require('./jobs/researchWorkflowQueue');
+    await researchWorkflowQueue.init();
+
+    // Initialize workflow health monitor
+    const { startWorkflowHealthMonitor } = require('./jobs/workflowHealthMonitor.job');
+    startWorkflowHealthMonitor();
     
     app.listen(config.port, () => {
       console.log(
@@ -297,6 +305,8 @@ const startServer = async () => {
         `📦 Cache initialized (${cache.isConnected() ? "Redis" : "Memory fallback"})`,
       );
       console.log(`� Email queue: ${emailQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
+      console.log(`🧠 Research workflow queue: ${researchWorkflowQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
+      console.log(`🩺 Workflow health monitor initialized`);
       console.log(`�📊 Audit report scheduler initialized`);
       console.log(`🎫 TMS auto-escalation scheduler initialized`);
       console.log(`🎫 QR activation job started for gate entry`);
@@ -311,9 +321,13 @@ startServer();
 
 // Graceful shutdown — clean up BullMQ connections
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received — shutting down email queue…');
+  console.log('SIGTERM received — shutting down background queues…');
   const emailQueue = require('./jobs/emailQueue');
+  const researchWorkflowQueue = require('./jobs/researchWorkflowQueue');
+  const { stopWorkflowHealthMonitor } = require('./jobs/workflowHealthMonitor.job');
+  stopWorkflowHealthMonitor();
   await emailQueue.shutdown();
+  await researchWorkflowQueue.shutdown();
   process.exit(0);
 });
 

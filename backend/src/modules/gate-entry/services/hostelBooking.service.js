@@ -703,6 +703,10 @@ class HostelBookingService {
 
     if (!booking) throw new Error('Booking not found');
     if (booking.booking_status === 'cancelled') throw new Error('Room booking is already cancelled');
+    if (booking.booking_status === 'completed') throw new Error('Room booking is already completed');
+    if (['expired', 'completed', 'cancelled'].includes((booking.gate_pass?.pass_status || '').toLowerCase())) {
+      throw new Error('Room cancellation is not allowed because the pass is already closed/expired');
+    }
     if (booking.room_cancel_request_status === 'pending') throw new Error('A room cancellation request is already pending');
 
     const requester = await prisma.userLogin.findUnique({

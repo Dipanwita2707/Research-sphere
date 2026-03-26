@@ -6,6 +6,11 @@ const {
   getAllCentralDeptPermissions,
 } = require('../config/permissionDefinitions');
 const { logPermissionChange, logDataExport, getIp } = require('../../../shared/utils/auditLogger');
+const {
+  getSupportedCentralDeptAnalyticsScopeFields,
+  withSupportedAnalyticsScopeFields,
+  pickSupportedAnalyticsScopeFields,
+} = require('../../../shared/utils/centralDeptAnalyticsScopeSupport');
 
 /**
  * Get available permission definitions
@@ -354,13 +359,26 @@ exports.grantSchoolDeptPermissions = async (req, res) => {
  */
 exports.grantCentralDeptPermissions = async (req, res) => {
   try {
+    const supportedAnalyticsScopeFields = await getSupportedCentralDeptAnalyticsScopeFields(prisma);
     const { 
       userId, 
       centralDeptId, 
       permissions, 
       isPrimary,
       assignedMonthlyReportSchoolIds,
-      assignedMonthlyReportDepartmentIds 
+      assignedMonthlyReportDepartmentIds,
+      assignedIprAnalyticsSchoolIds,
+      assignedResearchAnalyticsSchoolIds,
+      assignedBookAnalyticsSchoolIds,
+      assignedConferenceAnalyticsSchoolIds,
+      assignedGrantAnalyticsSchoolIds,
+      assignedIprAnalyticsDepartmentIds,
+      assignedResearchAnalyticsDepartmentIds,
+      assignedBookAnalyticsDepartmentIds,
+      assignedConferenceAnalyticsDepartmentIds,
+      assignedGrantAnalyticsDepartmentIds,
+      assignedDrdMemberAnalyticsSchoolIds,
+      assignedDrdMemberAnalyticsDepartmentIds,
     } = req.body;
 
     if (!userId || !centralDeptId || !permissions) {
@@ -424,6 +442,68 @@ exports.grantCentralDeptPermissions = async (req, res) => {
       createData.assignedMonthlyReportDepartmentIds = assignedMonthlyReportDepartmentIds || [];
     }
 
+    if (supportedAnalyticsScopeFields.includes('assignedIprAnalyticsSchoolIds') && assignedIprAnalyticsSchoolIds !== undefined) {
+      updateData.assignedIprAnalyticsSchoolIds = assignedIprAnalyticsSchoolIds || [];
+      createData.assignedIprAnalyticsSchoolIds = assignedIprAnalyticsSchoolIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedResearchAnalyticsSchoolIds') && assignedResearchAnalyticsSchoolIds !== undefined) {
+      updateData.assignedResearchAnalyticsSchoolIds = assignedResearchAnalyticsSchoolIds || [];
+      createData.assignedResearchAnalyticsSchoolIds = assignedResearchAnalyticsSchoolIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedBookAnalyticsSchoolIds') && assignedBookAnalyticsSchoolIds !== undefined) {
+      updateData.assignedBookAnalyticsSchoolIds = assignedBookAnalyticsSchoolIds || [];
+      createData.assignedBookAnalyticsSchoolIds = assignedBookAnalyticsSchoolIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedConferenceAnalyticsSchoolIds') && assignedConferenceAnalyticsSchoolIds !== undefined) {
+      updateData.assignedConferenceAnalyticsSchoolIds = assignedConferenceAnalyticsSchoolIds || [];
+      createData.assignedConferenceAnalyticsSchoolIds = assignedConferenceAnalyticsSchoolIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedGrantAnalyticsSchoolIds') && assignedGrantAnalyticsSchoolIds !== undefined) {
+      updateData.assignedGrantAnalyticsSchoolIds = assignedGrantAnalyticsSchoolIds || [];
+      createData.assignedGrantAnalyticsSchoolIds = assignedGrantAnalyticsSchoolIds || [];
+    }
+
+    // Per-category department scope arrays
+    if (supportedAnalyticsScopeFields.includes('assignedIprAnalyticsDepartmentIds') && assignedIprAnalyticsDepartmentIds !== undefined) {
+      updateData.assignedIprAnalyticsDepartmentIds = assignedIprAnalyticsDepartmentIds || [];
+      createData.assignedIprAnalyticsDepartmentIds = assignedIprAnalyticsDepartmentIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedResearchAnalyticsDepartmentIds') && assignedResearchAnalyticsDepartmentIds !== undefined) {
+      updateData.assignedResearchAnalyticsDepartmentIds = assignedResearchAnalyticsDepartmentIds || [];
+      createData.assignedResearchAnalyticsDepartmentIds = assignedResearchAnalyticsDepartmentIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedBookAnalyticsDepartmentIds') && assignedBookAnalyticsDepartmentIds !== undefined) {
+      updateData.assignedBookAnalyticsDepartmentIds = assignedBookAnalyticsDepartmentIds || [];
+      createData.assignedBookAnalyticsDepartmentIds = assignedBookAnalyticsDepartmentIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedConferenceAnalyticsDepartmentIds') && assignedConferenceAnalyticsDepartmentIds !== undefined) {
+      updateData.assignedConferenceAnalyticsDepartmentIds = assignedConferenceAnalyticsDepartmentIds || [];
+      createData.assignedConferenceAnalyticsDepartmentIds = assignedConferenceAnalyticsDepartmentIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedGrantAnalyticsDepartmentIds') && assignedGrantAnalyticsDepartmentIds !== undefined) {
+      updateData.assignedGrantAnalyticsDepartmentIds = assignedGrantAnalyticsDepartmentIds || [];
+      createData.assignedGrantAnalyticsDepartmentIds = assignedGrantAnalyticsDepartmentIds || [];
+    }
+
+    // DRD member analytics scope
+    if (supportedAnalyticsScopeFields.includes('assignedDrdMemberAnalyticsSchoolIds') && assignedDrdMemberAnalyticsSchoolIds !== undefined) {
+      updateData.assignedDrdMemberAnalyticsSchoolIds = assignedDrdMemberAnalyticsSchoolIds || [];
+      createData.assignedDrdMemberAnalyticsSchoolIds = assignedDrdMemberAnalyticsSchoolIds || [];
+    }
+
+    if (supportedAnalyticsScopeFields.includes('assignedDrdMemberAnalyticsDepartmentIds') && assignedDrdMemberAnalyticsDepartmentIds !== undefined) {
+      updateData.assignedDrdMemberAnalyticsDepartmentIds = assignedDrdMemberAnalyticsDepartmentIds || [];
+      createData.assignedDrdMemberAnalyticsDepartmentIds = assignedDrdMemberAnalyticsDepartmentIds || [];
+    }
+
     const permission = await prisma.centralDepartmentPermission.upsert({
       where: {
         userId_centralDeptId: {
@@ -480,7 +560,12 @@ exports.grantCentralDeptPermissions = async (req, res) => {
         permissions,
         isPrimary,
         assignedMonthlyReportSchoolIds,
-        assignedMonthlyReportDepartmentIds
+        assignedMonthlyReportDepartmentIds,
+        assignedIprAnalyticsSchoolIds,
+        assignedResearchAnalyticsSchoolIds,
+        assignedBookAnalyticsSchoolIds,
+        assignedConferenceAnalyticsSchoolIds,
+        assignedGrantAnalyticsSchoolIds,
       },
       req.user.id,
       req
@@ -738,6 +823,7 @@ exports.checkUserPermission = async (req, res) => {
  */
 exports.getAllUsersWithPermissions = async (req, res) => {
   try {
+    const supportedAnalyticsScopeFields = await getSupportedCentralDeptAnalyticsScopeFields(prisma);
     // Only admin can view all users
     if (req.user.role !== 'admin') {
       return res.status(403).json({
@@ -796,18 +882,23 @@ exports.getAllUsersWithPermissions = async (req, res) => {
         },
         centralDeptPermissions: {
           where: { isActive: true },
-          select: {
+          select: withSupportedAnalyticsScopeFields({
             id: true,
             centralDeptId: true,
             isPrimary: true,
             permissions: true,
+            assignedSchoolIds: true,
+            assignedResearchSchoolIds: true,
+            assignedBookSchoolIds: true,
+            assignedConferenceSchoolIds: true,
+            assignedGrantSchoolIds: true,
             centralDept: {
               select: {
                 departmentCode: true,
                 departmentName: true,
               },
             },
-          },
+          }, supportedAnalyticsScopeFields),
         },
       },
       orderBy: {
@@ -971,6 +1062,7 @@ exports.assignDrdMemberSchools = async (req, res) => {
  */
 exports.getDrdMembersWithSchools = async (req, res) => {
   try {
+    const supportedAnalyticsScopeFields = await getSupportedCentralDeptAnalyticsScopeFields(prisma);
     // Check if user is authorized (admin, DRD Head, or has ipr_assign_school permission)
     const isAdmin = req.user.role === 'admin';
     const canAssignSchools = req.user.centralDeptPermissions?.some(
@@ -1018,7 +1110,7 @@ exports.getDrdMembersWithSchools = async (req, res) => {
         centralDeptId: drdDept.id,
         isActive: true,
       },
-      select: {
+      select: withSupportedAnalyticsScopeFields({
         id: true,
         userId: true,
         permissions: true,
@@ -1050,7 +1142,7 @@ exports.getDrdMembersWithSchools = async (req, res) => {
             },
           },
         },
-      },
+      }, supportedAnalyticsScopeFields),
     });
 
     // Get all active roles with DRD permissions
@@ -1181,6 +1273,10 @@ exports.getDrdMembersWithSchools = async (req, res) => {
       const assignedBookSchoolIds = directPermission?.assignedBookSchoolIds || [];
       const assignedConferenceSchoolIds = directPermission?.assignedConferenceSchoolIds || [];
       const assignedGrantSchoolIds = directPermission?.assignedGrantSchoolIds || [];
+      const supportedAnalyticsFields = pickSupportedAnalyticsScopeFields(
+        directPermission,
+        supportedAnalyticsScopeFields
+      );
       
       // Get school objects for each type
       const assignedSchools = schools.filter((s) => assignedSchoolIds.includes(s.id));
@@ -1198,6 +1294,7 @@ exports.getDrdMembersWithSchools = async (req, res) => {
         assignedBookSchoolIds,
         assignedConferenceSchoolIds,
         assignedGrantSchoolIds,
+        ...supportedAnalyticsFields,
         assignedSchools,
         assignedAt: directPermission?.assignedAt || null,
         fromRole: !directPermission, // Flag to indicate this user has DRD perms only from roles
