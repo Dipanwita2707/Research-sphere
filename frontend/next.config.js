@@ -1,3 +1,5 @@
+const apiProxyTarget = process.env.API_PROXY_TARGET || 'http://localhost:5001';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -19,7 +21,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:5001/api/:path*',
+        destination: `${apiProxyTarget}/api/:path*`,
       },
     ];
   },

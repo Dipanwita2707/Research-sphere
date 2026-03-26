@@ -73,6 +73,18 @@ const socialMediaSchema = z.preprocess((value) => {
   return next;
 }, z.record(z.string()).optional());
 
+function normalizeAcademicSession(value) {
+  const sanitized = sanitizePlainText(value, { maxLength: 16 });
+  const shortMatch = sanitized.match(/^(\d{4})[-–](\d{2})$/);
+
+  if (!shortMatch) {
+    return sanitized;
+  }
+
+  const [, startYear, endYearShort] = shortMatch;
+  return `${startYear}-${startYear.slice(0, 2)}${endYearShort}`;
+}
+
 const clubCreationBodySchema = z
   .object({
     name: z.preprocess(
@@ -88,7 +100,7 @@ const clubCreationBodySchema = z
       z.string().min(50, "Purpose must be at least 50 characters"),
     ),
     academicSession: z.preprocess(
-      (value) => sanitizePlainText(value, { maxLength: 9 }),
+      (value) => normalizeAcademicSession(value),
       z
         .string()
         .regex(

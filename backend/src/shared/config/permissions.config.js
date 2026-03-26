@@ -683,6 +683,10 @@ const getDefaultPermissions = (role) => {
       dsw_suspend_club: true,
       dsw_approve_club_change: true,
       dsw_view_audit_logs: true,
+      // Noting Permissions
+      // Admin needs global read access so the Noting workspace and analytics
+      // dashboard can load without requiring an extra explicit assignment.
+      noting_view_all: true,
       // Event Permissions
       event_view_all: true,
       event_manage_all: true,
@@ -691,6 +695,7 @@ const getDefaultPermissions = (role) => {
       tms_view_assigned_tickets: true,
       tms_manage_categories: true,
       tms_view_analytics: true,
+
       tms_close_ticket: true,
       // DRD Analytics Permissions — admin can view all analytics dashboards
       applicant_analytics: true,
@@ -698,6 +703,7 @@ const getDefaultPermissions = (role) => {
       // Admin does NOT get IPR/Research filing permissions by default
       // Admin manages users/permissions/analytics, NOT IPR operations
       // Admin does NOT get noting analytics/approval or IPR/Research filing by default
+
       // These require explicit permission assignment
     },
     superadmin: {
