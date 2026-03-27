@@ -17,6 +17,7 @@ const userWithDetails = {
   id: true,
   uid: true,
   email: true,
+  phone: true,
   role: true,
   employeeDetails: {
     select: {
@@ -24,6 +25,9 @@ const userWithDetails = {
       lastName: true,
       displayName: true,
       empId: true,
+      designation: true,
+      email: true,
+      phoneNumber: true,
       primaryDepartment: {
         select: { departmentName: true },
       },
@@ -36,6 +40,8 @@ const userWithDetails = {
     select: {
       studentId: true,
       displayName: true,
+      email: true,
+      phone: true,
       program: {
         select: {
           programName: true,

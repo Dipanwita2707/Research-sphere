@@ -521,8 +521,8 @@ export default function NotingListPage() {
   // While permissions are loading for students, show skeleton — page never renders.
   if (isStudent && (permsLoading || !notingPerms)) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-5xl mx-auto space-y-4">
+      <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto space-y-4">
           <CardSkeleton />
           <CardSkeleton />
           <CardSkeleton />
@@ -537,85 +537,114 @@ export default function NotingListPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#011f4b] dark:text-white">
-              Noting & Approval System
-            </h1>
-            <p className="text-sm text-[#6497b1] dark:text-gray-400 mt-0.5">
-              Create, track, and manage approval requests
-            </p>
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Page header — TMS-style */}
+        <div className="mb-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#011f4b] to-[#005b96] shadow-md">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-[#011f4b] dark:text-white">
+                  Noting &amp; Approval System
+                </h1>
+                <p className="mt-0.5 text-sm text-[#6497b1] dark:text-gray-400">
+                  Create, track, and manage approval requests
+                </p>
+              </div>
+            </div>
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              {canViewAdminDashboard && (
+                <Link
+                  href="/noting/admin"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#b3cde0]/60 bg-white px-4 py-2.5 text-sm font-medium text-[#03396c] transition-all hover:bg-[#f8fafc] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700 sm:w-auto sm:px-5"
+                  style={{ boxShadow: "0 2px 8px 0 rgba(0, 91, 150, 0.06)" }}
+                >
+                  <History className="h-4 w-4 shrink-0" />
+                  Admin Dashboard
+                </Link>
+              )}
+              {notingPerms?.noting_create && (
+                <Link
+                  href="/noting/new"
+                  onClick={() => useNotingDraftStore.getState().clearDraft()}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#005b96] px-4 py-2.5 text-sm font-medium text-white shadow-md shadow-[#005b96]/20 transition-all hover:bg-[#03396c] sm:w-auto sm:px-5"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  Create New Note
+                </Link>
+              )}
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {canViewAdminDashboard && (
-              <Link
-                href="/noting/admin"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-200 text-sm font-medium rounded-xl border border-[#b3cde0]/60 dark:border-gray-600 hover:bg-[#f8fbfd] dark:hover:bg-gray-700 transition-all duration-200 w-full sm:w-auto"
-              >
-                <History className="w-4 h-4 flex-shrink-0" />
-                Admin Dashboard
-              </Link>
-            )}
-            {notingPerms?.noting_create && (
-              <Link
-                href="/noting/new"
-                onClick={() => useNotingDraftStore.getState().clearDraft()}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 sm:px-5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)] hover:shadow-[0_4px_12px_rgba(0,91,150,0.35)] w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4 flex-shrink-0" />
-                Create New Note
-              </Link>
-            )}
-          </div>
+          <div
+            className="mt-3 h-0.5 rounded-full bg-gradient-to-r from-[#005b96] via-[#b3cde0] to-transparent"
+            aria-hidden
+          />
         </div>
 
-        {/* Tab Filters - scrollable on mobile */}
-        <div className="flex border-b border-[#b3cde0]/40 dark:border-gray-700 mb-5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = filter === tab.key;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 -mb-px flex-shrink-0 whitespace-nowrap ${isActive
-                  ? "border-[#005b96] text-[#011f4b] dark:text-[#b3cde0]"
-                  : "border-transparent text-[#6497b1] dark:text-gray-400 hover:text-[#03396c] dark:hover:text-gray-300 hover:border-[#b3cde0]"
+        {/* Tabs — pill bar inside card (TMS-aligned) */}
+        <div
+          className="mb-6 rounded-2xl border border-[#b3cde0]/40 bg-white p-2 dark:border-gray-700 dark:bg-gray-800"
+          style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.06)" }}
+        >
+          <div className="-mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = filter === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setFilter(tab.key)}
+                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200 sm:px-4 ${
+                    isActive
+                      ? "bg-[#005b96] text-white shadow-md shadow-[#005b96]/25 dark:bg-[#005b96]"
+                      : "text-[#6497b1] hover:bg-[#b3cde0]/15 dark:text-gray-400 dark:hover:bg-gray-700/80"
                   }`}
-              >
-                <Icon className="w-4 h-4" />
-                {tab.label}
-                {tab.count > 0 && (
-                  <span
-                    className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive
-                      ? "bg-[#005b96] text-white"
-                      : "bg-[#b3cde0]/30 dark:bg-gray-700 text-[#03396c] dark:text-gray-300"
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span
+                      className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        isActive
+                          ? "bg-white/25 text-white"
+                          : "bg-[#b3cde0]/35 text-[#03396c] dark:bg-gray-600 dark:text-gray-200"
                       }`}
-                  >
-                    {tab.count}
-                  </span>
-                )}
-                {"newCount" in tab && !!tab.newCount && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white">
-                    New {tab.newCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                  {"newCount" in tab && !!tab.newCount && (
+                    <span className="ml-0.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      New {tab.newCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="mb-5 bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 p-4 shadow-[0_2px_8px_rgba(100,151,177,0.08)]">
+        {/* Search & filters — TMS filter card */}
+        <div
+          className="mb-6 rounded-2xl border border-[#b3cde0]/40 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+          style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.06)" }}
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <Filter className="h-4 w-4 text-[#005b96]" />
+            <span className="text-sm font-semibold text-[#03396c] dark:text-gray-200">
+              Search &amp; filters
+            </span>
+          </div>
           <form
             onSubmit={handleSearch}
-            className="flex flex-col sm:flex-row gap-2"
+            className="flex flex-col gap-3 sm:flex-row sm:items-stretch"
           >
-            <div className="flex-1 relative min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6497b1]" />
+            <div className="relative min-w-0 flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6497b1]" />
               <input
                 type="text"
                 value={searchInput}
@@ -623,7 +652,7 @@ export default function NotingListPage() {
                   setSearchInput(e.target.value);
                 }}
                 placeholder={currentSearchPlaceholder}
-                className="w-full pl-9 pr-9 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
+                className="w-full rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] py-2.5 pl-9 pr-9 text-sm text-[#011f4b] outline-none transition-all placeholder:text-[#6497b1]/60 focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               />
               {searchInput && (
                 <button
@@ -631,45 +660,46 @@ export default function NotingListPage() {
                   onClick={() => {
                     setSearchInput("");
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#03396c] dark:hover:text-gray-300"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex shrink-0 gap-2">
               <button
                 type="submit"
-                className="flex-1 sm:flex-none px-4 py-2 bg-[#005b96] text-white text-sm rounded-xl hover:bg-[#03396c] font-medium flex items-center justify-center gap-1.5 transition-all duration-200"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#005b96] px-4 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#03396c] sm:flex-none"
               >
-                <Search className="w-3.5 h-3.5" />
+                <Search className="h-3.5 w-3.5" />
                 Search
               </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterPanelOpenByUser((prev) => !prev)}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl border text-sm font-medium flex items-center justify-center gap-1.5 transition-all duration-200 ${isFilterPanelOpen || hasActiveFilters
-                    ? "bg-[#b3cde0]/20 dark:bg-[#005b96]/20 text-[#011f4b] border-[#6497b1]"
-                    : "bg-white dark:bg-gray-800 text-[#03396c] dark:text-gray-300 border-[#b3cde0]/50 dark:border-gray-600 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700"
-                    }`}
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  Filters
-                </button>
-              </div>
-            </form>
+              <button
+                type="button"
+                onClick={() => setFilterPanelOpenByUser((prev) => !prev)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all sm:flex-none ${
+                  isFilterPanelOpen || hasActiveFilters
+                    ? "border-[#005b96]/30 bg-[#005b96]/10 text-[#005b96] dark:border-[#6497b1]/40 dark:bg-[#005b96]/20 dark:text-[#b3cde0]"
+                    : "border-[#b3cde0]/60 bg-[#f8fafc] text-[#03396c] hover:bg-[#b3cde0]/10 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-700"
+                }`}
+              >
+                <Filter className="h-3.5 w-3.5" />
+                Filters
+              </button>
+            </div>
+          </form>
 
           {isFilterPanelOpen && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-[#b3cde0]/30 dark:border-gray-700">
+              <div className="mt-4 grid grid-cols-1 gap-3 border-t border-[#b3cde0]/30 pt-4 dark:border-gray-700 md:grid-cols-2 lg:grid-cols-4">
               {currentStatusOptions.length > 0 && (
                 <div>
-                  <label className="block text-xs font-medium text-[#03396c] dark:text-gray-400 mb-1">
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6497b1] dark:text-gray-400">
                     {filter === "copies" ? "Copy Status" : "Status"}
                   </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
-                    className="w-full px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
+                    className="w-full rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] px-3 py-2.5 text-sm text-[#03396c] outline-none transition-all focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                   >
                     <option value="">
                       {filter === "copies" ? "All Copy Statuses" : "All Statuses"}
@@ -683,13 +713,13 @@ export default function NotingListPage() {
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-[#03396c] dark:text-gray-400 mb-1">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6497b1] dark:text-gray-400">
                   Category
                 </label>
                 <select
                   value={category}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
+                  className="w-full rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] px-3 py-2.5 text-sm text-[#03396c] outline-none transition-all focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 >
                   <option value="">All Categories</option>
                   {CATEGORY_OPTIONS.map((option) => (
@@ -700,32 +730,32 @@ export default function NotingListPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#03396c] dark:text-gray-400 mb-1">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6497b1] dark:text-gray-400">
                   Start Date
                 </label>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
+                  className="w-full rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] px-3 py-2.5 text-sm text-[#03396c] outline-none transition-all focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-[#03396c] dark:text-gray-400 mb-1">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-[#6497b1] dark:text-gray-400">
                   End Date
                 </label>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-colors"
+                  className="w-full rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] px-3 py-2.5 text-sm text-[#03396c] outline-none transition-all focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
                 />
               </div>
-              <div className="md:col-span-2 lg:col-span-4 flex justify-end">
+              <div className="flex justify-end md:col-span-2 lg:col-span-4">
                 <button
                   type="button"
                   onClick={resetFilters}
-                  className="text-sm text-[#6497b1] hover:text-[#03396c] dark:text-gray-400 dark:hover:text-gray-200 font-medium transition-colors"
+                  className="rounded-xl border border-[#005b96]/20 bg-[#005b96]/10 px-4 py-2.5 text-sm font-medium text-[#005b96] transition-all hover:bg-[#005b96]/20 dark:border-[#6497b1]/30 dark:bg-[#005b96]/15 dark:text-[#b3cde0] dark:hover:bg-[#005b96]/25"
                 >
                   Clear all filters
                 </button>
@@ -736,7 +766,10 @@ export default function NotingListPage() {
 
         {/* Copies sub-filters: My Work | Complaints (only when Copies tab is active) */}
         {filter === "copies" && (
-          <div className="mb-4 flex flex-wrap gap-2">
+          <div
+            className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-[#b3cde0]/40 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
+            style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.06)" }}
+          >
             <button
               type="button"
               onClick={() => setCopiesFilter("all")}
@@ -791,16 +824,23 @@ export default function NotingListPage() {
         {filter === "copies" ? (
           /* ===== Copies For Me Tab ===== */
           copiesLoading ? (
-            <div className="space-y-4 mt-4">
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
+            <div
+              className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
+              style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
+            >
+              <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+              <p className="mt-4 text-sm font-medium text-[#6497b1]">
+                Loading copies...
+              </p>
             </div>
           ) : myCopies.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 p-12 shadow-[0_2px_8px_rgba(100,151,177,0.08)]">
+            <div
+              className="rounded-2xl border border-[#b3cde0]/40 bg-white p-12 dark:border-gray-700 dark:bg-gray-800"
+              style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
+            >
               <div className="text-center">
-                <div className="w-14 h-14 mx-auto mb-4 bg-[#b3cde0]/20 dark:bg-indigo-900/20 rounded-full flex items-center justify-center">
-                  <Copy className="w-7 h-7 text-[#005b96] dark:text-indigo-400" />
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3cde0]/20 dark:bg-indigo-900/20">
+                  <Copy className="h-7 w-7 text-[#6497b1] dark:text-indigo-400" />
                 </div>
                 <h3 className="text-base font-semibold text-[#011f4b] dark:text-white mb-1.5">
                   No Copies Assigned
@@ -812,10 +852,13 @@ export default function NotingListPage() {
               </div>
             </div>
           ) : filteredCopies.length === 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 p-12 shadow-[0_2px_8px_rgba(100,151,177,0.08)]">
+            <div
+              className="rounded-2xl border border-[#b3cde0]/40 bg-white p-12 dark:border-gray-700 dark:bg-gray-800"
+              style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
+            >
               <div className="text-center">
-                <div className="w-14 h-14 mx-auto mb-4 bg-[#b3cde0]/20 dark:bg-gray-700 rounded-full flex items-center justify-center">
-                  <Filter className="w-7 h-7 text-[#6497b1]" />
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3cde0]/20 dark:bg-gray-700">
+                  <Filter className="h-7 w-7 text-[#6497b1]" />
                 </div>
                 <h3 className="text-base font-semibold text-[#011f4b] dark:text-white mb-1.5">
                   No {copiesFilter === "my_work" ? "My Work" : "Complaints"}{" "}
@@ -829,7 +872,10 @@ export default function NotingListPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div
+              className="space-y-3 overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+              style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
+            >
               {filteredCopies.map((copy) => {
                 const statusColor =
                   copy.status === "completed"
@@ -843,7 +889,10 @@ export default function NotingListPage() {
                 return (
                   <div
                     key={copy.id}
-                    className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 overflow-hidden shadow-[0_2px_8px_rgba(100,151,177,0.08)]"
+                    className="overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-[#f8fafc]/80 dark:border-gray-600 dark:bg-gray-900/50"
+                    style={{
+                      boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.06)",
+                    }}
                   >
                     {/* Copy Card Header — click navigates to separate page */}
                     <Link
@@ -870,10 +919,10 @@ export default function NotingListPage() {
                             </span>
                           )}
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
+                        <h3 className="text-base font-semibold capitalize text-[#011f4b] dark:text-white">
                           {noteData?.category} / {noteData?.subcategory}
                         </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        <p className="mt-0.5 text-xs text-[#6497b1] dark:text-gray-400">
                           Sent by:{" "}
                           {copy.sentBy?.employeeDetails?.displayName ||
                             copy.sentBy?.uid}{" "}
@@ -944,16 +993,23 @@ export default function NotingListPage() {
             </div>
           )
         ) : isLoading ? (
-          <div className="space-y-4 mt-4">
-            <CardSkeleton />
-            <CardSkeleton />
-            <CardSkeleton />
+          <div
+            className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
+            style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
+          >
+            <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+            <p className="mt-4 text-sm font-medium text-[#6497b1]">
+              Loading notes...
+            </p>
           </div>
         ) : notes.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 p-12 shadow-[0_2px_8px_rgba(100,151,177,0.08)]">
+          <div
+            className="rounded-2xl border border-[#b3cde0]/40 bg-white p-12 dark:border-gray-700 dark:bg-gray-800"
+            style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
+          >
             <div className="text-center">
-              <div className="w-14 h-14 mx-auto mb-4 bg-[#b3cde0]/20 dark:bg-[#011f4b]/20 rounded-full flex items-center justify-center">
-                <FileText className="w-7 h-7 text-[#005b96] dark:text-[#6497b1]" />
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3cde0]/20 dark:bg-[#011f4b]/20">
+                <FileText className="h-7 w-7 text-[#6497b1] dark:text-[#6497b1]" />
               </div>
               <h3 className="text-base font-semibold text-[#011f4b] dark:text-white mb-1.5">
                 {filter === "mine" && "No Notes Created Yet"}
@@ -967,15 +1023,15 @@ export default function NotingListPage() {
                 {filter === "pending" &&
                   "No notes waiting for your review right now."}
                 {filter === "handled_approved" &&
-                  "You haven\'t approved or recommended any notes yet."}
+                  "You haven't approved or recommended any notes yet."}
                 {filter === "handled_rejected" &&
-                  "You haven\'t rejected or not-recommended any notes yet."}
+                  "You haven't rejected or not-recommended any notes yet."}
               </p>
               {filter === "mine" && (
                 <Link
                   href="/noting/new"
                   onClick={() => useNotingDraftStore.getState().clearDraft()}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#005b96] text-white text-sm font-medium rounded-xl hover:bg-[#03396c] transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#005b96] px-5 py-2.5 text-sm font-medium text-white shadow-md shadow-[#005b96]/20 transition-all duration-200 hover:bg-[#03396c]"
                 >
                   <Plus className="w-4 h-4" />
                   Create Your First Note
@@ -984,7 +1040,10 @@ export default function NotingListPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div
+            className="space-y-3 overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+            style={{ boxShadow: "0 2px 16px 0 rgba(0, 91, 150, 0.07)" }}
+          >
             {(notes as Note[]).map((note) => {
               const statusConf =
                 STATUS_CONFIG[note.status] || STATUS_CONFIG.draft;
@@ -1041,7 +1100,12 @@ export default function NotingListPage() {
                     }
                   }}
                 >
-                  <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 hover:border-[#6497b1] dark:hover:border-[#03396c] hover:shadow-[0_4px_12px_rgba(100,151,177,0.15)] transition-all duration-200">
+                  <div
+                    className="rounded-2xl border border-[#b3cde0]/40 bg-[#f8fafc]/80 transition-all duration-200 hover:border-[#6497b1] dark:border-gray-600 dark:bg-gray-900/50 dark:hover:border-[#03396c]"
+                    style={{
+                      boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.06)",
+                    }}
+                  >
                     <div className="px-4 sm:px-5 py-4">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
                         <div className="flex-1 min-w-0">
@@ -1063,11 +1127,11 @@ export default function NotingListPage() {
                               )}
                             </span>
                           </div>
-                          <h3 className="text-sm font-semibold text-[#011f4b] dark:text-white mb-1 group-hover:text-[#005b96] dark:group-hover:text-[#6497b1] transition-colors capitalize">
+                          <h3 className="mb-1 text-base font-semibold capitalize text-[#011f4b] transition-colors group-hover:text-[#005b96] dark:text-white dark:group-hover:text-[#6497b1]">
                             {note.category} / {note.subcategory}
                           </h3>
                           {note.description && (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1">
+                            <p className="line-clamp-1 text-sm text-[#03396c]/80 dark:text-gray-400">
                               {stripHtml(note.description)}
                             </p>
                           )}
@@ -1175,7 +1239,10 @@ export default function NotingListPage() {
 
         {/* Pagination */}
         {pagination.totalPages > 0 && (
-          <div className="mt-5 bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 px-5 py-3 shadow-[0_2px_8px_rgba(100,151,177,0.08)]">
+          <div
+            className="mt-6 rounded-2xl border border-[#b3cde0]/40 bg-white px-5 py-3 dark:border-gray-700 dark:bg-gray-800"
+            style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.06)" }}
+          >
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <p className="text-xs text-[#6497b1] dark:text-gray-400">
                 Showing{" "}

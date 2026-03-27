@@ -81,30 +81,30 @@ export default function EventSidebar({
   return (
     <div className="space-y-6 lg:sticky lg:top-20 lg:self-start">
       {/* ===== REGISTRATION INFO CARD ===== */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <div className="border-b border-gray-100 bg-gray-50/50 px-5 py-4">
-          <h3 className="text-base font-bold text-ev-900">Registration Info</h3>
+      <div className="overflow-hidden rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+        <div className="border-b border-[#b3cde0]/35 bg-gradient-to-r from-[#011f4b] to-[#03396c] px-5 py-4">
+          <h3 className="text-base font-bold text-white">Registration Info</h3>
         </div>
 
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-[#b3cde0]/25">
           {/* Deadline */}
           {event.registrationEndDate && (
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-sm text-gray-500">Deadline</span>
-              <span className="text-sm font-semibold text-ev-900">{fmtDateTime(event.registrationEndDate)}</span>
+              <span className="text-sm text-[#6497b1]">Deadline</span>
+              <span className="text-sm font-semibold text-[#011f4b]">{fmtDateTime(event.registrationEndDate)}</span>
             </div>
           )}
 
           {/* Mode */}
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-sm text-gray-500">Mode</span>
-            <span className="text-sm font-semibold capitalize text-ev-900">{event.opportunityMode || "Offline"}</span>
+            <span className="text-sm text-[#6497b1]">Mode</span>
+            <span className="text-sm font-semibold capitalize text-[#011f4b]">{event.opportunityMode || "Offline"}</span>
           </div>
 
           {/* Participation */}
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-sm text-gray-500">Participation</span>
-            <span className="text-sm font-semibold capitalize text-ev-900">
+            <span className="text-sm text-[#6497b1]">Participation</span>
+            <span className="text-sm font-semibold capitalize text-[#011f4b]">
               {event.participationType || "Individual"}
               {isTeamBased && ` (${event.minTeamSize}-${event.maxTeamSize})`}
             </span>
@@ -112,14 +112,14 @@ export default function EventSidebar({
 
           {/* Type */}
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-sm text-gray-500">Type</span>
-            <span className="text-sm font-semibold capitalize text-ev-900">{event.eventType}</span>
+            <span className="text-sm text-[#6497b1]">Type</span>
+            <span className="text-sm font-semibold capitalize text-[#011f4b]">{event.eventType}</span>
           </div>
 
           {/* Fee */}
           <div className="flex items-center justify-between px-5 py-3.5">
-            <span className="text-sm text-gray-500">Entry Fee</span>
-            <span className="text-sm font-semibold text-ev-900">
+            <span className="text-sm text-[#6497b1]">Entry Fee</span>
+            <span className="text-sm font-semibold text-[#011f4b]">
               {event.paymentType === "free" ? "Free" : `₹${event.registrationFee}`}
             </span>
           </div>
@@ -127,15 +127,15 @@ export default function EventSidebar({
           {/* Capacity */}
           {event.maxCapacity && (
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-sm text-gray-500">Capacity</span>
-              <span className="text-sm font-semibold text-ev-900">{event.maxCapacity}</span>
+              <span className="text-sm text-[#6497b1]">Capacity</span>
+              <span className="text-sm font-semibold text-[#011f4b]">{event.maxCapacity}</span>
             </div>
           )}
 
           {/* Registration Ends Timer */}
           {event.registrationEndDate && !regExpired && (
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-sm text-gray-500">Registration Ends</span>
+              <span className="text-sm text-[#6497b1]">Registration Ends</span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-3 py-1 text-xs font-bold text-red-600 ring-1 ring-red-100">
                 <Timer className="w-3.5 h-3.5" />
                 {daysLeft} days left
@@ -144,7 +144,7 @@ export default function EventSidebar({
           )}
           {regExpired && (
             <div className="flex items-center justify-between px-5 py-3.5">
-              <span className="text-sm text-gray-500">Registration</span>
+              <span className="text-sm text-[#6497b1]">Registration</span>
               <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-500">Closed</span>
             </div>
           )}
@@ -335,8 +335,8 @@ export default function EventSidebar({
 
       {/* ===== ORGANIZER CARD ===== */}
       {event.createdBy && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Organized By</p>
+        <div className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 p-5 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6497b1]">Organized By</p>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sgt-50 text-sm font-bold text-sgt-600">
               {event.createdBy.name.charAt(0).toUpperCase()}
@@ -352,8 +352,8 @@ export default function EventSidebar({
       )}
 
       {/* ===== EVENT REFERENCE CARD ===== */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Event Reference</p>
+      <div className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 p-5 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6497b1]">Event Reference</p>
         <div className="space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">Event ID</span>

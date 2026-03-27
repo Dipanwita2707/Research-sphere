@@ -188,11 +188,24 @@ export interface Note {
     id: string;
     uid: string;
     email?: string | null;
+    phone?: string | null;
     role: string;
-    employeeDetails?: { firstName?: string; lastName?: string; displayName?: string; empId?: string; primaryDepartment?: { departmentName: string }; primarySchool?: { facultyName: string } };
+    employeeDetails?: {
+      firstName?: string;
+      lastName?: string;
+      displayName?: string;
+      empId?: string;
+      designation?: string | null;
+      email?: string | null;
+      phoneNumber?: string | null;
+      primaryDepartment?: { departmentName: string };
+      primarySchool?: { facultyName: string };
+    };
     studentLogin?: {
       studentId?: string;
       displayName?: string;
+      email?: string | null;
+      phone?: string | null;
       program?: {
         programName: string;
         department?: { departmentName: string; faculty?: { facultyName: string } };

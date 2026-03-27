@@ -43,12 +43,15 @@ interface CopySharingSectionProps {
   note: Note;
   currentUserId: string | null;
   getDisplayName: (u: any) => string;
+  /** When true, spacing matches use in the detail page right column (below creator card). */
+  inSidebar?: boolean;
 }
 
 export default function CopySharingSection({
   note,
   currentUserId,
   getDisplayName,
+  inSidebar = false,
 }: CopySharingSectionProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -274,23 +277,30 @@ export default function CopySharingSection({
   if (note.status !== "approved" || note.createdById !== currentUserId) return null;
 
   return (
-    <section className="pt-5 mt-2 border-t border-[#b3cde0]/30 dark:border-gray-700">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
-          Post-Approval Copy Sharing
+    <section
+      className={
+        inSidebar
+          ? "pt-0 mt-0 border-0"
+          : "pt-5 mt-2 border-t border-[#b3cde0]/30 dark:border-gray-700"
+      }
+    >
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="text-sm font-bold text-[#011f4b] dark:text-white flex items-center gap-2 min-w-0">
+          <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
+          <span className="leading-tight">Post-approval copy sharing</span>
         </h3>
         <button
           onClick={() => setShowCopyPanel(!showCopyPanel)}
-          className="px-3 py-1.5 text-xs bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] flex items-center gap-1.5 font-medium transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
+          className="shrink-0 px-3.5 py-2 text-sm bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] flex items-center gap-1.5 font-semibold transition-all duration-200 shadow-md shadow-[#005b96]/15"
         >
-          <Users className="w-3.5 h-3.5" />
+          <Users className="w-4 h-4" />
           {showCopyPanel ? "Cancel" : "Send Copy"}
         </button>
       </div>
 
       {/* Send Copy Panel */}
       {showCopyPanel && (
-        <div className="rounded-xl border border-[#b3cde0]/40 dark:border-[#005b96]/30 bg-[#b3cde0]/10 dark:bg-[#005b96]/5 p-4 space-y-3 mb-4">
+        <div className="rounded-xl border border-[#b3cde0]/50 dark:border-[#6497b1]/35 bg-[#f8fafc] dark:bg-[#005b96]/5 p-4 space-y-4 mb-4">
           {/* Selected Users */}
           {selectedCopyUsers.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -317,13 +327,13 @@ export default function CopySharingSection({
           )}
           {/* Search Input */}
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6497b1]" />
             <input
               type="text"
               value={copySearchQuery}
               onChange={(e) => setCopySearchQuery(e.target.value)}
               placeholder="Search users by name, UID or emp ID..."
-              className="w-full pl-8 pr-3 py-1.5 text-sm border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200"
+              className="w-full pl-10 pr-3 py-2.5 text-base border border-[#b3cde0]/50 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/50 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-all duration-200"
             />
             {copySearchLoading && (
               <LoadingSpinner
@@ -334,10 +344,10 @@ export default function CopySharingSection({
           </div>
           {/* Search Results */}
           {copySearchQuery.trim().length >= 2 && (
-            <div className="max-h-40 overflow-y-auto rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+            <div className="max-h-40 overflow-y-auto rounded-xl border border-[#b3cde0]/45 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-[#b3cde0]/15 dark:divide-gray-700">
               {copySearchResults.length === 0 &&
                 !copySearchLoading && (
-                  <p className="px-3 py-2 text-xs text-gray-500 text-center">
+                  <p className="px-3 py-3 text-sm text-[#6497b1] text-center">
                     No users found
                   </p>
                 )}
@@ -357,12 +367,12 @@ export default function CopySharingSection({
                     ]);
                     setCopySearchQuery("");
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-left text-sm"
+                  className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-[#b3cde0]/10 dark:hover:bg-gray-700 text-left text-base"
                 >
-                  <span className="font-medium text-gray-900 dark:text-white">
+                  <span className="font-semibold text-[#011f4b] dark:text-white">
                     {u.displayName}
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-sm text-[#6497b1]">
                     ({u.uid})
                   </span>
                   {u.department && (
@@ -378,8 +388,8 @@ export default function CopySharingSection({
           <textarea
             value={copyRemarks}
             onChange={(e) => setCopyRemarks(e.target.value)}
-            rows={2}
-            className={`w-full px-3 py-2 text-sm border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${!copyRemarks.trim() ? "border-red-300" : "border-[#b3cde0]/50 dark:border-gray-600"}`}
+            rows={3}
+            className={`w-full px-4 py-3 text-base border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/50 leading-relaxed focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-all duration-200 ${!copyRemarks.trim() ? "border-red-400 dark:border-red-600" : "border-[#b3cde0]/50 dark:border-gray-600"}`}
             placeholder="Instructions / remarks for assigned users (mandatory)..."
           />
           {/* Send Button */}
@@ -390,7 +400,7 @@ export default function CopySharingSection({
               selectedCopyUsers.length === 0 ||
               !copyRemarks.trim()
             }
-            className="w-full px-3 py-2 text-sm bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-medium flex items-center justify-center gap-1.5 transition-all duration-200 shadow-[0_2px_8px_rgba(0,91,150,0.25)]"
+            className="w-full px-4 py-3 text-base bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] disabled:opacity-50 font-semibold flex items-center justify-center gap-2 transition-all duration-200 shadow-md shadow-[#005b96]/20"
           >
             {copySendLoading ? (
               <LoadingSpinner size="sm" className="w-3.5 h-3.5" />
@@ -1435,7 +1445,7 @@ export default function CopySharingSection({
           );
         })()
       ) : (
-        <p className="text-xs text-gray-400 text-center py-2">
+        <p className="text-sm font-medium text-[#6497b1] dark:text-gray-400 text-center py-3">
           No copies sent yet
         </p>
       )}

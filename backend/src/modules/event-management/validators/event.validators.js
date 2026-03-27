@@ -65,10 +65,13 @@ const optionalUrl = z.preprocess((value) => {
 }, z.string().url("Please enter a valid website URL").optional());
 
 const optionalUrlOrPath = z.preprocess((value) => {
-  if (value === undefined || value === null || value === "") return undefined;
+  // Keep explicit null/empty as null so clients can clear stored image fields.
+  if (value === null || value === "") return null;
+  if (value === undefined) return undefined;
   if (typeof value !== "string") return undefined;
-  return value.trim();
-}, z.string().min(1).optional());
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}, z.union([z.string().min(1), z.null()]).optional());
 
 const optionalInteger = (options, message) =>
   z.preprocess((value) => {
