@@ -30,6 +30,7 @@ const reportingStructureRoutes = require('./reportingStructure.routes');
 // ============================================
 const authModule = require('../../auth');
 const analyticsModule = require('../../analytics');
+const drdAnalyticsModule = require('../../drd-analytics');
 const notificationsModule = require('../../notifications');
 const researchModule = require('../../research');
 const grantsModule = require('../../grants');
@@ -59,6 +60,7 @@ router.use('/students', studentRoutes);
 router.use('/bulk-upload', bulkUploadRoutes);
 router.use('/reporting-structure', reportingStructureRoutes);
 router.use('/analytics', analyticsModule);
+router.use('/drd-analytics', drdAnalyticsModule);
 router.use('/notifications', notificationsModule);
 router.use('/file-upload', require('./fileUpload.routes'));
 

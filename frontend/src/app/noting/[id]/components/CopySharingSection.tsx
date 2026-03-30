@@ -431,6 +431,8 @@ export default function CopySharingSection({
                       ?.displayName ||
                     rootCopy.assignedTo?.uid ||
                     "Unknown";
+                  const assigneeUid =
+                    rootCopy.assignedTo?.uid || null;
                   const assigneeInitial = assigneeName
                     .charAt(0)
                     .toUpperCase();
@@ -550,6 +552,11 @@ export default function CopySharingSection({
                               {groupCopies.length > 1 ? "s" : ""}
                             </span>
                           </div>
+                          {assigneeUid && (
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">
+                              UID: {assigneeUid}
+                            </p>
+                          )}
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">
                             {getRemarksPreview(rootCopy.remarks)}
                           </p>
@@ -580,7 +587,10 @@ export default function CopySharingSection({
                             const creatorName = getDisplayName(
                               note?.createdBy,
                             );
+                            const creatorUid =
+                              note?.createdBy?.uid || null;
                             const workerName = assigneeName;
+                            const workerUid = assigneeUid;
                             const rootAssigneeId = (rootCopy as any)
                               .assignedToId;
                             const filteredCopies = sorted.filter(
@@ -761,6 +771,11 @@ export default function CopySharingSection({
                                       <p className="text-[10px] text-indigo-500 dark:text-indigo-400">
                                         Creator
                                       </p>
+                                      {creatorUid && (
+                                        <p className="text-[10px] text-indigo-500/90 dark:text-indigo-300 truncate">
+                                          UID: {creatorUid}
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="px-4 py-2.5">
@@ -822,6 +837,11 @@ export default function CopySharingSection({
                                         <p className="text-[10px] text-emerald-500 dark:text-emerald-400">
                                           Worker (Assignee)
                                         </p>
+                                        {workerUid && (
+                                          <p className="text-[10px] text-emerald-500/90 dark:text-emerald-300 truncate">
+                                            UID: {workerUid}
+                                          </p>
+                                        )}
                                       </div>
                                     </div>
                                     <span

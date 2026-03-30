@@ -34,6 +34,7 @@ import {
 import { notingService } from "@/features/noting-management/services/noting.service";
 import {
   useNote,
+  useNoteCopies,
   useDeleteDraft,
   useNotingPermissions,
   useMyManager,
@@ -48,6 +49,7 @@ import {
 } from "@/features/noting-management/hooks/useNoting";
 import type {
   Note,
+  NoteCopy,
 } from "@/features/noting-management/types/noting.types";
 import { useToast } from "@/shared/ui-components/Toast";
 import { getErrorMessage } from "@/shared/utils/errorHandler";
@@ -136,6 +138,9 @@ export default function NoteDetailPage() {
     data: notingPerms,
     isLoading: permsLoading,
   } = useNotingPermissions();
+  const { data: noteCopies = [] } = useNoteCopies(id, {
+    enabled: !!id && note?.status === "approved" && note?.createdById === user?.id,
+  });
 
   // ── Security: redirect if user has no access to this noting ──
   useEffect(() => {
@@ -211,6 +216,43 @@ export default function NoteDetailPage() {
   const [autoForwardLoading, setAutoForwardLoading] = useState(false);
 
   const currentUserId: string | null = user?.id ?? null;
+  const formatHistoryRemarks = useCallback(
+    (action: string, remarks?: string | null, createdAt?: string) => {
+      if (!remarks) return null;
+      if (action !== "copy_sent" || !createdAt || noteCopies.length === 0) {
+        return remarks;
+      }
+
+      const historyTime = new Date(createdAt).getTime();
+      const matchingCopies = (noteCopies as NoteCopy[])
+        .filter((copy) => {
+          const copyTime = new Date(copy.createdAt).getTime();
+          return Math.abs(copyTime - historyTime) <= 10000;
+        })
+        .filter((copy, index, arr) => arr.findIndex((item) => item.id === copy.id) === index);
+
+      if (matchingCopies.length === 0) return remarks;
+
+      const recipientLabel = matchingCopies
+        .map((copy) => {
+          const recipientName =
+            copy.assignedTo?.employeeDetails?.displayName ||
+            copy.assignedTo?.uid ||
+            "Unknown";
+          return copy.assignedTo?.uid
+            ? `${recipientName} (${copy.assignedTo.uid})`
+            : recipientName;
+        })
+        .join(", ");
+
+      const colonIndex = remarks.indexOf(":");
+      const suffix =
+        colonIndex >= 0 ? remarks.slice(colonIndex) : "";
+
+      return `Copy sent to ${recipientLabel}${suffix}`;
+    },
+    [noteCopies],
+  );
   const isCurrentHolder =
     note?.currentHolderId && typeof window !== "undefined";
   const currentUserRole = user?.role?.name?.toLowerCase();
@@ -955,6 +997,11 @@ export default function NoteDetailPage() {
                     const actionLabel = h.action
                       .replace(/_/g, " ")
                       .replace(/\b\w/g, (c: string) => c.toUpperCase());
+                    const historyRemarks = formatHistoryRemarks(
+                      h.action,
+                      h.remarks,
+                      h.createdAt,
+                    );
 
                     return (
                       <div
@@ -1032,10 +1079,10 @@ export default function NoteDetailPage() {
                               </div>
 
                               {/* Remarks */}
-                              {h.remarks && (
+                              {historyRemarks && (
                                 <div className="mt-2.5 pl-3 py-1.5 border-l-2 border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/20 rounded-r-md">
                                   <p className="text-[12px] text-gray-600 dark:text-gray-300 italic leading-relaxed">
-                                    &ldquo;{h.remarks}&rdquo;
+                                    &ldquo;{historyRemarks}&rdquo;
                                   </p>
                                 </div>
                               )}

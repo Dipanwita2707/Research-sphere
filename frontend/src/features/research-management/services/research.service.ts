@@ -353,13 +353,13 @@ class ResearchService {
     return response.data;
   }
 
-  async getMyContributions() {
-    const response = await api.get('/research/my-contributions');
+  async getMyContributions(params?: { page?: number; limit?: number; status?: string; publicationType?: string }) {
+    const response = await api.get('/research/my-contributions', { params });
     return response.data;
   }
 
-  async getContributedResearch() {
-    const response = await api.get('/research/contributed');
+  async getContributedResearch(params?: { page?: number; limit?: number }) {
+    const response = await api.get('/research/contributed', { params });
     return response.data;
   }
 
@@ -440,7 +440,7 @@ class ResearchService {
   // DRD Review (for reviewers)
   // ============================================
 
-  async getPendingReviews(params?: { status?: string; publicationType?: string; schoolId?: string }) {
+  async getPendingReviews(params?: { status?: string; publicationType?: string; schoolId?: string; page?: number; limit?: number }) {
     const response = await api.get('/research/review/pending', { params });
     return response.data;
   }
@@ -511,8 +511,8 @@ class ResearchService {
     return response.data;
   }
 
-  async getMyGrantApplications() {
-    const response = await api.get('/grants/my-grants');
+  async getMyGrantApplications(params?: { page?: number; limit?: number }) {
+    const response = await api.get('/grants/my-grants', { params });
     return response.data;
   }
 

@@ -290,10 +290,6 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
       .join(' ');
   };
 
-  // Debug logging
-  logger.debug('PermissionBasedDashboard - userPermissions:', userPermissions);
-  logger.debug('PermissionBasedDashboard - userRole:', userRole);
-
   // Get unique categories from permissions
   const permissionCategories = userPermissions.map(p => p.category);
   

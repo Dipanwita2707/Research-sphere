@@ -259,10 +259,12 @@ export function useMyCopies(
  * Config is completely static at runtime; we cache it for 24 hours so the
  * user only pays the network cost once per session.
  */
-export function useNotingConfig() {
+export function useNotingConfig(options: { enabled?: boolean } = {}) {
+  const { enabled = true } = options;
   return useQuery({
     queryKey: NOTING_QUERY_KEYS.config(),
     queryFn: () => notingService.getConfig(),
+    enabled,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours — config never changes at runtime
     gcTime: 24 * 60 * 60 * 1000, // Keep in cache even when no subscribers
   });
@@ -333,9 +335,9 @@ export function useNotingPermissions(options: { enabled?: boolean } = {}) {
     queryKey: NOTING_QUERY_KEYS.permissions(userId),
     queryFn: () => notingService.getMyNotingPermissions(),
     enabled: enabled && !!userId,
-    staleTime: 0,
-    gcTime: 5 * 60 * 1000,
-    refetchOnMount: 'always',
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
   });
 }
 

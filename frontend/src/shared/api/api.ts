@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse, In
 import { logger } from '@/shared/utils/logger';
 
 // Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 const isDev = process.env.NODE_ENV === 'development';
 const TIMEOUT = isDev ? 30000 : 30000; // 30s - noting/copies can be slow with heavy includes
 const MAX_RETRIES = isDev ? 0 : 1; // 0 retries in dev, 1 in prod (fail fast)
@@ -10,7 +10,13 @@ const RETRY_DELAY = 1000; // 1 second
 
 // Helper to get host URL (without /api/v1)
 export const getHostUrl = (): string => {
-  return API_URL.replace(/\/api\/v1$/, '');
+  if (/^https?:\/\//i.test(API_URL)) {
+    return API_URL.replace(/\/api\/v1$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
 };
 
 // Helper to get file URL

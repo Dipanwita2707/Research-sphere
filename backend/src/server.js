@@ -27,7 +27,37 @@ app.set("trust proxy", 1);
 
 // Security middleware
 app.use(helmet());
-app.use(cors(config.cors));
+const normalizeOrigin = (value) => value?.trim().replace(/\/$/, "");
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      ...(Array.isArray(config.cors?.origin) ? config.cors.origin : []),
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+    ]
+      .map(normalizeOrigin)
+      .filter(Boolean),
+  ),
+);
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // Postman / mobile apps
+
+      const normalizedOrigin = normalizeOrigin(origin);
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        return callback(null, true);
+      } else {
+        return callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 // Rate limiting - Separate limiters for different endpoints
 const loginLimiter = rateLimit({
@@ -254,6 +284,14 @@ const startServer = async () => {
     // Initialize BullMQ email queue (graceful — no-op if Redis unavailable)
     const emailQueue = require('./jobs/emailQueue');
     await emailQueue.init();
+
+    // Initialize BullMQ research workflow queue (graceful — no-op if Redis unavailable)
+    const researchWorkflowQueue = require('./jobs/researchWorkflowQueue');
+    await researchWorkflowQueue.init();
+
+    // Initialize workflow health monitor
+    const { startWorkflowHealthMonitor } = require('./jobs/workflowHealthMonitor.job');
+    startWorkflowHealthMonitor();
     
     app.listen(config.port, () => {
       console.log(
@@ -267,6 +305,8 @@ const startServer = async () => {
         `📦 Cache initialized (${cache.isConnected() ? "Redis" : "Memory fallback"})`,
       );
       console.log(`� Email queue: ${emailQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
+      console.log(`🧠 Research workflow queue: ${researchWorkflowQueue.isAvailable() ? 'BullMQ (background)' : 'Sync fallback'}`);
+      console.log(`🩺 Workflow health monitor initialized`);
       console.log(`�📊 Audit report scheduler initialized`);
       console.log(`🎫 TMS auto-escalation scheduler initialized`);
       console.log(`🎫 QR activation job started for gate entry`);
@@ -281,9 +321,13 @@ startServer();
 
 // Graceful shutdown — clean up BullMQ connections
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received — shutting down email queue…');
+  console.log('SIGTERM received — shutting down background queues…');
   const emailQueue = require('./jobs/emailQueue');
+  const researchWorkflowQueue = require('./jobs/researchWorkflowQueue');
+  const { stopWorkflowHealthMonitor } = require('./jobs/workflowHealthMonitor.job');
+  stopWorkflowHealthMonitor();
   await emailQueue.shutdown();
+  await researchWorkflowQueue.shutdown();
   process.exit(0);
 });
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { 
+import {
   Users, 
   School,
   Building,
@@ -12,8 +12,6 @@ import {
   DollarSign,
   CheckCircle
 } from 'lucide-react';
-import api from '@/shared/api/api';
-import { logger } from '@/shared/utils/logger';
 import HeroSection from './HeroSection';
 import AnimatedStatsGrid from './AnimatedStatsGrid';
 import QuickAccessModules from './QuickAccessModules';
@@ -24,6 +22,8 @@ import RecentNotifications from './RecentNotifications';
 import SocialFootprints from './SocialFootprints';
 import Footer from '../layouts/Footer';
 import { FadeInUp } from '../animations/AnimatedComponents';
+import api from '@/shared/api/api';
+import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
 
 interface StaffStats {
   department: string;
@@ -54,43 +54,31 @@ interface AdminOverview {
 
 export default function ModernStaffDashboard() {
   const { user } = useAuthStore();
-  const [stats, setStats] = useState<StaffStats | null>(null);
-  const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
   const isAdmin = user?.userType === 'admin' || user?.role?.name === 'admin';
+  const {
+    data: statsData,
+    isLoading: isStatsLoading,
+  } = useStaffDashboardSummary({ enabled: !!user });
+  const {
+    data: adminOverview,
+    isLoading: isAdminOverviewLoading,
+  } = useQuery({
+    queryKey: ['analytics', 'overview', user?.id ?? 'anonymous'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/overview');
+      return response.data.success ? (response.data.data as AdminOverview) : null;
+    },
+    enabled: !!user && isAdmin,
+    staleTime: 2 * 60 * 1000,
+  });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const staffResponse = await api.get('/dashboard/staff');
-      setStats(staffResponse.data.data);
-
-      if (user?.userType === 'admin' || user?.role?.name === 'admin') {
-        try {
-          const overviewResponse = await api.get('/analytics/overview');
-          if (overviewResponse.data.success) {
-            setAdminOverview(overviewResponse.data.data);
-          }
-        } catch (err) {
-          logger.debug('Analytics not available');
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to fetch data:', error);
-      setStats({
-        department: 'N/A',
-        designation: 'N/A',
-        faculty: 'N/A',
-        permissions: [],
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const stats: StaffStats = statsData ?? {
+    department: 'N/A',
+    designation: 'N/A',
+    faculty: 'N/A',
+    permissions: [],
   };
+  const isLoading = isStatsLoading || (isAdmin && isAdminOverviewLoading);
 
   const getUserName = () => {
     if (user?.firstName && user?.lastName) {
@@ -260,7 +248,7 @@ export default function ModernStaffDashboard() {
               <div className="bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-2xl shadow-md p-4 sm:p-6 border border-blue-100 dark:border-gray-700 h-full">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Your Modules</h2>
                 <PermissionBasedDashboard 
-                  userPermissions={stats?.permissions || []}
+                  userPermissions={stats.permissions || []}
                   userRole={user?.role?.name || user?.userType || 'staff'}
                 />
               </div>

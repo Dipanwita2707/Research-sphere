@@ -238,9 +238,28 @@ const getPendingDrdReviews = async (req, res) => {
       prisma.iprApplication.count({ where }),
     ]);
 
+    const suggestionCounts = applications.length > 0
+      ? await prisma.iprEditSuggestion.groupBy({
+          by: ['iprApplicationId'],
+          where: {
+            iprApplicationId: { in: applications.map((application) => application.id) },
+            status: 'pending',
+          },
+          _count: { _all: true },
+        })
+      : [];
+
+    const suggestionCountMap = new Map(
+      suggestionCounts.map((entry) => [entry.iprApplicationId, entry._count._all])
+    );
+    const enrichedApplications = applications.map((application) => ({
+      ...application,
+      pendingSuggestionsCount: suggestionCountMap.get(application.id) || 0,
+    }));
+
     res.json({
       success: true,
-      data: applications,
+      data: enrichedApplications,
       pagination: {
         total,
         page: parseInt(page),

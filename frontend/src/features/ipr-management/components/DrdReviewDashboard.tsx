@@ -37,7 +37,6 @@ import {
 } from 'lucide-react';
 import CollaborativeEditor from './CollaborativeEditor';
 import IPRStatusUpdates from './IPRStatusUpdates';
-import collaborativeEditingService from '@/features/ipr-management/services/collaborativeEditing.service';
 import api from '@/shared/api/api';
 
 export default function DrdReviewDashboard() {
@@ -139,19 +138,6 @@ export default function DrdReviewDashboard() {
     }
   };
 
-  const loadPendingSuggestions = async (apps: any[]) => {
-    const suggestions: Record<string, number> = {};
-    for (const app of apps) {
-      try {
-        const count = await collaborativeEditingService.getPendingSuggestionsCount(app.id);
-        suggestions[app.id] = count;
-      } catch (error) {
-        suggestions[app.id] = 0;
-      }
-    }
-    setPendingSuggestions(suggestions);
-  };
-
   const fetchPendingReviews = async () => {
     try {
       setLoading(true);
@@ -160,11 +146,12 @@ export default function DrdReviewDashboard() {
       logger.debug('Fetched applications:', data); // Debug log
       const apps = data.data || [];
       setApplications(apps);
-      
-      // Load pending suggestions count for each application
-      if (apps.length > 0) {
-        await loadPendingSuggestions(apps);
-      }
+      setPendingSuggestions(
+        apps.reduce((acc: Record<string, number>, app: any) => {
+          acc[app.id] = Number(app.pendingSuggestionsCount || 0);
+          return acc;
+        }, {})
+      );
     } catch (error: unknown) {
       logger.error('Error fetching pending reviews:', error);
       setError(extractErrorMessage(error, 'Failed to fetch pending reviews. Please check your permissions.'));

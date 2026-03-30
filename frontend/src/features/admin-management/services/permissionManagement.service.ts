@@ -41,6 +41,16 @@ export interface CentralDepartmentPermission {
   isPrimary: boolean;
   isActive: boolean;
   assignedAt: string;
+  assignedSchoolIds?: string[];
+  assignedResearchSchoolIds?: string[];
+  assignedBookSchoolIds?: string[];
+  assignedConferenceSchoolIds?: string[];
+  assignedGrantSchoolIds?: string[];
+  assignedIprAnalyticsSchoolIds?: string[];
+  assignedResearchAnalyticsSchoolIds?: string[];
+  assignedBookAnalyticsSchoolIds?: string[];
+  assignedConferenceAnalyticsSchoolIds?: string[];
+  assignedGrantAnalyticsSchoolIds?: string[];
   centralDept: {
     id: string;
     departmentCode: string;
@@ -110,6 +120,23 @@ export interface UserWithPermissions {
     centralDeptId: string;
     isPrimary: boolean;
     permissions: Record<string, boolean>;
+    assignedSchoolIds?: string[];
+    assignedResearchSchoolIds?: string[];
+    assignedBookSchoolIds?: string[];
+    assignedConferenceSchoolIds?: string[];
+    assignedGrantSchoolIds?: string[];
+    assignedIprAnalyticsSchoolIds?: string[];
+    assignedResearchAnalyticsSchoolIds?: string[];
+    assignedBookAnalyticsSchoolIds?: string[];
+    assignedConferenceAnalyticsSchoolIds?: string[];
+    assignedGrantAnalyticsSchoolIds?: string[];
+    assignedIprAnalyticsDepartmentIds?: string[];
+    assignedResearchAnalyticsDepartmentIds?: string[];
+    assignedBookAnalyticsDepartmentIds?: string[];
+    assignedConferenceAnalyticsDepartmentIds?: string[];
+    assignedGrantAnalyticsDepartmentIds?: string[];
+    assignedDrdMemberAnalyticsSchoolIds?: string[];
+    assignedDrdMemberAnalyticsDepartmentIds?: string[];
     centralDept: {
       departmentCode: string;
       departmentName: string;
@@ -169,6 +196,18 @@ class PermissionManagementService {
     isPrimary?: boolean;
     assignedMonthlyReportSchoolIds?: string[];
     assignedMonthlyReportDepartmentIds?: string[];
+    assignedIprAnalyticsSchoolIds?: string[];
+    assignedResearchAnalyticsSchoolIds?: string[];
+    assignedBookAnalyticsSchoolIds?: string[];
+    assignedConferenceAnalyticsSchoolIds?: string[];
+    assignedGrantAnalyticsSchoolIds?: string[];
+    assignedIprAnalyticsDepartmentIds?: string[];
+    assignedResearchAnalyticsDepartmentIds?: string[];
+    assignedBookAnalyticsDepartmentIds?: string[];
+    assignedConferenceAnalyticsDepartmentIds?: string[];
+    assignedGrantAnalyticsDepartmentIds?: string[];
+    assignedDrdMemberAnalyticsSchoolIds?: string[];
+    assignedDrdMemberAnalyticsDepartmentIds?: string[];
   }) {
     const response = await api.post<{
       success: boolean;
@@ -198,6 +237,14 @@ class PermissionManagementService {
     const response = await api.post<{ success: boolean; message: string }>(
       `${this.baseUrl}/assign-roles`,
       { userId, roleIds }
+    );
+    return response.data;
+  }
+
+  async assignDrdMemberSchools(userId: string, schoolIds: string[]) {
+    const response = await api.post<{ success: boolean; message: string }>(
+      `${this.baseUrl}/drd-member/assign-schools`,
+      { userId, schoolIds }
     );
     return response.data;
   }

@@ -97,14 +97,8 @@ export default function MyContributionsPage() {
     try {
       const response = await researchService.getMyGrantApplications();
       const data = response.data || [];
-      
-      // Sort by createdAt in descending order
-      const sortedData = [...data].sort((a: GrantApplication, b: GrantApplication) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      setGrants(sortedData);
-      return sortedData;
+      setGrants(data);
+      return data;
     } catch (error: unknown) {
       logger.error('Error fetching grant applications:', error);
       return [];
@@ -116,14 +110,8 @@ export default function MyContributionsPage() {
       setLoading(true);
       const response = await researchService.getMyContributions();
       const data = response.data?.contributions || response.data || [];
-      
-      // Sort by createdAt in descending order (newest first)
-      const sortedData = [...data].sort((a: ResearchContribution, b: ResearchContribution) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      setContributions(sortedData);
-      return sortedData;
+      setContributions(data);
+      return data;
     } catch (error: unknown) {
       logger.error('Error fetching contributions:', error);
       return [];
