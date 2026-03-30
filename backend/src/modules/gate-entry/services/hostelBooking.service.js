@@ -126,6 +126,9 @@ class HostelBookingService {
               bookings: {
                 where: {
                   booking_status: { in: ['confirmed', 'pending'] },
+                  gate_pass: {
+                    pass_status: { notIn: ['expired', 'completed', 'cancelled'] }
+                  },
                   AND: [
                     { check_out_datetime: { gte: getBookingCutoffDate() } },
                     { check_in_datetime: { lt: checkOutDt } },
@@ -181,6 +184,9 @@ class HostelBookingService {
           bookings: {
             where: {
               booking_status: { in: ['confirmed', 'pending'] },
+              gate_pass: {
+                pass_status: { notIn: ['expired', 'completed', 'cancelled'] }
+              },
               AND: [
                 { check_out_datetime: { gte: getBookingCutoffDate() } },
                 { check_in_datetime: { lt: checkOutDt } },
@@ -328,6 +334,9 @@ class HostelBookingService {
           bookings: {
             where: {
               booking_status: { in: ['confirmed', 'pending'] },
+                gate_pass: {
+                  pass_status: { notIn: ['expired', 'completed', 'cancelled'] }
+                },
               AND: [
                 { check_out_datetime: { gte: getBookingCutoffDate() } },
                 { check_in_datetime: { lt: checkOut } },
