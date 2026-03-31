@@ -1,24 +1,15 @@
 /**
- * Gate Pass Email Service - SendGrid via Nodemailer
+ * Gate Pass Email Service - SendGrid Web API
  * Sends transactional emails for gate pass lifecycle events
  */
 
-const nodemailer = require('nodemailer');
-
-// ─── Transporter (SendGrid SMTP) ────────────────────────────────────────────
-const transporter = nodemailer.createTransport({
-  host: 'smtp.sendgrid.net',
-  port: 587,
-  secure: false,
-  auth: {
-    user: 'apikey',
-    pass: process.env.SENDGRID_API_KEY,
-  },
-});
+const sgMail = require('@sendgrid/mail');
 
 const FROM_EMAIL  = process.env.EMAIL_FROM  || 'gatepass@sattu.me';
 const FROM_NAME   = process.env.EMAIL_FROM_NAME || 'SGT Gate Pass System';
 const COLLEGE_NAME = 'SGT University';
+
+let sendGridInitialized = false;
 
 // ─── Brand colours ───────────────────────────────────────────────────────────
 const BRAND = {
@@ -130,7 +121,7 @@ function qrBlock(qrDataUrl, code, cid, title = 'Scan QR Code at Gate') {
     </div>`;
 }
 
-/** Extract base64 from data-URL and return nodemailer attachment object */
+/** Extract base64 from data-URL and return SendGrid attachment object shape */
 function makeQRAttachment(dataUrl, cid) {
   if (!dataUrl) return null;
   const match = dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
@@ -157,17 +148,38 @@ async function send({ to, subject, html, attachments = [] }) {
     console.warn('[EMAIL] SENDGRID_API_KEY not set – email skipped');
     return;
   }
+
+  if (!sendGridInitialized) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    sendGridInitialized = true;
+  }
+
   try {
-    const info = await transporter.sendMail({
-      from       : `"${FROM_NAME}" <${FROM_EMAIL}>`,
+    const sgAttachments = attachments
+      .filter(Boolean)
+      .map((a) => ({
+        content: a.content,
+        filename: a.filename,
+        type: a.contentType || 'image/png',
+        disposition: a.contentDisposition || 'attachment',
+        content_id: a.cid,
+      }));
+
+    const [response] = await sgMail.send({
+      from: {
+        email: FROM_EMAIL,
+        name: FROM_NAME,
+      },
       to,
       subject,
       html,
-      attachments: attachments.filter(Boolean),
+      attachments: sgAttachments,
     });
-    console.log(`[EMAIL] ✅ Sent "${subject}" → ${to} | msgId: ${info.messageId}`);
+    const messageId = response?.headers?.['x-message-id'] || 'n/a';
+    console.log(`[EMAIL] ✅ Sent "${subject}" → ${to} | msgId: ${messageId}`);
   } catch (err) {
-    console.error(`[EMAIL] ❌ Failed "${subject}" → ${to}:`, err.message);
+    const detail = err?.response?.body?.errors?.[0]?.message || err.message;
+    console.error(`[EMAIL] ❌ Failed "${subject}" → ${to}:`, detail);
   }
 }
 
