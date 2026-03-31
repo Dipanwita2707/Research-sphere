@@ -178,8 +178,8 @@ function SponsorList({ sponsors, onZoom }: { sponsors: any[]; onZoom?: (url: str
     if (value == null || value === '') return null;
     return (
       <div className={className}>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{label}</p>
-        <div className="mt-1 text-sm text-gray-900 dark:text-white">{value}</div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-[#6497b1] dark:text-[#b3cde0]">{label}</p>
+        <div className="mt-1 text-base font-medium text-[#011f4b] dark:text-white">{value}</div>
       </div>
     );
   };
@@ -314,7 +314,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
       {/* DSW Club Creation Details */}
       {note.subcategory === "dsw_club_creation" && note.clubName && (
         <section>
-          <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+          <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
             Club Creation Details
           </h3>
           <ClubDetailsCard
@@ -328,7 +329,8 @@ export default function NoteEventDetails({ note }: NoteEventDetailsProps) {
       {/* Event Details */}
       {note.subcategory === "events" && (
         <section>
-          <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+          <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
             Event Details
           </h3>
 

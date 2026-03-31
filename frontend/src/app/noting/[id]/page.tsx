@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
@@ -21,7 +21,6 @@ import {
   RotateCcw,
   ArrowRight,
   CornerDownLeft,
-  Building2,
   Search,
   ArrowUpRight,
   ThumbsUp,
@@ -30,6 +29,9 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
 } from "lucide-react";
 import { notingService } from "@/features/noting-management/services/noting.service";
 import {
@@ -56,6 +58,7 @@ import { getErrorMessage } from "@/shared/utils/errorHandler";
 import { PageSkeleton } from "@/shared/components/PageSkeleton";
 import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
 import { useAuthStore } from "@/shared/auth/authStore";
+import NotingCreatorPanel from "./components/NotingCreatorPanel";
 
 /* -- Lazy-loaded heavy sections (code-split) -- */
 const NoteEventDetails = dynamic(() => import("./components/NoteEventDetails"), { ssr: false });
@@ -120,6 +123,13 @@ function getModulePermissionKey(note?: Note | null): string | null {
 
   return permissionMap[note.subcategory] || 'noting_approve';
 }
+
+/** Persisted ratio of main column width (0–1) on desktop; sidebar gets the rest minus splitter. */
+const NOTING_DETAIL_SPLIT_KEY = "ums-noting-detail-main-ratio";
+const SPLITTER_PX = 22;
+const MIN_MAIN_PX = 280;
+const MIN_SIDEBAR_PX = 248;
+const DEFAULT_MAIN_RATIO = 0.58;
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -214,6 +224,112 @@ export default function NoteDetailPage() {
   const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
   const [viewingPath, setViewingPath] = useState<string | null>(null);
   const [autoForwardLoading, setAutoForwardLoading] = useState(false);
+
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const latestMainRatio = useRef(DEFAULT_MAIN_RATIO);
+  const [mainRatio, setMainRatio] = useState(DEFAULT_MAIN_RATIO);
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    latestMainRatio.current = mainRatio;
+  }, [mainRatio]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(NOTING_DETAIL_SPLIT_KEY);
+      if (raw == null) return;
+      const n = Number.parseFloat(raw);
+      if (Number.isFinite(n) && n >= 0.28 && n <= 0.88) {
+        setMainRatio(n);
+        latestMainRatio.current = n;
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persistRatio = useCallback((r: number) => {
+    try {
+      localStorage.setItem(
+        NOTING_DETAIL_SPLIT_KEY,
+        String(Math.round(r * 1000) / 1000),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const clampRatio = (raw: number, totalW: number) => {
+      const minW = SPLITTER_PX + MIN_MAIN_PX + MIN_SIDEBAR_PX;
+      if (totalW <= minW) return DEFAULT_MAIN_RATIO;
+      const minR = MIN_MAIN_PX / totalW;
+      const maxR = (totalW - SPLITTER_PX - MIN_SIDEBAR_PX) / totalW;
+      return Math.min(maxR, Math.max(minR, raw));
+    };
+
+    const onMove = (e: MouseEvent) => {
+      const el = splitContainerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const w = rect.width;
+      const x = e.clientX - rect.left;
+      const next = clampRatio(x / w, w);
+      latestMainRatio.current = next;
+      setMainRatio(next);
+    };
+
+    const onUp = () => {
+      setIsResizing(false);
+      persistRatio(latestMainRatio.current);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing, persistRatio]);
+
+  const startResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const onSplitKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const el = splitContainerRef.current;
+      if (!el) return;
+      const w = el.getBoundingClientRect().width;
+      if (w <= SPLITTER_PX + MIN_MAIN_PX + MIN_SIDEBAR_PX) return;
+      const minR = MIN_MAIN_PX / w;
+      const maxR = (w - SPLITTER_PX - MIN_SIDEBAR_PX) / w;
+      const step = 0.025;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setMainRatio((r) => {
+          const n = Math.min(maxR, Math.max(minR, r - step));
+          persistRatio(n);
+          return n;
+        });
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setMainRatio((r) => {
+          const n = Math.min(maxR, Math.max(minR, r + step));
+          persistRatio(n);
+          return n;
+        });
+      }
+    },
+    [persistRatio],
+  );
 
   const currentUserId: string | null = user?.id ?? null;
   const formatHistoryRemarks = useCallback(
@@ -540,15 +656,17 @@ export default function NoteDetailPage() {
   const StatusIcon = STATUS_ICONS[note.status] || Clock;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-4 sm:py-6 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto">
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 py-4 sm:py-6 -mx-4 sm:-mx-6 px-2 sm:px-3 md:px-4">
+      <div className="w-full max-w-none">
         {/* Navigation Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
           <Link
             href="/noting"
-            className="inline-flex items-center gap-1.5 text-sm text-[#6497b1] dark:text-gray-400 hover:text-[#005b96] transition-colors"
+            className="inline-flex items-center gap-2 text-base font-medium text-[#005b96] dark:text-[#b3cde0] hover:text-[#03396c] dark:hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#b3cde0]/50 bg-white dark:bg-gray-800 shadow-sm dark:border-gray-600">
+              <ArrowLeft className="w-5 h-5" />
+            </span>
             Back to Noting
           </Link>
           {canEdit && (
@@ -605,26 +723,37 @@ export default function NoteDetailPage() {
           </div>
         )}
 
+        <div
+          ref={splitContainerRef}
+          className="flex w-full flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-0"
+          style={
+            { "--noting-main-pct": `${mainRatio * 100}%` } as React.CSSProperties
+          }
+        >
+          <div className="min-w-0 w-full shrink-0 lg:min-w-[280px] lg:max-w-[calc(100%-270px)] lg:w-[var(--noting-main-pct)]">
         {/* ===== A4 Document Sheet ===== */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-[#b3cde0]/40 dark:border-gray-700 shadow-[0_2px_8px_rgba(100,151,177,0.1)] overflow-hidden">
+        <div
+          className="bg-white dark:bg-gray-800 rounded-2xl border border-[#b3cde0]/50 dark:border-[#6497b1]/35 overflow-hidden"
+          style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.08)" }}
+        >
           {/* Document Header */}
-          <div className="border-b border-[#b3cde0]/30 dark:border-gray-700 px-4 sm:px-8 py-4 sm:py-5">
+          <div className="border-b border-[#b3cde0]/45 dark:border-gray-700 px-3 sm:px-4 lg:px-6 py-4 sm:py-5">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
-                  <span className="px-2 py-0.5 rounded-lg bg-[#b3cde0]/20 dark:bg-[#011f4b]/30 text-[#005b96] dark:text-[#b3cde0] text-xs font-mono font-semibold border border-[#b3cde0]/40 dark:border-[#011f4b]/50">
+                  <span className="px-2.5 py-1 rounded-lg bg-[#b3cde0]/25 dark:bg-[#011f4b]/30 text-[#005b96] dark:text-[#b3cde0] text-sm font-mono font-semibold border border-[#6497b1]/35 dark:border-[#011f4b]/50">
                     {note.notingId}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${STATUS_STYLES[note.status] || STATUS_STYLES.draft}`}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${STATUS_STYLES[note.status] || STATUS_STYLES.draft}`}
                   >
-                    <StatusIcon className="w-3 h-3" />
+                    <StatusIcon className="w-3.5 h-3.5" />
                     {note.status === "pending"
                       ? "IN REVIEW"
                       : note.status.toUpperCase()}
                   </span>
                 </div>
-                <h1 className="text-xl font-bold text-[#011f4b] dark:text-white capitalize">
+                <h1 className="text-2xl font-bold text-[#011f4b] dark:text-white capitalize tracking-tight">
                   {note.category}{" "}
                   <span className="text-gray-300 dark:text-gray-600 mx-1 font-light">
                     /
@@ -635,16 +764,16 @@ export default function NoteDetailPage() {
 
               {/* Current Holder Badge */}
               {note.currentHolder && (
-                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#b3cde0]/10 dark:bg-gray-900/30 border border-[#b3cde0]/30 dark:border-gray-700 shrink-0">
-                  <div className="w-7 h-7 rounded-full bg-[#b3cde0]/30 dark:bg-[#011f4b]/50 flex items-center justify-center text-[#005b96] dark:text-[#6497b1] font-bold text-[10px] uppercase">
+                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-[#b3cde0]/10 dark:bg-gray-900/30 border border-[#b3cde0]/50 dark:border-gray-600 shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-[#b3cde0]/35 dark:bg-[#011f4b]/50 flex items-center justify-center text-[#005b96] dark:text-[#6497b1] font-bold text-xs uppercase">
                     {getDisplayName(note.currentHolder).substring(0, 2)}
                   </div>
                   <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 flex items-center gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#6497b1] dark:text-[#b3cde0] flex items-center gap-1">
                       Current Holder{" "}
                       <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
                     </p>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white leading-none mt-0.5">
+                    <p className="text-base font-semibold text-[#011f4b] dark:text-white leading-tight mt-0.5">
                       {getDisplayName(note.currentHolder)}
                     </p>
                   </div>
@@ -652,16 +781,18 @@ export default function NoteDetailPage() {
               )}
             </div>
           </div>
+          <div className="h-0.5 bg-gradient-to-r from-[#005b96] via-[#b3cde0] to-transparent" aria-hidden />
 
           {/* Document Body */}
-          <div className="px-4 sm:px-8 py-4 sm:py-6 space-y-6">
+          <div className="px-3 sm:px-4 lg:px-6 py-4 sm:py-6 space-y-6">
             {/* Description */}
             <section>
-              <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+              <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
                 Description
               </h3>
               <div
-                className="noting-rich-content bg-[#f8fafc] dark:bg-gray-900/20 px-4 py-3 rounded-xl border border-[#b3cde0]/30 dark:border-gray-800 text-sm text-gray-800 dark:text-gray-200 [&>ol]:!list-decimal [&>ol]:!ml-6 [&>ol]:!pl-4 [&>ul]:!list-disc [&>ul]:!ml-6 [&>ul]:!pl-4 [&_ol]:!list-decimal [&_ol]:!ml-6 [&_ol]:!pl-4 [&_ul]:!list-disc [&_ul]:!ml-6 [&_ul]:!pl-4 [&_li]:!mb-1 [&_p]:!mb-2 [&_p]:!block [&_h1]:!text-2xl [&_h1]:!font-bold [&_h1]:!my-3 [&_h2]:!text-xl [&_h2]:!font-semibold [&_h2]:!my-2 [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!my-2 [&_blockquote]:!border-l-4 [&_blockquote]:!border-[#005b96] [&_blockquote]:!pl-4 [&_blockquote]:!italic [&_blockquote]:!my-2"
+                className="noting-rich-content bg-[#f8fafc] dark:bg-gray-900/20 px-4 py-4 rounded-xl border border-[#b3cde0]/50 dark:border-gray-600 text-base text-[#03396c] dark:text-gray-200 leading-relaxed [&>ol]:!list-decimal [&>ol]:!ml-6 [&>ol]:!pl-4 [&>ul]:!list-disc [&>ul]:!ml-6 [&>ul]:!pl-4 [&_ol]:!list-decimal [&_ol]:!ml-6 [&_ol]:!pl-4 [&_ul]:!list-disc [&_ul]:!ml-6 [&_ul]:!pl-4 [&_li]:!mb-1 [&_p]:!mb-2 [&_p]:!block [&_h1]:!text-2xl [&_h1]:!font-bold [&_h1]:!my-3 [&_h2]:!text-xl [&_h2]:!font-semibold [&_h2]:!my-2 [&_h3]:!text-lg [&_h3]:!font-semibold [&_h3]:!my-2 [&_blockquote]:!border-l-4 [&_blockquote]:!border-[#005b96] [&_blockquote]:!pl-4 [&_blockquote]:!italic [&_blockquote]:!my-2"
                 dangerouslySetInnerHTML={{ __html: note.description || "" }}
               />
             </section>
@@ -672,11 +803,12 @@ export default function NoteDetailPage() {
             {/* Requirements / Points */}
             {note.points && note.points.length > 0 && (
               <section>
-                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+                <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
                   Requirements / Points
                 </h3>
-                <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 bg-[#f8fafc] dark:bg-gray-900/20 p-4">
-                  <ol className="list-decimal list-inside text-sm text-gray-700 dark:text-gray-300 divide-y divide-[#b3cde0]/20 dark:divide-gray-700">
+                <div className="rounded-xl border border-[#b3cde0]/50 dark:border-gray-600 bg-[#f8fafc] dark:bg-gray-900/20 p-4">
+                  <ol className="list-decimal list-inside text-base text-[#03396c] dark:text-gray-200 leading-relaxed divide-y divide-[#b3cde0]/25 dark:divide-gray-700">
                     {note.points.map((pt, i) => (
                       <li key={pt.id || i} className="leading-relaxed py-2.5 first:pt-0 last:pb-0">
                         {pt.content}
@@ -690,12 +822,13 @@ export default function NoteDetailPage() {
             {/* Attachments */}
             {note.attachments && note.attachments.length > 0 && (
               <section>
-                <div className="flex items-center gap-2 mb-2">
-                  <Paperclip className="w-3.5 h-3.5 text-gray-400" />
-                  <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-sm font-bold text-[#011f4b] dark:text-white flex items-center gap-2">
+                    <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
+                    <Paperclip className="w-4 h-4 text-[#6497b1]" />
                     Attachments
                   </h3>
-                  <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  <span className="bg-[#b3cde0]/25 dark:bg-gray-700 text-[#03396c] dark:text-gray-200 text-xs font-bold px-2 py-0.5 rounded-lg border border-[#b3cde0]/40">
                     {note.attachments.length}
                   </span>
                 </div>
@@ -706,18 +839,19 @@ export default function NoteDetailPage() {
                     return (
                       <div
                         key={att.id}
-                        className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 hover:border-[#6497b1] dark:hover:border-[#03396c] transition-all duration-200"
+                        className="rounded-xl border border-[#b3cde0]/50 dark:border-gray-600 bg-white dark:bg-gray-800 p-3.5 hover:border-[#6497b1] dark:hover:border-[#03396c] transition-all duration-200"
+                        style={{ boxShadow: "0 1px 6px 0 rgba(0, 91, 150, 0.05)" }}
                       >
                         <div className="flex items-start gap-2.5">
                           <div className="w-7 h-7 rounded bg-gray-50 dark:bg-gray-900/30 flex items-center justify-center shrink-0 border border-gray-100 dark:border-gray-700">
                             <FileText className="w-3.5 h-3.5 text-gray-400" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            <p className="text-base font-semibold text-[#011f4b] dark:text-white truncate">
                               {att.fileName}
                             </p>
                             {att.fileDescription && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+                              <p className="text-sm text-[#6497b1] dark:text-gray-400 mt-0.5 line-clamp-1">
                                 {att.fileDescription}
                               </p>
                             )}
@@ -751,7 +885,7 @@ export default function NoteDetailPage() {
                                   }
                                 }}
                                 disabled={isViewing}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6497b1] hover:text-[#005b96] transition-all duration-200"
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-[#005b96] hover:text-[#03396c] transition-all duration-200"
                               >
                                 {isViewing ? (
                                   <LoadingSpinner
@@ -786,7 +920,7 @@ export default function NoteDetailPage() {
                                   }
                                 }}
                                 disabled={isDownloading}
-                                className="inline-flex items-center gap-1 text-[11px] font-medium text-[#6497b1] hover:text-[#005b96] transition-all duration-200"
+                                className="inline-flex items-center gap-1 text-sm font-semibold text-[#005b96] hover:text-[#03396c] transition-all duration-200"
                               >
                                 {isDownloading ? (
                                   <LoadingSpinner
@@ -810,47 +944,48 @@ export default function NoteDetailPage() {
 
             {/* Metadata Grid */}
             <section>
-              <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+              <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-5 rounded-full bg-[#005b96] shrink-0" aria-hidden />
                 Details
               </h3>
-              <div className="rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 overflow-hidden">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#b3cde0]/20 dark:bg-gray-700">
-                  <div className="bg-white dark:bg-gray-800 p-3">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+              <div className="rounded-xl border border-[#b3cde0]/50 dark:border-gray-600 overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-[#b3cde0]/30 dark:bg-gray-700">
+                  <div className="bg-white dark:bg-gray-800 p-4">
+                    <span className="text-xs font-semibold text-[#6497b1] dark:text-[#b3cde0] uppercase tracking-wider">
                       Approval Period
                     </span>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5 capitalize">
+                    <p className="text-base font-semibold text-[#011f4b] dark:text-white mt-1 capitalize">
                       {note.approvalPeriod.replace("_", " ")}
                     </p>
                   </div>
                   {note.recurringFrequency && (
-                    <div className="bg-white dark:bg-gray-800 p-3">
-                      <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                    <div className="bg-white dark:bg-gray-800 p-4">
+                      <span className="text-xs font-semibold text-[#6497b1] dark:text-[#b3cde0] uppercase tracking-wider">
                         Frequency
                       </span>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white mt-0.5 capitalize">
+                      <p className="text-base font-semibold text-[#011f4b] dark:text-white mt-1 capitalize">
                         {note.recurringFrequency}
                       </p>
                     </div>
                   )}
-                  <div className="bg-white dark:bg-gray-800 p-3">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                  <div className="bg-white dark:bg-gray-800 p-4">
+                    <span className="text-xs font-semibold text-[#6497b1] dark:text-[#b3cde0] uppercase tracking-wider">
                       Amount Required
                     </span>
                     <p
-                      className={`text-sm font-medium mt-0.5 ${note.amountRequired ? "text-gray-900 dark:text-white" : "text-gray-400"}`}
+                      className={`text-base font-semibold mt-1 ${note.amountRequired ? "text-[#011f4b] dark:text-white" : "text-gray-400"}`}
                     >
                       {note.amountRequired
                         ? `₹ ${Number(note.amount || 0).toLocaleString()}`
                         : "—"}
                     </p>
                   </div>
-                  <div className="bg-white dark:bg-gray-800 p-3">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                  <div className="bg-white dark:bg-gray-800 p-4">
+                    <span className="text-xs font-semibold text-[#6497b1] dark:text-[#b3cde0] uppercase tracking-wider">
                       Policy Compliance
                     </span>
                     <span
-                      className={`inline-flex items-center gap-1 text-sm font-medium mt-0.5 ${note.policyCompliant === true
+                      className={`inline-flex items-center gap-1 text-base font-semibold mt-1 ${note.policyCompliant === true
                           ? "text-emerald-700"
                           : note.policyCompliant === false
                             ? "text-red-700"
@@ -874,51 +1009,13 @@ export default function NoteDetailPage() {
               </div>
             </section>
 
-            {/* Originator */}
-            <section>
-              <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
-                Originator
-              </h3>
-              <div className="bg-[#f8fafc] dark:bg-gray-900/20 rounded-xl border border-[#b3cde0]/30 dark:border-gray-700 p-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#b3cde0]/30 dark:bg-[#011f4b]/30 flex items-center justify-center text-[#005b96] dark:text-[#b3cde0] font-bold text-sm">
-                    {getDisplayName(note.createdBy).charAt(0)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="font-semibold text-sm text-gray-900 dark:text-white">
-                        {getDisplayName(note.createdBy)}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                        {note.createdBy?.role}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap text-xs text-gray-500 dark:text-gray-400 gap-x-4">
-                      <span className="flex items-center gap-1">
-                        <Building2 className="w-3 h-3" />
-                        {note.createdBy?.employeeDetails?.primaryDepartment
-                          ?.departmentName ??
-                          note.createdBy?.studentLogin?.program?.department
-                            ?.departmentName ??
-                          "—"}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(note.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             {/* Approval Trail */}
             {note.history && note.history.length > 0 && (
               <section>
-                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span className="inline-block w-8 h-px bg-gradient-to-r from-[#005b96] to-transparent" />
+                <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-4 flex items-center gap-2 flex-wrap">
+                  <span className="w-1.5 h-5 rounded-full bg-gradient-to-b from-[#005b96] to-[#b3cde0] shrink-0" aria-hidden />
                   Approval Trail
-                  <span className="text-[10px] font-normal text-gray-300 dark:text-gray-600 ml-1">
+                  <span className="text-sm font-normal text-[#6497b1] dark:text-gray-400">
                     ({note.history.length} {note.history.length === 1 ? "entry" : "entries"})
                   </span>
                 </h3>
@@ -1048,12 +1145,12 @@ export default function NoteDetailPage() {
                               {/* Action badge + timestamp row */}
                               <div className="flex items-center justify-between gap-2 mb-1.5">
                                 <span
-                                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${badgeBg}`}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide ${badgeBg}`}
                                 >
                                   <Icon className="w-3 h-3" />
                                   {actionLabel}
                                 </span>
-                                <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums whitespace-nowrap">
+                                <span className="text-xs text-[#6497b1] dark:text-gray-400 tabular-nums whitespace-nowrap">
                                   {new Date(h.createdAt).toLocaleString(undefined, {
                                     month: "short",
                                     day: "numeric",
@@ -1064,7 +1161,7 @@ export default function NoteDetailPage() {
                               </div>
 
                               {/* User info */}
-                              <div className="flex items-center gap-1.5 text-[12px] text-gray-600 dark:text-gray-300">
+                              <div className="flex items-center gap-1.5 text-sm text-[#03396c] dark:text-gray-300">
                                 <div className="w-4 h-4 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center flex-shrink-0">
                                   <User className="w-2.5 h-2.5 text-gray-500 dark:text-gray-400" />
                                 </div>
@@ -1072,7 +1169,7 @@ export default function NoteDetailPage() {
                                   {getDisplayName(h.performedBy)}
                                 </span>
                                 {h.performedBy?.uid && (
-                                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded">
+                                  <span className="text-xs text-[#6497b1] dark:text-gray-400 font-mono bg-[#b3cde0]/15 dark:bg-gray-700/50 px-1.5 py-0.5 rounded">
                                     {h.performedBy.uid}
                                   </span>
                                 )}
@@ -1081,7 +1178,7 @@ export default function NoteDetailPage() {
                               {/* Remarks */}
                               {historyRemarks && (
                                 <div className="mt-2.5 pl-3 py-1.5 border-l-2 border-gray-200 dark:border-gray-600 bg-gray-50/50 dark:bg-gray-700/20 rounded-r-md">
-                                  <p className="text-[12px] text-gray-600 dark:text-gray-300 italic leading-relaxed">
+                                  <p className="text-sm text-[#03396c] dark:text-gray-300 italic leading-relaxed">
                                     &ldquo;{historyRemarks}&rdquo;
                                   </p>
                                 </div>
@@ -1092,11 +1189,11 @@ export default function NoteDetailPage() {
                                 <div className="flex items-center gap-1.5 mt-2.5 pt-2 border-t border-dashed border-gray-200 dark:border-gray-700">
                                   <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#b3cde0]/20 dark:bg-[#005b96]/10 text-[#005b96] dark:text-[#b3cde0]">
                                     <CornerDownLeft className="w-3 h-3" />
-                                    <span className="text-[11px] font-semibold">
+                                    <span className="text-sm font-semibold">
                                       Assigned: {getDisplayName(h.nextHolder)}
                                     </span>
                                     {h.nextHolder?.uid && (
-                                      <span className="text-[10px] font-mono opacity-70">
+                                      <span className="text-xs font-mono opacity-70">
                                         ({h.nextHolder.uid})
                                       </span>
                                     )}
@@ -1115,20 +1212,21 @@ export default function NoteDetailPage() {
 
             {/* ===== Inline Actions ===== */}
             {showActionsSection && (
-              <section className="pt-5 mt-2 border-t border-[#b3cde0]/30 dark:border-gray-700">
-                <h3 className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">
+              <section className="pt-6 mt-2 border-t border-[#b3cde0]/45 dark:border-gray-700">
+                <h3 className="text-sm font-bold text-[#011f4b] dark:text-white mb-3 flex items-center gap-2">
+                  <span className="w-1.5 h-5 rounded-full bg-[#6497b1] shrink-0" aria-hidden />
                   Actions
                 </h3>
                 <div className="space-y-3">
                   <textarea
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
-                    rows={2}
-                    className={`w-full px-3 py-2 text-sm border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/60 focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${!remarks.trim() ? "border-red-300 dark:border-red-600" : "border-[#b3cde0]/50 dark:border-gray-600"}`}
+                    rows={3}
+                    className={`w-full px-4 py-3 text-base border rounded-xl bg-[#f8fafc] dark:bg-gray-700 text-[#011f4b] dark:text-white placeholder:text-[#6497b1]/55 focus:ring-2 focus:ring-[#005b96]/20 focus:border-[#005b96] outline-none transition-all duration-200 ${!remarks.trim() ? "border-red-300 dark:border-red-600" : "border-[#b3cde0]/50 dark:border-gray-600"}`}
                     placeholder="Remarks (mandatory for ALL actions)..."
                   />
                   {!remarks.trim() && (
-                    <p className="text-[11px] text-red-500 -mt-1">
+                    <p className="text-sm text-red-600 dark:text-red-400 -mt-1">
                       ⚠ Remarks are mandatory. No action can be performed
                       without entering remarks.
                     </p>
@@ -1468,14 +1566,101 @@ export default function NoteDetailPage() {
                 </div>
               </section>
             )}
-            {/* Copy Sharing - extracted to component */}
-            <CopySharingSection
-              note={note}
-              currentUserId={currentUserId}
-              getDisplayName={getDisplayName}
-            />
           </div>
         </div>
+        </div>
+
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-valuenow={Math.round(mainRatio * 100)}
+            aria-valuemin={28}
+            aria-valuemax={88}
+            aria-label="Drag to resize noting and sidebar. Arrow keys adjust width."
+            title="Drag to expand or shrink the noting and sidebar area"
+            tabIndex={0}
+            onKeyDown={onSplitKeyDown}
+            onMouseDown={startResize}
+            className={`relative hidden w-[22px] shrink-0 cursor-col-resize select-none flex-col outline-none lg:flex focus-visible:ring-2 focus-visible:ring-[#005b96]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8fafc] dark:focus-visible:ring-offset-gray-900 ${isResizing ? "bg-[#b3cde0]/20 dark:bg-[#6497b1]/15" : "hover:bg-[#b3cde0]/15 dark:hover:bg-[#6497b1]/10"}`}
+          >
+            {/* Continuous light rail — shows this edge is expandable */}
+            <span
+              className="pointer-events-none absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-gradient-to-b from-[#b3cde0]/30 via-[#b3cde0]/70 to-[#b3cde0]/30 dark:from-[#6497b1]/25 dark:via-[#6497b1]/55 dark:to-[#6497b1]/25"
+              aria-hidden
+            />
+            <span
+              className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-[#6497b1]/25 dark:bg-[#b3cde0]/20"
+              aria-hidden
+            />
+            <div className="relative z-10 flex min-h-[220px] w-full flex-1 flex-col items-center py-3">
+              <div className="flex flex-col items-center gap-2 pt-1">
+                <p
+                  className="whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.15em] text-[#6497b1]/90 dark:text-[#b3cde0]/80 [writing-mode:vertical-rl] [text-orientation:mixed]"
+                  aria-hidden
+                >
+                  Expand area
+                </p>
+                <p
+                  className="whitespace-nowrap text-[8px] font-medium tracking-wide text-[#6497b1]/70 dark:text-[#b3cde0]/60 [writing-mode:vertical-rl] [text-orientation:mixed]"
+                  aria-hidden
+                >
+                  Drag to resize
+                </p>
+              </div>
+              <div className="flex-1 min-h-4" aria-hidden />
+              <GripVertical
+                className="mb-5 h-8 w-5 shrink-0 text-[#6497b1] opacity-90 dark:text-[#b3cde0]"
+                aria-hidden
+              />
+            </div>
+          </div>
+
+          <aside className="min-w-0 w-full space-y-4 lg:sticky lg:top-4 lg:min-w-[248px] lg:flex-1">
+            <NotingCreatorPanel note={note} getDisplayName={getDisplayName} />
+            {note.status === "approved" && note.createdById === currentUserId ? (
+              <div
+                className="rounded-2xl border border-[#b3cde0]/50 dark:border-[#6497b1]/35 bg-white dark:bg-gray-800 p-4 sm:p-5"
+                style={{ boxShadow: "0 2px 12px 0 rgba(0, 91, 150, 0.08)" }}
+              >
+                <CopySharingSection
+                  note={note}
+                  currentUserId={currentUserId}
+                  getDisplayName={getDisplayName}
+                  inSidebar
+                />
+              </div>
+            ) : null}
+          </aside>
+        </div>
+
+        <div
+          id="noting-page-end"
+          className="h-px w-full shrink-0 scroll-mt-4"
+          aria-hidden
+        />
+      </div>
+
+      <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2 sm:bottom-8 sm:right-6 md:right-8">
+        <button
+          type="button"
+          aria-label="Scroll to top"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#b3cde0]/60 bg-white text-[#005b96] shadow-lg transition hover:bg-[#f8fafc] dark:border-gray-600 dark:bg-gray-800 dark:text-[#b3cde0] dark:hover:bg-gray-700"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+        <button
+          type="button"
+          aria-label="Scroll to bottom"
+          onClick={() =>
+            document
+              .getElementById("noting-page-end")
+              ?.scrollIntoView({ behavior: "smooth", block: "end" })
+          }
+          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#b3cde0]/60 bg-white text-[#005b96] shadow-lg transition hover:bg-[#f8fafc] dark:border-gray-600 dark:bg-gray-800 dark:text-[#b3cde0] dark:hover:bg-gray-700"
+        >
+          <ArrowDown className="w-5 h-5" />
+        </button>
       </div>
     </div>
   );

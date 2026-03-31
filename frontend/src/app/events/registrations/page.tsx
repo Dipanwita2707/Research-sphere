@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, MapPin, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, Search, Ticket as TicketIcon } from 'lucide-react';
+import { Calendar, MapPin, QrCode, Download, X, CheckCircle, Clock, XCircle, Users, Search, Ticket as TicketIcon, Filter } from 'lucide-react';
 import QRCodeGenerator from 'qrcode';
 import { eventService } from '@/features/event-management/services/event.service';
 import type { EventRegistration } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
 import TicketModal from '@/components/TicketModal';
-import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { CardSkeleton } from "@/components/skeletons";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
@@ -158,107 +157,144 @@ export default function MyRegistrationsPage() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] dark:bg-black font-sans selection:bg-ev-700/30">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6 mb-8 sm:mb-12">
-          <div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-ev-900 dark:text-white tracking-tight mb-3">
-              My Tickets
-            </h1>
-            <p className="text-sm sm:text-lg text-gray-500 dark:text-gray-400 font-medium max-w-lg">
-              Manage your event access. View your passes and entry details.
-            </p>
-          </div>
+  const hasActiveFilters = Boolean(statusFilter || searchTerm.trim());
 
-          <Link
-            href="/events"
-            className="group flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-900 border border-[#b3cde0] dark:border-gray-800 rounded-full hover:border-ev-700 dark:hover:border-ev-700 transition-all shadow-ev hover:shadow-md"
-          >
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 group-hover:text-ev-700 dark:group-hover:text-ev-400 transition-colors">
-              Explore Events
-            </span>
-            <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 group-hover:bg-ev-50 dark:group-hover:bg-ev-900/30 flex items-center justify-center transition-colors">
-              <TicketIcon className="w-4 h-4 text-gray-500 dark:text-gray-400 group-hover:text-ev-700 dark:group-hover:text-ev-400" />
+  return (
+    <div className="min-h-screen bg-[#f8fafc] py-8 px-4 dark:bg-gray-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        {/* Page header — TMS-style */}
+        <div className="mb-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#011f4b] to-[#005b96] shadow-md">
+                <TicketIcon className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-[#011f4b] dark:text-white">My tickets</h1>
+                <p className="mt-0.5 text-sm text-[#6497b1] dark:text-gray-400">
+                  Manage your event access, passes, and entry details.
+                </p>
+              </div>
             </div>
-          </Link>
+            <Link
+              href="/events"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#b3cde0]/60 bg-white px-4 py-2.5 text-sm font-medium text-[#03396c] transition-all hover:bg-[#f8fafc] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+              style={{ boxShadow: '0 2px 8px 0 rgba(0, 91, 150, 0.06)' }}
+            >
+              <TicketIcon className="h-4 w-4" />
+              Explore events
+            </Link>
+          </div>
+          <div className="mt-3 h-0.5 rounded-full bg-gradient-to-r from-[#005b96] via-[#b3cde0] to-transparent" aria-hidden />
         </div>
 
-        <div className="mb-8 grid grid-cols-1 lg:grid-cols-[220px_minmax(0,1fr)] gap-4">
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full appearance-none rounded-2xl border border-[#b3cde0] dark:border-gray-800 bg-white dark:bg-gray-900 px-4 py-3 pr-10 text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-ev outline-none transition focus:border-ev-700 focus:ring-4 focus:ring-ev-700/10"
-            >
-              {REGISTRATION_STATUS_OPTIONS.map((status) => (
-                <option key={status.id || 'all'} value={status.id}>
-                  {status.label}
-                </option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-400">
-              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
-              </svg>
-            </div>
+        {/* Filter card — TMS-style */}
+        <div
+          className="mb-6 rounded-2xl border border-[#b3cde0]/40 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"
+          style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <Filter className="h-4 w-4 text-[#005b96]" />
+            <span className="text-sm font-semibold text-[#03396c] dark:text-gray-200">Search &amp; filters</span>
           </div>
-
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-              placeholder={statusFilter ? 'Search within selected status' : 'Search all tickets'}
-              className="w-full rounded-2xl border border-[#b3cde0] dark:border-gray-800 bg-white dark:bg-gray-900 px-11 py-3 pr-11 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-ev outline-none transition placeholder:text-gray-400 focus:border-ev-700 focus:ring-4 focus:ring-ev-700/10"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchTerm('');
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+            <div className="relative lg:w-56 lg:shrink-0">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
                   setPage(1);
                 }}
-                className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-                aria-label="Clear search"
+                className="w-full appearance-none rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] px-3 py-2.5 pr-10 text-sm text-[#03396c] outline-none transition-all focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
               >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+                {REGISTRATION_STATUS_OPTIONS.map((status) => (
+                  <option key={status.id || 'all'} value={status.id}>
+                    {status.label}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#6497b1]">
+                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6497b1]" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+                placeholder={statusFilter ? 'Search within selected status' : 'Search all tickets'}
+                className="w-full rounded-xl border border-[#b3cde0]/60 bg-[#f8fafc] py-2.5 pl-9 pr-10 text-sm text-[#011f4b] outline-none transition-all placeholder:text-[#6497b1]/60 focus:border-[#005b96] focus:ring-2 focus:ring-[#005b96]/30 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 transition hover:bg-[#b3cde0]/20 hover:text-[#03396c] dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  aria-label="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter('');
+                setSearchTerm('');
+                setPage(1);
+              }}
+              disabled={!hasActiveFilters}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition-all lg:shrink-0 ${
+                hasActiveFilters
+                  ? 'border-[#005b96]/20 bg-[#005b96]/10 text-[#005b96] hover:bg-[#005b96]/20 dark:border-[#6497b1]/30 dark:bg-[#005b96]/15 dark:text-[#b3cde0]'
+                  : 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-600'
+              }`}
+            >
+              Clear filters
+            </button>
           </div>
         </div>
 
         {/* Registrations List */}
         {loading ? (
-          <PageSkeleton message="Loading your passes..." />
+          <div
+            className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
+            style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
+          >
+            <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+            <p className="mt-4 text-sm font-medium text-[#6497b1]">Loading your passes...</p>
+          </div>
         ) : registrations.length === 0 ? (
-          <div className="text-center py-24 bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-transparent dark:from-gray-800/20 dark:to-transparent pointer-events-none" />
-            <div className="relative z-10">
-              <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full mx-auto mb-6 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <TicketIcon className="h-10 w-10 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
-              </div>
-              <h3 className="text-2xl font-bold text-ev-900 dark:text-white mb-3">No tickets found</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto leading-relaxed">
-                {searchTerm || statusFilter
-                  ? 'No tickets match the selected filter and search.'
-                  : "You haven't registered for any events yet. Join an event to see your tickets here."}
-              </p>
-              <Link
-                href="/events"
-                className="inline-flex items-center gap-2 px-8 py-3 bg-ev-700 hover:bg-ev-800 text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-ev-700/25 active:scale-95"
-              >
-                Browse Events
-              </Link>
+          <div
+            className="rounded-2xl border border-[#b3cde0]/40 bg-white py-16 text-center dark:border-gray-700 dark:bg-gray-800"
+            style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
+          >
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3cde0]/20">
+              <TicketIcon className="h-7 w-7 text-[#6497b1]" />
             </div>
+            <p className="font-semibold text-[#03396c] dark:text-gray-200">No tickets found</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-[#6497b1] dark:text-gray-400">
+              {searchTerm || statusFilter
+                ? 'No tickets match the selected filter and search.'
+                : "You haven't registered for any events yet. Join an event to see your tickets here."}
+            </p>
+            <Link
+              href="/events"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#005b96] px-6 py-2.5 text-sm font-medium text-white shadow-md shadow-[#005b96]/20 transition-all hover:bg-[#03396c]"
+            >
+              Browse events
+            </Link>
           </div>
         ) : (
           <>
@@ -301,11 +337,12 @@ export default function MyRegistrationsPage() {
                 return (
                   <div
                     key={registration.id}
-                    className="group relative bg-white dark:bg-gray-900 rounded-[2rem] border border-[#b3cde0] dark:border-gray-800 shadow-ev hover:shadow-xl transition-all duration-300 overflow-hidden"
+                    className="group relative overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white transition-all duration-300 hover:border-[#6497b1]/60 dark:border-gray-600 dark:bg-gray-800"
+                    style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}
                   >
-                    {/* Decorative Top Gradient Line */}
-                    <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${registration.status === 'confirmed' ? 'from-green-500 via-emerald-500 to-teal-500' :
-                        registration.status === 'cancelled' ? 'from-red-500 to-pink-600' :
+                    {/* Decorative top accent — TMS palette */}
+                    <div className={`absolute left-0 right-0 top-0 h-1.5 bg-gradient-to-r ${registration.status === 'confirmed' ? 'from-[#011f4b] via-[#005b96] to-[#03396c]' :
+                        registration.status === 'cancelled' ? 'from-red-500 to-red-700' :
                           'from-amber-400 to-orange-500'
                       }`} />
 
@@ -325,7 +362,7 @@ export default function MyRegistrationsPage() {
                                   {eventType}
                                 </span>
                               )}
-                              <h3 className="text-xl sm:text-2xl font-black text-ev-900 dark:text-white leading-tight mb-1.5">
+                              <h3 className="mb-1.5 text-xl font-bold leading-tight text-[#011f4b] dark:text-white sm:text-2xl">
                                 {eventName}
                               </h3>
                               <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 font-mono">
@@ -351,7 +388,7 @@ export default function MyRegistrationsPage() {
                               </div>
                               <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Date & Time</p>
-                                <p className="text-sm font-semibold text-ev-900 dark:text-white">
+                                <p className="text-sm font-semibold text-[#011f4b] dark:text-white">
                                   {eventDate ? formatDate(eventDate) : 'TBA'}
                                 </p>
                               </div>
@@ -363,7 +400,7 @@ export default function MyRegistrationsPage() {
                               </div>
                               <div>
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-0.5">Location</p>
-                                <p className="text-sm font-semibold text-ev-900 dark:text-white line-clamp-1">
+                                <p className="line-clamp-1 text-sm font-semibold text-[#011f4b] dark:text-white">
                                   {eventVenue || 'TBA'}
                                 </p>
                               </div>
@@ -383,15 +420,15 @@ export default function MyRegistrationsPage() {
                             <div className="grid grid-cols-3 gap-2 text-xs">
                               <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
                                 <p className="text-gray-500">Total People</p>
-                                <p className="font-bold text-ev-900 dark:text-gray-100">{summary.totalAllowedEntries}</p>
+                                <p className="font-bold text-[#011f4b] dark:text-gray-100">{summary.totalAllowedEntries}</p>
                               </div>
                               <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
                                 <p className="text-gray-500">Checked In</p>
-                                <p className="font-bold text-ev-900 dark:text-gray-100">{summary.checkedInCount}</p>
+                                <p className="font-bold text-[#011f4b] dark:text-gray-100">{summary.checkedInCount}</p>
                               </div>
                               <div className="rounded-lg bg-gray-50 dark:bg-gray-800 p-2 text-center">
                                 <p className="text-gray-500">Remaining</p>
-                                <p className="font-bold text-ev-900 dark:text-gray-100">{summary.remainingEntries}</p>
+                                <p className="font-bold text-[#011f4b] dark:text-gray-100">{summary.remainingEntries}</p>
                               </div>
                             </div>
 
@@ -400,7 +437,7 @@ export default function MyRegistrationsPage() {
                                 <button
                                   onClick={() => setAddingGuestFor(prev => prev === registration.id ? null : registration.id)}
                                   disabled={!canAddExtraPass}
-                                  className="px-3 py-2 rounded-lg text-xs font-semibold bg-ev-700 text-white disabled:bg-gray-300 disabled:text-gray-600"
+                                  className="rounded-lg bg-[#005b96] px-3 py-2 text-xs font-semibold text-white disabled:bg-gray-300 disabled:text-gray-600 hover:bg-[#03396c]"
                                 >
                                   Add Extra Pass
                                 </button>
@@ -444,8 +481,8 @@ export default function MyRegistrationsPage() {
                       {/* Divider (Perforation Line) */}
                       <div className="relative hidden lg:block w-[2px]">
                         <div className="absolute top-0 bottom-0 left-0 w-full border-l-2 border-dashed border-gray-300 dark:border-gray-700"></div>
-                        <div className="absolute -top-2 -left-2 w-4 h-4 bg-[#F8FAFC] dark:bg-black rounded-full z-20"></div>
-                        <div className="absolute -bottom-2 -left-2 w-4 h-4 bg-[#F8FAFC] dark:bg-black rounded-full z-20"></div>
+                        <div className="absolute -left-2 -top-2 z-20 h-4 w-4 rounded-full bg-[#f8fafc] dark:bg-gray-900"></div>
+                        <div className="absolute -bottom-2 -left-2 z-20 h-4 w-4 rounded-full bg-[#f8fafc] dark:bg-gray-900"></div>
                       </div>
 
                       {/* Right: Actions (Ticket Stub) */}
@@ -464,7 +501,7 @@ export default function MyRegistrationsPage() {
 
                             <button
                               onClick={() => setSelectedTicket(registration)}
-                              className="w-full py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl font-bold text-xs shadow-lg shadow-gray-200 dark:shadow-none hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#011f4b] py-2.5 text-xs font-bold text-white shadow-md transition-all hover:bg-[#03396c] hover:shadow-lg active:scale-[0.98] dark:bg-white dark:text-[#011f4b] dark:hover:bg-gray-100"
                             >
                               <TicketIcon className="w-3.5 h-3.5" />
                               View Pass
@@ -481,7 +518,7 @@ export default function MyRegistrationsPage() {
 
                         <Link
                           href={`/events/${(registration as any).Event?.id || registration.event?.id}`}
-                          className="text-xs font-semibold text-gray-500 hover:text-ev-900 dark:hover:text-white transition-colors flex items-center gap-1"
+                          className="flex items-center gap-1 text-xs font-semibold text-[#6497b1] transition-colors hover:text-[#005b96] dark:hover:text-white"
                         >
                           View Event Page
                         </Link>
@@ -494,23 +531,26 @@ export default function MyRegistrationsPage() {
 
             {/* Pagination Controls */}
             {pagination.totalPages > 1 && (
-              <div className="flex justify-center items-center gap-4 py-8">
+              <div
+                className="mt-6 flex items-center justify-center gap-3 rounded-2xl border border-[#b3cde0]/40 bg-white px-5 py-4 dark:border-gray-700 dark:bg-gray-800"
+                style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}
+              >
                 <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-6 py-3 border border-[#b3cde0] dark:border-gray-800 rounded-xl font-semibold bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-ev"
+                  className="rounded-xl border border-[#b3cde0]/50 px-5 py-2.5 text-sm font-medium text-[#03396c] transition-all hover:bg-[#b3cde0]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   Previous
                 </button>
 
-                <span className="px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-400">
+                <span className="rounded-xl bg-[#f8fafc] px-4 py-2 text-sm font-semibold text-[#011f4b] dark:bg-gray-900 dark:text-gray-200">
                   {pagination.page} / {pagination.totalPages}
                 </span>
 
                 <button
-                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                   disabled={page === pagination.totalPages}
-                  className="px-6 py-3 border border-[#b3cde0] dark:border-gray-800 rounded-xl font-semibold bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-ev"
+                  className="rounded-xl border border-[#b3cde0]/50 px-5 py-2.5 text-sm font-medium text-[#03396c] transition-all hover:bg-[#b3cde0]/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   Next
                 </button>
@@ -527,11 +567,11 @@ export default function MyRegistrationsPage() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Decorative Header */}
-              <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-ev-700 to-purple-600" />
+              <div className="absolute left-0 right-0 top-0 h-0.5 bg-gradient-to-r from-[#011f4b] via-[#005b96] to-[#03396c]" />
 
-              <div className="flex justify-between items-start mb-6">
+              <div className="mb-6 flex items-start justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-ev-900 dark:text-white">Entry Pass</h3>
+                  <h3 className="text-xl font-bold text-[#011f4b] dark:text-white">Entry Pass</h3>
                   <p className="text-xs text-gray-500 mt-1 uppercase tracking-wider font-bold">Scan at gate</p>
                 </div>
                 <button
@@ -564,7 +604,7 @@ export default function MyRegistrationsPage() {
               <div className="space-y-3">
                 <button
                   onClick={() => selectedTicket && downloadQRCode(selectedQR, selectedTicket)}
-                  className="w-full py-3 bg-ev-700 text-white rounded-xl font-bold text-sm hover:bg-ev-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-ev-200 dark:shadow-none"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#005b96] py-3 text-sm font-bold text-white shadow-md shadow-[#005b96]/20 transition-colors hover:bg-[#03396c]"
                 >
                   <Download className="w-4 h-4" />
                   Download Pass
