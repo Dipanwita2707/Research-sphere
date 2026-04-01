@@ -9,6 +9,7 @@ const notingController = require('../controllers/notingController');
 const {
   validateClubCreation,
   validateClubChangeRequest,
+  validateProcessApproval,
 } = require('../validators');
 const { canCreateClubNoting, canRequestClubChange } = require('../middleware/rbac');
 
@@ -20,6 +21,6 @@ router.post('/club-change/:clubId', canRequestClubChange, validateClubChangeRequ
 
 // Process approved noting (internal/webhook) — requires authentication
 const { protect } = require('../../../shared/middleware/auth');
-router.post('/process-approval', protect, notingController.processApprovedNoting);
+router.post('/process-approval', protect, validateProcessApproval, notingController.processApprovedNoting);
 
 module.exports = router;

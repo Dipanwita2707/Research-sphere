@@ -10,6 +10,8 @@ export interface NotingDraftAttachment {
 export interface NotingDraftState {
   category: 'academic' | 'administrative';
   subcategory: string;
+  departmentId: string;
+  departmentScope: '' | 'school' | 'central';
   description: string;
   approvalPeriod: 'one_time' | 'recurring';
   recurringFrequency: string;
@@ -25,6 +27,8 @@ export interface NotingDraftState {
 const initialState: NotingDraftState = {
   category: 'academic',
   subcategory: '',
+  departmentId: '',
+  departmentScope: '',
   description: '',
   approvalPeriod: 'one_time',
   recurringFrequency: '',
@@ -44,6 +48,8 @@ interface NotingDraftStore extends NotingDraftState {
   hydrateFromNote: (note: {
     category: string;
     subcategory: string;
+    departmentId?: string | null;
+    departmentScope?: string | null;
     description: string;
     approvalPeriod: string;
     recurringFrequency?: string | null;
@@ -76,6 +82,11 @@ export const useNotingDraftStore = create<NotingDraftStore>()(
         set({
           category: (note.category as 'academic' | 'administrative') || 'academic',
           subcategory: note.subcategory || '',
+          departmentId: note.departmentId || '',
+          departmentScope:
+            note.departmentScope === 'school' || note.departmentScope === 'central'
+              ? note.departmentScope
+              : '',
           description: note.description || '',
           approvalPeriod: (note.approvalPeriod as 'one_time' | 'recurring') || 'one_time',
           recurringFrequency: note.recurringFrequency ?? '',
@@ -100,6 +111,8 @@ export const useNotingDraftStore = create<NotingDraftStore>()(
         return {
           category: s.category,
           subcategory: s.subcategory,
+          departmentId: s.departmentId,
+          departmentScope: s.departmentScope,
           description: s.description,
           approvalPeriod: s.approvalPeriod,
           recurringFrequency: s.recurringFrequency || '',

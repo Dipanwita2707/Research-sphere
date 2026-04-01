@@ -24,6 +24,19 @@ function formatZodError(error) {
     .join("; ");
 }
 
+function formatZodFieldErrors(error) {
+  const fieldErrors = {};
+
+  for (const issue of error.issues || []) {
+    const path = formatIssuePath(issue.path);
+    if (!fieldErrors[path]) {
+      fieldErrors[path] = issue.message;
+    }
+  }
+
+  return fieldErrors;
+}
+
 function validateRequest({ body, params, query } = {}) {
   return (req, _res, next) => {
     try {
@@ -42,7 +55,10 @@ function validateRequest({ body, params, query } = {}) {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        throw new ValidationError(formatZodError(error));
+        throw new ValidationError(
+          formatZodError(error),
+          formatZodFieldErrors(error),
+        );
       }
       next(error);
     }
@@ -51,5 +67,6 @@ function validateRequest({ body, params, query } = {}) {
 
 module.exports = {
   formatZodError,
+  formatZodFieldErrors,
   validateRequest,
 };

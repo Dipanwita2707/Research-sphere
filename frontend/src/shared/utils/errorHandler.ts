@@ -7,6 +7,29 @@ import { AxiosError } from 'axios';
 import { ApiError, ApiErrorResponse } from '@/shared/types/api.types';
 import logger from '@/shared/utils/logger';
 
+function normalizeApiFieldErrors(
+  errors?: Record<string, string | string[]>,
+): Record<string, string> | undefined {
+  if (!errors || typeof errors !== 'object') return undefined;
+
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(errors)) {
+    if (typeof value === 'string' && value.trim()) {
+      normalized[key] = value;
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      const first = value.find((item) => typeof item === 'string' && item.trim());
+      if (first) {
+        normalized[key] = first;
+      }
+    }
+  }
+
+  return Object.keys(normalized).length ? normalized : undefined;
+}
+
 /**
  * Extract user-friendly error message from various error types
  */
@@ -29,6 +52,11 @@ export function getErrorMessage(error: unknown): string {
   // Handle Axios errors
   if (isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiErrorResponse>;
+    const fieldErrors = normalizeApiFieldErrors(axiosError.response?.data?.errors);
+    if (fieldErrors) {
+      const firstFieldError = Object.values(fieldErrors)[0];
+      if (firstFieldError) return firstFieldError;
+    }
     
     // Check for response data message
     if (axiosError.response?.data?.message) {
@@ -155,14 +183,14 @@ export function isValidationError(error: unknown): boolean {
 /**
  * Get validation errors from API response
  */
-export function getValidationErrors(error: unknown): Record<string, string[]> | undefined {
+export function getValidationErrors(error: unknown): Record<string, string> | undefined {
   if (isAxiosError(error)) {
     const axiosError = error as AxiosError<ApiErrorResponse>;
-    return axiosError.response?.data?.errors;
+    return normalizeApiFieldErrors(axiosError.response?.data?.errors);
   }
   
   if (error instanceof ApiError) {
-    return error.errors;
+    return normalizeApiFieldErrors(error.errors);
   }
   
   return undefined;

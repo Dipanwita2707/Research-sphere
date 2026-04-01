@@ -13,6 +13,7 @@
     "seed": "node src/shared/database/seed.js",
     "seed:admin": "node scripts/database/seeds/seed-admin.js",
     "cleanup:noting": "node scripts/cleanup-noting.js",
+    "migrate:noting-view-key": "node scripts/migrate-noting-view-permission-key.js",
     "test": "jest"
   },
   "keywords": [

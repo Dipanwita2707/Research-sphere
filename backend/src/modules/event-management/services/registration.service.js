@@ -13,6 +13,212 @@ const { REGISTRATION_STATUS, PAYMENT_STATUS } = require('../constants/event.cons
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_REGEX = /^[0-9]{10}$/;
+const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_ONLY_REGEX = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+
+function isPlainObject(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isMissingCustomFieldValue(value) {
+  if (value === undefined || value === null) return true;
+  if (typeof value === 'string' && value.trim().length === 0) return true;
+  if (Array.isArray(value) && value.length === 0) return true;
+  return false;
+}
+
+function normalizeCustomFieldOptions(rawOptions) {
+  if (!Array.isArray(rawOptions)) return [];
+
+  return rawOptions
+    .map((option) => {
+      if (typeof option === 'string') return option;
+      if (isPlainObject(option) && typeof option.value === 'string') return option.value;
+      return null;
+    })
+    .filter((option) => typeof option === 'string' && option.trim().length > 0)
+    .map((option) => option.trim());
+}
+
+function validateStringRules(fieldLabel, value, rules = {}) {
+  if (typeof rules.minLength === 'number' && value.length < rules.minLength) {
+    throw new ValidationError(
+      `${fieldLabel} validation failed: Must be at least ${rules.minLength} characters long.`,
+    );
+  }
+
+  if (typeof rules.maxLength === 'number' && value.length > rules.maxLength) {
+    throw new ValidationError(
+      `${fieldLabel} validation failed: Must not exceed ${rules.maxLength} characters.`,
+    );
+  }
+
+  if (typeof rules.pattern === 'string' && rules.pattern.trim().length > 0) {
+    try {
+      const pattern = new RegExp(rules.pattern);
+      if (!pattern.test(value)) {
+        throw new ValidationError(
+          `${fieldLabel} validation failed: Enter a valid value.`,
+        );
+      }
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      // Ignore malformed custom patterns to avoid breaking active forms.
+    }
+  }
+}
+
+function validateCustomFieldValue(field, submittedValue) {
+  const fieldLabel = field.fieldLabel || field.fieldName || 'Field';
+  const fieldType = String(field.fieldType || '').toLowerCase();
+  const rules = isPlainObject(field.validationRules) ? field.validationRules : {};
+  const options = new Set(normalizeCustomFieldOptions(field.options));
+  const missingValue = isMissingCustomFieldValue(submittedValue);
+
+  if (field.isRequired && missingValue) {
+    throw new ValidationError(`${fieldLabel} validation failed: ${fieldLabel} is required.`);
+  }
+
+  if (missingValue) {
+    return;
+  }
+
+  switch (fieldType) {
+    case 'text':
+    case 'textarea': {
+      if (typeof submittedValue !== 'string') {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid text value.`);
+      }
+      validateStringRules(fieldLabel, submittedValue.trim(), rules);
+      return;
+    }
+
+    case 'number': {
+      const numericValue = Number(submittedValue);
+      if (!Number.isFinite(numericValue)) {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid number.`);
+      }
+      if (typeof rules.min === 'number' && numericValue < rules.min) {
+        throw new ValidationError(`${fieldLabel} validation failed: Must be at least ${rules.min}.`);
+      }
+      if (typeof rules.max === 'number' && numericValue > rules.max) {
+        throw new ValidationError(`${fieldLabel} validation failed: Must be at most ${rules.max}.`);
+      }
+      return;
+    }
+
+    case 'email': {
+      if (typeof submittedValue !== 'string' || !EMAIL_REGEX.test(submittedValue.trim())) {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid email address.`);
+      }
+      validateStringRules(fieldLabel, submittedValue.trim(), rules);
+      return;
+    }
+
+    case 'phone': {
+      const digits = String(submittedValue).replace(/\D/g, '');
+      if (!MOBILE_REGEX.test(digits)) {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid 10-digit mobile number.`);
+      }
+      return;
+    }
+
+    case 'url': {
+      if (typeof submittedValue !== 'string') {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid URL.`);
+      }
+      const trimmed = submittedValue.trim();
+      try {
+        const parsed = new URL(trimmed);
+        if (!['http:', 'https:'].includes(parsed.protocol)) {
+          throw new Error('Invalid protocol');
+        }
+      } catch {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid URL.`);
+      }
+      validateStringRules(fieldLabel, trimmed, rules);
+      return;
+    }
+
+    case 'date': {
+      if (typeof submittedValue !== 'string' || !DATE_ONLY_REGEX.test(submittedValue.trim())) {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid date (YYYY-MM-DD).`);
+      }
+      const parsedDate = new Date(`${submittedValue.trim()}T00:00:00.000Z`);
+      if (Number.isNaN(parsedDate.getTime())) {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid date (YYYY-MM-DD).`);
+      }
+      return;
+    }
+
+    case 'time': {
+      if (typeof submittedValue !== 'string' || !TIME_ONLY_REGEX.test(submittedValue.trim())) {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid time (HH:mm).`);
+      }
+      return;
+    }
+
+    case 'datetime': {
+      if (typeof submittedValue !== 'string' || Number.isNaN(new Date(submittedValue).getTime())) {
+        throw new ValidationError(`${fieldLabel} validation failed: Enter a valid date and time.`);
+      }
+      return;
+    }
+
+    case 'dropdown':
+    case 'radio': {
+      if (typeof submittedValue !== 'string' || submittedValue.trim().length === 0) {
+        throw new ValidationError(`${fieldLabel} validation failed: Select a valid option.`);
+      }
+      if (options.size > 0 && !options.has(submittedValue.trim())) {
+        throw new ValidationError(`${fieldLabel} validation failed: Selected option is invalid.`);
+      }
+      return;
+    }
+
+    case 'checkbox': {
+      if (!Array.isArray(submittedValue)) {
+        throw new ValidationError(`${fieldLabel} validation failed: Select at least one valid option.`);
+      }
+      const values = submittedValue.map((item) => String(item).trim()).filter(Boolean);
+      if (field.isRequired && values.length === 0) {
+        throw new ValidationError(`${fieldLabel} validation failed: Select at least one option.`);
+      }
+      if (options.size > 0 && values.some((value) => !options.has(value))) {
+        throw new ValidationError(`${fieldLabel} validation failed: One or more selected options are invalid.`);
+      }
+      return;
+    }
+
+    case 'file':
+    case 'image': {
+      const isStringValue = typeof submittedValue === 'string' && submittedValue.trim().length > 0;
+      const objectPath = isPlainObject(submittedValue)
+        ? submittedValue.filePath || submittedValue.url || submittedValue.path || submittedValue.fileName
+        : null;
+      const isObjectValue = typeof objectPath === 'string' && objectPath.trim().length > 0;
+
+      if (!isStringValue && !isObjectValue) {
+        throw new ValidationError(`${fieldLabel} validation failed: Upload a valid file.`);
+      }
+
+      const candidate = isStringValue ? submittedValue.trim() : String(objectPath).trim();
+      validateStringRules(fieldLabel, candidate, rules);
+      return;
+    }
+
+    default:
+      return;
+  }
+}
+
+function validateCustomFieldResponses(customFields = [], formData = {}) {
+  for (const field of customFields) {
+    validateCustomFieldValue(field, formData[field.fieldName]);
+  }
+}
 
 const buildExtraPassSummary = (registration) => {
   const totalAllowedEntries = registration?.totalAllowedEntries ?? 1;
@@ -361,12 +567,8 @@ const submitRegistrationForm = async (eventId, userId, formData) => {
     throw new ValidationError('You have already registered for this event');
   }
 
-  // Validate required custom fields
-  for (const field of event.EventCustomField) {
-    if (field.isRequired && !formData[field.fieldName]) {
-      throw new ValidationError(`${field.fieldLabel} is required`);
-    }
-  }
+  // Validate custom fields by type and rules
+  validateCustomFieldResponses(event.EventCustomField, restFormData);
 
   // Validate capacity
   if (event.maxCapacity) {

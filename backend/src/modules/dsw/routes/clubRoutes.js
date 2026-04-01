@@ -11,6 +11,7 @@ const { protect } = require("../../../shared/middleware/auth");
 const {
   validateClubCreation,
   validateClubId,
+  validateClubUpdate,
   validateAddMember,
   validateRemoveMember,
   validateGetClubs,
@@ -67,7 +68,7 @@ router.patch(
   "/:clubId",
   protect,
   canManageMembers,
-  validateClubId,
+  validateClubUpdate,
   clubController.updateClub,
 );
 

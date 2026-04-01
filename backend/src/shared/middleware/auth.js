@@ -519,7 +519,10 @@ const checkResearchFilePermission = (req, res, next) => {
 // Unified permission checks for all modules: DSW, Noting, Events, DRD
 // ===========================================
 
-const { getDefaultPermissions } = require('../config/permissions.config');
+const {
+  getDefaultPermissions,
+  getPermissionKeyVariants,
+} = require('../config/permissions.config');
 
 /**
  * Check if user has a specific permission - combines default (inherent) + explicit permissions
@@ -547,17 +550,18 @@ const checkPermission = (permissionKey, options = {}) => {
         });
       }
 
+      const permissionVariants = getPermissionKeyVariants(permissionKey);
+
       // Check 1: Role-based default permissions (inherent rights)
       if (checkDefaultPermissions) {
         const defaultPerms = getDefaultPermissions(user.role);
-        if (defaultPerms[permissionKey] === true) {
+        if (permissionVariants.some((variant) => defaultPerms[variant] === true)) {
           return next();
         }
       }
 
       // Check 2: Explicit permissions from central/school department assignments
       let hasExplicitPermission = false;
-      const permissionVariants = [permissionKey, `${permissionKey.split('_')[0]}_${permissionKey}`];
 
       if (departmentType === 'central-department') {
         hasExplicitPermission = user.centralDeptPermissions?.some(deptPerm =>
@@ -640,18 +644,18 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
         });
       }
 
+      const allVariants = Array.from(new Set(permissionKeys.flatMap((key) => getPermissionKeyVariants(key))));
+
       // Check 1: Role-based default permissions
       if (checkDefaultPermissions) {
         const defaultPerms = getDefaultPermissions(user.role);
-        const hasDefaultPerm = permissionKeys.some(key => defaultPerms[key] === true);
+        const hasDefaultPerm = allVariants.some((key) => defaultPerms[key] === true);
         if (hasDefaultPerm) {
           return next();
         }
       }
 
       // Check 2: Explicit permissions
-      const allVariants = permissionKeys.flatMap(key => [key, `${key.split('_')[0]}_${key}`]);
-
       let hasExplicitPermission = false;
       if (departmentType === 'central-department') {
         hasExplicitPermission = user.centralDeptPermissions?.some(deptPerm =>
@@ -671,12 +675,13 @@ const checkAnyPermission = (permissionKeys, options = {}) => {
         return next();
       }
 
-      // Check 3: Club chairperson override for event permissions
+      // Check 3: Club chairperson override for noting + event permissions
       if (user.role === 'student') {
-        const CHAIRPERSON_EVENT_PERMISSIONS = [
+        const CHAIRPERSON_ALLOWED_PERMISSIONS = [
+          'noting_create', 'noting_view_own',
           'event_manage_own', 'event_publish', 'event_cancel',
         ];
-        const hasChairpersonKey = permissionKeys.some(k => CHAIRPERSON_EVENT_PERMISSIONS.includes(k));
+        const hasChairpersonKey = allVariants.some((k) => CHAIRPERSON_ALLOWED_PERMISSIONS.includes(k));
         if (hasChairpersonKey) {
           // PERF FIX: Use pre-cached chairperson club from protect middleware
           // instead of doing prisma.club.findFirst on every request.
@@ -719,7 +724,7 @@ const requireDSWPermission = (permissionKey) => {
  */
 const requireNotingPermission = (permissionKey) => {
   return checkPermission(permissionKey, {
-    checkDefaultPermissions: true,
+    checkDefaultPermissions: false,
     departmentType: 'central-department',
     errorMessage: 'Noting access denied - insufficient permissions'
   });

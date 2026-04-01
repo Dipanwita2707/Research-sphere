@@ -175,6 +175,14 @@ const EVENT_SUBCATEGORIES = ['events'];
  * @throws {ValidationError} If validation fails
  */
 function validateNoteForSubmission(note) {
+  if (!note.departmentId || !note.departmentScope) {
+    throw new ValidationError('Please select a department before submitting this note.');
+  }
+
+  if (!['school', 'central'].includes(String(note.departmentScope).toLowerCase())) {
+    throw new ValidationError('Invalid department scope. Please reselect a valid department.');
+  }
+
   if (note.policyCompliant === null || note.policyCompliant === undefined) {
     throw new ValidationError('Please select Policy Compliance: choose "Yes, complies" or "No" in Additional Details.');
   }

@@ -1,10 +1,21 @@
 const prisma = require('../../../shared/config/database');
 const bcrypt = require('bcryptjs');
 const auditLogger = require('../../../shared/utils/auditLogger');
+const { validateCreateEmployee, validateUpdateEmployee } = require('../../../shared/validations/employee.validation');
 
 // Create new employee (Faculty/Staff)
 const createEmployee = async (req, res) => {
   try {
+    // Validate input using Zod schema
+    const validation = validateCreateEmployee(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validation.errors,
+      });
+    }
+
     const {
       // Login details
       uid,
@@ -38,7 +49,7 @@ const createEmployee = async (req, res) => {
       
       // Other
       isActive = true,
-    } = req.body;
+    } = validation.data;
 
     // Debug logging
     console.log('=== CREATE EMPLOYEE DEBUG ===');
@@ -47,14 +58,6 @@ const createEmployee = async (req, res) => {
     console.log('designation:', designation);
     console.log('primaryCentralDeptId:', req.body.primaryCentralDeptId);
     console.log('Full request body:', JSON.stringify(req.body, null, 2));
-
-    // Validate required fields
-    if (!uid || !email || !password || !firstName || !lastName || !empId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Required fields: uid, email, password, firstName, lastName, empId',
-      });
-    }
 
     // Check if user already exists
     const existingUser = await prisma.userLogin.findFirst({
@@ -428,7 +431,18 @@ const getEmployeeById = async (req, res) => {
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    
+    // Validate input using Zod schema
+    const validation = validateUpdateEmployee(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validation.errors,
+      });
+    }
+
+    const updates = validation.data;
 
     console.log('=== UPDATE EMPLOYEE DEBUG ===');
     console.log('User ID:', id);

@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import Link from 'next/link';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   reportingStructureService,
   HierarchyNode,
   AssignManagerRequest,
   UserHierarchyInfo,
   BulkHierarchyInfoMap,
+  ReportingDepartmentOption,
+  ReportingDepartmentContext,
 } from '@/shared/services/reportingStructure.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useConfirm } from '@/shared/ui-components/ConfirmModal';
@@ -26,6 +29,9 @@ import {
   AlertTriangle,
   ArrowRightLeft,
   Shield,
+  ChevronLeft,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 
 interface UserOption {
@@ -35,17 +41,29 @@ interface UserOption {
   displayName: string;
   empId?: string;
   department?: string;
+  departmentId?: string | null;
+  departmentScope?: 'school' | 'central' | null;
+  departmentCode?: string | null;
+  departmentType?: string | null;
   school?: string;
   designation?: string;
   roleCode?: string;
 }
 
-export default function ReportingStructureManagement() {
+interface ReportingStructureManagementProps {
+  lockedDepartmentKey?: string;
+}
+
+export default function ReportingStructureManagement({
+  lockedDepartmentKey,
+}: ReportingStructureManagementProps) {
   const { toast } = useToast();
   const { confirm } = useConfirm();
 
   const [hierarchyTree, setHierarchyTree] = useState<HierarchyNode[]>([]);
   const [allUsers, setAllUsers] = useState<UserOption[]>([]);
+  const [departmentOptions, setDepartmentOptions] = useState<ReportingDepartmentOption[]>([]);
+  const [selectedDepartmentKey, setSelectedDepartmentKey] = useState(lockedDepartmentKey || 'all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
@@ -76,11 +94,62 @@ export default function ReportingStructureManagement() {
   const [moveManagerSearch, setMoveManagerSearch] = useState('');
   const [showMoveManagerDropdown, setShowMoveManagerDropdown] = useState(false);
   const [moving, setMoving] = useState(false);
+  const isDepartmentLocked = Boolean(lockedDepartmentKey);
+
+  useEffect(() => {
+    if (lockedDepartmentKey) {
+      setSelectedDepartmentKey(lockedDepartmentKey);
+    }
+  }, [lockedDepartmentKey]);
+
+  const selectedDepartmentOption = departmentOptions.find(
+    (department) => `${department.scope}:${department.id}` === selectedDepartmentKey
+  );
+
+  const selectedDepartmentContext: ReportingDepartmentContext | null = useMemo(() => {
+    if (selectedDepartmentKey === 'all') return null;
+    const [scope, id] = selectedDepartmentKey.split(':');
+    if (!scope || !id) return null;
+    if (scope !== 'school' && scope !== 'central') return null;
+    return {
+      departmentScope: scope,
+      departmentId: id,
+    };
+  }, [selectedDepartmentKey]);
+
+  const selectedDepartmentLabel = selectedDepartmentOption
+    ? `${selectedDepartmentOption.scope === 'school' ? 'School' : 'Central'} - ${selectedDepartmentOption.displayLabel}`
+    : null;
+
+  const getUserDepartmentKey = (user?: Pick<UserOption, 'departmentId' | 'departmentScope'> | null) => {
+    if (!user?.departmentId || !user?.departmentScope) return null;
+    return `${user.departmentScope}:${user.departmentId}`;
+  };
+
+  const isCrossDepartmentPair = (
+    source?: Pick<UserOption, 'departmentId' | 'departmentScope'> | null,
+    target?: Pick<UserOption, 'departmentId' | 'departmentScope'> | null,
+  ) => {
+    const sourceKey = getUserDepartmentKey(source);
+    const targetKey = getUserDepartmentKey(target);
+    if (!sourceKey || !targetKey) return false;
+    return sourceKey !== targetKey;
+  };
 
   // Filter users by search query
-  const filterUsers = (query: string, excludeIds: string[] = []) => {
+  const filterUsers = (
+    query: string,
+    excludeIds: string[] = [],
+    options: { limitToSelectedDepartment?: boolean } = {}
+  ) => {
     const q = query.toLowerCase().trim();
     return allUsers
+      .filter((user) => {
+        if (!options.limitToSelectedDepartment || selectedDepartmentKey === 'all') {
+          return true;
+        }
+        return getUserDepartmentKey(user) === selectedDepartmentKey;
+      })
       .filter((user) => !excludeIds.includes(user.id))
       .filter((user) => {
         if (!q) return true;
@@ -91,7 +160,7 @@ export default function ReportingStructureManagement() {
           (user.uid?.toLowerCase() || '').includes(q)
         );
       })
-      .slice(0, 10); // Show max 10 results
+        .slice(0, 10); // Show max 10 results
   };
 
   // Fetch hierarchy info for a batch of user IDs (for search dropdown badges)
@@ -111,13 +180,16 @@ export default function ReportingStructureManagement() {
       pendingFetchRef.current.clear();
       if (!ids.length) return;
       try {
-        const res = await reportingStructureService.getBulkHierarchyInfo(ids);
+        const res = await reportingStructureService.getBulkHierarchyInfo(
+          ids,
+          selectedDepartmentContext || undefined,
+        );
         setHierarchyInfoMap((prev) => ({ ...prev, ...res.data }));
       } catch {
         // Silently fail — badges just won't show
       }
     }, 150);
-  }, [hierarchyInfoMap]);
+  }, [hierarchyInfoMap, selectedDepartmentContext]);
 
   // Get selected user display
   const getSelectedUserDisplay = (userId: string) => {
@@ -129,7 +201,7 @@ export default function ReportingStructureManagement() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedDepartmentContext]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -154,31 +226,55 @@ export default function ReportingStructureManagement() {
       if (!silent) setLoading(true);
       setRefreshing(true);
 
-      const [treeRes, usersRes] = await Promise.all([
-        reportingStructureService.getHierarchyTree(),
+      const [treeRes, usersRes, departmentsRes] = await Promise.all([
+        reportingStructureService.getHierarchyTree(selectedDepartmentContext || undefined),
         reportingStructureService.getAllUsers(),
+        reportingStructureService.getDepartmentOptions(),
       ]);
 
       setHierarchyTree(treeRes.data || []);
+      setDepartmentOptions(departmentsRes.data || []);
 
       // Transform users for display
-      const transformedUsers = (usersRes.data || []).map((user) => ({
-        id: user.id,
-        uid: user.uid,
-        email: user.email,
-        displayName: user.employeeDetails?.displayName || 
-                     `${user.employeeDetails?.firstName || ''} ${user.employeeDetails?.lastName || ''}`.trim() ||
-                     user.email,
-        empId: user.employeeDetails?.empId,
-        department: user.employeeDetails?.primaryDepartment?.departmentName,
-        school: user.employeeDetails?.primarySchool?.facultyName,
-        designation: typeof user.employeeDetails?.designation === 'string' 
-          ? user.employeeDetails.designation 
-          : user.employeeDetails?.designation?.designationName,
-        roleCode: typeof user.employeeDetails?.designation === 'object' 
-          ? user.employeeDetails?.designation?.roleCode 
-          : undefined,
-      }));
+      const transformedUsers: UserOption[] = (usersRes.data || []).map((user) => {
+        const schoolDepartment = user.employeeDetails?.primaryDepartment;
+        const centralDepartment = user.employeeDetails?.primaryCentralDept;
+        const resolvedDepartment =
+          schoolDepartment?.departmentName || centralDepartment?.departmentName;
+        const departmentScope: UserOption['departmentScope'] = schoolDepartment
+          ? 'school'
+          : centralDepartment
+            ? 'central'
+            : null;
+
+        return {
+          id: user.id,
+          uid: user.uid,
+          email: user.email,
+          displayName:
+            user.employeeDetails?.displayName ||
+            `${user.employeeDetails?.firstName || ''} ${user.employeeDetails?.lastName || ''}`.trim() ||
+            user.email,
+          empId: user.employeeDetails?.empId,
+          department: resolvedDepartment,
+          departmentId: schoolDepartment?.id || centralDepartment?.id || null,
+          departmentScope,
+          departmentCode:
+            schoolDepartment?.departmentCode ||
+            centralDepartment?.departmentCode ||
+            null,
+          departmentType: centralDepartment?.departmentType || null,
+          school: user.employeeDetails?.primarySchool?.facultyName,
+          designation:
+            typeof user.employeeDetails?.designation === 'string'
+              ? user.employeeDetails.designation
+              : user.employeeDetails?.designation?.designationName,
+          roleCode:
+            typeof user.employeeDetails?.designation === 'object'
+              ? user.employeeDetails?.designation?.roleCode
+              : undefined,
+        };
+      });
 
       setAllUsers(transformedUsers);
     } catch (error: unknown) {
@@ -194,6 +290,16 @@ export default function ReportingStructureManagement() {
   };
 
   const handleAssign = async () => {
+    if (selectedDepartmentKey === 'all') {
+      toast({ type: 'warning', message: 'Please select a department first, then assign reporting managers.' });
+      return;
+    }
+
+    if (!selectedDepartmentContext) {
+      toast({ type: 'warning', message: 'Please select a valid department first.' });
+      return;
+    }
+
     if (!selectedUserId) {
       toast({ type: 'warning', message: 'Please select an employee' });
       return;
@@ -219,6 +325,25 @@ export default function ReportingStructureManagement() {
       return;
     }
 
+    const selectedEmployee = allUsers.find((u) => u.id === selectedUserId);
+    const crossDepartmentManagers = filledManagers
+      .map((id) => allUsers.find((u) => u.id === id))
+      .filter((manager): manager is UserOption =>
+        !!manager && isCrossDepartmentPair(selectedEmployee, manager)
+      );
+
+    if (crossDepartmentManagers.length > 0) {
+      const confirmed = await confirm({
+        title: 'Cross-Department Assignment',
+        message: `Selected manager(s) belong to a different department (${crossDepartmentManagers
+          .map((manager) => manager.displayName)
+          .join(', ')}). Do you want to continue?`,
+        type: 'warning',
+        confirmText: 'Continue',
+      });
+      if (!confirmed) return;
+    }
+
     try {
       setAssigning(true);
       
@@ -226,6 +351,8 @@ export default function ReportingStructureManagement() {
       await reportingStructureService.assignManagerChain({
         userId: selectedUserId,
         managerChain: filledManagers,
+        departmentScope: selectedDepartmentContext.departmentScope,
+        departmentId: selectedDepartmentContext.departmentId,
       });
       
       toast({ 
@@ -261,7 +388,12 @@ export default function ReportingStructureManagement() {
     if (!confirmed) return;
 
     try {
-      await reportingStructureService.removeReportingRelationship(userId);
+      if (!selectedDepartmentContext) {
+        toast({ type: 'warning', message: 'Please select a department first.' });
+        return;
+      }
+
+      await reportingStructureService.removeReportingRelationship(userId, selectedDepartmentContext);
       toast({ type: 'success', message: 'Reporting relationship removed successfully' });
       fetchData(true);
     } catch (error: unknown) {
@@ -274,6 +406,18 @@ export default function ReportingStructureManagement() {
   };
 
   const openMoveDialog = (userId: string, userName: string) => {
+    if (selectedDepartmentKey === 'all') {
+      const user = allUsers.find((u) => u.id === userId);
+      const userDepartmentKey = getUserDepartmentKey(user);
+
+      if (!userDepartmentKey) {
+        toast({ type: 'warning', message: 'Please select a department from the department cards page first.' });
+        return;
+      }
+
+      setSelectedDepartmentKey(userDepartmentKey);
+    }
+
     setMoveUserId(userId);
     setMoveUserName(userName);
     setMoveNewManagerId('');
@@ -293,11 +437,31 @@ export default function ReportingStructureManagement() {
       return;
     }
 
+    if (!selectedDepartmentContext) {
+      toast({ type: 'warning', message: 'Please select a valid department first.' });
+      return;
+    }
+
+    const selectedUser = allUsers.find((u) => u.id === moveUserId);
+    const targetManager = allUsers.find((u) => u.id === moveNewManagerId);
+
+    if (isCrossDepartmentPair(selectedUser, targetManager)) {
+      const confirmed = await confirm({
+        title: 'Cross-Department Move',
+        message: `${moveUserName} and ${targetManager?.displayName || 'selected manager'} belong to different departments. Do you want to continue?`,
+        type: 'warning',
+        confirmText: 'Continue',
+      });
+      if (!confirmed) return;
+    }
+
     try {
       setMoving(true);
       await reportingStructureService.moveUser({
         userId: moveUserId,
         newManagerId: moveNewManagerId,
+        departmentScope: selectedDepartmentContext.departmentScope,
+        departmentId: selectedDepartmentContext.departmentId,
       });
       toast({ type: 'success', message: `Successfully moved ${moveUserName} to new position` });
       setShowMoveDialog(false);
@@ -315,6 +479,22 @@ export default function ReportingStructureManagement() {
   };
 
   const openAssignDialog = (userId?: string) => {
+    if (selectedDepartmentKey === 'all') {
+      if (!userId) {
+        toast({ type: 'warning', message: 'Please select a department first, then assign reporting managers.' });
+        return;
+      }
+
+      const user = allUsers.find((u) => u.id === userId);
+      const userDepartmentKey = getUserDepartmentKey(user);
+      if (!userDepartmentKey) {
+        toast({ type: 'warning', message: 'Selected employee has no mapped department. Please pick a valid department first.' });
+        return;
+      }
+
+      setSelectedDepartmentKey(userDepartmentKey);
+    }
+
     setSelectedUserId(userId || '');
     setHierarchyLevels(1);
     setManagerChain(['']);
@@ -360,6 +540,9 @@ export default function ReportingStructureManagement() {
     uid?: string;
     empId?: string;
     department?: string;
+    departmentId?: string | null;
+    departmentScope?: 'school' | 'central' | null;
+    departmentKey?: string | null;
     school?: string;
     managerId?: string;
     managerName?: string;
@@ -380,6 +563,11 @@ export default function ReportingStructureManagement() {
           uid: node.uid,
           empId: node.empId,
           department: node.department,
+          departmentId: node.departmentId,
+          departmentScope: node.departmentScope,
+          departmentKey: node.departmentId && node.departmentScope
+            ? `${node.departmentScope}:${node.departmentId}`
+            : null,
           school: node.school,
           managerId: node.managerId,
           managerName: manager?.displayName || manager?.email,
@@ -396,20 +584,85 @@ export default function ReportingStructureManagement() {
     return result;
   };
 
-  const filteredUsers = flattenHierarchy().filter((user) =>
+  const flattenHierarchyByDepartment = (nodes: HierarchyNode[]): HierarchyNode[] => {
+    if (selectedDepartmentKey === 'all') return nodes;
+
+    const filteredNodes: HierarchyNode[] = [];
+    for (const node of nodes) {
+      const children = node.children ? flattenHierarchyByDepartment(node.children) : [];
+      const nodeKey = node.departmentId && node.departmentScope
+        ? `${node.departmentScope}:${node.departmentId}`
+        : null;
+      if (nodeKey === selectedDepartmentKey || children.length > 0) {
+        filteredNodes.push({ ...node, children });
+      }
+    }
+
+    return filteredNodes;
+  };
+
+  const departmentScopedUsers = flattenHierarchy().filter((user) =>
+    selectedDepartmentKey === 'all' ? true : user.departmentKey === selectedDepartmentKey
+  );
+
+  const filteredUsers = departmentScopedUsers.filter((user) =>
     user.userName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.empId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.department?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredHierarchyTree = flattenHierarchyByDepartment(hierarchyTree);
+
+  const treeStats = useMemo(() => {
+    let nodeCount = 0;
+    let maxDepth = 0;
+
+    const walk = (nodes: HierarchyNode[]) => {
+      for (const node of nodes) {
+        nodeCount += 1;
+        maxDepth = Math.max(maxDepth, node.hierarchyDepth || 0);
+        if (node.children?.length) {
+          walk(node.children);
+        }
+      }
+    };
+
+    walk(filteredHierarchyTree);
+    return { nodeCount, maxDepth };
+  }, [filteredHierarchyTree]);
+
+  const collectVisibleTreeNodeIds = useCallback((nodes: HierarchyNode[]) => {
+    const ids: string[] = [];
+    const walk = (items: HierarchyNode[]) => {
+      for (const item of items) {
+        ids.push(item.userId);
+        if (item.children?.length) walk(item.children);
+      }
+    };
+    walk(nodes);
+    return ids;
+  }, []);
+
+  const expandAllVisibleNodes = () => {
+    setExpandedNodes(new Set(collectVisibleTreeNodeIds(filteredHierarchyTree)));
+  };
+
+  const collapseAllNodes = () => {
+    setExpandedNodes(new Set());
+  };
+
   // Render tree view recursively
   const renderTreeNode = (node: HierarchyNode, level: number = 0) => {
     const isExpanded = expandedNodes.has(node.userId);
     const hasChildren = node.children && node.children.length > 0;
+    const indent = Math.min(level * 24, 264);
 
     return (
-      <div key={node.userId} style={{ marginLeft: `${level * 24}px` }}>
-        <div className="flex items-center gap-2 p-3 bg-white border-b hover:bg-gray-50 transition-colors">
+      <div key={node.userId}>
+        <div
+          className="flex items-center gap-2 py-3 pr-3 bg-white border-b hover:bg-gray-50 transition-colors min-w-[980px]"
+          style={{ paddingLeft: `${16 + indent}px` }}
+        >
           {hasChildren ? (
             <button
               onClick={() => toggleNodeExpansion(node.userId)}
@@ -424,6 +677,11 @@ export default function ReportingStructureManagement() {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <span className="font-medium text-gray-900">{node.name}</span>
+              {hasChildren && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">
+                  {node.children?.length} child{(node.children?.length || 0) > 1 ? 'ren' : ''}
+                </span>
+              )}
               <span className="text-xs text-gray-500">
                 ({node.uid}{node.empId && ` | ${node.empId}`})
               </span>
@@ -444,23 +702,21 @@ export default function ReportingStructureManagement() {
               <UserPlus size={16} />
             </button>
             {node.managerId && (
-              <>
-                <button
-                  onClick={() => openMoveDialog(node.userId, node.name)}
-                  className="p-1 text-amber-600 hover:bg-amber-50 rounded"
-                  title="Move to Different Level"
-                >
-                  <ArrowRightLeft size={16} />
-                </button>
-                <button
-                  onClick={() => handleRemove(node.userId, node.name)}
-                  className="p-1 text-red-600 hover:bg-red-50 rounded"
-                  title="Remove Relationship"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </>
+              <button
+                onClick={() => openMoveDialog(node.userId, node.name)}
+                className="p-1 text-amber-600 hover:bg-amber-50 rounded"
+                title="Move to Different Level"
+              >
+                <ArrowRightLeft size={16} />
+              </button>
             )}
+            <button
+              onClick={() => handleRemove(node.userId, node.name)}
+              className="p-1 text-red-600 hover:bg-red-50 rounded"
+              title="Remove from Reporting Structure"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
         </div>
 
@@ -485,20 +741,42 @@ export default function ReportingStructureManagement() {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-slate-50 min-h-screen">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <GitBranch className="h-8 w-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Reporting Structure Management</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-3">
+            <GitBranch className="h-8 w-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-gray-900">Reporting Structure Management</h1>
+          </div>
+          {isDepartmentLocked && (
+            <Link
+              href="/admin/reporting-structure"
+              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <ChevronLeft size={14} />
+              Back to Department Cards
+            </Link>
+          )}
         </div>
         <p className="text-gray-600">Manage organizational reporting hierarchy ("who reports to whom")</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800">
+            Users Visible: {filteredUsers.length}
+          </span>
+          <span className="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800">
+            Tree Nodes: {treeStats.nodeCount}
+          </span>
+          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
+            Max Depth: {treeStats.maxDepth}
+          </span>
+        </div>
       </div>
 
       {/* Controls */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-          <div className="flex-1 max-w-md">
+          <div className="flex-1 w-full">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
@@ -509,6 +787,16 @@ export default function ReportingStructureManagement() {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+            {selectedDepartmentLabel && (
+              <p className="text-xs text-blue-700 mt-2">
+                Managing department: <span className="font-semibold">{selectedDepartmentLabel}</span>
+              </p>
+            )}
+            {!selectedDepartmentLabel && !isDepartmentLocked && (
+              <p className="text-xs text-gray-500 mt-2">
+                Select a department from the cards page first, then create or edit reporting structure.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-2">
@@ -534,7 +822,8 @@ export default function ReportingStructureManagement() {
             </button>
             <button
               onClick={() => openAssignDialog()}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
+              disabled={selectedDepartmentKey === 'all'}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <UserPlus size={20} />
               Assign Manager
@@ -553,10 +842,10 @@ export default function ReportingStructureManagement() {
 
       {/* Table View */}
       {viewMode === 'table' && (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-auto max-h-[68vh]">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b">
+              <thead className="bg-gray-50 border-b sticky top-0 z-10">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Employee
@@ -582,7 +871,9 @@ export default function ReportingStructureManagement() {
                 {filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                      No reporting relationships found. Click "Assign Manager" to get started.
+                      {selectedDepartmentKey === 'all'
+                        ? 'No reporting relationships found. Click "Assign Manager" to get started.'
+                        : 'No reporting relationships found for the selected department.'}
                     </td>
                   </tr>
                 ) : (
@@ -631,23 +922,21 @@ export default function ReportingStructureManagement() {
                             <UserPlus size={16} />
                           </button>
                           {user.managerId && (
-                            <>
-                              <button
-                                onClick={() => openMoveDialog(user.userId, user.userName)}
-                                className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                                title="Move to Different Level"
-                              >
-                                <ArrowRightLeft size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleRemove(user.userId, user.userName)}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Remove Relationship"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => openMoveDialog(user.userId, user.userName)}
+                              className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Move to Different Level"
+                            >
+                              <ArrowRightLeft size={16} />
+                            </button>
                           )}
+                          <button
+                            onClick={() => handleRemove(user.userId, user.userName)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove from Reporting Structure"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -661,14 +950,40 @@ export default function ReportingStructureManagement() {
 
       {/* Tree View */}
       {viewMode === 'tree' && (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-          {hierarchyTree.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-slate-50 px-4 py-3">
+            <p className="text-sm text-slate-600">
+              Scroll to navigate large hierarchies. Use Expand/Collapse for better visibility.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={expandAllVisibleNodes}
+                disabled={treeStats.nodeCount === 0}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Maximize2 size={14} />
+                Expand All
+              </button>
+              <button
+                onClick={collapseAllNodes}
+                disabled={expandedNodes.size === 0}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Minimize2 size={14} />
+                Collapse All
+              </button>
+            </div>
+          </div>
+
+          {filteredHierarchyTree.length === 0 ? (
             <div className="px-6 py-12 text-center text-gray-500">
-              No reporting structure defined. Click "Assign Manager" to build the hierarchy.
+              {selectedDepartmentKey === 'all'
+                ? 'No reporting structure defined. Click "Assign Manager" to build the hierarchy.'
+                : 'No reporting structure found for the selected department.'}
             </div>
           ) : (
-            <div>
-              {hierarchyTree.map((node) => renderTreeNode(node))}
+            <div className="max-h-[68vh] overflow-auto">
+              {filteredHierarchyTree.map((node) => renderTreeNode(node))}
             </div>
           )}
         </div>
@@ -688,6 +1003,12 @@ export default function ReportingStructureManagement() {
                   <span className="text-2xl">&times;</span>
                 </button>
               </div>
+
+              {selectedDepartmentLabel && (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
+                  Building hierarchy for: <span className="font-semibold">{selectedDepartmentLabel}</span>
+                </div>
+              )}
 
               <div className="space-y-4">
                 {/* User Selection with Search */}
@@ -721,14 +1042,18 @@ export default function ReportingStructureManagement() {
                     )}
                   </div>
                   {showEmployeeDropdown && !selectedUserId && employeeSearch.trim().length > 0 && (() => {
-                    const results = filterUsers(employeeSearch);
+                    const results = filterUsers(employeeSearch, []);
                     // Trigger hierarchy info fetch for visible results
                     const ids = results.map(u => u.id);
                     if (ids.length) fetchHierarchyInfo(ids);
                     return (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-y-auto">
                       {results.length === 0 ? (
-                        <div className="px-4 py-2 text-gray-500 text-sm">No employees found</div>
+                        <div className="px-4 py-2 text-gray-500 text-sm">
+                          {selectedDepartmentKey === 'all'
+                            ? 'No employees found'
+                            : 'No employees found in selected department'}
+                        </div>
                       ) : (
                         results.map((user) => {
                           const hInfo = hierarchyInfoMap[user.id];

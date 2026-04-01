@@ -15,6 +15,7 @@ import type {
 } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
 import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { extractFieldErrors } from '@/shared/types/api.types';
 import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import { useAuthStore } from '@/shared/auth/authStore';
@@ -328,7 +329,21 @@ export default function EventRegistrationPage() {
         router.push(`/events/${eventId}`);
       }
     } catch (error: any) {
-      toast({ type: 'error', message: getErrorMessage(error) });
+      const backendFieldErrors = extractFieldErrors(error);
+      if (backendFieldErrors) {
+        setErrors(backendFieldErrors);
+        setTimeout(() => {
+          const firstError = document.querySelector('[data-validation-error]');
+          firstError?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+      }
+
+      toast({
+        type: 'error',
+        message: backendFieldErrors
+          ? Object.values(backendFieldErrors)[0]
+          : getErrorMessage(error),
+      });
     } finally {
       setSubmitting(false);
     }

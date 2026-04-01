@@ -1,6 +1,7 @@
 const prisma = require('../../../shared/config/database');
 const bcrypt = require('bcryptjs');
 const auditLogger = require('../../../shared/utils/auditLogger');
+const { validateCreateStudent, validateUpdateStudent } = require('../../../shared/validations/student.validation');
 
 /**
  * Validates that mentorId is a faculty member in the same department as the student.
@@ -33,6 +34,16 @@ async function validateMentorForDepartment(mentorId, studentDepartmentId) {
 // Create new student
 const createStudent = async (req, res) => {
   try {
+    // Validate input using Zod schema
+    const validation = validateCreateStudent(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validation.errors,
+      });
+    }
+
     const {
       studentId: rawStudentId,
       registrationNo: rawRegistrationNo,
@@ -53,17 +64,17 @@ const createStudent = async (req, res) => {
       parentContact,
       emergencyContact,
       address,
-    } = req.body;
+    } = validation.data;
 
     // Ensure studentId and registrationNo are always the same
     const studentId = rawStudentId || rawRegistrationNo;
     const registrationNo = rawRegistrationNo || rawStudentId;
 
-    // Validate required fields (sectionId and mentorId are optional)
-    if (!studentId || !firstName || !email || !programId) {
+    // Validate that at least one of studentId or registrationNo is provided
+    if (!studentId) {
       return res.status(400).json({
         success: false,
-        message: 'Required fields: studentId (or registrationNo), firstName, email, programId',
+        message: 'Student ID or Registration Number is required',
       });
     }
 

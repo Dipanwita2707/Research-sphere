@@ -47,7 +47,19 @@ exports.getAllUsers = async (req, res) => {
             designation: true,
             empId: true,
             primaryDepartment: {
-              select: { departmentName: true }
+              select: {
+                id: true,
+                departmentName: true,
+                departmentCode: true,
+              }
+            },
+            primaryCentralDept: {
+              select: {
+                id: true,
+                departmentName: true,
+                departmentCode: true,
+                departmentType: true,
+              }
             },
             primarySchool: {
               select: { facultyName: true }
