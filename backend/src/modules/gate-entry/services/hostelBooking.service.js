@@ -31,6 +31,9 @@ const combineDateAndTime = (dateInput, timeText = '00:00') => {
   return d;
 };
 
+const isUuid = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+
 const resolvePassValidityWindow = (gatePass) => {
   const passStart = combineDateAndTime(
     gatePass.visit_date,
@@ -38,6 +41,11 @@ const resolvePassValidityWindow = (gatePass) => {
   );
 
   const passEndDate = gatePass.visit_end_date || gatePass.visit_date;
+  if (gatePass.stay_required) {
+    const passEndForStay = combineDateAndTime(passEndDate, '23:59');
+    return { passStart, passEnd: passEndForStay };
+  }
+
   const passEnd = combineDateAndTime(
     passEndDate,
     gatePass.expected_exit_time || '23:59'
@@ -76,11 +84,46 @@ const calculateBillableDays = (checkInDatetime, checkOutDatetime) => {
  * A booking whose checkout is in the past no longer blocks availability.
  */
 const getBookingCutoffDate = () => {
-  const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
-  return new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()));
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 };
 
 class HostelBookingService {
+  async findGatePass(passIdentifier) {
+    if (!passIdentifier) return null;
+
+    if (isUuid(passIdentifier)) {
+      const byId = await prisma.gate_pass.findUnique({
+        where: { id: passIdentifier },
+        select: {
+          id: true,
+          pass_id: true,
+          visit_date: true,
+          visit_end_date: true,
+          entry_time: true,
+          expected_entry_time: true,
+          expected_exit_time: true,
+          stay_required: true
+        }
+      });
+      if (byId) return byId;
+    }
+
+    return prisma.gate_pass.findUnique({
+      where: { pass_id: passIdentifier },
+      select: {
+        id: true,
+        pass_id: true,
+        visit_date: true,
+        visit_end_date: true,
+        entry_time: true,
+        expected_entry_time: true,
+        expected_exit_time: true,
+        stay_required: true
+      }
+    });
+  }
+
   /**
    * Get all available hostels with their rooms for a given date range
    * Filters by student nationality: national students see 'national' guest houses,
@@ -115,7 +158,14 @@ class HostelBookingService {
       const hostels = await prisma.hostel.findMany({
         where: {
           is_active: true,
-          ...(categoryFilter && { hostel_category: categoryFilter })
+          ...(categoryFilter
+            ? {
+                OR: [
+                  { hostel_category: categoryFilter },
+                  { hostel_category: null }
+                ]
+              }
+            : {})
         },
         include: {
           rooms: {
@@ -127,7 +177,7 @@ class HostelBookingService {
                 where: {
                   booking_status: { in: ['confirmed', 'pending'] },
                   gate_pass: {
-                    pass_status: { notIn: ['expired', 'completed', 'cancelled'] }
+                    pass_status: { notIn: ['expired', 'completed', 'cancelled', 'checked_out'] }
                   },
                   AND: [
                     { check_out_datetime: { gte: getBookingCutoffDate() } },
@@ -185,7 +235,7 @@ class HostelBookingService {
             where: {
               booking_status: { in: ['confirmed', 'pending'] },
               gate_pass: {
-                pass_status: { notIn: ['expired', 'completed', 'cancelled'] }
+                pass_status: { notIn: ['expired', 'completed', 'cancelled', 'checked_out'] }
               },
               AND: [
                 { check_out_datetime: { gte: getBookingCutoffDate() } },
@@ -271,17 +321,7 @@ class HostelBookingService {
       }
 
       // Resolve pass_id (formatted string) to UUID
-      const gatePass = await prisma.gate_pass.findUnique({
-        where: { pass_id: passId },
-        select: {
-          id: true,
-          visit_date: true,
-          visit_end_date: true,
-          entry_time: true,
-          expected_entry_time: true,
-          expected_exit_time: true
-        }
-      });
+      const gatePass = await this.findGatePass(passId);
 
       if (!gatePass) {
         throw new Error('Gate pass not found');
@@ -335,7 +375,7 @@ class HostelBookingService {
             where: {
               booking_status: { in: ['confirmed', 'pending'] },
                 gate_pass: {
-                  pass_status: { notIn: ['expired', 'completed', 'cancelled'] }
+                  pass_status: { notIn: ['expired', 'completed', 'cancelled', 'checked_out'] }
                 },
               AND: [
                 { check_out_datetime: { gte: getBookingCutoffDate() } },
@@ -560,10 +600,7 @@ class HostelBookingService {
   async getBookingByPass(passId) {
     try {
       // Resolve formatted pass_id to UUID
-      const gatePass = await prisma.gate_pass.findUnique({
-        where: { pass_id: passId },
-        select: { id: true }
-      });
+      const gatePass = await this.findGatePass(passId);
 
       if (!gatePass) {
         return null;

@@ -4,9 +4,10 @@
  */
 
 const sgMail = require('@sendgrid/mail');
+const { emailService: coreEmailService } = require('../../modules/core/services/email.service');
 
-const FROM_EMAIL  = process.env.EMAIL_FROM  || 'gatepass@sattu.me';
-const FROM_NAME   = process.env.EMAIL_FROM_NAME || 'SGT Gate Pass System';
+const FROM_EMAIL  = process.env.SENDGRID_FROM_EMAIL || process.env.EMAIL_FROM || process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_USER || process.env.SMTP_USER || 'noreply@sgtresearch.com';
+const FROM_NAME   = process.env.SENDGRID_FROM_NAME || process.env.EMAIL_FROM_NAME || 'SGT Gate Pass System';
 const COLLEGE_NAME = 'SGT University';
 
 let sendGridInitialized = false;
@@ -145,7 +146,41 @@ async function send({ to, subject, html, attachments = [] }) {
     return;
   }
   if (!process.env.SENDGRID_API_KEY) {
-    console.warn('[EMAIL] SENDGRID_API_KEY not set – email skipped');
+    try {
+      const nodemailerAttachments = attachments
+        .filter(Boolean)
+        .map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          encoding: a.encoding || 'base64',
+          cid: a.cid,
+          contentType: a.contentType || 'image/png',
+          contentDisposition: a.contentDisposition || 'inline',
+        }));
+
+      const textBody = String(html || '')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const result = await coreEmailService.sendEmail({
+        to,
+        subject,
+        text: textBody,
+        html,
+        attachments: nodemailerAttachments,
+      });
+
+      if (result?.success) {
+        console.log(`[EMAIL][SMTP-FALLBACK] Sent "${subject}" -> ${to}`);
+      } else {
+        console.warn(`[EMAIL][SMTP-FALLBACK] Failed "${subject}" -> ${to}: ${result?.error || 'Unknown error'}`);
+      }
+    } catch (fallbackError) {
+      console.error(`[EMAIL][SMTP-FALLBACK] Failed "${subject}" -> ${to}:`, fallbackError.message);
+    }
     return;
   }
 

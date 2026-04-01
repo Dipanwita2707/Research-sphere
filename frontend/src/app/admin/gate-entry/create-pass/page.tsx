@@ -147,30 +147,13 @@ function CreatePassPageContent() {
     return validRelations.includes(relation);
   })();
 
-  // Debug log
-  useEffect(() => {
-    if (userRole?.toLowerCase() === 'student') {
-      console.log('[HOSTEL DEBUG] canBookHostel:', canBookHostel);
-      console.log('[HOSTEL DEBUG] userRole:', userRole);
-      console.log('[HOSTEL DEBUG] visitorRelation:', formData.visitorRelation);
-      console.log('[HOSTEL DEBUG] isMultiDay:', isMultiDay);
-      console.log('[HOSTEL DEBUG] visitDate:', formData.visitDate);
-      console.log('[HOSTEL DEBUG] visitEndDate:', formData.visitEndDate);
-    }
-  }, [canBookHostel, userRole, formData.visitorRelation, isMultiDay, formData.visitDate, formData.visitEndDate]);
-
-  // Debug guardian state changes
-  useEffect(() => {
-    console.log('[STATE DEBUG] isStudentLocked:', isStudentLocked);
-    console.log('[STATE DEBUG] guardians.length:', guardians.length);
-    console.log('[STATE DEBUG] loadingGuardians:', loadingGuardians);
-    console.log('[STATE DEBUG] selectedGuardianId:', selectedGuardianId);
-  }, [isStudentLocked, guardians, loadingGuardians, selectedGuardianId]);
-
   // Real-time duplicate pass checking
   useEffect(() => {
-    // Only check if we have required fields
-    if (!formData.visitorName || !formData.mobileNumber || !formData.visitDate) {
+    const visitorName = formData.visitorName.trim();
+    const mobile = formData.mobileNumber.trim();
+
+    // Avoid unnecessary calls while the user is still typing incomplete values.
+    if (visitorName.length < 3 || !/^\d{10}$/.test(mobile) || !formData.visitDate) {
       setDuplicateWarning({ show: false, message: '', conflictingPasses: [] });
       return;
     }
@@ -180,8 +163,8 @@ function CreatePassPageContent() {
       try {
         setCheckingDuplicate(true);
         const result = await gateEntryService.checkDuplicate(
-          formData.mobileNumber,
-          formData.visitorName,
+          mobile,
+          visitorName,
           formData.visitDate,
           isMultiDay ? formData.visitEndDate : undefined
         );
@@ -204,8 +187,7 @@ function CreatePassPageContent() {
         } else {
           setDuplicateWarning({ show: false, message: '', conflictingPasses: [] });
         }
-      } catch (error) {
-        console.error('[DUPLICATE CHECK] Error:', error);
+      } catch {
         // Don't show error to user for now, backend will catch it
       } finally {
         setCheckingDuplicate(false);
@@ -217,60 +199,34 @@ function CreatePassPageContent() {
 
   // Check user role on mount - students can only create passes for parents
   useEffect(() => {
-    console.log('[CREATE PASS] Component mounted');
-    console.log('[CREATE PASS] User from authStore:', user);
-    
     const role = user?.userType || null;
-    const userId = user?.id || null;
-    
-    console.log('[CREATE PASS] User Type:', role);
-    console.log('[CREATE PASS] User ID:', userId);
-    
+
     setUserRole(role);
     if (role?.toLowerCase() === 'student') {
-      console.log('[CREATE PASS] ✅ Student detected, setting up...');
       setIsStudentLocked(true);
       // Don't auto-fill visitorRelation - let student select from dropdown
-      
+
       // Fetch guardians for student
-      console.log('[CREATE PASS] 🔄 Calling fetchGuardians()...');
       fetchGuardians();
     } else {
-      console.log('[CREATE PASS] ⚠️ Not a student, role:', role);
+      setIsStudentLocked(false);
     }
   }, [user]); // Re-run when user changes
 
   // Fetch guardians from API
   const fetchGuardians = async () => {
-    console.log('[GUARDIAN API] 📞 Fetching guardians...');
     try {
       setLoadingGuardians(true);
-      console.log('[GUARDIAN API] Loading state set to true');
-      
+
       const response = await gateEntryService.getGuardians();
-      console.log('[GUARDIAN API] ✅ Response received:', response);
-      
+
       const guardiansData = response.data.guardians || [];
-      console.log('[GUARDIAN API] 📋 Guardians count:', guardiansData.length);
-      
-      if (guardiansData.length > 0) {
-        console.log('[GUARDIAN API] Guardian list:');
-        guardiansData.forEach((g: any, idx: number) => {
-          console.log(`  ${idx + 1}. ${g.name} (${g.relationship}) - ${g.phone}`);
-        });
-      } else {
-        console.log('[GUARDIAN API] ⚠️ No guardians found in database');
-      }
-      
+
       setGuardians(guardiansData);
-      console.log('[GUARDIAN API] State updated with guardians');
-    } catch (err: any) {
-      console.error('[GUARDIAN API] ❌ Error fetching guardians:', err);
-      console.error('[GUARDIAN API] Error details:', err.response?.data || err.message);
+    } catch {
       // Don't show error to user, just continue with manual entry as fallback
     } finally {
       setLoadingGuardians(false);
-      console.log('[GUARDIAN API] Loading state set to false');
     }
   };
 
@@ -475,8 +431,7 @@ function CreatePassPageContent() {
         resetForm();
       }
       
-    } catch (err: any) {
-      console.error('Create pass error:', err);
+    } catch {
       setError(t('createPass.err.failedCreatePass'));
     } finally {
       setLoading(false);
