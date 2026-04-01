@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
 import { 
   Search, Filter, Download, RefreshCw, Eye, X, Send, 
   CheckCircle, XCircle, Clock, AlertCircle, Calendar, User, Phone, QrCode, Car, Loader2, FileText
@@ -255,6 +255,8 @@ function AllPassesPageContent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
   const [selectedPass, setSelectedPass] = useState<Pass | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -282,6 +284,7 @@ function AllPassesPageContent() {
     completed: 0,
     expired: 0,
   });
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   // Fetch passes from backend
   useEffect(() => {
@@ -320,19 +323,6 @@ function AllPassesPageContent() {
       setStats({ total: 0, active: 0, pending: 0, completed: 0, expired: 0 });
     }
   }, [passes]);
-
-  // Debug selectedPass data
-  useEffect(() => {
-    if (selectedPass) {
-      console.log('[DEBUG] Selected Pass Data:', {
-        passId: selectedPass.passId,
-        extensionCount: selectedPass.extensionCount,
-        extensionReason: selectedPass.extensionReason,
-        visitEndDate: selectedPass.visitEndDate,
-        checkOutDate: selectedPass.checkOutDate,
-      });
-    }
-  }, [selectedPass]);
 
   // Auto-open pass detail modal when navigating from notification with reviewBooking/reviewRoomCancellation param
   useEffect(() => {
@@ -472,17 +462,6 @@ function AllPassesPageContent() {
       setError(null);
       const response = await gateEntryService.getAllPasses();
       const fetchedPasses = response.data?.passes || [];
-      console.log('[FETCH PASSES] Received passes from backend:', fetchedPasses);
-      if (fetchedPasses.length > 0) {
-        console.log('[FETCH PASSES] Sample pass data:', {
-          passId: fetchedPasses[0].passId,
-          passStatus: fetchedPasses[0].passStatus,
-          status: fetchedPasses[0].status,
-          stayRequired: fetchedPasses[0].stayRequired,
-          hasHostelBooking: !!fetchedPasses[0].hostelBooking,
-          hostelBooking: fetchedPasses[0].hostelBooking
-        });
-      }
       setPasses(fetchedPasses);
     } catch (err: any) {
       console.error('Error fetching passes:', err);
@@ -536,11 +515,11 @@ function AllPassesPageContent() {
   const filteredPasses = useMemo(() => {
     return passes.filter(pass => {
       // Search filter - only search in fields we're actually collecting (with null safety)
-      const searchLower = searchTerm.toLowerCase();
+      const searchLower = deferredSearchTerm.toLowerCase();
       const searchMatch = 
         (pass.passId?.toLowerCase() || '').includes(searchLower) ||
         (pass.visitorName?.toLowerCase() || '').includes(searchLower) ||
-        (pass.mobileNumber || '').includes(searchTerm) ||
+        (pass.mobileNumber || '').includes(deferredSearchTerm) ||
         (pass.vehicleNumber?.toLowerCase() || '').includes(searchLower) ||
         (pass.visitorRelation?.toLowerCase() || '').includes(searchLower);
 
@@ -575,7 +554,23 @@ function AllPassesPageContent() {
 
       return searchMatch && statusMatch && dateMatch;
     });
-  }, [passes, searchTerm, statusFilter, dateFilter]);
+  }, [passes, deferredSearchTerm, statusFilter, dateFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearchTerm, statusFilter, dateFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredPasses.length / pageSize));
+  const paginatedPasses = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredPasses.slice(start, start + pageSize);
+  }, [filteredPasses, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const handleResendNotification = async (pass: Pass) => {
     try {
@@ -607,17 +602,6 @@ function AllPassesPageContent() {
         return;
       }
 
-      console.log('[CANCEL MODAL] Full pass object:', JSON.stringify(pass, null, 2));
-      console.log('[CANCEL MODAL] Pass data:', {
-        passId: pass.passId,
-        passStatus: pass.passStatus,
-        status: pass.status,
-        stayRequired: pass.stayRequired,
-        hasHostelBooking: !!pass.hostelBooking,
-        hostelBookingField: pass.hostelBooking,
-        hostelBookingKeys: pass.hostelBooking ? Object.keys(pass.hostelBooking) : 'null'
-      });
-      
       setSelectedPass(pass);
       setShowCancelModal(true);
       
@@ -626,8 +610,6 @@ function AllPassesPageContent() {
       const isCreated = pass.passStatus === 'created' || pass.status === 'created';
       
       if (isCreated && pass.stayRequired && pass.hostelBooking) {
-        console.log('[CANCEL MODAL] Pass is created status with hostel booking - calculating refund preview...');
-        console.log('[CANCEL MODAL] Hostel booking data:', pass.hostelBooking);
         setLoadingRefund(true);
         
         try {
@@ -643,10 +625,6 @@ function AllPassesPageContent() {
           const timeUntilCheckIn = checkInDate.getTime() - now.getTime();
           const hoursUntilCheckIn = timeUntilCheckIn / (1000 * 60 * 60);
           const daysUntilCheckIn = hoursUntilCheckIn / 24;
-          
-          console.log('[REFUND CALC] Check-in date:', checkInDate);
-          console.log('[REFUND CALC] Hours until check-in:', hoursUntilCheckIn);
-          console.log('[REFUND CALC] Days until check-in:', daysUntilCheckIn);
           
           // Dynamic refund calculation based on time before check-in
           let refundPercent = 0;
@@ -666,17 +644,11 @@ function AllPassesPageContent() {
             appliedSlab = 'Less than 2 hours before check-in';
           }
           
-          console.log('[REFUND CALC] Applied slab:', appliedSlab, '(' + refundPercent + '% refund)');
-          
           // Calculate refund amounts - convert to number to ensure .toFixed() works
           const originalAmount = pass.hostelBooking.totalPrice || 0;
           const cancellationFeePercent = 100 - refundPercent;
           const cancellationFeeAmount = (originalAmount * cancellationFeePercent) / 100;
           const refundAmount = originalAmount - cancellationFeeAmount;
-          
-          console.log('[REFUND CALC] Original amount:', originalAmount);
-          console.log('[REFUND CALC] Cancellation fee:', cancellationFeeAmount);
-          console.log('[REFUND CALC] Refund amount:', refundAmount);
           
           // Format time remaining
           const days = Math.floor(daysUntilCheckIn);
@@ -709,20 +681,14 @@ function AllPassesPageContent() {
             hostelName: pass.hostelBooking.hostelName
           };
           
-          console.log('[CANCEL MODAL] Calculated refund preview:', preview);
           setRefundPreview(preview);
         } catch (err) {
-          console.error('[CANCEL MODAL] Error calculating refund preview:', err);
+          console.error('Error calculating refund preview:', err);
           setRefundPreview(null);
         } finally {
           setLoadingRefund(false);
         }
       } else {
-        console.log('[CANCEL MODAL] Not showing refund preview. Reasons:', {
-          isCreated,
-          stayRequired: pass.stayRequired,
-          hasHostelBooking: !!pass.hostelBooking
-        });
         setRefundPreview(null);
       }
     }
@@ -748,12 +714,6 @@ function AllPassesPageContent() {
       const cancelledPass = response.pass || response.data;
       const cancellationType = cancelledPass.cancellation_type || cancelledPass.cancellationType;
       const backendMessage = response.message || '';
-      
-      console.log('[CANCEL RESPONSE]', {
-        cancellationType,
-        backendMessage,
-        response
-      });
       
       // Close modal first
       setShowCancelModal(false);
@@ -886,12 +846,12 @@ function AllPassesPageContent() {
           <div className="relative z-10">
             <div className="flex flex-col gap-4">
               {/* Top Row: Title and Language Selector */}
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3 flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
                     <FileText className="w-7 h-7 md:w-8 md:h-8 text-white" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h1 className="text-2xl md:text-4xl font-bold text-white">{t('allPasses.title')}</h1>
                     <p className="text-[#b3cde0] text-sm md:text-base mt-1">
                       {(() => {
@@ -911,25 +871,25 @@ function AllPassesPageContent() {
                   </div>
                 </div>
                 {/* Language Selector */}
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 self-start sm:self-auto">
                   <LanguageSelector />
                 </div>
               </div>
               
               {/* Bottom Row: Action Buttons */}
-              <div className="flex items-center gap-2 md:gap-3 justify-end">
+              <div className="flex flex-wrap items-center gap-2 md:gap-3 justify-start sm:justify-end">
                 <button
                   onClick={() => {
                     fetchPasses();
                   }}
-                  className="px-3 md:px-4 py-2.5 bg-white/15 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/25 transition-all flex items-center gap-2 text-sm md:text-base font-medium hover-lift"
+                  className="w-full sm:w-auto px-3 md:px-4 py-2.5 bg-white/15 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/25 transition-all flex items-center justify-center gap-2 text-sm md:text-base font-medium hover-lift"
                 >
                   <RefreshCw className="w-4 h-4" />
                   <span className="hidden sm:inline">{t('allPasses.refresh')}</span>
                 </button>
                 <Link
                   href="/admin/gate-entry/create-pass"
-                  className="px-3 md:px-4 py-2.5 bg-white text-[#03396c] rounded-xl hover:bg-[#b3cde0]/25 transition-all flex items-center gap-2 text-sm md:text-base font-bold shadow-lg hover:shadow-xl hover-lift"
+                  className="w-full sm:w-auto px-3 md:px-4 py-2.5 bg-white text-[#03396c] rounded-xl hover:bg-[#b3cde0]/25 transition-all flex items-center justify-center gap-2 text-sm md:text-base font-bold shadow-lg hover:shadow-xl hover-lift"
                 >
                   ➕ <span className="hidden sm:inline">{t('allPasses.createNew')}</span><span className="sm:hidden">{t('allPasses.createNew')}</span>
                 </Link>
@@ -945,9 +905,9 @@ function AllPassesPageContent() {
               <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <FileText className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.totalPasses')}</div>
-                <div className="text-xl md:text-2xl font-bold text-[#011f4b]">{stats.total}</div>
+                <div className="text-lg md:text-2xl font-bold text-[#011f4b] break-words leading-tight">{stats.total}</div>
               </div>
             </div>
           </div>
@@ -956,9 +916,9 @@ function AllPassesPageContent() {
               <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.activeToday')}</div>
-                <div className="text-xl md:text-2xl font-bold text-[#005b96]">{stats.active}</div>
+                <div className="text-lg md:text-2xl font-bold text-[#005b96] break-words leading-tight">{stats.active}</div>
               </div>
             </div>
           </div>
@@ -967,9 +927,9 @@ function AllPassesPageContent() {
               <div className="bg-gradient-to-br from-[#005b96] to-[#6497b1] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.22)]">
                 <Clock className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.pending')}</div>
-                <div className="text-xl md:text-2xl font-bold text-[#03396c]">{stats.pending}</div>
+                <div className="text-lg md:text-2xl font-bold text-[#03396c] break-words leading-tight">{stats.pending}</div>
               </div>
             </div>
           </div>
@@ -978,9 +938,9 @@ function AllPassesPageContent() {
               <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.completed')}</div>
-                <div className="text-xl md:text-2xl font-bold text-[#005b96]">{stats.completed}</div>
+                <div className="text-lg md:text-2xl font-bold text-[#005b96] break-words leading-tight">{stats.completed}</div>
               </div>
             </div>
           </div>
@@ -989,9 +949,9 @@ function AllPassesPageContent() {
               <div className="bg-gradient-to-br from-[#005b96] to-[#6497b1] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.22)]">
                 <AlertCircle className="w-5 h-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="text-xs md:text-sm text-[#6497b1]">{t('allPasses.expired')}</div>
-                <div className="text-xl md:text-2xl font-bold text-[#03396c]">{stats.expired}</div>
+                <div className="text-lg md:text-2xl font-bold text-[#03396c] break-words leading-tight">{stats.expired}</div>
               </div>
             </div>
           </div>
@@ -1070,6 +1030,11 @@ function AllPassesPageContent() {
                 {filteredPasses.length}
               </div>
               <span>{t('common.of')} {passes.length} {t('common.passes')}</span>
+              {filteredPasses.length > 0 && (
+                <span className="text-xs text-[#03396c]">
+                  ({(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filteredPasses.length)})
+                </span>
+              )}
             </div>
             <button
               onClick={handleExport}
@@ -1121,11 +1086,11 @@ function AllPassesPageContent() {
                     </td>
                   </tr>
                 ) : (
-                  filteredPasses.map((pass, index) => {
+                  paginatedPasses.map((pass) => {
                     const statusConfig = STATUS_CONFIG[(pass.passStatus || pass.status) as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
                     const StatusIcon = statusConfig.icon;
                     return (
-                      <tr key={pass.id} className="hover:bg-[#b3cde0]/20 transition-all duration-300 animate-fade-in" style={{animationDelay: `${index * 50}ms`}}>
+                      <tr key={pass.id} className="hover:bg-[#b3cde0]/20 transition-all duration-300">
                         <td className="px-4 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <QrCode className="w-4 h-4 text-gray-400" />
@@ -1287,6 +1252,30 @@ function AllPassesPageContent() {
               </tbody>
             </table>
           </div>
+
+          {filteredPasses.length > pageSize && (
+            <div className="border-t border-[#b3cde0] p-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#f8fafc]">
+              <p className="text-sm text-[#6497b1]">
+                Page {currentPage} {t('common.of')} {totalPages}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 text-sm rounded-lg border border-[#b3cde0] text-[#03396c] hover:bg-[#b3cde0]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 text-sm rounded-lg border border-[#b3cde0] text-[#03396c] hover:bg-[#b3cde0]/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Pass Detail Modal */}
@@ -1812,7 +1801,6 @@ function AllPassesPageContent() {
               setSelectedPassForExtend(null);
               // Update the pass details view with the updated pass from API response
               if (selectedPass && updatedPass && selectedPass.passId === updatedPass.passId) {
-                console.log('[EXTEND SUCCESS] Updating selectedPass with:', updatedPass);
                 setSelectedPass(updatedPass);
               }
             }}

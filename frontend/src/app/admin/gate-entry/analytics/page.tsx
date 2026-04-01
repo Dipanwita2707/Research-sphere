@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   BarChart3, TrendingUp, Users, Clock, CheckCircle, XCircle,
@@ -184,17 +184,29 @@ function GateEntryAnalyticsPageContent() {
   }, [user, router]);
 
   // Fetch analytics data
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async (overrideFilters?: {
+    dateFrom?: string;
+    dateTo?: string;
+    purpose?: string;
+    status?: string;
+    vehicleType?: string;
+  }) => {
     try {
       setLoading(true);
       setError(null);
 
       const filters: any = {};
-      if (dateFrom) filters.dateFrom = dateFrom;
-      if (dateTo) filters.dateTo = dateTo;
-      if (purposeFilter !== 'all') filters.purpose = purposeFilter;
-      if (statusFilter !== 'all') filters.status = statusFilter;
-      if (vehicleTypeFilter !== 'all') filters.vehicleType = vehicleTypeFilter;
+      const effectiveDateFrom = overrideFilters?.dateFrom ?? dateFrom;
+      const effectiveDateTo = overrideFilters?.dateTo ?? dateTo;
+      const effectivePurpose = overrideFilters?.purpose ?? purposeFilter;
+      const effectiveStatus = overrideFilters?.status ?? statusFilter;
+      const effectiveVehicleType = overrideFilters?.vehicleType ?? vehicleTypeFilter;
+
+      if (effectiveDateFrom) filters.dateFrom = effectiveDateFrom;
+      if (effectiveDateTo) filters.dateTo = effectiveDateTo;
+      if (effectivePurpose !== 'all') filters.purpose = effectivePurpose;
+      if (effectiveStatus !== 'all') filters.status = effectiveStatus;
+      if (effectiveVehicleType !== 'all') filters.vehicleType = effectiveVehicleType;
 
       const response = await gateEntryService.getAnalytics(filters);
       
@@ -204,17 +216,16 @@ function GateEntryAnalyticsPageContent() {
         setError(response.message || t('analytics.msg.fetchFailed'));
       }
     } catch (err: any) {
-      console.error('Analytics fetch error:', err);
       setError(err.response?.data?.message || t('analytics.msg.loadFailed'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateFrom, dateTo, purposeFilter, statusFilter, vehicleTypeFilter, t]);
 
   // Initial load
   useEffect(() => {
     fetchAnalytics();
-  }, []);
+  }, [fetchAnalytics]);
 
   // Apply filters
   const handleApplyFilters = () => {
@@ -228,7 +239,13 @@ function GateEntryAnalyticsPageContent() {
     setPurposeFilter('all');
     setStatusFilter('all');
     setVehicleTypeFilter('all');
-    setTimeout(() => fetchAnalytics(), 100);
+    fetchAnalytics({
+      dateFrom: '',
+      dateTo: '',
+      purpose: 'all',
+      status: 'all',
+      vehicleType: 'all'
+    });
   };
 
   // Export to CSV
@@ -333,6 +350,23 @@ function GateEntryAnalyticsPageContent() {
     };
     return vehicleMap[(vehicleType || '').toLowerCase()] || humanize(vehicleType);
   };
+
+  const statusPieData = useMemo(() => {
+    return analyticsData?.byStatus.map((item) => ({
+      ...item,
+      statusLabel: getStatusLabel(item.status)
+    })) || [];
+  }, [analyticsData?.byStatus, t]);
+
+  const vehicleBarData = useMemo(() => {
+    if (!analyticsData) return [];
+    return [
+      { type: t('analytics.vehicle.none'), count: analyticsData.vehicleStats.withoutVehicle },
+      { type: t('analytics.vehicle.twoWheeler'), count: analyticsData.vehicleStats.twoWheeler },
+      { type: t('analytics.vehicle.fourWheeler'), count: analyticsData.vehicleStats.fourWheeler },
+      { type: t('analytics.vehicle.other'), count: analyticsData.vehicleStats.other }
+    ];
+  }, [analyticsData, t]);
 
   const getBookingStatusLabel = (status?: string | null) => {
     const statusMap: Record<string, string> = {
@@ -593,18 +627,18 @@ function GateEntryAnalyticsPageContent() {
             </div>
           </div>
 
-          <div className="flex gap-3 mt-6">
+          <div className="flex flex-col sm:flex-row gap-3 mt-6">
             <button
               onClick={handleApplyFilters}
               disabled={loading}
-              className="px-6 py-3 bg-[#005b96] text-white font-bold rounded-xl hover:bg-[#03396c] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="w-full sm:w-auto px-6 py-3 bg-[#005b96] text-white font-bold rounded-xl hover:bg-[#03396c] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               <Filter className="w-4 h-4" />
               {t('analytics.applyFilters')}
             </button>
             <button
               onClick={handleResetFilters}
-              className="px-6 py-3 bg-white border border-[#6497b1] text-[#03396c] font-bold rounded-xl hover:bg-[#b3cde0]/20 hover:border-[#005b96] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              className="w-full sm:w-auto px-6 py-3 bg-white border border-[#6497b1] text-[#03396c] font-bold rounded-xl hover:bg-[#b3cde0]/20 hover:border-[#005b96] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
             >
               {t('analytics.reset')}
             </button>
@@ -735,10 +769,7 @@ function GateEntryAnalyticsPageContent() {
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={analyticsData.byStatus.map((item) => ({
-                    ...item,
-                    statusLabel: getStatusLabel(item.status)
-                  }))}
+                  data={statusPieData}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -771,14 +802,7 @@ function GateEntryAnalyticsPageContent() {
               {t('analytics.chart.vehicleStats')}
             </h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={[
-                  { type: t('analytics.vehicle.none'), count: analyticsData.vehicleStats.withoutVehicle },
-                  { type: t('analytics.vehicle.twoWheeler'), count: analyticsData.vehicleStats.twoWheeler },
-                  { type: t('analytics.vehicle.fourWheeler'), count: analyticsData.vehicleStats.fourWheeler },
-                  { type: t('analytics.vehicle.other'), count: analyticsData.vehicleStats.other }
-                ]}
-              >
+              <BarChart data={vehicleBarData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
                 <XAxis dataKey="type" tick={{ fontSize: 12 }} angle={-15} textAnchor="end" height={80} />
                 <YAxis tick={{ fontSize: 12 }} />
@@ -795,45 +819,45 @@ function GateEntryAnalyticsPageContent() {
             {/* Guest House Overview Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className={`${cardClass} p-4`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-indigo-500 to-purple-500">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-indigo-500 to-purple-500 shrink-0">
                     <Building2 className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-indigo-600">{analyticsData.guestHouseStats.totalBookings}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xl md:text-2xl font-bold text-indigo-600 leading-tight break-all">{analyticsData.guestHouseStats.totalBookings}</p>
                     <p className="text-xs font-medium text-gray-600">{t('analytics.gh.totalBookings')}</p>
                   </div>
                 </div>
               </div>
               <div className={`${cardClass} p-4`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-green-500 to-emerald-500">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-green-500 to-emerald-500 shrink-0">
                     <DollarSign className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(analyticsData.guestHouseStats.totalRevenue)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xl md:text-2xl font-bold text-green-600 leading-tight break-all">{formatCurrency(analyticsData.guestHouseStats.totalRevenue)}</p>
                     <p className="text-xs font-medium text-gray-600">{t('analytics.gh.totalRevenue')}</p>
                   </div>
                 </div>
               </div>
               <div className={`${cardClass} p-4`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-blue-500 to-cyan-500">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-blue-500 to-cyan-500 shrink-0">
                     <DollarSign className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(analyticsData.guestHouseStats.avgRevenue)}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xl md:text-2xl font-bold text-blue-600 leading-tight break-all">{formatCurrency(analyticsData.guestHouseStats.avgRevenue)}</p>
                     <p className="text-xs font-medium text-gray-600">{t('analytics.gh.avgRevenue')}</p>
                   </div>
                 </div>
               </div>
               <div className={`${cardClass} p-4`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-red-500 to-pink-500">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-red-500 to-pink-500 shrink-0">
                     <XCircle className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-red-600">{analyticsData.guestHouseStats.cancelled}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xl md:text-2xl font-bold text-red-600 leading-tight break-all">{analyticsData.guestHouseStats.cancelled}</p>
                     <p className="text-xs font-medium text-gray-600">{t('analytics.gh.cancelledBookings')}</p>
                   </div>
                 </div>

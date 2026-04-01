@@ -99,6 +99,14 @@ async function seedParents() {
 
     let createdCount = 0;
 
+    const normalizeRelationship = (value) => {
+      const relation = String(value || '').trim().toLowerCase();
+      if (relation === 'father') return 'Father';
+      if (relation === 'mother') return 'Mother';
+      if (relation === 'guardian') return 'Guardian';
+      return value;
+    };
+
     for (let i = 0; i < students.length; i++) {
       const student = students[i];
       const parentTemplate = parentsData[i % parentsData.length];
@@ -111,36 +119,61 @@ async function seedParents() {
       const motherPhone = generatePhone(9876543300 + i);  // 9876543300, 9876543301, 9876543302...
 
       try {
-        // Create Father
-        const father = await prisma.parentDetails.create({
-          data: {
-            studentId: student.id,
-            relationship: 'father',
-            firstName: parentTemplate.fatherFirstName,
-            lastName: lastName,
-            phone: fatherPhone,
-            email: `${parentTemplate.fatherFirstName.toLowerCase()}.${lastName.toLowerCase()}@parent.com`,
-            occupation: parentTemplate.fatherOccupation,
-            organization: parentTemplate.fatherOrganization,
-            isPrimaryContact: true,
-            isActive: true
+        const upsertParentByRelationship = async (relationship, data) => {
+          const normalized = normalizeRelationship(relationship);
+          const aliases = [normalized, normalized.toLowerCase(), normalized.toUpperCase()];
+
+          const existing = await prisma.parentDetails.findFirst({
+            where: {
+              studentId: student.id,
+              relationship: { in: aliases }
+            },
+            orderBy: {
+              createdAt: 'asc'
+            }
+          });
+
+          if (existing) {
+            return prisma.parentDetails.update({
+              where: { id: existing.id },
+              data: {
+                ...data,
+                relationship: normalized,
+                isActive: true
+              }
+            });
           }
+
+          return prisma.parentDetails.create({
+            data: {
+              studentId: student.id,
+              relationship: normalized,
+              ...data,
+              isActive: true
+            }
+          });
+        };
+
+        // Create or update Father
+        const father = await upsertParentByRelationship('father', {
+          firstName: parentTemplate.fatherFirstName,
+          lastName: lastName,
+          phone: fatherPhone,
+          email: `${parentTemplate.fatherFirstName.toLowerCase()}.${lastName.toLowerCase()}@parent.com`,
+          occupation: parentTemplate.fatherOccupation,
+          organization: parentTemplate.fatherOrganization,
+          isPrimaryContact: true
         });
 
-        // Create Mother
-        const mother = await prisma.parentDetails.create({
-          data: {
-            studentId: student.id,
-            relationship: 'mother',
-            firstName: parentTemplate.motherFirstName,
-            lastName: lastName,
-            phone: motherPhone,
-            email: `${parentTemplate.motherFirstName.toLowerCase()}.${lastName.toLowerCase()}@parent.com`,
-            occupation: parentTemplate.motherOccupation,
-            organization: parentTemplate.motherOrganization,
-            isPrimaryContact: false,
-            isActive: true
-          }
+        // Create or update Mother
+        const mother = await upsertParentByRelationship('mother', {
+          firstName: parentTemplate.motherFirstName,
+          lastName: lastName,
+          phone: motherPhone,
+          email: `${parentTemplate.motherFirstName.toLowerCase()}.${lastName.toLowerCase()}@parent.com`,
+          occupation: parentTemplate.motherOccupation,
+          organization: parentTemplate.motherOrganization,
+          isPrimaryContact: false
         });
 
         createdCount += 2;

@@ -972,18 +972,18 @@ function VerifyPassPageContent() {
         <div className="relative bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] rounded-2xl border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] p-6 md:p-8 mb-6 animate-fade-in">
           <div className="relative z-10">
             {/* Header with Language Selector */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3 flex-1">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
                   <Shield className="w-7 h-7 md:w-8 md:h-8 text-white" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h1 className="text-2xl md:text-4xl font-bold text-white">{t('verifyPass.title')}</h1>
                   <p className="text-[#b3cde0] text-sm md:text-base mt-1">{t('verifyPass.subtitle')}</p>
                 </div>
               </div>
               {/* Language Selector */}
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 self-start sm:self-auto">
                 <LanguageSelector />
               </div>
             </div>
@@ -998,7 +998,7 @@ function VerifyPassPageContent() {
                 onClick={() => setActiveTab('manual')}
                 className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-bold transition-all transform ${
                   activeTab === 'manual'
-                    ? 'border-b-4 border-[#005b96] text-[#005b96] bg-[#b3cde0]/20 scale-105'
+                    ? 'border-b-4 border-[#005b96] text-[#005b96] bg-[#b3cde0]/20 md:scale-105'
                     : 'text-[#6497b1] hover:text-[#03396c] hover:bg-[#b3cde0]/10'
                 }`}
               >
@@ -1011,7 +1011,7 @@ function VerifyPassPageContent() {
                 onClick={() => setActiveTab('qr')}
                 className={`flex-1 px-3 md:px-6 py-3 md:py-4 text-center font-bold transition-all transform ${
                   activeTab === 'qr'
-                    ? 'border-b-4 border-[#005b96] text-[#005b96] bg-[#b3cde0]/20 scale-105'
+                    ? 'border-b-4 border-[#005b96] text-[#005b96] bg-[#b3cde0]/20 md:scale-105'
                     : 'text-[#6497b1] hover:text-[#03396c] hover:bg-[#b3cde0]/10'
                 }`}
               >
@@ -1053,7 +1053,7 @@ function VerifyPassPageContent() {
                     {searchType === 'mobile' && t('verifyPass.enterMobile')}
                     {searchType === 'vehicleNumber' && t('verifyPass.enterVehicle')}
                   </label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <input
                       type="text"
                       value={searchTerm}
@@ -1065,12 +1065,12 @@ function VerifyPassPageContent() {
                         searchType === 'mobile' ? t('verifyPass.placeholderMobile') :
                         t('verifyPass.placeholderVehicle')
                       }
-                      className={`flex-1 ${inputClass}`}
+                      className={`w-full sm:flex-1 ${inputClass}`}
                     />
                     <button
                       onClick={handleSearch}
                       disabled={loading}
-                      className="px-5 md:px-7 py-3 bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-bold"
+                      className="w-full sm:w-auto px-5 md:px-7 py-3 bg-[#005b96] text-white rounded-xl hover:bg-[#03396c] transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base font-bold"
                     >
                       {loading ? (
                         <>
