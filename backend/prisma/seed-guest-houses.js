@@ -10,28 +10,32 @@ async function seedGuestHouses() {
       description: 'Premium accommodation facility for international guests and dignitaries',
       address: 'Block A, SGT University Campus',
       phone: '+91-1234567890',
-      email: 'intl.guesthouse@sgtuniversity.ac.in'
+      email: 'intl.guesthouse@sgtuniversity.ac.in',
+      hostel_category: 'international'
     },
     {
       name: 'Faculty Residence Complex',
       description: 'Comfortable stay facility for visiting faculty and academic staff',
       address: 'Block B, SGT University Campus',
       phone: '+91-1234567891',
-      email: 'faculty.residence@sgtuniversity.ac.in'
+      email: 'faculty.residence@sgtuniversity.ac.in',
+      hostel_category: 'national'
     },
     {
       name: 'Administrative Guest Lodge',
       description: 'Well-appointed rooms for administrative visitors and officials',
       address: 'Block C, SGT University Campus',
       phone: '+91-1234567892',
-      email: 'admin.lodge@sgtuniversity.ac.in'
+      email: 'admin.lodge@sgtuniversity.ac.in',
+      hostel_category: 'national'
     },
     {
       name: 'University Convention Center',
       description: 'Modern facilities for conference attendees and event participants',
       address: 'Block D, SGT University Campus',
       phone: '+91-1234567893',
-      email: 'convention@sgtuniversity.ac.in'
+      email: 'convention@sgtuniversity.ac.in',
+      hostel_category: 'national'
     }
   ];
 

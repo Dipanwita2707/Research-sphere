@@ -8,36 +8,54 @@ async function seedHostels() {
   try {
     console.log('🏨 Starting hostel seed...');
 
-    // Create Hostels
-    const hostel1 = await prisma.Hostel.create({
-      data: {
-        name: 'University Boys Hostel - A Block',
-        hostel_type: 'boys',
-        total_rooms: 50,
+    // Create hostels (idempotent)
+    const hostel1 = await prisma.hostel.upsert({
+      where: { name: 'University Boys Hostel - A Block' },
+      update: {
+        description: 'Guest stay hostel facility near A Block',
         address: 'A Block, University Campus',
-        facilities: JSON.stringify(['wifi', 'laundry', 'parking', 'gym', 'cafeteria']),
+        hostel_category: 'national',
+        is_active: true
+      },
+      create: {
+        name: 'University Boys Hostel - A Block',
+        description: 'Guest stay hostel facility near A Block',
+        address: 'A Block, University Campus',
+        hostel_category: 'national',
         is_active: true
       }
     });
 
-    const hostel2 = await prisma.Hostel.create({
-      data: {
-        name: 'University Girls Hostel - B Block',
-        hostel_type: 'girls',
-        total_rooms: 40,
+    const hostel2 = await prisma.hostel.upsert({
+      where: { name: 'University Girls Hostel - B Block' },
+      update: {
+        description: 'Guest stay hostel facility near B Block',
         address: 'B Block, University Campus',
-        facilities: JSON.stringify(['wifi', 'laundry', 'parking', 'reading_room', 'cafeteria']),
+        hostel_category: 'national',
+        is_active: true
+      },
+      create: {
+        name: 'University Girls Hostel - B Block',
+        description: 'Guest stay hostel facility near B Block',
+        address: 'B Block, University Campus',
+        hostel_category: 'national',
         is_active: true
       }
     });
 
-    const hostel3 = await prisma.Hostel.create({
-      data: {
-        name: 'Guest House - Co-ed',
-        hostel_type: 'coed',
-        total_rooms: 20,
+    const hostel3 = await prisma.hostel.upsert({
+      where: { name: 'Guest House - Co-ed' },
+      update: {
+        description: 'Co-ed guest house for visitors',
         address: 'Near Main Gate, University Campus',
-        facilities: JSON.stringify(['wifi', 'parking', 'restaurant', 'room_service']),
+        hostel_category: 'international',
+        is_active: true
+      },
+      create: {
+        name: 'Guest House - Co-ed',
+        description: 'Co-ed guest house for visitors',
+        address: 'Near Main Gate, University Campus',
+        hostel_category: 'international',
         is_active: true
       }
     });
@@ -46,12 +64,12 @@ async function seedHostels() {
 
    // Create Rooms for Hostel 1 (Boys - A Block)
     const hostel1Rooms = [];
-    const roomTypes1 = ['single', 'double', 'triple'];
-    const prices1 = { single: 800, double: 500, triple: 350 };
-    const occupancy1 = { single: 1, double: 2, triple: 3 };
+    const roomTypes1 = ['standard', 'deluxe', 'ac'];
+    const prices1 = { standard: 800, deluxe: 1200, ac: 1400 };
+    const occupancy1 = { standard: 1, deluxe: 2, ac: 2 };
 
     for (let i = 1; i <= 15; i++) {
-      const roomType = roomTypes1[i % 3];
+      const roomType = roomTypes1[i % roomTypes1.length];
       hostel1Rooms.push({
         hostel_id: hostel1.id,
         room_number: `A${i.toString().padStart(3, '0')}`,
@@ -62,17 +80,28 @@ async function seedHostels() {
       });
     }
 
-    await prisma.HostelRoom.createMany({ data: hostel1Rooms });
+    for (const room of hostel1Rooms) {
+      await prisma.hostelRoom.upsert({
+        where: {
+          hostel_id_room_number: {
+            hostel_id: room.hostel_id,
+            room_number: room.room_number
+          }
+        },
+        create: room,
+        update: room
+      });
+    }
     console.log('✅ Created 15 rooms for Boys Hostel - A Block');
 
     // Create Rooms for Hostel 2 (Girls - B Block)
     const hostel2Rooms = [];
-    const roomTypes2 = ['single', 'double', 'suite'];
-    const prices2 = { single: 800, double: 500, suite: 1200 };
-    const occupancy2 = { single: 1, double: 2, suite: 2 };
+    const roomTypes2 = ['standard', 'deluxe', 'suite'];
+    const prices2 = { standard: 900, deluxe: 1300, suite: 1800 };
+    const occupancy2 = { standard: 1, deluxe: 2, suite: 3 };
 
     for (let i = 1; i <= 12; i++) {
-      const roomType = roomTypes2[i % 3];
+      const roomType = roomTypes2[i % roomTypes2.length];
       hostel2Rooms.push({
         hostel_id: hostel2.id,
         room_number: `B${i.toString().padStart(3, '0')}`,
@@ -83,17 +112,27 @@ async function seedHostels() {
       });
     }
 
-    await prisma.HostelRoom.createMany({ data: hostel2Rooms });
+    for (const room of hostel2Rooms) {
+      await prisma.hostelRoom.upsert({
+        where: {
+          hostel_id_room_number: {
+            hostel_id: room.hostel_id,
+            room_number: room.room_number
+          }
+        },
+        create: room,
+        update: room
+      });
+    }
     console.log('✅ Created 12 rooms for Girls Hostel - B Block');
 
     // Create Rooms for Hostel 3 (Guest House - Co-ed)
     const hostel3Rooms = [];
-    const roomTypes3 = ['suite', 'double'];
-    const prices3 = { suite: 1500, double: 1000 };
-    const occupancy3 = { suite: 2, double: 2 };
+    const prices3 = { suite: 2200, deluxe: 1500 };
+    const occupancy3 = { suite: 3, deluxe: 2 };
 
     for (let i = 1; i <= 10; i++) {
-      const roomType = i % 2 === 0 ? 'suite' : 'double';
+      const roomType = i % 2 === 0 ? 'suite' : 'deluxe';
       hostel3Rooms.push({
         hostel_id: hostel3.id,
         room_number: `GH${i.toString().padStart(2, '0')}`,
@@ -104,7 +143,18 @@ async function seedHostels() {
       });
     }
 
-    await prisma.HostelRoom.createMany({ data: hostel3Rooms });
+    for (const room of hostel3Rooms) {
+      await prisma.hostelRoom.upsert({
+        where: {
+          hostel_id_room_number: {
+            hostel_id: room.hostel_id,
+            room_number: room.room_number
+          }
+        },
+        create: room,
+        update: room
+      });
+    }
     console.log('✅ Created 10 rooms for Guest House - Co-ed');
 
     console.log('');

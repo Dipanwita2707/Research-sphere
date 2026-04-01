@@ -36,6 +36,8 @@ async function getStudentGuardians(userId) {
     }
 
     let studentRecord = userWithStudent.studentLogin;
+    const uid = userWithStudent.uid ? String(userWithStudent.uid).trim() : null;
+    const email = userWithStudent.email ? String(userWithStudent.email).trim() : null;
 
     // Fallback for older/deployed data where studentDetails.userLoginId may be missing
     // or not linked correctly. Prefer matching by UID==studentId, then by email.
@@ -43,8 +45,8 @@ async function getStudentGuardians(userId) {
       studentRecord = await prisma.studentDetails.findFirst({
         where: {
           OR: [
-            { studentId: userWithStudent.uid },
-            ...(userWithStudent.email ? [{ email: userWithStudent.email }] : [])
+            ...(uid ? [{ studentId: uid }, { registrationNo: uid }] : []),
+            ...(email ? [{ email }] : [])
           ]
         },
         include: {
@@ -57,6 +59,30 @@ async function getStudentGuardians(userId) {
           }
         }
       });
+    }
+
+    // Last fallback for UIDs like STU12201402 where studentId is numeric only.
+    if (!studentRecord && uid) {
+      const numericUid = uid.replace(/\D/g, '');
+      if (numericUid) {
+        studentRecord = await prisma.studentDetails.findFirst({
+          where: {
+            OR: [
+              { studentId: numericUid },
+              { registrationNo: numericUid }
+            ]
+          },
+          include: {
+            parents: {
+              where: { isActive: true },
+              orderBy: [
+                { isPrimaryContact: 'desc' },
+                { firstName: 'asc' }
+              ]
+            }
+          }
+        });
+      }
     }
 
     if (!studentRecord) {
