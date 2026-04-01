@@ -3,16 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Calendar, MapPin, Users, Edit, CheckCircle, AlertCircle, Eye, Trash2, QrCode, Settings, BarChart3, ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Calendar, MapPin, Users, Edit, CheckCircle, AlertCircle, Eye, Trash2, QrCode, Settings, BarChart3, ChevronDown, ChevronRight, Sparkles, LayoutGrid } from 'lucide-react';
 import { useMyCreatedEvents } from '@/features/event-management/hooks/useEvents';
 import { EVENT_TYPE_LABELS } from '@/features/event-management/constants';
 import type { Event } from '@/features/event-management/types/event.types';
-import { PageSkeleton } from '@/shared/components/PageSkeleton';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 /** Status → icon mapping (page-specific) */
@@ -101,8 +100,17 @@ export default function MyCreatedEventsPage() {
     [groupedItems],
   );
 
-  // Show skeleton while checking permissions for students
-  if (isStudent && permsLoading) return <PageSkeleton />;
+  // Show TMS-style loading while checking permissions for students
+  if (isStudent && permsLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8fafc] py-8 px-4 dark:bg-gray-900 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-center py-24">
+          <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+          <p className="mt-4 text-sm font-medium text-[#6497b1]">Loading...</p>
+        </div>
+      </div>
+    );
+  }
   // Access guard: students who are not club chairpersons cannot access this page
   if (isStudent && !isChairperson) {
     router.replace('/events');
@@ -153,154 +161,150 @@ export default function MyCreatedEventsPage() {
   const totalRegistrations = allEvents.reduce((sum, e) => sum + (e.currentRegistrations || 0), 0);
 
   return (
-    <div className="ev-page relative overflow-hidden pb-16">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 overflow-hidden">
-        <div className="absolute -left-20 top-0 h-56 w-56 rounded-full bg-sky-200/30 blur-3xl" />
-        <div className="absolute right-0 top-0 h-56 w-56 rounded-full bg-indigo-200/20 blur-3xl" />
-      </div>
-
-      <div className="relative mx-auto max-w-[1450px] px-4 pt-0 sm:px-6 sm:pt-0 lg:px-8 lg:pt-0">
-        <section className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/92 shadow-[0_24px_70px_-48px_rgba(1,31,75,0.35)] backdrop-blur-xl">
-          <div className="space-y-5 px-5 pb-5 pt-2 sm:px-8 sm:pb-7 sm:pt-3 lg:px-10 lg:pb-10 lg:pt-3">
-            <Card className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-[linear-gradient(135deg,rgba(1,31,75,0.98),rgba(23,76,150,0.96))] py-0 text-white shadow-[0_18px_50px_-36px_rgba(1,31,75,0.48)]">
-              <CardContent className="px-5 py-5 sm:px-6 sm:py-6">
-                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge className="border border-white/12 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-sky-100">
-                        Events
-                      </Badge>
-                      <Badge className="border border-emerald-300/20 bg-emerald-300/12 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-100">
-                        {publishedCount} live now
-                      </Badge>
-                    </div>
-                    <CardTitle className="mt-3 text-2xl font-black tracking-[-0.04em] text-white sm:text-[2rem]">
-                      Manage drafts, published events, and festival-linked events.
-                    </CardTitle>
-                    <CardDescription className="mt-2 max-w-2xl text-sm leading-6 text-white/72">
-                      Review the events you created, finish incomplete drafts, open event management, and handle updates or QR scanning from one workspace.
-                    </CardDescription>
+    <div className="min-h-screen bg-[#f8fafc] py-8 px-4 dark:bg-gray-900 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        {/* Page header — TMS-style */}
+        <div className="mb-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#011f4b] to-[#005b96] shadow-md">
+                <LayoutGrid className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-[#011f4b] dark:text-white">My events</h1>
+                <p className="mt-0.5 text-sm text-[#6497b1] dark:text-gray-400">
+                  Manage drafts, published events, and festival-linked events from one place.
+                </p>
+                <div className="mt-3 grid max-w-md grid-cols-3 gap-2 sm:max-w-lg">
+                  <div className="rounded-xl border border-[#b3cde0]/40 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-800" style={{ boxShadow: '0 2px 8px 0 rgba(0, 91, 150, 0.06)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6497b1]">Drafts</p>
+                    <p className="text-lg font-bold text-[#011f4b] dark:text-white">{draftCount}</p>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-3 sm:min-w-[360px]">
-                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Drafts</p>
-                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{draftCount}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Published</p>
-                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{publishedCount}</p>
-                    </div>
-                    <div className="rounded-2xl border border-white/12 bg-white/8 px-4 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/55">Registrations</p>
-                      <p className="mt-1 text-2xl font-black tracking-[-0.04em] text-white">{totalRegistrations}</p>
-                    </div>
+                  <div className="rounded-xl border border-[#b3cde0]/40 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-800" style={{ boxShadow: '0 2px 8px 0 rgba(0, 91, 150, 0.06)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6497b1]">Published</p>
+                    <p className="text-lg font-bold text-[#011f4b] dark:text-white">{publishedCount}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#b3cde0]/40 bg-white px-3 py-2 dark:border-gray-600 dark:bg-gray-800" style={{ boxShadow: '0 2px 8px 0 rgba(0, 91, 150, 0.06)' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6497b1]">Registrations</p>
+                    <p className="text-lg font-bold text-[#011f4b] dark:text-white">{totalRegistrations}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 h-0.5 rounded-full bg-gradient-to-r from-[#005b96] via-[#b3cde0] to-transparent" aria-hidden />
+        </div>
 
             <Tabs
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as 'draft' | 'published' | 'past')}
-              className="flex-col gap-5"
+              className="flex flex-col gap-6"
             >
-              <Card className="mx-auto w-full max-w-[1120px] overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-[linear-gradient(180deg,#ffffff,rgba(248,250,252,0.96))] py-0 shadow-[0_16px_40px_-38px_rgba(1,31,75,0.14)]">
-                <CardContent className="px-4 py-4 sm:px-5">
-                  <div className="flex flex-col gap-3 xl:grid xl:grid-cols-[auto_minmax(0,1fr)_auto] xl:items-center xl:gap-4">
-                    <div className="shrink-0">
-                      <CardTitle className="text-base font-bold tracking-[-0.03em] text-slate-900 sm:text-lg">
-                        Browse events
-                      </CardTitle>
-                    </div>
+              <div
+                className="rounded-2xl border border-[#b3cde0]/40 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+                style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}
+              >
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <p className="text-sm font-semibold text-[#03396c] dark:text-gray-200">View</p>
+                  <TabsList className="h-auto w-full flex-wrap justify-start gap-1 rounded-xl bg-[#f8fafc] p-1 dark:bg-gray-900 xl:flex-1 xl:justify-center">
+                    <TabsTrigger
+                      value="published"
+                      className="rounded-lg px-4 py-2.5 text-sm font-semibold data-[state=active]:bg-[#005b96] data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-[#005b96]/25 dark:data-[state=active]:bg-[#005b96]"
+                    >
+                      Published
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="draft"
+                      className="rounded-lg px-4 py-2.5 text-sm font-semibold data-[state=active]:bg-[#005b96] data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-[#005b96]/25 dark:data-[state=active]:bg-[#005b96]"
+                    >
+                      Drafts {draftCount > 0 ? `(${draftCount})` : ''}
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="past"
+                      className="rounded-lg px-4 py-2.5 text-sm font-semibold data-[state=active]:bg-[#005b96] data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-[#005b96]/25 dark:data-[state=active]:bg-[#005b96]"
+                    >
+                      Past {pastCount > 0 ? `(${pastCount})` : ''}
+                    </TabsTrigger>
+                  </TabsList>
 
-                    <TabsList className="h-auto w-full flex-wrap justify-start gap-2 rounded-[0.95rem] bg-slate-100/80 p-1.5 xl:w-full xl:justify-center">
-                      <TabsTrigger
-                        value="published"
-                        className="rounded-xl px-4 py-2 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="border border-[#b3cde0]/60 bg-[#f8fafc] px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-[#03396c] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                      {events.length} in view
+                    </Badge>
+                    {festivalIds.length > 0 ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="default"
+                        onClick={toggleAll}
+                        className="rounded-xl border-[#b3cde0]/60 bg-white text-[#03396c] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
                       >
-                        Published
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="draft"
-                        className="rounded-xl px-4 py-2 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                      >
-                        Drafts {draftCount > 0 ? `(${draftCount})` : ''}
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="past"
-                        className="rounded-xl px-4 py-2 text-sm font-semibold data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
-                      >
-                        Past events {pastCount > 0 ? `(${pastCount})` : ''}
-                      </TabsTrigger>
-                    </TabsList>
-
-                    <div className="flex flex-wrap items-center gap-2 xl:shrink-0">
-                      <Badge className="border border-sky-100 bg-sky-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-sky-700">
-                        {events.length} in view
-                      </Badge>
-                      {festivalIds.length > 0 ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="default"
-                          onClick={toggleAll}
-                          className="rounded-full border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900"
-                        >
-                          {allExpanded ? <ChevronDown data-icon="inline-start" /> : <ChevronRight data-icon="inline-start" />}
-                          {allExpanded ? 'Collapse festivals' : 'Expand festivals'}
-                        </Button>
-                      ) : null}
-                    </div>
+                        {allExpanded ? <ChevronDown className="mr-1.5 h-4 w-4" /> : <ChevronRight className="mr-1.5 h-4 w-4" />}
+                        {allExpanded ? 'Collapse festivals' : 'Expand festivals'}
+                      </Button>
+                    ) : null}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Events List */}
               {loading ? (
-                <PageSkeleton message="Loading events..." />
+                <div
+                  className="flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-20 dark:border-gray-700 dark:bg-gray-800"
+                  style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
+                >
+                  <div className="h-9 w-9 animate-spin rounded-full border-[3px] border-[#b3cde0] border-t-[#005b96]" />
+                  <p className="mt-4 text-sm font-medium text-[#6497b1]">Loading events...</p>
+                </div>
               ) : events.length === 0 ? (
-                <Card className="rounded-[1.5rem] border border-slate-200/80 bg-white/92 py-0 text-center shadow-[0_18px_50px_-40px_rgba(1,31,75,0.18)]">
-                  <CardContent className="px-6 py-14">
-            {activeTab === 'draft' ? (
-              <>
-                <AlertCircle className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-slate-900 mb-2">No draft events</h3>
-                <p className="text-slate-500 mb-4">
-                  All your events are published or you haven't created any events yet.
-                </p>
-              </>
-            ) : (
-              <>
-                <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-slate-900 mb-2">No events yet</h3>
-                <p className="mx-auto max-w-xl text-slate-500 mb-6">
-                  Events are automatically created when your noting requests (with event category) are approved.
-                </p>
-                <Card className="mx-auto max-w-lg rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 py-0 text-left shadow-none">
-                  <CardContent className="px-5 py-5">
-                    <p className="text-sm font-semibold text-slate-900 mb-3">How event creation flows</p>
-                    <ol className="space-y-2.5 text-sm text-slate-600">
-                      <li>1. Create a noting request with event details.</li>
-                      <li>2. Wait for the approval chain to complete.</li>
-                      <li>3. The event appears here as a draft.</li>
-                      <li>4. Add venue and registration dates.</li>
-                      <li>5. Publish when the event is ready to go live.</li>
-                    </ol>
-                    <div className="mt-5 flex justify-start">
-                      <Button asChild size="lg" className="rounded-full px-5">
-                        <Link href="/noting/new">
-                          Create noting request
-                          <ArrowRight data-icon="inline-end" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
-                  </CardContent>
-                </Card>
+                <div
+                  className="rounded-2xl border border-[#b3cde0]/40 bg-white py-14 text-center dark:border-gray-700 dark:bg-gray-800"
+                  style={{ boxShadow: '0 2px 16px 0 rgba(0, 91, 150, 0.07)' }}
+                >
+                  <div className="px-6">
+                    {activeTab === 'draft' ? (
+                      <>
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3cde0]/20">
+                          <AlertCircle className="h-7 w-7 text-[#6497b1]" />
+                        </div>
+                        <p className="font-semibold text-[#03396c] dark:text-gray-200">No draft events</p>
+                        <p className="mt-1 text-sm text-[#6497b1] dark:text-gray-400">
+                          All your events are published or you haven&apos;t created any events yet.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#b3cde0]/20">
+                          <Calendar className="h-7 w-7 text-[#6497b1]" />
+                        </div>
+                        <p className="font-semibold text-[#03396c] dark:text-gray-200">No events yet</p>
+                        <p className="mx-auto mt-1 max-w-xl text-sm text-[#6497b1] dark:text-gray-400">
+                          Events are automatically created when your noting requests (with event category) are approved.
+                        </p>
+                        <Card className="mx-auto mt-6 max-w-lg rounded-2xl border border-[#b3cde0]/40 bg-[#f8fafc] py-0 text-left dark:border-gray-600 dark:bg-gray-900/50" style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}>
+                          <CardContent className="px-5 py-5">
+                            <p className="mb-3 text-sm font-semibold text-[#011f4b] dark:text-white">How event creation flows</p>
+                            <ol className="space-y-2.5 text-sm text-[#03396c]/90 dark:text-gray-400">
+                              <li>1. Create a noting request with event details.</li>
+                              <li>2. Wait for the approval chain to complete.</li>
+                              <li>3. The event appears here as a draft.</li>
+                              <li>4. Add venue and registration dates.</li>
+                              <li>5. Publish when the event is ready to go live.</li>
+                            </ol>
+                            <div className="mt-5 flex justify-start">
+                              <Button asChild className="rounded-xl bg-[#005b96] px-5 shadow-md shadow-[#005b96]/20 hover:bg-[#03396c]">
+                                <Link href="/noting/new">
+                                  Create noting request
+                                  <ArrowRight className="ml-2 h-4 w-4" />
+                                </Link>
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <div className="mb-8 space-y-5">
               {groupedItems.map((item) => {
@@ -311,45 +315,49 @@ export default function MyCreatedEventsPage() {
                   const summaryStatus = allDraft ? 'draft' : allPublished ? 'published' : 'mixed';
 
                   return (
-                    <Card key={`festival-${item.festivalNotingId}`} className="overflow-hidden rounded-[1.35rem] border border-slate-200/80 bg-white py-0 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.18)]">
+                    <Card
+                      key={`festival-${item.festivalNotingId}`}
+                      className="overflow-hidden rounded-2xl border border-[#b3cde0]/40 bg-white py-0 dark:border-gray-700 dark:bg-gray-800"
+                      style={{ boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}
+                    >
                       {/* Festival Header — always visible */}
                       <button
                         type="button"
                         onClick={() => toggleFestival(item.festivalNotingId)}
-                        className="w-full flex items-start gap-3 bg-[linear-gradient(180deg,#ffffff,rgba(247,249,252,0.96))] px-5 py-4 text-left transition-colors hover:bg-[linear-gradient(180deg,#ffffff,rgba(244,246,248,0.98))]"
+                        className="flex w-full items-start gap-3 bg-[#f8fafc]/80 px-5 py-4 text-left transition-colors hover:bg-[#b3cde0]/10 dark:bg-gray-800/80 dark:hover:bg-gray-700/50"
                       >
                         {isExpanded
-                          ? <ChevronDown className="h-5 w-5 text-sky-700 shrink-0" />
-                          : <ChevronRight className="h-5 w-5 text-sky-700 shrink-0" />}
-                        <Sparkles className="h-5 w-5 text-sky-700 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-lg font-bold tracking-[-0.03em] text-slate-900 truncate">
+                          ? <ChevronDown className="h-5 w-5 shrink-0 text-[#005b96]" />
+                          : <ChevronRight className="h-5 w-5 shrink-0 text-[#005b96]" />}
+                        <Sparkles className="h-5 w-5 shrink-0 text-[#005b96]" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="truncate text-lg font-bold text-[#011f4b] dark:text-white">
                               {item.meta.name}
                             </h3>
-                            <Badge className="border border-fuchsia-100 bg-fuchsia-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-fuchsia-700">
+                            <Badge className="border border-fuchsia-200/80 bg-fuchsia-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-fuchsia-800 dark:border-fuchsia-800 dark:bg-fuchsia-950/40 dark:text-fuchsia-300">
                               Festival
                             </Badge>
-                            <Badge className={`px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] ${
+                            <Badge className={`px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
                               summaryStatus === 'draft'
                                 ? 'border border-slate-200 bg-slate-100 text-slate-700'
                                 : summaryStatus === 'published'
-                                  ? 'border border-sky-100 bg-sky-50 text-sky-700'
-                                  : 'border border-amber-100 bg-amber-50 text-amber-700'
+                                  ? 'border border-[#b3cde0]/80 bg-[#b3cde0]/20 text-[#03396c]'
+                                  : 'border border-amber-200/80 bg-amber-50 text-amber-800'
                             }`}>
                               {summaryStatus === 'mixed' ? 'Partial' : summaryStatus}
                             </Badge>
                           </div>
-                          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500">
+                          <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#6497b1] dark:text-gray-400">
                             <span className="flex items-center gap-1">
-                              <Calendar className="h-3.5 w-3.5 text-sky-600" />
+                              <Calendar className="h-3.5 w-3.5 text-[#005b96]" />
                               {formatDate(item.meta.startDate)} – {formatDate(item.meta.endDate)}
                             </span>
-                            <span className="font-medium text-sky-700">
+                            <span className="font-medium text-[#03396c] dark:text-gray-300">
                               {item.events.length} sub-event{item.events.length !== 1 ? 's' : ''}
                             </span>
                             {item.meta.coordinator && (
-                              <span className="text-slate-400">Coordinator: {item.meta.coordinator}</span>
+                              <span className="text-[#6497b1]/80">Coordinator: {item.meta.coordinator}</span>
                             )}
                           </div>
                         </div>
@@ -357,7 +365,7 @@ export default function MyCreatedEventsPage() {
 
                       {/* Sub-Events — collapsible */}
                       {isExpanded && (
-                        <div className="divide-y divide-slate-200 border-t border-slate-200">
+                        <div className="divide-y divide-[#b3cde0]/30 border-t border-[#b3cde0]/30 dark:divide-gray-600 dark:border-gray-600">
                           {item.events.map((event) => (
                             <EventCard key={event.id} event={event} formatDate={formatDate} getDraftCompletionStatus={getDraftCompletionStatus} nested />
                           ))}
@@ -373,8 +381,6 @@ export default function MyCreatedEventsPage() {
                 </div>
               )}
             </Tabs>
-          </div>
-        </section>
       </div>
     </div>
   );
@@ -399,9 +405,10 @@ function EventCard({
     <div
       className={
         nested
-          ? 'p-5 transition-colors hover:bg-slate-50/80'
-          : 'rounded-[1.35rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_48px_-40px_rgba(1,31,75,0.18)] transition duration-200 hover:-translate-y-0.5 hover:border-sky-200 hover:shadow-[0_22px_52px_-42px_rgba(1,31,75,0.22)] sm:p-6'
+          ? 'p-5 transition-colors hover:bg-[#005b96]/[0.03] dark:hover:bg-gray-700/30'
+          : 'rounded-2xl border border-[#b3cde0]/40 bg-[#f8fafc]/80 p-5 transition duration-200 hover:border-[#6497b1] dark:border-gray-600 dark:bg-gray-900/50 sm:p-6'
       }
+      style={nested ? undefined : { boxShadow: '0 2px 12px 0 rgba(0, 91, 150, 0.06)' }}
     >
       <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
         {/* Event Info */}
@@ -439,20 +446,20 @@ function EventCard({
           </div>
 
           {/* Event Name */}
-          <h3 className={`font-bold tracking-[-0.03em] text-slate-900 mb-2 ${nested ? 'text-base' : 'text-xl'}`}>
+          <h3 className={`mb-2 font-bold text-[#011f4b] dark:text-white ${nested ? 'text-base' : 'text-xl'}`}>
             {event.name}
           </h3>
 
           {/* Date & Venue */}
           <div className="mb-3 space-y-2">
-            <div className="flex items-start gap-2 text-sm text-slate-700">
-              <Calendar className="h-4 w-4 text-sky-600" />
+            <div className="flex items-start gap-2 text-sm text-[#03396c] dark:text-gray-300">
+              <Calendar className="h-4 w-4 text-[#005b96]" />
               <span>{formatDate(event.startDate)} - {formatDate(event.endDate)}</span>
             </div>
 
             {event.venue ? (
-              <div className="flex items-start gap-2 text-sm text-slate-700">
-                <MapPin className="h-4 w-4 text-sky-600" />
+              <div className="flex items-start gap-2 text-sm text-[#03396c] dark:text-gray-300">
+                <MapPin className="h-4 w-4 text-[#005b96]" />
                 <span>{event.venue}</span>
               </div>
             ) : (
@@ -465,15 +472,15 @@ function EventCard({
 
           {/* Registrations */}
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <div className="flex items-center gap-2 text-slate-700">
-              <Users className="h-4 w-4 text-sky-600" />
-              <span className="text-slate-500">Few seats left</span>
+            <div className="flex items-center gap-2 text-[#03396c] dark:text-gray-300">
+              <Users className="h-4 w-4 text-[#005b96]" />
+              <span className="text-[#6497b1] dark:text-gray-400">Few seats left</span>
             </div>
 
-            <div className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+            <div className={`rounded-full px-2.5 py-1 text-xs font-medium ${
               event.paymentType === 'free'
-                ? 'border border-emerald-100 bg-emerald-50 text-emerald-700'
-                : 'border border-sky-100 bg-sky-50 text-sky-700'
+                ? 'border border-emerald-200/80 bg-emerald-50 text-emerald-800'
+                : 'border border-[#b3cde0]/80 bg-[#b3cde0]/15 text-[#03396c]'
             }`}>
               {event.paymentType === 'free' ? 'Free' : `₹${event.registrationFee}`}
             </div>
@@ -496,7 +503,7 @@ function EventCard({
 
         {/* Actions */}
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:w-[348px] xl:grid-cols-1">
-          <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">
+          <Button asChild variant="outline" size="default" className="w-full justify-start rounded-xl border-[#b3cde0]/60 bg-white text-[#03396c] hover:bg-[#f8fafc] dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
             <Link href={`/events/${event.id}`}>
               <Eye className="h-4 w-4" />
               View
@@ -504,7 +511,7 @@ function EventCard({
           </Button>
 
           {event.status === 'draft' && (
-            <Button asChild variant="default" size="default" className="w-full justify-start">
+            <Button asChild size="default" className="w-full justify-start rounded-xl bg-[#005b96] shadow-md shadow-[#005b96]/20 hover:bg-[#03396c]">
               <Link href={`/events/${event.id}/manage`}>
                 <Edit className="h-4 w-4" />
                 Complete & Publish
@@ -512,7 +519,7 @@ function EventCard({
             </Button>
           )}
 
-          <Button asChild variant="default" size="default" className="w-full justify-start rounded-lg bg-slate-900 text-white shadow-sm hover:bg-slate-800">
+          <Button asChild size="default" className="w-full justify-start rounded-xl bg-[#011f4b] text-white shadow-sm hover:bg-[#03396c]">
             <Link href={`/events/${event.id}/management`}>
               <BarChart3 className="h-4 w-4" />
               Event Management
@@ -521,13 +528,13 @@ function EventCard({
 
           {event.status !== 'draft' && (
             <>
-              <Button asChild variant="outline" size="default" className="group w-full justify-start rounded-lg border-slate-300/90 bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-ev-300 hover:bg-gradient-to-r hover:from-ev-50 hover:to-cyan-50 hover:text-slate-900 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ev-300 focus-visible:ring-offset-1">
+              <Button asChild variant="outline" size="default" className="group w-full justify-start rounded-xl border-[#b3cde0]/60 bg-white transition-all hover:border-[#005b96]/40 hover:bg-[#005b96]/5 dark:border-gray-600 dark:bg-gray-800">
                 <Link href={`/events/${event.id}/manage`}>
                   <Settings className="h-4 w-4 transition-transform duration-200 group-hover:rotate-12" />
                   <span className="truncate text-[13px] font-semibold tracking-tight">Event Edit/Publish/Republish</span>
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="default" className="w-full justify-start rounded-lg border-slate-200 bg-white shadow-sm hover:bg-slate-50 hover:text-slate-900">
+              <Button asChild variant="outline" size="default" className="w-full justify-start rounded-xl border-[#b3cde0]/60 bg-white hover:bg-[#f8fafc] dark:border-gray-600 dark:bg-gray-800">
                 <Link href={`/events/${event.id}/scan`}>
                   <QrCode className="h-4 w-4" />
                   QR Scan

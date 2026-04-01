@@ -204,19 +204,34 @@ export default function EventDetailPage() {
   const durationLabel = event.startDate !== event.endDate
     ? `${fmtCompact(event.startDate)} - ${fmtCompact(event.endDate)}`
     : fmtCompact(event.startDate);
+  const heroBackgroundUrl = event.bannerImageUrl
+    ? resolveImageUrl(event.bannerImageUrl)
+    : "";
+  const heroLogoUrl = event.logoImageUrl ? resolveImageUrl(event.logoImageUrl) : "";
 
   return (
-    <div className="ev-page min-h-screen bg-ev-bg">
+    <div className="ev-page min-h-screen bg-[#f4f8fc]">
       {/* ========== HERO BANNER ========== */}
       <section
         className="relative overflow-hidden min-h-[340px] lg:min-h-[380px]"
-        style={{ background: "linear-gradient(135deg, #005b96 0%, #004a80 50%, #003d6b 100%)" }}
+        style={heroBackgroundUrl
+          ? {
+              backgroundImage: `url("${heroBackgroundUrl}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              backgroundColor: "#003d6b",
+            }
+          : { background: "linear-gradient(135deg, #005b96 0%, #004a80 50%, #003d6b 100%)" }}
       >
+        {heroBackgroundUrl && <div className="absolute inset-0 bg-[#00172f]/26" />}
+        <div className="absolute inset-y-0 left-0 w-full lg:w-[64%] bg-gradient-to-r from-black/72 via-black/40 to-transparent" />
+
         {/* Grid pattern overlay */}
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.07) 1px, transparent 1px)`,
+            backgroundImage: "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
             backgroundSize: "44px 44px",
           }}
         />
@@ -226,7 +241,7 @@ export default function EventDetailPage() {
           <div className="flex items-center justify-between pt-5 pb-2">
             <div className="flex items-center gap-3">
               {publicRegistrationCount > 0 && (
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm font-medium text-white/80 backdrop-blur-sm">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/35 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur-sm">
                   <Users className="w-4 h-4" />
                   {publicRegistrationCount} Registered
                 </span>
@@ -238,15 +253,24 @@ export default function EventDetailPage() {
             </span>
           </div>
 
-          {/* Two-column hero: Text Left + Image Right */}
-          <div className="grid grid-cols-1 gap-8 pb-10 pt-4 lg:grid-cols-2 lg:gap-12 lg:pb-12 lg:pt-6">
-            {/* Left: Text content */}
-            <div className="flex flex-col justify-center">
-              <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-5xl lg:text-[3.25rem]">
+          <div className="pb-10 pt-4 lg:pb-12 lg:pt-6">
+            <div className="flex max-w-4xl flex-col justify-center">
+              {heroLogoUrl && (
+                <div className="mb-4 inline-flex w-fit items-center rounded-xl bg-white/95 p-2 shadow-lg ring-1 ring-black/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={heroLogoUrl}
+                    alt={`${event.name} logo`}
+                    className="h-12 w-12 rounded-lg object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                </div>
+              )}
+              <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white drop-shadow-[0_6px_18px_rgba(0,0,0,0.75)] sm:text-5xl lg:text-[3.25rem]">
                 {event.name}
               </h1>
               {event.description && (
-                <p className="mt-4 max-w-lg text-base leading-relaxed text-white/60 sm:text-lg">
+                <p className="mt-4 max-w-2xl text-base leading-relaxed text-white/90 drop-shadow-[0_3px_12px_rgba(0,0,0,0.75)] sm:text-lg">
                   {event.description}
                 </p>
               )}
@@ -283,7 +307,7 @@ export default function EventDetailPage() {
 
               {/* Organizer */}
               {event.createdBy && (
-                <div className="mt-5 inline-flex items-center gap-3 text-sm text-white/60">
+                <div className="mt-5 inline-flex items-center gap-3 text-sm text-white/80">
                   <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-sm font-bold text-white">
                     {event.createdBy.name.charAt(0).toUpperCase()}
                   </span>
@@ -314,7 +338,7 @@ export default function EventDetailPage() {
                 {isCreator && (
                   <Link
                     href={`/events/${event.id}/manage`}
-                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/8 px-5 py-3 text-base font-semibold text-white/90 backdrop-blur-sm transition hover:bg-white/15"
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/25 bg-slate-900/85 px-5 py-3 text-base font-semibold text-white shadow-lg shadow-black/25 transition hover:bg-slate-800/90"
                   >
                     <Settings className="w-4 h-4" />
                     Manage Event
@@ -322,42 +346,19 @@ export default function EventDetailPage() {
                 )}
                 <Link
                   href="/events"
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/15 bg-white/6 px-5 py-3 text-base font-medium text-white/80 backdrop-blur-sm transition hover:bg-white/12 hover:text-white/95"
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-slate-800/85 px-5 py-3 text-base font-medium text-white shadow-lg shadow-black/20 transition hover:bg-slate-700/90"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Events
                 </Link>
               </div>
             </div>
-
-            {/* Right: Banner image or logo */}
-            <div className="hidden lg:flex items-center justify-center">
-              {(event.bannerImageUrl || event.logoImageUrl) ? (
-                <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 shadow-2xl shadow-black/30 bg-black/20">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={resolveImageUrl(event.bannerImageUrl || event.logoImageUrl)}
-                    alt={event.name}
-                    className="w-full max-h-[280px] object-contain"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                  <div className="absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
-                </div>
-              ) : (
-                <div className="flex h-52 w-full max-w-md items-center justify-center rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
-                  <div className="text-center">
-                    <Award className="mx-auto h-12 w-12 text-white/20" />
-                    <p className="mt-2 text-sm font-medium text-white/30">{EVENT_TYPE_LABELS[event.eventType]}</p>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </section>
 
       {/* ========== STICKY TAB NAVIGATION ========== */}
-      <div className="sticky top-0 z-40 border-b border-gray-200 bg-white shadow-sm">
+      <div className="sticky top-0 z-40 border-b border-[#b3cde0]/40 bg-[#f7fbff]/95 shadow-sm backdrop-blur">
         <nav className="flex items-center justify-start gap-0 overflow-x-auto scrollbar-hide -mb-px min-w-0 px-4 sm:px-6">
           {tabs.map((tab) => (
             <button
@@ -384,8 +385,8 @@ export default function EventDetailPage() {
             {/* ===== OVERVIEW TAB ===== */}
             {activeTab === "overview" && (
               <div className="space-y-6">
-                <section className="rounded-xl border border-gray-100 bg-white shadow-sm">
-                  <div className="border-b border-gray-100 px-6 py-4 sm:px-8">
+                <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+                  <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                     <h2 className="text-lg font-bold text-ev-900">About</h2>
                   </div>
                   <div className="px-6 py-6 sm:px-8">
@@ -401,7 +402,7 @@ export default function EventDetailPage() {
                     )}
 
                     <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
-                      <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+                      <div className="rounded-xl border border-[#b3cde0]/35 bg-[#f8fbff] p-4">
                         <div className="flex items-center gap-2 text-gray-400 mb-2">
                           <Calendar className="w-4 h-4" />
                           <span className="text-xs font-semibold uppercase tracking-wider">Date</span>
@@ -412,7 +413,7 @@ export default function EventDetailPage() {
                         )}
                       </div>
                       {event.venue && (
-                        <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+                        <div className="rounded-xl border border-[#b3cde0]/35 bg-[#f8fbff] p-4">
                           <div className="flex items-center gap-2 text-gray-400 mb-2">
                             <MapPin className="w-4 h-4" />
                             <span className="text-xs font-semibold uppercase tracking-wider">Venue</span>
@@ -420,7 +421,7 @@ export default function EventDetailPage() {
                           <p className="text-sm font-bold text-ev-900">{event.venue}</p>
                         </div>
                       )}
-                      <div className="rounded-lg border border-gray-100 bg-gray-50/60 p-4">
+                      <div className="rounded-xl border border-[#b3cde0]/35 bg-[#f8fbff] p-4">
                         <div className="flex items-center gap-2 text-gray-400 mb-2">
                           {event.participationType === "individual" ? <User className="w-4 h-4" /> : <Users className="w-4 h-4" />}
                           <span className="text-xs font-semibold uppercase tracking-wider">Format</span>
@@ -456,8 +457,8 @@ export default function EventDetailPage() {
 
                 {/* Sponsors in Overview tab */}
                 {event.showSponsorshipPublicly && event.hasSponsorship && Array.isArray(event.sponsors) && event.sponsors.length > 0 && (
-                  <section className="rounded-xl border border-gray-100 bg-white shadow-sm">
-                    <div className="border-b border-gray-100 px-6 py-4 sm:px-8">
+                  <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+                    <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                       <h2 className="text-lg font-bold text-ev-900">Our Partners</h2>
                     </div>
                     <div className="px-6 py-6 sm:px-8">
@@ -468,7 +469,7 @@ export default function EventDetailPage() {
                           return (
                             <div
                               key={i}
-                              className="flex flex-col items-center rounded-lg border border-gray-100 bg-white p-4 text-center transition hover:border-sgt-200 hover:shadow-sm"
+                              className="flex flex-col items-center rounded-xl border border-[#b3cde0]/35 bg-[#fbfdff] p-4 text-center transition hover:border-sgt-200 hover:shadow-sm"
                             >
                               <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-sgt-50/50 text-sgt-600 overflow-hidden">
                                 {s.sponsorLogo?.filePath ? (
@@ -542,7 +543,7 @@ export default function EventDetailPage() {
                               <span className="text-[10px] font-medium uppercase">{rStart.toLocaleDateString("en-IN", { month: "short" })}</span>
                             </div>
                           </div>
-                          <div className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                          <div className="min-w-0 flex-1 rounded-2xl border border-[#b3cde0]/45 bg-white/95 p-5 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div className="flex flex-wrap items-center gap-2">
                                 <h3 className="text-base font-bold text-gray-900">{round.name}</h3>
@@ -597,7 +598,7 @@ export default function EventDetailPage() {
                             <span className="text-[10px] font-medium uppercase">{start.toLocaleDateString("en-IN", { month: "short" })}</span>
                           </div>
                         </div>
-                        <div className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                        <div className="min-w-0 flex-1 rounded-2xl border border-[#b3cde0]/45 bg-white/95 p-5 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="text-base font-bold text-gray-900">{event.name}</h3>
@@ -653,8 +654,8 @@ export default function EventDetailPage() {
 
             {/* ===== RULES TAB ===== */}
             {activeTab === "guidelines" && hasGuidelinesContent && (
-              <section className="rounded-xl border border-gray-100 bg-white shadow-sm">
-                <div className="border-b border-gray-100 px-6 py-4 sm:px-8">
+              <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+                <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                   <h2 className="text-lg font-bold text-ev-900">Rules</h2>
                 </div>
                 <div className="px-6 py-6 sm:px-8 space-y-8">
@@ -774,8 +775,8 @@ export default function EventDetailPage() {
 
             {/* ===== FAQ TAB ===== */}
             {activeTab === "faq" && hasFaqContent && (
-              <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
-                <div className="border-b border-gray-200 px-6 py-4 sm:px-8">
+              <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+                <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                   <h2 className="text-lg font-bold text-ev-900">Frequently Asked Questions</h2>
                 </div>
                 <div className="px-6 py-6 sm:px-8 space-y-3">
@@ -811,8 +812,8 @@ export default function EventDetailPage() {
 
             {/* ===== CONTACT TAB ===== */}
             {activeTab === "contact" && hasContactContent && (
-              <section className="rounded-xl border border-gray-100 bg-white shadow-sm">
-                <div className="border-b border-gray-100 px-6 py-4 sm:px-8">
+              <section className="rounded-2xl border border-[#b3cde0]/45 bg-white/95 shadow-[0_2px_12px_rgba(0,91,150,0.08)]">
+                <div className="border-b border-[#b3cde0]/35 px-6 py-4 sm:px-8">
                   <h2 className="text-lg font-bold text-ev-900">Contact</h2>
                 </div>
                 <div className="px-6 py-6 sm:px-8">
