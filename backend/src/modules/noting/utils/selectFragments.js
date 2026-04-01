@@ -127,6 +127,9 @@ const noteFieldsForList = {
   notingId: true,
   category: true,
   subcategory: true,
+  departmentId: true,
+  departmentScope: true,
+  departmentName: true,
   description: true,
   status: true,
   amount: true,
@@ -320,6 +323,8 @@ const noteForValidation = {
   currentFlowIndex: true,
   category: true,
   subcategory: true,
+  departmentId: true,
+  departmentScope: true,
   amountRequired: true,
 };
 

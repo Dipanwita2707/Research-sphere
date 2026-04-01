@@ -20,6 +20,8 @@ const AMOUNT_MAX = 10_00_000;
 
 export interface BaseNoteValidationInput {
   subcategory: string;
+  departmentId: string;
+  departmentScope: '' | 'school' | 'central';
   description: string;
   approvalPeriod: "one_time" | "recurring";
   recurringFrequency: string;
@@ -349,6 +351,10 @@ const visibilitySchema = z.object({
 const baseNoteSchema = z
   .object({
     subcategory: z.string().trim().min(1, "Please select a subcategory."),
+    departmentId: z.string().uuid("Please select a department."),
+    departmentScope: z
+      .string()
+      .refine((value) => value === "school" || value === "central", "Please select a department."),
     description: z
       .string()
       .refine(

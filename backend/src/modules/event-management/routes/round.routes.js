@@ -7,7 +7,13 @@
 const express = require('express');
 const router = express.Router({ mergeParams: true });
 const roundController = require('../controllers/round.controller');
-const { validateEventId } = require('../validators/event.validators');
+const {
+  validateEventId,
+  validateRoundCreate,
+  validateRoundUpdate,
+  validateRoundDelete,
+  validateRoundReorder,
+} = require('../validators/event.validators');
 const { checkAnyPermission } = require('../../../shared/middleware/auth');
 
 const eventManagePerm = checkAnyPermission(
@@ -22,15 +28,14 @@ router.get('/:id/rounds', roundController.getRounds);
 router.get('/:id/rounds/:roundId', roundController.getRoundById);
 
 // Create round - require event management permission
-router.post('/:id/rounds', validateEventId, eventManagePerm, roundController.createRound);
+router.post('/:id/rounds', validateRoundCreate, eventManagePerm, roundController.createRound);
 
 // Reorder rounds (must be before /:roundId to avoid matching "reorder" as roundId)
-router.patch('/:id/rounds/reorder', validateEventId, eventManagePerm, roundController.reorderRounds);
+router.patch('/:id/rounds/reorder', validateRoundReorder, eventManagePerm, roundController.reorderRounds);
 
-// Update round (no validateEventId — it strips roundId from params)
-router.patch('/:id/rounds/:roundId', eventManagePerm, roundController.updateRound);
+router.patch('/:id/rounds/:roundId', validateRoundUpdate, eventManagePerm, roundController.updateRound);
 
 // Delete round
-router.delete('/:id/rounds/:roundId', eventManagePerm, roundController.deleteRound);
+router.delete('/:id/rounds/:roundId', validateRoundDelete, eventManagePerm, roundController.deleteRound);
 
 module.exports = router;

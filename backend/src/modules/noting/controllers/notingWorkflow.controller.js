@@ -333,6 +333,9 @@ const forward = asyncHandler(async (req, res) => {
       id: true,
       uid: true,
       status: true,
+      assignedRoleIds: true,
+      schoolDeptPermissions: true,
+      centralDeptPermissions: true,
       employeeDetails: { select: { displayName: true } },
     },
   });
@@ -349,6 +352,20 @@ const forward = asyncHandler(async (req, res) => {
 
   if (targetHolderId === userId) {
     throw new ValidationError("You cannot forward a note to yourself.");
+  }
+
+  const modulePermissionKey = approvalFlowService.getModulePermissionKey(note);
+  const targetHasPermission = await approvalFlowService.hasModulePermission(
+    targetUser,
+    modulePermissionKey,
+  );
+
+  if (!targetHasPermission) {
+    const targetName =
+      targetUser.employeeDetails?.displayName || targetUser.uid || "Selected user";
+    throw new ValidationError(
+      `${targetName} does not have ${modulePermissionKey} permission to receive this note.`,
+    );
   }
 
   // Update note and create history in transaction, return updated note directly
@@ -416,11 +433,26 @@ const autoForward = asyncHandler(async (req, res) => {
 
   // Get immediate manager
   const reportingService = require("../../core/services/reportingStructure.service");
-  const manager = await reportingService.getDirectManager(userId);
+  const manager = await reportingService.getDirectManager(userId, {
+    departmentScope: note.departmentScope,
+    departmentId: note.departmentId,
+  });
 
   if (!manager) {
     throw new ValidationError(
       "You do not have a reporting manager assigned. Please contact Admin to set up your reporting structure.",
+    );
+  }
+
+  const managerHasPermission = await approvalFlowService.hasModulePermission(
+    manager,
+    modulePermissionKey,
+  );
+  if (!managerHasPermission) {
+    const managerName =
+      manager.employeeDetails?.displayName || manager.uid || manager.email || "Your manager";
+    throw new ValidationError(
+      `${managerName} does not have ${modulePermissionKey} permission to receive this note. Please forward manually to an eligible approver.`,
     );
   }
 
@@ -504,7 +536,10 @@ async function _handleRecommendation(req, res, { action, remarksLabel, successMs
 
   // Get the next person in chain using the canonical reporting service
   const reportingService = require("../../core/services/reportingStructure.service");
-  const manager = await reportingService.getDirectManager(userId);
+  const manager = await reportingService.getDirectManager(userId, {
+    departmentScope: note.departmentScope,
+    departmentId: note.departmentId,
+  });
   if (!manager || !manager.id) {
     throw new ValidationError("No reporting manager found to forward the note");
   }

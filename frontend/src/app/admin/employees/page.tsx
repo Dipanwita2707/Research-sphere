@@ -5,8 +5,9 @@ import api from '@/shared/api/api';
 import { useToast } from '@/shared/ui-components/Toast';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { logger } from '@/shared/utils/logger';
-import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, AlertCircle, X } from 'lucide-react';
 import { centralDepartmentService, CentralDepartment } from '@/features/admin-management/services/centralDepartment.service';
+import { validateCreateEmployee, validateUpdateEmployee } from '@/shared/validations/employee.validation';
 
 interface School {
   id: string;
@@ -25,6 +26,8 @@ interface Employee {
   email: string;
   role: string;
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   employeeDetails: {
     empId: string;
     firstName: string;
@@ -34,11 +37,21 @@ interface Employee {
     designation: string;
     employeeCategory: string;
     employeeType: string;
+    officerLevel?: string;
+    gender?: string;
+    dateOfBirth?: string;
     mobileNumber: string;
+    alternateNumber?: string;
+    personalEmail?: string;
+    currentAddress?: string;
+    permanentAddress?: string;
     dateOfJoining: string;
     schoolId?: string;
     departmentId?: string;
     centralDepartmentId?: string;
+    schoolName?: string;
+    departmentName?: string;
+    centralDepartmentName?: string;
     school?: { facultyName: string };
     department?: { departmentName: string };
   };
@@ -59,6 +72,9 @@ export default function EmployeeManagement() {
   const [filterDesignation, setFilterDesignation] = useState('all');
   const [designations, setDesignations] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   const [formData, setFormData] = useState({
     uid: '',
@@ -155,6 +171,13 @@ export default function EmployeeManagement() {
     }
   }, [formData.centralDepartmentId]);
 
+  // Auto-populate Employee ID with UID during creation
+  useEffect(() => {
+    if (!editingEmployee) {
+      setFormData(prev => (prev.empId === formData.uid ? prev : { ...prev, empId: formData.uid }));
+    }
+  }, [formData.uid, editingEmployee]);
+
   const handleOpenModal = (employee?: Employee) => {
     if (employee) {
       setEditingEmployee(employee);
@@ -217,21 +240,58 @@ export default function EmployeeManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Reset errors
+      setFormErrors({});
+
+      // Prepare data for validation
+      const dataToValidate = {
+        ...formData,
+        schoolId: formData.schoolId || '',
+        departmentId: formData.departmentId || '',
+        centralDepartmentId: formData.centralDepartmentId || '',
+        middleName: formData.middleName || '',
+        dateOfBirth: formData.dateOfBirth || '',
+        alternateNumber: formData.alternateNumber || '',
+        personalEmail: formData.personalEmail || '',
+        currentAddress: formData.currentAddress || '',
+        permanentAddress: formData.permanentAddress || '',
+      };
+
+      // Validate using Zod schema
+      const validation = editingEmployee
+        ? validateUpdateEmployee(dataToValidate)
+        : validateCreateEmployee(dataToValidate);
+
+      if (!validation.success) {
+        // Set errors in state for display
+        const errors: Record<string, string> = {};
+        const issues = validation.error?.issues ?? (validation.error as any)?.errors ?? [];
+        issues.forEach((issue: any) => {
+          const path = Array.isArray(issue.path) ? issue.path.join('.') : '';
+          errors[path || 'form'] = issue.message;
+        });
+        setFormErrors(errors);
+        const firstErrorMessage = issues[0]?.message || 'Please fix the highlighted validation errors';
+        toast({ type: 'error', message: firstErrorMessage });
+        return;
+      }
+
       // Clean up the form data - remove empty strings and replace with null
       const cleanFormData = {
-        ...formData,
-        schoolId: formData.schoolId || null,
-        departmentId: formData.departmentId || null,
-        primaryCentralDeptId: formData.centralDepartmentId || null,
-        middleName: formData.middleName || null,
-        dateOfBirth: formData.dateOfBirth || null,
-        alternateNumber: formData.alternateNumber || null,
-        personalEmail: formData.personalEmail || null,
-        currentAddress: formData.currentAddress || null,
-        permanentAddress: formData.permanentAddress || null,
+        ...validation.data,
+        schoolId: validation.data.schoolId || null,
+        departmentId: validation.data.departmentId || null,
+        primaryCentralDeptId: validation.data.centralDepartmentId || null,
+        middleName: validation.data.middleName || null,
+        dateOfBirth: validation.data.dateOfBirth || null,
+        alternateNumber: validation.data.alternateNumber || null,
+        personalEmail: validation.data.personalEmail || null,
+        currentAddress: validation.data.currentAddress || null,
+        permanentAddress: validation.data.permanentAddress || null,
       };
 
       // Remove centralDepartmentId from the payload since backend expects primaryCentralDeptId
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { centralDepartmentId, ...finalFormData } = cleanFormData;
 
       if (editingEmployee) {
@@ -244,7 +304,19 @@ export default function EmployeeManagement() {
       setShowModal(false);
       fetchEmployees();
     } catch (error: unknown) {
-      toast({ type: 'error', message: extractErrorMessage(error) || 'Failed to save employee' });
+      let errorMsg = extractErrorMessage(error);
+      // Check if error response has validation errors
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const response = (error as any).response;
+        if (response?.data?.errors && typeof response.data.errors === 'object') {
+          setFormErrors(response.data.errors);
+          const firstBackendError = Object.values(response.data.errors)[0];
+          if (typeof firstBackendError === 'string' && firstBackendError.trim()) {
+            errorMsg = firstBackendError;
+          }
+        }
+      }
+      toast({ type: 'error', message: errorMsg || 'Failed to save employee' });
     }
   };
 
@@ -272,6 +344,22 @@ export default function EmployeeManagement() {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleOpenDetailsModal = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setShowDetailsModal(true);
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   };
 
   useEffect(() => {
@@ -356,6 +444,7 @@ export default function EmployeeManagement() {
 
       {/* Employee List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -378,7 +467,16 @@ export default function EmployeeManagement() {
                 Category
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Department
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 School
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Joined
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Status
@@ -390,14 +488,26 @@ export default function EmployeeManagement() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {employees.map((employee) => (
-              <tr key={employee.id} className="hover:bg-gray-50">
+              <tr
+                key={employee.id}
+                className="hover:bg-blue-50 cursor-pointer"
+                onClick={() => handleOpenDetailsModal(employee)}
+                title="Click to view full employee details"
+              >
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                   {employee.employeeDetails.empId}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenDetailsModal(employee);
+                    }}
+                    className="text-sm font-semibold text-blue-700 hover:text-blue-900 hover:underline"
+                  >
                     {employee.employeeDetails.displayName}
-                  </div>
+                  </button>
                   <div className="text-sm text-gray-500">
                     {employee.employeeDetails.mobileNumber}
                   </div>
@@ -421,7 +531,16 @@ export default function EmployeeManagement() {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {employee.employeeDetails.school?.facultyName || 'N/A'}
+                  {employee.employeeDetails.employeeType || 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {employee.employeeDetails.departmentName || employee.employeeDetails.department?.departmentName || employee.employeeDetails.centralDepartmentName || 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {employee.employeeDetails.schoolName || employee.employeeDetails.school?.facultyName || 'N/A'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {formatDate(employee.employeeDetails.dateOfJoining)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <button
@@ -447,14 +566,20 @@ export default function EmployeeManagement() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button
-                    onClick={() => handleOpenModal(employee)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenModal(employee);
+                    }}
                     className="text-blue-600 hover:text-blue-900 mr-3"
                     title="Edit"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDelete(employee)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(employee);
+                    }}
                     disabled={deletingId === employee.id}
                     className="text-red-600 hover:text-red-900 disabled:opacity-50"
                     title="Delete"
@@ -470,6 +595,7 @@ export default function EmployeeManagement() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {employees.length === 0 && (
           <div className="text-center py-12">
@@ -489,7 +615,7 @@ export default function EmployeeManagement() {
               </h2>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} noValidate className="p-6 space-y-6">
               {/* Login Credentials */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Login Credentials</h3>
@@ -497,15 +623,34 @@ export default function EmployeeManagement() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       UID <span className="text-red-500">*</span>
+                      <span className="text-gray-500 text-xs ml-1">(4-5 digits only)</span>
                     </label>
                     <input
                       type="text"
                       value={formData.uid}
-                      onChange={(e) => setFormData({ ...formData, uid: e.target.value })}
+                      onChange={(e) => {
+                        const uidValue = e.target.value.replace(/\D/g, '').slice(0, 5);
+                        setFormData({
+                          ...formData,
+                          uid: uidValue,
+                          // Keep Employee ID in sync with UID during creation
+                          empId: editingEmployee ? formData.empId : uidValue,
+                        });
+                      }}
+                      placeholder="4-5 digits"
+                      maxLength={5}
                       required
                       disabled={!!editingEmployee}
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.uid ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.uid && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.uid}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -516,8 +661,16 @@ export default function EmployeeManagement() {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.email && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.email}
+                      </div>
+                    )}
                   </div>
                   {!editingEmployee && (
                     <div>
@@ -529,8 +682,16 @@ export default function EmployeeManagement() {
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                         required={!editingEmployee}
-                        className="w-full px-3 py-2 border rounded-md"
+                        className={`w-full px-3 py-2 border rounded-md ${
+                          formErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.password && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.password}
+                        </div>
+                      )}
                     </div>
                   )}
                   <div>
@@ -541,11 +702,19 @@ export default function EmployeeManagement() {
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.role ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     >
                       <option value="faculty">Faculty</option>
                       <option value="staff">Staff</option>
                     </select>
+                    {formErrors.role && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.role}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -557,14 +726,26 @@ export default function EmployeeManagement() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Employee ID <span className="text-red-500">*</span>
+                      <span className="text-gray-500 text-xs ml-1">(auto-filled from UID, 4-5 digits)</span>
                     </label>
                     <input
                       type="text"
                       value={formData.empId}
-                      onChange={(e) => setFormData({ ...formData, empId: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, empId: e.target.value.replace(/\D/g, '').slice(0, 5) })}
                       required
-                      className="w-full px-3 py-2 border rounded-md"
+                      disabled={!editingEmployee}
+                      maxLength={5}
+                      placeholder="4-5 digits"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.empId ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      } ${!editingEmployee ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                     />
+                    {formErrors.empId && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.empId}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -575,8 +756,16 @@ export default function EmployeeManagement() {
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.firstName && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.firstName}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -586,8 +775,16 @@ export default function EmployeeManagement() {
                       type="text"
                       value={formData.middleName}
                       onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.middleName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.middleName && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.middleName}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -598,23 +795,39 @@ export default function EmployeeManagement() {
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.lastName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.lastName && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.lastName}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Gender
+                      Gender <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.gender}
                       onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.gender ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     >
                       <option value="">Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
                     </select>
+                    {formErrors.gender && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.gender}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -623,10 +836,84 @@ export default function EmployeeManagement() {
                     <input
                       type="tel"
                       value={formData.mobileNumber}
-                      onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, mobileNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                      placeholder="10 digit number"
+                      maxLength={10}
                       required
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.mobileNumber ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.mobileNumber && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.mobileNumber}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Contact Details */}
+                <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Alternate Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.alternateNumber}
+                      onChange={(e) => setFormData({ ...formData, alternateNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                      placeholder="10 digit number (optional)"
+                      maxLength={10}
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.alternateNumber ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
+                    />
+                    {formErrors.alternateNumber && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.alternateNumber}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Personal Email
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.personalEmail}
+                      onChange={(e) => setFormData({ ...formData, personalEmail: e.target.value })}
+                      placeholder="Personal email (optional)"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.personalEmail ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
+                    />
+                    {formErrors.personalEmail && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.personalEmail}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date of Birth
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.dateOfBirth}
+                      onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.dateOfBirth ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
+                    />
+                    {formErrors.dateOfBirth && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.dateOfBirth}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -645,8 +932,16 @@ export default function EmployeeManagement() {
                       onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
                       required
                       placeholder="Professor, Assistant Professor, etc."
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.designation ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.designation && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.designation}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -655,7 +950,9 @@ export default function EmployeeManagement() {
                     <select
                       value={formData.officerLevel}
                       onChange={(e) => setFormData({ ...formData, officerLevel: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.officerLevel ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     >
                       <option value="">Select Officer Level</option>
                       <option value="O1">O1</option>
@@ -669,6 +966,12 @@ export default function EmployeeManagement() {
                       <option value="O9">O9</option>
                       <option value="O10">O10</option>
                     </select>
+                    {formErrors.officerLevel && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.officerLevel}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -678,11 +981,20 @@ export default function EmployeeManagement() {
                       value={formData.employeeCategory}
                       onChange={(e) => setFormData({ ...formData, employeeCategory: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.employeeCategory ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     >
+                      <option value="">Select Employee Category</option>
                       <option value="teaching">Teaching</option>
                       <option value="non_teaching">Non-Teaching</option>
                     </select>
+                    {formErrors.employeeCategory && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.employeeCategory}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -691,13 +1003,22 @@ export default function EmployeeManagement() {
                     <select
                       value={formData.employeeType}
                       onChange={(e) => setFormData({ ...formData, employeeType: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.employeeType ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     >
+                      <option value="">Select Employee Type</option>
                       <option value="permanent">Permanent</option>
                       <option value="temporary">Temporary</option>
                       <option value="contract">Contract</option>
                       <option value="visiting">Visiting</option>
                     </select>
+                    {formErrors.employeeType && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.employeeType}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -707,8 +1028,16 @@ export default function EmployeeManagement() {
                       type="date"
                       value={formData.dateOfJoining}
                       onChange={(e) => setFormData({ ...formData, dateOfJoining: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-md"
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        formErrors.dateOfJoining ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                      }`}
                     />
+                    {formErrors.dateOfJoining && (
+                      <div className="flex items-center mt-1 text-red-600 text-xs">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        {formErrors.dateOfJoining}
+                      </div>
+                    )}
                   </div>
                   <div className="col-span-2">
                     <div className="mb-4 p-4 bg-gray-50 rounded-md">
@@ -817,6 +1146,98 @@ export default function EmployeeManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Details Modal */}
+      {showDetailsModal && selectedEmployee && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b sticky top-0 bg-white z-10 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Employee Details</h2>
+                <p className="text-sm text-gray-500 mt-1">Complete profile information</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDetailsModal(false)}
+                className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Name</p>
+                  <p className="text-sm font-semibold text-gray-900">{selectedEmployee.employeeDetails.displayName || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 uppercase">Status</p>
+                  <p className={`text-sm font-semibold ${selectedEmployee.isActive ? 'text-green-700' : 'text-red-700'}`}>
+                    {selectedEmployee.isActive ? 'Active' : 'Inactive'}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Login & Identity</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="text-gray-500">UID:</span> <span className="font-medium">{selectedEmployee.uid || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Employee ID:</span> <span className="font-medium">{selectedEmployee.employeeDetails.empId || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Role:</span> <span className="font-medium capitalize">{selectedEmployee.role || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Email:</span> <span className="font-medium">{selectedEmployee.email || 'N/A'}</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="text-gray-500">Mobile:</span> <span className="font-medium">{selectedEmployee.employeeDetails.mobileNumber || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Alternate:</span> <span className="font-medium">{selectedEmployee.employeeDetails.alternateNumber || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Personal Email:</span> <span className="font-medium">{selectedEmployee.employeeDetails.personalEmail || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Gender:</span> <span className="font-medium capitalize">{selectedEmployee.employeeDetails.gender || 'N/A'}</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Professional Information</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="text-gray-500">Designation:</span> <span className="font-medium">{selectedEmployee.employeeDetails.designation || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Officer Level:</span> <span className="font-medium">{selectedEmployee.employeeDetails.officerLevel || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Category:</span> <span className="font-medium capitalize">{selectedEmployee.employeeDetails.employeeCategory || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Type:</span> <span className="font-medium capitalize">{selectedEmployee.employeeDetails.employeeType || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">Date of Joining:</span> <span className="font-medium">{formatDate(selectedEmployee.employeeDetails.dateOfJoining)}</span></div>
+                  <div><span className="text-gray-500">Date of Birth:</span> <span className="font-medium">{formatDate(selectedEmployee.employeeDetails.dateOfBirth)}</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Department Assignment</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div><span className="text-gray-500">School:</span> <span className="font-medium">{selectedEmployee.employeeDetails.schoolName || selectedEmployee.employeeDetails.school?.facultyName || 'N/A'}</span></div>
+                  <div><span className="text-gray-500">School Department:</span> <span className="font-medium">{selectedEmployee.employeeDetails.departmentName || selectedEmployee.employeeDetails.department?.departmentName || 'N/A'}</span></div>
+                  <div className="col-span-2"><span className="text-gray-500">Central Department:</span> <span className="font-medium">{selectedEmployee.employeeDetails.centralDepartmentName || 'N/A'}</span></div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Address</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-gray-500">Current Address</p>
+                    <p className="font-medium text-gray-900">{selectedEmployee.employeeDetails.currentAddress || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Permanent Address</p>
+                    <p className="font-medium text-gray-900">{selectedEmployee.employeeDetails.permanentAddress || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

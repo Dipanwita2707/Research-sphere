@@ -43,6 +43,10 @@ import { LoadingSpinner } from '@/shared/components/LoadingSpinner';
 import { useNotingDraftStore } from '@/features/noting-management/stores/notingDraftStore';
 import { useAuthStore } from '@/shared/auth/authStore';
 import {
+  reportingStructureService,
+  type ReportingDepartmentOption,
+} from '@/shared/services/reportingStructure.service';
+import {
   sanitizeAnnexures,
   sanitizeEventVisibilitySettings,
   sanitizeFestivalFormData,
@@ -197,6 +201,8 @@ function getInitialFromStore() {
   return {
     category: s.category,
     subcategory: s.subcategory,
+    departmentId: s.departmentId,
+    departmentScope: s.departmentScope,
     description: s.description,
     approvalPeriod: s.approvalPeriod,
     recurringFrequency: s.recurringFrequency,
@@ -218,7 +224,7 @@ export default function NewNotePage() {
 
   // ── Student access check — noting is blocked for ALL students ─────────────
   const isStudentUser = user && (user.role?.name === 'student' || user.userType === 'student');
-  const { data: notingPerms = null } = useNotingPermissions();
+  const { data: notingPerms = null, isLoading: notingPermsLoading } = useNotingPermissions();
   useEffect(() => {
     if (isStudentUser) {
       toast({ type: 'error', message: 'Students are not allowed to access the noting system' });
@@ -226,8 +232,18 @@ export default function NewNotePage() {
     }
   }, [isStudentUser, router, toast]);
 
+  useEffect(() => {
+    if (!user || isStudentUser || notingPermsLoading || !notingPerms) return;
+    if (!notingPerms.noting_create) {
+      toast({ type: 'error', message: 'You do not have permission to create notings' });
+      router.push('/noting');
+    }
+  }, [isStudentUser, notingPerms, notingPermsLoading, router, toast, user]);
+
   const [config, setConfig] = useState<NoteConfig | null>(null);
   const [creatorInfo, setCreatorInfo] = useState<CreatorInfo | null>(null);
+  const [departmentOptions, setDepartmentOptions] = useState<ReportingDepartmentOption[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
   const [notingIdPreview, setNotingIdPreview] = useState<string>('');
   const [notingYearAndSequence, setNotingYearAndSequence] = useState<{ year: string; sequence: string } | null>(null);
 
@@ -250,6 +266,33 @@ export default function NewNotePage() {
   useEffect(() => {
     if (cachedCreatorInfo && !creatorInfo) setCreatorInfo(cachedCreatorInfo);
   }, [cachedCreatorInfo, creatorInfo]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDepartmentOptions = async () => {
+      try {
+        setDepartmentsLoading(true);
+        const response = await reportingStructureService.getDepartmentOptions({
+          withHierarchyOnly: true,
+        });
+        if (!mounted) return;
+        setDepartmentOptions(response.data || []);
+      } catch {
+        if (!mounted) return;
+        setDepartmentOptions([]);
+      } finally {
+        if (mounted) setDepartmentsLoading(false);
+      }
+    };
+
+    loadDepartmentOptions();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const [actionInProgress, setActionInProgress] = useState<'submit' | 'draft' | 'discard' | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [isRevertedNote, setIsRevertedNote] = useState(false);
@@ -261,6 +304,8 @@ export default function NewNotePage() {
   const initial = draftIdFromUrl ? getInitialFromStore() : {
     category: 'academic' as 'academic' | 'administrative',
     subcategory: '',
+    departmentId: '',
+    departmentScope: '' as '' | 'school' | 'central',
     description: '',
     approvalPeriod: 'one_time' as 'one_time' | 'recurring',
     recurringFrequency: '',
@@ -273,6 +318,8 @@ export default function NewNotePage() {
 
   const [category, setCategory] = useState<'academic' | 'administrative'>(initial.category);
   const [subcategory, setSubcategory] = useState(initial.subcategory);
+  const [departmentId, setDepartmentId] = useState(initial.departmentId);
+  const [departmentScope, setDepartmentScope] = useState<'' | 'school' | 'central'>(initial.departmentScope);
 
   const isChairperson = notingPerms?.isClubChairperson === true;
   const effectiveCategory = isChairperson ? 'academic' : category;
@@ -349,6 +396,8 @@ export default function NewNotePage() {
       hydrateFromNote({
         category: note.category,
         subcategory: note.subcategory,
+        departmentId: (note as any).departmentId,
+        departmentScope: (note as any).departmentScope,
         description: note.description ?? '',
         approvalPeriod: note.approvalPeriod,
         recurringFrequency: note.recurringFrequency ?? undefined,
@@ -362,6 +411,8 @@ export default function NewNotePage() {
       const s = useNotingDraftStore.getState();
       setCategory(s.category);
       setSubcategory(s.subcategory);
+      setDepartmentId(s.departmentId);
+      setDepartmentScope(s.departmentScope);
       setDescription(s.description);
       setApprovalPeriod(s.approvalPeriod);
       setRecurringFrequency(s.recurringFrequency);
@@ -456,6 +507,8 @@ export default function NewNotePage() {
     clearDraft();
     setCategory('academic');
     setSubcategory(config.categories[0]?.subcategories?.[0]?.value ?? '');
+    setDepartmentId('');
+    setDepartmentScope('');
     setDescription('');
     setApprovalPeriod('one_time');
     setRecurringFrequency('');
@@ -535,6 +588,8 @@ export default function NewNotePage() {
       setForm({
         category: effectiveCategory,
         subcategory: effectiveSubcategory,
+        departmentId,
+        departmentScope,
         description: sanitizeNoteDescription(description),
         approvalPeriod,
         recurringFrequency,
@@ -552,7 +607,7 @@ export default function NewNotePage() {
     }, DEBOUNCE_SYNC_MS);
     return () => { syncTimeoutRef.current && clearTimeout(syncTimeoutRef.current); };
   }, [
-    draftLoaded, effectiveCategory, effectiveSubcategory, description, approvalPeriod,
+    draftLoaded, effectiveCategory, effectiveSubcategory, departmentId, departmentScope, description, approvalPeriod,
     recurringFrequency, policyCompliance, amountRequired, amount,
     points, annexures, setForm,
   ]);
@@ -573,6 +628,8 @@ export default function NewNotePage() {
       const payload = {
         category: effectiveCategory,
         subcategory: effectiveSubcategory,
+        departmentId: departmentId || null,
+        departmentScope: departmentScope || null,
         description: sanitizeNoteDescription(description).trim(),
         approvalPeriod,
         recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
@@ -636,6 +693,8 @@ export default function NewNotePage() {
         const updatePayload: any = {
           category: effectiveCategory,
           subcategory: effectiveSubcategory,
+          departmentId: payload.departmentId,
+          departmentScope: payload.departmentScope,
           description: payload.description,
           approvalPeriod: payload.approvalPeriod,
           policyCompliance: payload.policyCompliance,
@@ -671,7 +730,7 @@ export default function NewNotePage() {
     }, DEBOUNCE_AUTOSAVE_MS);
     return () => { autosaveTimeoutRef.current && clearTimeout(autosaveTimeoutRef.current); };
   }, [
-    draftLoaded, config, draftId, effectiveCategory, effectiveSubcategory, description,
+    draftLoaded, config, draftId, effectiveCategory, effectiveSubcategory, departmentId, departmentScope, description,
     approvalPeriod, recurringFrequency, policyCompliance, amountRequired,
     amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventVisibilitySettings, setDraftId,
   ]);
@@ -836,6 +895,8 @@ export default function NewNotePage() {
     const basePayload: CreateNotePayload = {
       category: effectiveCategory,
       subcategory: effectiveSubcategory,
+      departmentId: departmentId || null,
+      departmentScope: departmentScope || null,
       description: sanitizedDescription.trim(),
       approvalPeriod,
       recurringFrequency: (approvalPeriod === 'recurring' && recurringFrequency ? recurringFrequency : undefined) as CreateNotePayload['recurringFrequency'],
@@ -890,7 +951,7 @@ export default function NewNotePage() {
     }
 
     return basePayload;
-  }, [effectiveCategory, effectiveSubcategory, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventClubId, eventVisibilitySettings]);
+  }, [effectiveCategory, effectiveSubcategory, departmentId, departmentScope, description, approvalPeriod, recurringFrequency, policyCompliance, amountRequired, amount, points, annexures, isEventNoting, venueFormData, notingEventType, stallConfig, festivalData, eventClubId, eventVisibilitySettings]);
 
   const scrollToSection = (id: string) => {
     setTimeout(() => {
@@ -904,6 +965,8 @@ export default function NewNotePage() {
       // Collect all base-field validation errors at once
       const baseValidation = validateBaseNoteSubmission({
         subcategory: effectiveSubcategory,
+        departmentId,
+        departmentScope,
         description,
         approvalPeriod,
         recurringFrequency,
@@ -1179,6 +1242,8 @@ export default function NewNotePage() {
     const updatePayload: any = {
       category: effectiveCategory,
       subcategory: effectiveSubcategory,
+      departmentId: payload.departmentId,
+      departmentScope: payload.departmentScope,
       description: payload.description,
       approvalPeriod: payload.approvalPeriod,
       policyCompliance: payload.policyCompliance,
@@ -1276,6 +1341,8 @@ export default function NewNotePage() {
       const s = useNotingDraftStore.getState();
       setCategory(s.category);
       setSubcategory(s.subcategory);
+      setDepartmentId(s.departmentId);
+      setDepartmentScope(s.departmentScope);
       setDescription(s.description);
       setApprovalPeriod(s.approvalPeriod);
       setRecurringFrequency(s.recurringFrequency);
@@ -1300,12 +1367,16 @@ export default function NewNotePage() {
 
   // isChairperson, effectiveCategory, effectiveSubcategory are declared near the top (after category/subcategory state)
 
-  if (loading || !config) {
+  if (loading || notingPermsLoading || departmentsLoading || !config) {
     return (
       <div className="min-h-screen bg-[#f8fafc] dark:bg-gray-900 flex items-center justify-center">
         <PageSkeleton message="Loading form..." />
       </div>
     );
+  }
+
+  if (!isStudentUser && notingPerms && !notingPerms.noting_create) {
+    return null;
   }
 
   // For chairpersons: only show 'events' subcategory under 'academic'
@@ -1316,6 +1387,8 @@ export default function NewNotePage() {
 
   const baseValid = Boolean(
     effectiveSubcategory?.trim() &&
+    departmentId &&
+    departmentScope &&
     plainTextDescription.trim() &&
     !overLimit &&
     dedupePoints(points).length > 0 &&
@@ -1432,6 +1505,54 @@ export default function NewNotePage() {
                     </select>
                     {fieldErrors.subcategory && (
                       <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.subcategory}</p>
+                    )}
+                  </div>
+
+                  <div id="field-department" className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Select Department <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={departmentId && departmentScope ? `${departmentScope}:${departmentId}` : ''}
+                      onChange={(e) => {
+                        const [scope, id] = e.target.value.split(':');
+                        if (!scope || !id) {
+                          setDepartmentScope('');
+                          setDepartmentId('');
+                        } else {
+                          setDepartmentScope(scope as 'school' | 'central');
+                          setDepartmentId(id);
+                        }
+                        clearFieldError('departmentId');
+                        clearFieldError('departmentScope');
+                      }}
+                      className={`w-full px-3 py-3 text-sm border rounded-xl bg-white dark:bg-gray-700 text-[#011f4b] dark:text-white focus:ring-1 focus:ring-[#005b96]/40 focus:border-[#005b96] outline-none transition-all duration-200 ${(fieldErrors.departmentId || fieldErrors.departmentScope) ? 'border-red-500 ring-1 ring-red-500' : 'border-[#b3cde0]/50 dark:border-gray-600'}`}
+                    >
+                      <option value="">Select department</option>
+                      <optgroup label="School Departments">
+                        {departmentOptions
+                          .filter((department) => department.scope === 'school')
+                          .map((department) => (
+                            <option key={`school:${department.id}`} value={`school:${department.id}`}>
+                              {department.displayLabel}
+                            </option>
+                          ))}
+                      </optgroup>
+                      <optgroup label="Central Departments">
+                        {departmentOptions
+                          .filter((department) => department.scope === 'central')
+                          .map((department) => (
+                            <option key={`central:${department.id}`} value={`central:${department.id}`}>
+                              {department.displayLabel}
+                            </option>
+                          ))}
+                      </optgroup>
+                    </select>
+                    {(fieldErrors.departmentId || fieldErrors.departmentScope) && (
+                      <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {fieldErrors.departmentId || fieldErrors.departmentScope}
+                      </p>
                     )}
                   </div>
                 </div>

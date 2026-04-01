@@ -19,8 +19,16 @@ const {
   validateEventPublish,
   validateQRScan,
   validateVolunteerAssignment,
+  validateVolunteerParams,
+  validateVolunteerUpdate,
   validateListQuery,
   validateFeedback,
+  validateRegistrationFormSubmit,
+  validateExtraPassCreate,
+  validateCustomFieldCreate,
+  validateCustomFieldUpdate,
+  validateCustomFieldDelete,
+  validateCustomFieldReorder,
 } = require('../validators/event.validators');
 const {
   protect,
@@ -208,9 +216,9 @@ router.get('/:id/registrations/:regId/details', validateEventId, eventManagePerm
 // ── Volunteer Routes ────────────────────────────────────────────────
 
 router.post('/:id/volunteers', validateEventId, checkPermission('event_assign_volunteers', { checkDefaultPermissions: true }), validateVolunteerAssignment, eventController.assignVolunteer);
-router.delete('/:id/volunteers/:volunteerId', validateEventId, eventManagePerm, eventController.removeVolunteerHandler);
-router.patch('/:id/volunteers/:volunteerId', validateEventId, eventManagePerm, eventController.updateVolunteerHandler);
-router.get('/:id/volunteers/:volunteerId/activity', validateEventId, eventManagePerm, eventController.getVolunteerActivity);
+router.delete('/:id/volunteers/:volunteerId', validateVolunteerParams, eventManagePerm, eventController.removeVolunteerHandler);
+router.patch('/:id/volunteers/:volunteerId', validateVolunteerUpdate, eventManagePerm, eventController.updateVolunteerHandler);
+router.get('/:id/volunteers/:volunteerId/activity', validateVolunteerParams, eventManagePerm, eventController.getVolunteerActivity);
 router.get('/:id/volunteers', validateEventId, eventManagePerm, eventController.getEventVolunteers);
 
 // Club members for quick volunteer assignment (when event is linked to a club)
@@ -231,16 +239,16 @@ router.get('/:id/stalls/:stallId/owner-feedback', validateEventId, feedbackContr
 // ── Registration & Custom Fields ────────────────────────────────────
 
 router.get('/:id/registration-form', validateEventId, registrationController.getRegistrationForm);
-router.post('/:id/register-with-form', validateEventId, registrationController.submitRegistrationForm);
+router.post('/:id/register-with-form', validateEventId, validateRegistrationFormSubmit, registrationController.submitRegistrationForm);
 router.get('/:id/extra-passes', validateEventId, registrationController.getMyExtraPasses);
-router.post('/:id/extra-passes', validateEventId, registrationController.createExtraPass);
+router.post('/:id/extra-passes', validateEventId, validateExtraPassCreate, registrationController.createExtraPass);
 router.get('/:id/registration-settings', validateEventId, customFieldController.getRegistrationSettings);
 router.patch('/:id/registration-settings', validateEventId, eventManagePerm, customFieldController.updateRegistrationSettings);
 router.get('/:id/custom-fields', validateEventId, customFieldController.getCustomFields);
-router.post('/:id/custom-fields', validateEventId, eventManagePerm, customFieldController.createCustomField);
-router.patch('/:id/custom-fields/:fieldId', validateEventId, eventManagePerm, customFieldController.updateCustomField);
-router.delete('/:id/custom-fields/:fieldId', validateEventId, eventManagePerm, customFieldController.deleteCustomField);
-router.patch('/:id/custom-fields/reorder', validateEventId, eventManagePerm, customFieldController.reorderCustomFields);
+router.post('/:id/custom-fields', validateCustomFieldCreate, eventManagePerm, customFieldController.createCustomField);
+router.patch('/:id/custom-fields/:fieldId', validateCustomFieldUpdate, eventManagePerm, customFieldController.updateCustomField);
+router.delete('/:id/custom-fields/:fieldId', validateCustomFieldDelete, eventManagePerm, customFieldController.deleteCustomField);
+router.patch('/:id/custom-fields/reorder', validateCustomFieldReorder, eventManagePerm, customFieldController.reorderCustomFields);
 
 // ── Mount Sub-routers ───────────────────────────────────────────────
 

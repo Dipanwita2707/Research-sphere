@@ -509,13 +509,15 @@ export default function NavigationHeader() {
         { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
       );
     }
-    if (tmsChildren.length > 0) {
-      navigationSubItems.push({
-        name: '🎫 Ticket Management',
-        description: 'Grievances, Assistance & Enquiries',
-        children: tmsChildren,
-      });
-    }
+    // TEMP HIDE: Ticket Management should not appear in UMS Navigation for now.
+    // Keep this block commented so it can be restored quickly later.
+    // if (tmsChildren.length > 0) {
+    //   navigationSubItems.push({
+    //     name: '🎫 Ticket Management',
+    //     description: 'Grievances, Assistance & Enquiries',
+    //     children: tmsChildren,
+    //   });
+    // }
   }
 
   // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin

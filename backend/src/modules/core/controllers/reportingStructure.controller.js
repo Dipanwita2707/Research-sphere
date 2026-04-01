@@ -1,5 +1,129 @@
 const prisma = require('../../../shared/config/database');
 const reportingStructureService = require('../services/reportingStructure.service');
+const cachedDataService = require('../services/cachedData.service');
+
+function parseDepartmentContext(source = {}, { required = false } = {}) {
+  const rawScope = typeof source.departmentScope === 'string'
+    ? source.departmentScope.trim().toLowerCase()
+    : '';
+  const rawDepartmentId = typeof source.departmentId === 'string'
+    ? source.departmentId.trim()
+    : '';
+
+  const hasScope = rawScope.length > 0;
+  const hasDepartmentId = rawDepartmentId.length > 0;
+
+  if (!hasScope && !hasDepartmentId) {
+    if (required) {
+      throw new Error('departmentScope and departmentId are required');
+    }
+    return null;
+  }
+
+  if (hasScope !== hasDepartmentId) {
+    throw new Error('departmentScope and departmentId must be provided together');
+  }
+
+  if (!['school', 'central'].includes(rawScope)) {
+    throw new Error('departmentScope must be either "school" or "central"');
+  }
+
+  return {
+    departmentScope: rawScope,
+    departmentId: rawDepartmentId,
+  };
+}
+
+function isContextValidationError(error) {
+  const message = error?.message || '';
+  return /departmentScope|departmentId|Department context/i.test(message);
+}
+
+/**
+ * Get department options for reporting structure (school + central)
+ *
+ * @route GET /api/reporting-structure/departments
+ * @access Protected
+ */
+exports.getDepartmentOptions = async (req, res) => {
+  try {
+    const withHierarchyOnly = String(req.query?.withHierarchyOnly || '').toLowerCase() === 'true';
+
+    const [schoolDepartments, centralDepartments] = await Promise.all([
+      cachedDataService.getDepartments(),
+      cachedDataService.getCentralDepartments(),
+    ]);
+
+    const schoolDepartmentIdsWithHierarchy = new Set();
+    const centralDepartmentIdsWithHierarchy = new Set();
+
+    if (withHierarchyOnly) {
+      const hierarchyUsers = await prisma.reportingStructure.findMany({
+        where: {
+          isActive: true,
+          departmentScope: { not: null },
+          departmentId: { not: null },
+        },
+        select: {
+          departmentScope: true,
+          departmentId: true,
+        },
+      });
+
+      for (const row of hierarchyUsers) {
+        if (row.departmentScope === 'school' && row.departmentId) {
+          schoolDepartmentIdsWithHierarchy.add(row.departmentId);
+        }
+        if (row.departmentScope === 'central' && row.departmentId) {
+          centralDepartmentIdsWithHierarchy.add(row.departmentId);
+        }
+      }
+    }
+
+    const schoolOptions = (schoolDepartments || [])
+      .filter((department) => !withHierarchyOnly || schoolDepartmentIdsWithHierarchy.has(department.id))
+      .map((department) => ({
+      id: department.id,
+      scope: 'school',
+      name: department.departmentName,
+      code: department.departmentCode,
+      shortName: department.shortName || null,
+      facultyId: department.facultyId || null,
+      facultyName: department.faculty?.facultyName || null,
+      departmentType: null,
+      displayLabel: `${department.departmentName}${department.departmentCode ? ` (${department.departmentCode})` : ''}`,
+    }));
+
+    const centralOptions = (centralDepartments || [])
+      .filter((department) => !withHierarchyOnly || centralDepartmentIdsWithHierarchy.has(department.id))
+      .map((department) => ({
+      id: department.id,
+      scope: 'central',
+      name: department.departmentName,
+      code: department.departmentCode,
+      shortName: null,
+      facultyId: null,
+      facultyName: null,
+      departmentType: department.departmentType || null,
+      displayLabel: `${department.departmentName}${department.departmentCode ? ` (${department.departmentCode})` : ''}`,
+    }));
+
+    const options = [...schoolOptions, ...centralOptions].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    res.status(200).json({
+      success: true,
+      data: options,
+    });
+  } catch (error) {
+    console.error('Get reporting department options error:', error);
+    res.status(isContextValidationError(error) ? 400 : 500).json({
+      success: false,
+      message: error.message || 'Server error fetching department options',
+    });
+  }
+};
 
 /**
  * Get full reporting hierarchy tree
@@ -10,7 +134,8 @@ const reportingStructureService = require('../services/reportingStructure.servic
  */
 exports.getHierarchyTree = async (req, res) => {
   try {
-    const tree = await reportingStructureService.getHierarchyTree();
+    const context = parseDepartmentContext(req.query, { required: false });
+    const tree = await reportingStructureService.getHierarchyTree(context);
 
     res.status(200).json({
       success: true,
@@ -18,7 +143,7 @@ exports.getHierarchyTree = async (req, res) => {
     });
   } catch (error) {
     console.error('Get hierarchy tree error:', error);
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error fetching hierarchy tree',
     });
@@ -35,6 +160,7 @@ exports.getHierarchyTree = async (req, res) => {
 exports.getReportingChain = async (req, res) => {
   try {
     const { userId } = req.params;
+    const context = parseDepartmentContext(req.query, { required: false });
 
     // Check authorization - user can view their own chain, or admin can view any
     if (req.user.id !== userId && req.user.role !== 'admin') {
@@ -44,7 +170,7 @@ exports.getReportingChain = async (req, res) => {
       });
     }
 
-    const chain = await reportingStructureService.getReportingChain(userId);
+    const chain = await reportingStructureService.getReportingChain(userId, context);
 
     res.status(200).json({
       success: true,
@@ -52,7 +178,7 @@ exports.getReportingChain = async (req, res) => {
     });
   } catch (error) {
     console.error('Get reporting chain error:', error);
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error fetching reporting chain',
     });
@@ -69,6 +195,7 @@ exports.getReportingChain = async (req, res) => {
 exports.getDirectManager = async (req, res) => {
   try {
     const { userId } = req.params;
+    const context = parseDepartmentContext(req.query, { required: false });
 
     // Check authorization
     if (req.user.id !== userId && req.user.role !== 'admin') {
@@ -78,7 +205,7 @@ exports.getDirectManager = async (req, res) => {
       });
     }
 
-    const manager = await reportingStructureService.getDirectManager(userId);
+    const manager = await reportingStructureService.getDirectManager(userId, context);
 
     res.status(200).json({
       success: true,
@@ -86,7 +213,7 @@ exports.getDirectManager = async (req, res) => {
     });
   } catch (error) {
     console.error('Get direct manager error:', error);
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error fetching manager',
     });
@@ -103,6 +230,7 @@ exports.getDirectManager = async (req, res) => {
 exports.assignReportingManager = async (req, res) => {
   try {
     const { userId, managerId } = req.body;
+    const context = parseDepartmentContext(req.body, { required: true });
 
     if (!userId || !managerId) {
       return res.status(400).json({
@@ -122,7 +250,8 @@ exports.assignReportingManager = async (req, res) => {
     // Check for circular dependency
     const hasCircular = await reportingStructureService.checkCircularDependency(
       userId,
-      managerId
+      managerId,
+      context,
     );
 
     if (hasCircular) {
@@ -136,7 +265,7 @@ exports.assignReportingManager = async (req, res) => {
     const createdById = req.user?.id || userId;
 
     // Set the reporting relationship
-    const result = await reportingStructureService.setReportingManager(userId, managerId, createdById);
+    const result = await reportingStructureService.setReportingManager(userId, managerId, createdById, context);
 
     console.log('✅ Reporting relationship created:', {
       userId,
@@ -157,6 +286,8 @@ exports.assignReportingManager = async (req, res) => {
       'circular reporting',
       'cannot report to themselves',
       'Manager not found',
+      'departmentScope',
+      'departmentId',
     ].some(msg => error.message?.toLowerCase().includes(msg.toLowerCase()));
 
     res.status(isValidationError ? 400 : 500).json({
@@ -176,6 +307,7 @@ exports.assignReportingManager = async (req, res) => {
 exports.assignManagerChain = async (req, res) => {
   try {
     const { userId, managerChain } = req.body;
+    const context = parseDepartmentContext(req.body, { required: true });
 
     if (!userId || !Array.isArray(managerChain) || managerChain.length === 0) {
       return res.status(400).json({
@@ -212,7 +344,7 @@ exports.assignManagerChain = async (req, res) => {
     const createdById = req.user?.id || userId;
 
     // Call service to create the hierarchy
-    const result = await reportingStructureService.assignManagerChain(userId, managerChain, createdById);
+    const result = await reportingStructureService.assignManagerChain(userId, managerChain, createdById, context);
 
     console.log('✅ Manager chain created:', {
       userId,
@@ -235,6 +367,8 @@ exports.assignManagerChain = async (req, res) => {
       'do not exist',
       'Maximum 5 hierarchy',
       'User ID and manager chain',
+      'departmentScope',
+      'departmentId',
     ].some(msg => error.message?.toLowerCase().includes(msg.toLowerCase()));
 
     res.status(isValidationError ? 400 : 500).json({
@@ -254,10 +388,11 @@ exports.assignManagerChain = async (req, res) => {
 exports.removeReportingRelationship = async (req, res) => {
   try {
     const { userId } = req.params;
+    const context = parseDepartmentContext(req.query, { required: true });
 
     // Delegates to service: subordinates are automatically re-parented to the
     // deleted user's own manager rather than blocking with a 400 error.
-    await reportingStructureService.deleteReportingRelationship(userId);
+    await reportingStructureService.deleteReportingRelationship(userId, context);
 
     res.status(200).json({
       success: true,
@@ -273,7 +408,7 @@ exports.removeReportingRelationship = async (req, res) => {
       });
     }
 
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error removing reporting relationship',
     });
@@ -291,6 +426,7 @@ exports.getSubordinates = async (req, res) => {
   try {
     const { userId } = req.params;
     const { direct } = req.query; // If true, only get direct reports
+    const context = parseDepartmentContext(req.query, { required: false });
 
     // Check authorization
     if (req.user.id !== userId && req.user.role !== 'admin') {
@@ -303,46 +439,9 @@ exports.getSubordinates = async (req, res) => {
     let subordinates;
 
     if (direct === 'true') {
-      // Get only direct reports
-      subordinates = await prisma.reportingStructure.findMany({
-        where: { managerId: userId },
-        include: {
-          user: {
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              employeeDetails: {
-                select: {
-                  displayName: true,
-                  empId: true,
-                },
-              },
-            },
-          },
-        },
-      });
+      subordinates = await reportingStructureService.getDirectReports(userId, context);
     } else {
-      // Get all subordinates (would need to implement recursive query)
-      // For now, just return direct reports
-      subordinates = await prisma.reportingStructure.findMany({
-        where: { managerId: userId },
-        include: {
-          user: {
-            select: {
-              id: true,
-              uid: true,
-              email: true,
-              employeeDetails: {
-                select: {
-                  displayName: true,
-                  empId: true,
-                },
-              },
-            },
-          },
-        },
-      });
+      subordinates = await reportingStructureService.getDirectReports(userId, context);
     }
 
     res.status(200).json({
@@ -351,7 +450,7 @@ exports.getSubordinates = async (req, res) => {
     });
   } catch (error) {
     console.error('Get subordinates error:', error);
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error fetching subordinates',
     });
@@ -368,6 +467,7 @@ exports.getSubordinates = async (req, res) => {
 exports.bulkImportReportingStructure = async (req, res) => {
   try {
     const { relationships } = req.body; // Array of {userId, managerId}
+    const context = parseDepartmentContext(req.body, { required: true });
 
     if (!Array.isArray(relationships) || relationships.length === 0) {
       return res.status(400).json({
@@ -400,7 +500,8 @@ exports.bulkImportReportingStructure = async (req, res) => {
         // Check circular dependency
         const hasCircular = await reportingStructureService.checkCircularDependency(
           userId,
-          managerId
+          managerId,
+          context,
         );
 
         if (hasCircular) {
@@ -412,7 +513,7 @@ exports.bulkImportReportingStructure = async (req, res) => {
         const createdById = req.user?.id || userId;
 
         // Assign
-        await reportingStructureService.setReportingManager(userId, managerId, createdById);
+        await reportingStructureService.setReportingManager(userId, managerId, createdById, context);
         results.success.push(rel);
       } catch (error) {
         results.failed.push({ ...rel, reason: error.message });
@@ -426,7 +527,7 @@ exports.bulkImportReportingStructure = async (req, res) => {
     });
   } catch (error) {
     console.error('Bulk import error:', error);
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error during bulk import',
     });
@@ -444,6 +545,7 @@ exports.bulkImportReportingStructure = async (req, res) => {
 exports.moveUser = async (req, res) => {
   try {
     const { userId, newManagerId } = req.body;
+    const context = parseDepartmentContext(req.body, { required: true });
 
     if (!userId || !newManagerId) {
       return res.status(400).json({
@@ -460,7 +562,7 @@ exports.moveUser = async (req, res) => {
     }
 
     const createdById = req.user?.id || userId;
-    const result = await reportingStructureService.moveUser(userId, newManagerId, createdById);
+    const result = await reportingStructureService.moveUser(userId, newManagerId, createdById, context);
 
     console.log('\u2705 User moved:', { userId, newManagerId });
 
@@ -471,7 +573,7 @@ exports.moveUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Move user error:', error);
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error moving user',
     });
@@ -489,6 +591,7 @@ exports.moveUser = async (req, res) => {
 exports.getBulkHierarchyInfo = async (req, res) => {
   try {
     const { userIds } = req.body;
+    const context = parseDepartmentContext(req.body, { required: false });
 
     if (!Array.isArray(userIds) || userIds.length === 0) {
       return res.status(400).json({
@@ -497,7 +600,7 @@ exports.getBulkHierarchyInfo = async (req, res) => {
       });
     }
 
-    const info = await reportingStructureService.getBulkHierarchyInfo(userIds);
+    const info = await reportingStructureService.getBulkHierarchyInfo(userIds, context);
 
     res.status(200).json({
       success: true,
@@ -505,7 +608,7 @@ exports.getBulkHierarchyInfo = async (req, res) => {
     });
   } catch (error) {
     console.error('Get bulk hierarchy info error:', error);
-    res.status(500).json({
+    res.status(isContextValidationError(error) ? 400 : 500).json({
       success: false,
       message: error.message || 'Server error fetching hierarchy info',
     });

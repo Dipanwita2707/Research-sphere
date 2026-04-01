@@ -171,12 +171,13 @@ async function assertSubcategoryPermission(user, note) {
 /**
  * Get the user's direct reporting manager or throw.
  * @param {string} userId
+ * @param {{ departmentScope?: string, departmentId?: string } | null} reportingContext
  * @returns {Promise<Object>} manager with { id, ... }
  * @throws {ValidationError} if no manager found
  */
-async function getManagerOrThrow(userId) {
+async function getManagerOrThrow(userId, reportingContext = null) {
   const reportingService = require('../../core/services/reportingStructure.service');
-  const manager = await reportingService.getDirectManager(userId);
+  const manager = await reportingService.getDirectManager(userId, reportingContext || undefined);
   if (!manager || !manager.id) {
     throw new ValidationError('No reporting manager found to forward the note');
   }

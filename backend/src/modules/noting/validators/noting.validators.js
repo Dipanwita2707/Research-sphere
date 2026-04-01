@@ -340,6 +340,8 @@ const noteBodySchema = z
       });
     }, z.array(z.string()).optional()),
     attachments: z.array(attachmentSchema).optional(),
+    departmentId: z.string().uuid("departmentId must be a valid UUID").optional().nullable(),
+    departmentScope: z.enum(["school", "central"]).optional().nullable(),
     submit: optionalBooleanish,
     eventClubId: z.string().uuid("eventClubId must be a valid UUID").optional().nullable(),
     eventVisibilitySettings: eventVisibilitySettingsSchema.optional().nullable(),
@@ -362,6 +364,34 @@ const noteBodySchema = z
   .strip();
 
 const createNoteBodySchema = noteBodySchema.superRefine((body, ctx) => {
+  const hasDepartmentId = typeof body.departmentId === "string" && body.departmentId.trim().length > 0;
+  const hasDepartmentScope = typeof body.departmentScope === "string" && body.departmentScope.trim().length > 0;
+
+  if (hasDepartmentId !== hasDepartmentScope) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["departmentId"],
+      message: "departmentId and departmentScope must be provided together",
+    });
+  }
+
+  if (body.submit === true) {
+    if (!hasDepartmentId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["departmentId"],
+        message: "Please select a department before submitting",
+      });
+    }
+    if (!hasDepartmentScope) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["departmentScope"],
+        message: "Department scope is required before submitting",
+      });
+    }
+  }
+
   if (!body.category) {
     ctx.addIssue({
       code: "custom",
@@ -393,6 +423,20 @@ const createNoteBodySchema = noteBodySchema.superRefine((body, ctx) => {
 });
 
 const updateDraftBodySchema = noteBodySchema.partial().superRefine((body, ctx) => {
+  const hasDepartmentId = typeof body.departmentId === "string" && body.departmentId.trim().length > 0;
+  const hasDepartmentScope = typeof body.departmentScope === "string" && body.departmentScope.trim().length > 0;
+
+  if (
+    (body.departmentId !== undefined || body.departmentScope !== undefined) &&
+    hasDepartmentId !== hasDepartmentScope
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["departmentId"],
+      message: "departmentId and departmentScope must be provided together",
+    });
+  }
+
   if (body.category && body.subcategory) {
     const validSubcategories = validSubcategoriesFor(body.category);
     if (

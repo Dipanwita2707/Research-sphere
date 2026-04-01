@@ -52,6 +52,91 @@ const {
   getListNoteSelect,
 } = require("../utils/selectFragments");
 
+async function resolveDepartmentContext({
+  departmentId,
+  departmentScope,
+  requireDepartment = false,
+}) {
+  const cleanDepartmentId =
+    typeof departmentId === "string" ? departmentId.trim() : departmentId;
+  const cleanDepartmentScope =
+    typeof departmentScope === "string"
+      ? departmentScope.trim().toLowerCase()
+      : departmentScope;
+
+  const hasDepartmentId = !!cleanDepartmentId;
+  const hasDepartmentScope = !!cleanDepartmentScope;
+
+  if (!hasDepartmentId && !hasDepartmentScope) {
+    if (requireDepartment) {
+      throw new ValidationError(
+        "Please select a department before submitting this note.",
+      );
+    }
+    return null;
+  }
+
+  if (hasDepartmentId !== hasDepartmentScope) {
+    throw new ValidationError(
+      "Department ID and department scope must be provided together.",
+    );
+  }
+
+  if (!["school", "central"].includes(cleanDepartmentScope)) {
+    throw new ValidationError(
+      "Invalid department scope. Please select a valid department.",
+    );
+  }
+
+  if (cleanDepartmentScope === "school") {
+    const department = await prisma.department.findFirst({
+      where: {
+        id: cleanDepartmentId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        departmentName: true,
+      },
+    });
+
+    if (!department) {
+      throw new ValidationError(
+        "Selected school department was not found or is inactive.",
+      );
+    }
+
+    return {
+      departmentId: department.id,
+      departmentScope: "school",
+      departmentName: department.departmentName,
+    };
+  }
+
+  const centralDepartment = await prisma.centralDepartment.findFirst({
+    where: {
+      id: cleanDepartmentId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      departmentName: true,
+    },
+  });
+
+  if (!centralDepartment) {
+    throw new ValidationError(
+      "Selected central department was not found or is inactive.",
+    );
+  }
+
+  return {
+    departmentId: centralDepartment.id,
+    departmentScope: "central",
+    departmentName: centralDepartment.departmentName,
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CREATE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -79,6 +164,8 @@ const create = asyncHandler(async (req, res) => {
     amount,
     points = [],
     attachments: attachmentsPayload = [],
+    departmentId,
+    departmentScope,
     submit = false,
     // Event-specific fields
     eventName,
@@ -136,16 +223,20 @@ const create = asyncHandler(async (req, res) => {
     eventEndDate ||
     eventPaymentType
   ) {
-    if (
-      !eventName ||
-      !eventType ||
-      !eventStartDate ||
-      !eventEndDate ||
-      !eventPaymentType
-    ) {
-      throw new ValidationError(
-        "Please fill in all event details: Event Name, Event Type, Start Date, End Date, and Payment Type.",
-      );
+    if (!eventName) {
+      throw new ValidationError("Event Name validation failed: Event Name is required.");
+    }
+    if (!eventType) {
+      throw new ValidationError("Event Type validation failed: Event Type is required.");
+    }
+    if (!eventStartDate) {
+      throw new ValidationError("Event Start Date validation failed: Start Date is required.");
+    }
+    if (!eventEndDate) {
+      throw new ValidationError("Event End Date validation failed: End Date is required.");
+    }
+    if (!eventPaymentType) {
+      throw new ValidationError("Event Payment Type validation failed: Payment Type is required.");
     }
 
     // Validate dates
@@ -181,6 +272,11 @@ const create = asyncHandler(async (req, res) => {
   const policyCompliant = parsePolicyCompliance(policyCompliance);
   const validPoints = sanitizePoints(points);
   const validAttachments = sanitizeAttachments(attachmentsPayload);
+  const resolvedDepartment = await resolveDepartmentContext({
+    departmentId,
+    departmentScope,
+    requireDepartment: submit === true,
+  });
 
   // Full submission validation (policy, points, amount, recurring, event/festival)
   if (submit) {
@@ -192,6 +288,9 @@ const create = asyncHandler(async (req, res) => {
       recurringFrequency: recurringFrequency || null,
       amountRequired: amountRequired === true,
       amount: amountRequired ? amount : null,
+      departmentId: resolvedDepartment?.departmentId || null,
+      departmentScope: resolvedDepartment?.departmentScope || null,
+      departmentName: resolvedDepartment?.departmentName || null,
       notingEventType: notingEventType || null,
       festivalMeta: festivalMeta || null,
       subEvents: Array.isArray(subEvents) ? subEvents : null,
@@ -257,7 +356,10 @@ const create = asyncHandler(async (req, res) => {
         subcategory: subcategory || "",
       });
       const reportingService = require("../../core/services/reportingStructure.service");
-      const manager = await reportingService.getDirectManager(userId);
+      const manager = await reportingService.getDirectManager(userId, {
+        departmentScope: resolvedDepartment?.departmentScope,
+        departmentId: resolvedDepartment?.departmentId,
+      });
 
       if (!manager) {
         throw new ValidationError(
@@ -296,6 +398,9 @@ const create = asyncHandler(async (req, res) => {
     notingId,
     category,
     subcategory,
+    departmentId: resolvedDepartment?.departmentId || null,
+    departmentScope: resolvedDepartment?.departmentScope || null,
+    departmentName: resolvedDepartment?.departmentName || null,
     description: descriptionValue || "",
     approvalPeriod: approvalPeriod || "one_time",
     recurringFrequency: recurringFrequency || null,
@@ -453,6 +558,8 @@ const updateDraft = asyncHandler(async (req, res) => {
     amount,
     points = [],
     attachments: attachmentsPayload = [],
+    departmentId,
+    departmentScope,
     // Event-specific fields
     eventName,
     eventType,
@@ -525,6 +632,21 @@ const updateDraft = asyncHandler(async (req, res) => {
   // Use effective values: from this request, or fall back to what's already saved
   const effectivePaymentType = eventPaymentType !== undefined ? eventPaymentType : note.eventPaymentType;
   const effectiveParticipationType = eventParticipationType !== undefined ? eventParticipationType : note.eventParticipationType;
+
+  const effectiveEventStartDate =
+    eventStartDate !== undefined ? eventStartDate : note.eventStartDate;
+  const effectiveEventEndDate =
+    eventEndDate !== undefined ? eventEndDate : note.eventEndDate;
+  if (effectiveEventStartDate && effectiveEventEndDate) {
+    const startDate = new Date(effectiveEventStartDate);
+    const endDate = new Date(effectiveEventEndDate);
+    if (endDate < startDate) {
+      throw new ValidationError(
+        "Event End Date validation failed: End Date should be after Start Date.",
+      );
+    }
+  }
+
   if (effectivePaymentType === 'paid') {
     const isTeam = effectiveParticipationType === 'team';
     if (isTeam && eventRegistrationFeeTeam !== undefined) {
@@ -539,8 +661,25 @@ const updateDraft = asyncHandler(async (req, res) => {
     }
   }
 
+  const shouldUpdateDepartment =
+    departmentId !== undefined || departmentScope !== undefined;
+  let resolvedDepartment = null;
+  if (shouldUpdateDepartment) {
+    resolvedDepartment = await resolveDepartmentContext({
+      departmentId,
+      departmentScope,
+      requireDepartment: false,
+    });
+  }
+
   // Prepare update data
   const updateData = {};
+
+  if (shouldUpdateDepartment) {
+    updateData.departmentId = resolvedDepartment?.departmentId || null;
+    updateData.departmentScope = resolvedDepartment?.departmentScope || null;
+    updateData.departmentName = resolvedDepartment?.departmentName || null;
+  }
 
   // Persist category / subcategory changes
   if (category !== undefined) updateData.category = category;
@@ -888,6 +1027,10 @@ const submitDraft = asyncHandler(async (req, res) => {
       await approvalFlowService.determineNextApproverByReporting(
         note,
         modulePermissionKey,
+        {
+          departmentScope: note.departmentScope,
+          departmentId: note.departmentId,
+        },
       );
 
     // CASE 1: No manager assigned - REJECT submission

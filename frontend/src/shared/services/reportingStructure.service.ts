@@ -42,10 +42,26 @@ export interface HierarchyNode {
   email: string;
   empId?: string;
   department?: string;
+  departmentId?: string | null;
+  departmentScope?: 'school' | 'central' | null;
+  departmentCode?: string | null;
+  departmentType?: string | null;
   school?: string;
   managerId?: string;
   hierarchyDepth: number;
   children?: HierarchyNode[];
+}
+
+export interface ReportingDepartmentOption {
+  id: string;
+  scope: 'school' | 'central';
+  name: string;
+  code?: string | null;
+  shortName?: string | null;
+  facultyId?: string | null;
+  facultyName?: string | null;
+  departmentType?: string | null;
+  displayLabel: string;
 }
 
 export interface ReportingChainUser {
@@ -57,14 +73,23 @@ export interface ReportingChainUser {
   level: number;
 }
 
+export interface ReportingDepartmentContext {
+  departmentScope: 'school' | 'central';
+  departmentId: string;
+}
+
 export interface AssignManagerRequest {
   userId: string;
   managerId: string;
+  departmentScope: 'school' | 'central';
+  departmentId: string;
 }
 
 export interface AssignManagerChainRequest {
   userId: string;
   managerChain: string[]; // Array of manager IDs from Level 1 to Level N
+  departmentScope: 'school' | 'central';
+  departmentId: string;
 }
 
 export interface BulkImportRequest {
@@ -77,6 +102,8 @@ export interface BulkImportRequest {
 export interface MoveUserRequest {
   userId: string;
   newManagerId: string;
+  departmentScope: 'school' | 'central';
+  departmentId: string;
 }
 
 export interface UserHierarchyInfo {
@@ -94,9 +121,25 @@ export const reportingStructureService = {
   /**
    * Get full reporting hierarchy tree
    */
-  async getHierarchyTree() {
+  async getHierarchyTree(context?: ReportingDepartmentContext) {
     const response = await api.get<{ success: boolean; data: HierarchyNode[] }>(
-      '/reporting-structure/tree'
+      '/reporting-structure/tree',
+      {
+        params: context,
+      },
+    );
+    return response.data;
+  },
+
+  /**
+   * Get all active department options (school + central)
+   */
+  async getDepartmentOptions(options?: { withHierarchyOnly?: boolean }) {
+    const response = await api.get<{ success: boolean; data: ReportingDepartmentOption[] }>(
+      '/reporting-structure/departments',
+      {
+        params: options?.withHierarchyOnly ? { withHierarchyOnly: true } : undefined,
+      }
     );
     return response.data;
   },
@@ -104,9 +147,12 @@ export const reportingStructureService = {
   /**
    * Get reporting chain for a specific user
    */
-  async getReportingChain(userId: string) {
+  async getReportingChain(userId: string, context?: ReportingDepartmentContext) {
     const response = await api.get<{ success: boolean; data: ReportingChainUser[] }>(
-      `/reporting-structure/chain/${userId}`
+      `/reporting-structure/chain/${userId}`,
+      {
+        params: context,
+      },
     );
     return response.data;
   },
@@ -114,9 +160,12 @@ export const reportingStructureService = {
   /**
    * Get direct manager for a user
    */
-  async getDirectManager(userId: string) {
+  async getDirectManager(userId: string, context?: ReportingDepartmentContext) {
     const response = await api.get<{ success: boolean; data: ReportingRelationship | null }>(
-      `/reporting-structure/manager/${userId}`
+      `/reporting-structure/manager/${userId}`,
+      {
+        params: context,
+      },
     );
     return response.data;
   },
@@ -124,10 +173,15 @@ export const reportingStructureService = {
   /**
    * Get subordinates of a user
    */
-  async getSubordinates(userId: string, directOnly: boolean = false) {
+  async getSubordinates(userId: string, directOnly: boolean = false, context?: ReportingDepartmentContext) {
     const response = await api.get<{ success: boolean; data: ReportingRelationship[] }>(
       `/reporting-structure/subordinates/${userId}`,
-      { params: { direct: directOnly } }
+      {
+        params: {
+          direct: directOnly,
+          ...context,
+        },
+      }
     );
     return response.data;
   },
@@ -162,9 +216,12 @@ export const reportingStructureService = {
 
   /**   * Remove reporting relationship
    */
-  async removeReportingRelationship(userId: string) {
+  async removeReportingRelationship(userId: string, context: ReportingDepartmentContext) {
     const response = await api.delete<{ success: boolean; message: string }>(
-      `/reporting-structure/${userId}`
+      `/reporting-structure/${userId}`,
+      {
+        params: context,
+      },
     );
     return response.data;
   },
@@ -201,11 +258,14 @@ export const reportingStructureService = {
    * Get hierarchy info for multiple users (batch)
    * Returns level, parent, subordinate count for users already in hierarchy
    */
-  async getBulkHierarchyInfo(userIds: string[]) {
+  async getBulkHierarchyInfo(userIds: string[], context?: ReportingDepartmentContext) {
     const response = await api.post<{
       success: boolean;
       data: BulkHierarchyInfoMap;
-    }>('/reporting-structure/hierarchy-info', { userIds });
+    }>('/reporting-structure/hierarchy-info', {
+      userIds,
+      ...context,
+    });
     return response.data;
   },
 
@@ -226,7 +286,17 @@ export const reportingStructureService = {
           displayName?: string;
           empId?: string;
           designation?: string | { designationName: string; roleCode?: string };
-          primaryDepartment?: { departmentName: string };
+          primaryDepartment?: {
+            id: string;
+            departmentName: string;
+            departmentCode?: string;
+          };
+          primaryCentralDept?: {
+            id: string;
+            departmentName: string;
+            departmentCode?: string;
+            departmentType?: string | null;
+          };
           primarySchool?: { facultyName: string };
         };
       }>;

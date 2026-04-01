@@ -20,6 +20,7 @@ const log = require("../../../shared/utils/logger");
 const { NotFoundError } = require("../../../shared/utils/AppError");
 const {
   getDefaultPermissions,
+  getPermissionKeyVariants,
 } = require("../../../shared/config/permissions.config");
 
 const { generateNotingId } = require("../services/notingId.service");
@@ -401,8 +402,19 @@ const searchEmployees = asyncHandler(async (req, res) => {
  */
 const getMyManager = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  const departmentScope = typeof req.query?.departmentScope === 'string'
+    ? req.query.departmentScope.trim().toLowerCase()
+    : undefined;
+  const departmentId = typeof req.query?.departmentId === 'string'
+    ? req.query.departmentId.trim()
+    : undefined;
+
+  const reportingContext = departmentScope && departmentId
+    ? { departmentScope, departmentId }
+    : undefined;
+
   const reportingService = require("../../core/services/reportingStructure.service");
-  const manager = await reportingService.getDirectManager(userId);
+  const manager = await reportingService.getDirectManager(userId, reportingContext);
 
   if (!manager) {
     return ApiResponse.success(res, null, "No reporting manager found");
@@ -494,7 +506,9 @@ const getMyNotingPermissions = asyncHandler(async (req, res) => {
   ];
 
   for (const key of NOTING_PERM_KEYS) {
-    if (defaults[key] === true) {
+    const variants = getPermissionKeyVariants(key);
+
+    if (variants.some((variant) => defaults[variant] === true)) {
       result[key] = true;
       continue;
     }
@@ -503,8 +517,7 @@ const getMyNotingPermissions = asyncHandler(async (req, res) => {
     result[key] = allDeptPermissions.some(
       (dp) =>
         dp.permissions &&
-        (dp.permissions[key] === true ||
-          dp.permissions[`${key.split("_")[0]}_${key}`] === true),
+        variants.some((variant) => dp.permissions[variant] === true),
     );
   }
 
