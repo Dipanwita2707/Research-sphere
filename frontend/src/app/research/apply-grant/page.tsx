@@ -28,10 +28,13 @@ export default function GrantApplyPage() {
     }
 
     // Get role name
-    const roleName = typeof user.role === 'object' ? user.role?.name : user.userType;
+    const roleName = typeof user.role ===
+   'object' ? user.role?.name : user.userType;
     
     // Faculty and Student have inherent research filing rights
-    if (roleName === 'faculty' || roleName === 'student') {
+    if (roleName ===
+   'faculty' || roleName ===
+   'student') {
       setCanFileResearch(true);
       setLoading(false);
       return;
@@ -44,7 +47,9 @@ export default function GrantApplyPage() {
         const hasPermission = response.data.data.permissions.some((dept: any) => {
           return dept.permissions?.some((p: string) => {
             const pLower = p.toLowerCase();
-            return pLower === 'research_file_new' || pLower === 'grant_file_new';
+            return pLower ===
+   'research_file_new' || pLower ===
+   'grant_file_new';
           });
         });
         setCanFileResearch(hasPermission);

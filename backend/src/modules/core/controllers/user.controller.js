@@ -23,14 +23,16 @@ exports.getAllUsers = async (req, res) => {
       where.OR = [
         { uid: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
-        { employeeDetails: { 
-          is: {
-            OR: [
-              { firstName: { contains: search, mode: 'insensitive' } },
-              { lastName: { contains: search, mode: 'insensitive' } }
-            ]
+        {
+          employeeDetails: {
+            is: {
+              OR: [
+                { firstName: { contains: search, mode: 'insensitive' } },
+                { lastName: { contains: search, mode: 'insensitive' } }
+              ]
+            }
           }
-        }}
+        }
       ];
     }
 
@@ -41,8 +43,27 @@ exports.getAllUsers = async (req, res) => {
           select: {
             firstName: true,
             lastName: true,
+            displayName: true,
             designation: true,
-            empId: true
+            empId: true,
+            primaryDepartment: {
+              select: {
+                id: true,
+                departmentName: true,
+                departmentCode: true,
+              }
+            },
+            primaryCentralDept: {
+              select: {
+                id: true,
+                departmentName: true,
+                departmentCode: true,
+                departmentType: true,
+              }
+            },
+            primarySchool: {
+              select: { facultyName: true }
+            }
           }
         }
       },
@@ -106,7 +127,7 @@ exports.searchUsersByPartialUid = async (req, res) => {
   try {
     const { query } = req.params;
     const { role } = req.query; // Optional filter: 'faculty', 'student', 'staff'
-    
+
     console.log('Searching users with query:', query, 'role filter:', role);
 
     if (!query || query.length < 2) {
@@ -116,10 +137,10 @@ exports.searchUsersByPartialUid = async (req, res) => {
       });
     }
 
-    // If searching for students, search in studentDetails
+    // If searching for students, search in studentDetails (only those with login access)
     if (role === 'student') {
       console.log('🔍 Searching students with query:', query);
-      
+
       const students = await prisma.studentDetails.findMany({
         where: {
           OR: [
@@ -130,6 +151,7 @@ exports.searchUsersByPartialUid = async (req, res) => {
             { email: { contains: query, mode: 'insensitive' } },
           ],
           isActive: true,
+          userLoginId: { not: null }, // Only students with login (can be volunteers)
         },
         take: 10,
         include: {
@@ -145,7 +167,7 @@ exports.searchUsersByPartialUid = async (req, res) => {
 
       const suggestions = students.map(student => ({
         uid: student.studentId,
-        id: student.id,
+        id: student.userLoginId, // UserLogin id required for EventVolunteer
         name: `${student.firstName || ''} ${student.lastName || ''}`.trim(),
         role: 'student',
         department: student.program?.programName || 'N/A',
@@ -195,8 +217,9 @@ exports.searchUsersByPartialUid = async (req, res) => {
 
     const suggestions = users.map(user => ({
       uid: user.uid,
-      name: user.employeeDetails ? 
-        `${user.employeeDetails.firstName || ''} ${user.employeeDetails.lastName || ''}`.trim() : 
+      id: user.id,
+      name: user.employeeDetails ?
+        `${user.employeeDetails.firstName || ''} ${user.employeeDetails.lastName || ''}`.trim() :
         user.email?.split('@')[0] || 'Unknown',
       role: user.role,
       department: user.employeeDetails?.primaryDepartment?.departmentName || 'N/A',
@@ -233,7 +256,7 @@ exports.searchUserByUid = async (req, res) => {
     }
 
     const user = await prisma.userLogin.findFirst({
-      where: { 
+      where: {
         uid: uid
       },
       include: {
@@ -276,8 +299,8 @@ exports.searchUserByUid = async (req, res) => {
       phone: user.employeeDetails?.phoneNumber || user.phone,
       role: user.role,
       employeeType: user.employeeDetails?.designation || 'Student',
-      name: user.employeeDetails ? 
-        `${user.employeeDetails.firstName || ''} ${user.employeeDetails.lastName || ''}`.trim() : 
+      name: user.employeeDetails ?
+        `${user.employeeDetails.firstName || ''} ${user.employeeDetails.lastName || ''}`.trim() :
         user.email?.split('@')[0], // Fallback to email prefix
       department: user.employeeDetails?.primaryDepartment?.departmentName || null,
       faculty: user.employeeDetails?.primaryDepartment?.faculty?.facultyName || null,
@@ -307,7 +330,7 @@ exports.getIprPermissionsConfig = async (req, res) => {
   try {
     const { getPermissionsForUI } = require('../../../shared/config/permissions.config');
     const permissions = getPermissionsForUI();
-    
+
     res.status(200).json({
       success: true,
       data: permissions
@@ -525,13 +548,13 @@ exports.updateUserIprPermissions = async (req, res) => {
     // === COMPREHENSIVE AUDIT LOGGING ===
     const targetUser = await prisma.userLogin.findUnique({
       where: { id: userId },
-      select: { 
-        uid: true, 
+      select: {
+        uid: true,
         email: true,
         employeeDetails: { select: { displayName: true } }
       }
     });
-    
+
     await logPermissionChange(
       targetUser,
       {

@@ -195,7 +195,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
   // Get user from auth store
   const { user } = useAuthStore();
   logger.debug('🔐 User from auth store:', user);
-  const isCurrentUserStudent = user?.userType === 'student';
+  const isCurrentUserStudent = user?.userType ===
+   'student';
 
   const config = IPR_FIELD_CONFIG[formData.ideaFor as keyof typeof IPR_FIELD_CONFIG] || IPR_FIELD_CONFIG.patent;
 
@@ -210,7 +211,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       setFormData(prev => ({
         ...prev,
         employeeCategory: 'internal',
-        employeeType: user.userType === 'student' ? 'student' : 'staff',
+        employeeType: user.userType ===
+   'student' ? 'student' : 'staff',
         uid: user.uid || '',
         name: displayName,
         email: user.email || '',
@@ -229,7 +231,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
   }, [user]);
 
   useEffect(() => {
-    if (activeTab === 'process') {
+    if (activeTab ===
+   'process') {
       fetchApplications();
     }
   }, [activeTab]);
@@ -254,7 +257,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
   // Fetch published provisionals when complete filing is selected
   useEffect(() => {
     const fetchPublishedProvisionals = async () => {
-      if (formData.typeOfFiling === 'complete') {
+      if (formData.typeOfFiling ===
+   'complete') {
         try {
           const data = await iprService.getMyPublishedProvisionals();
           setPublishedProvisionals(data.available || []);
@@ -270,7 +274,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
   useEffect(() => {
     if (formData.sourceProvisionalId && publishedProvisionals.length > 0) {
       const selectedProvisional = publishedProvisionals.find(
-        prov => prov.id === formData.sourceProvisionalId
+        prov => prov.id ===
+   formData.sourceProvisionalId
       );
       
       if (selectedProvisional) {
@@ -369,14 +374,16 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       
       if (response.data.success) {
         const userData = response.data.data;
-        const roleName = typeof userData.role === 'object' ? userData.role?.name : userData.role;
+        const roleName = typeof userData.role ===
+   'object' ? userData.role?.name : userData.role;
         setFormData(prev => ({
           ...prev,
           uid: suggestion.uid,
           name: userData.name || '',
           email: userData.email || '',
           phone: userData.phone || '',
-          employeeType: roleName === 'faculty' ? 'staff' : roleName,
+          employeeType: roleName ===
+   'faculty' ? 'staff' : roleName,
           universityDeptName: userData.department || '',
         }));
       }
@@ -419,23 +426,28 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
 
   // Add contributor to the list and clear form fields
   const addContributor = () => {
-    if (formData.employeeCategory === 'internal' && (!formData.uid || !formData.name)) {
+    if (formData.employeeCategory ===
+   'internal' && (!formData.uid || !formData.name)) {
       setError('Please fill UID and Name for internal contributors');
       return;
     }
-    if (formData.employeeCategory === 'external' && (!formData.externalName || !formData.externalEmail)) {
+    if (formData.employeeCategory ===
+   'external' && (!formData.externalName || !formData.externalEmail)) {
       setError('Please fill Name and Email for external contributors');
       return;
     }
 
     // Check for duplicate contributors
     const isDuplicate = contributors.some(contributor => {
-      if (formData.employeeCategory === 'internal') {
+      if (formData.employeeCategory ===
+   'internal') {
         // For internal contributors, check by UID
-        return contributor.uid === formData.uid;
+        return contributor.uid ===
+   formData.uid;
       } else {
         // For external contributors, check by email
-        return contributor.email === formData.externalEmail;
+        return contributor.email ===
+   formData.externalEmail;
       }
     });
 
@@ -449,9 +461,12 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       employeeCategory: formData.employeeCategory,
       employeeType: formData.employeeType,
       uid: formData.uid,
-      name: formData.employeeCategory === 'internal' ? formData.name : formData.externalName,
-      email: formData.employeeCategory === 'internal' ? formData.email : formData.externalEmail,
-      phone: formData.employeeCategory === 'internal' ? formData.phone : formData.externalPhone,
+      name: formData.employeeCategory ===
+   'internal' ? formData.name : formData.externalName,
+      email: formData.employeeCategory ===
+   'internal' ? formData.email : formData.externalEmail,
+      phone: formData.employeeCategory ===
+   'internal' ? formData.phone : formData.externalPhone,
       universityDeptName: formData.universityDeptName,
       externalOption: formData.externalOption,
       instituteType: formData.instituteType,
@@ -492,15 +507,20 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
     // Convert Decimal/string to number properly
     let totalBaseIncentive: number;
     if (currentPolicy?.baseIncentiveAmount !== undefined && currentPolicy?.baseIncentiveAmount !== null) {
-      totalBaseIncentive = typeof currentPolicy.baseIncentiveAmount === 'string' 
+      totalBaseIncentive = typeof currentPolicy.baseIncentiveAmount ===
+   'string' 
         ? parseFloat(currentPolicy.baseIncentiveAmount) 
         : Number(currentPolicy.baseIncentiveAmount);
       console.log('[IPR Incentive Calc] Using policy totalBaseIncentive:', totalBaseIncentive);
     } else {
-      totalBaseIncentive = formData.ideaFor === 'patent' ? 50000 : 
-         formData.ideaFor === 'copyright' ? 15000 :
-         formData.ideaFor === 'design' ? 20000 :
-         formData.ideaFor === 'trademark' ? 10000 : 10000;
+      totalBaseIncentive = formData.ideaFor ===
+   'patent' ? 50000 : 
+         formData.ideaFor ===
+   'copyright' ? 15000 :
+         formData.ideaFor ===
+   'design' ? 20000 :
+         formData.ideaFor ===
+   'trademark' ? 10000 : 10000;
       console.log('[IPR Incentive Calc] Using DEFAULT totalBaseIncentive:', totalBaseIncentive);
     }
     
@@ -509,21 +529,27 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       totalBasePoints = Number(currentPolicy.basePoints);
       console.log('[IPR Incentive Calc] Using policy totalBasePoints:', totalBasePoints);
     } else {
-      totalBasePoints = formData.ideaFor === 'patent' ? 50 : 
-         formData.ideaFor === 'copyright' ? 20 :
-         formData.ideaFor === 'design' ? 25 :
-         formData.ideaFor === 'trademark' ? 15 : 20;
+      totalBasePoints = formData.ideaFor ===
+   'patent' ? 50 : 
+         formData.ideaFor ===
+   'copyright' ? 20 :
+         formData.ideaFor ===
+   'design' ? 25 :
+         formData.ideaFor ===
+   'trademark' ? 15 : 20;
       console.log('[IPR Incentive Calc] Using DEFAULT totalBasePoints:', totalBasePoints);
     }
     
     // Count eligible contributors for INCENTIVE (all internal - staff, faculty, students)
     // Note: Applicant is NOT included in the count - only added contributors are counted
-    const eligibleForIncentive = contributors.filter(c => c.employeeCategory === 'internal').length;
+    const eligibleForIncentive = contributors.filter(c => c.employeeCategory ===
+   'internal').length;
     const totalEligibleForIncentive = eligibleForIncentive > 0 ? eligibleForIncentive : 1; // At least 1 to avoid division by zero
     
     // Count eligible contributors for POINTS (only staff/faculty, NO students)
     // Note: Applicant is NOT included in the count - only added contributors are counted
-    const eligibleForPoints = contributors.filter(c => c.employeeCategory === 'internal' && c.employeeType !== 'student').length;
+    const eligibleForPoints = contributors.filter(c => c.employeeCategory ===
+   'internal' && c.employeeType !== 'student').length;
     const totalEligibleForPoints = eligibleForPoints > 0 ? eligibleForPoints : 1; // At least 1 to avoid division by zero
     
     console.log('[IPR Incentive Calc] Total eligible for incentive:', totalEligibleForIncentive);
@@ -536,12 +562,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
     console.log('[IPR Incentive Calc] Per contributor - Incentive:', baseIncentive, 'Points:', basePoints);
     
     // External contributors get no incentive or points
-    if (employeeCategory === 'external') {
+    if (employeeCategory ===
+   'external') {
       return { incentive: 0, points: 0 };
     }
     
     // Students get only incentives, no points
-    if (employeeType === 'student') {
+    if (employeeType ===
+   'student') {
       return { incentive: baseIncentive, points: 0 };
     }
     
@@ -615,7 +643,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
     
     if (hasStartedFillingContributor) {
       // Only validate contributor fields if user started filling them
-      if (formData.employeeCategory === 'internal') {
+      if (formData.employeeCategory ===
+   'internal') {
         if (!formData.uid?.trim()) {
           errors.push('Contributor UID is required (or clear all fields to submit without additional contributors)');
         }
@@ -634,12 +663,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
     }
     
     // Complete filing validation
-    if (formData.typeOfFiling === 'complete') {
+    if (formData.typeOfFiling ===
+   'complete') {
       if (!formData.completeFilingSource) {
         errors.push('Please select whether this is converted from provisional or fresh application');
       }
       
-      if (formData.completeFilingSource === 'from_provisional' && !formData.sourceProvisionalId) {
+      if (formData.completeFilingSource ===
+   'from_provisional' && !formData.sourceProvisionalId) {
         errors.push('Please select the source provisional application');
       }
       
@@ -684,7 +715,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
 
       // Upload prototype file for complete filing
       let prototypeFilePath = '';
-      if (formData.typeOfFiling === 'complete' && formData.prototypeFile) {
+      if (formData.typeOfFiling ===
+   'complete' && formData.prototypeFile) {
         setPrototypeUploading(true);
         try {
           prototypeFilePath = await fileUploadService.uploadPrototypeFile(formData.prototypeFile);
@@ -709,10 +741,12 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
         
         sdgs: formData.sdg.map(code => ({
           code,
-          title: SDG_OPTIONS.find(s => s.value === code)?.label || ''
+          title: SDG_OPTIONS.find(s => s.value ===
+   code)?.label || ''
         })),
         
-        applicantDetails: formData.employeeCategory === 'internal' ? {
+        applicantDetails: formData.employeeCategory ===
+   'internal' ? {
           employeeCategory: 'teaching',
           employeeType: formData.employeeType,
           uid: formData.uid,
@@ -737,8 +771,10 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
         supportingDocsFilePaths: [],
         
         // Complete filing specific fields
-        ...(formData.typeOfFiling === 'complete' && {
-          sourceProvisionalId: formData.completeFilingSource === 'from_provisional' ? formData.sourceProvisionalId : undefined,
+        ...(formData.typeOfFiling ===
+   'complete' && {
+          sourceProvisionalId: formData.completeFilingSource ===
+   'from_provisional' ? formData.sourceProvisionalId : undefined,
           prototypeFilePath: prototypeFilePath || undefined,
         }),
       };
@@ -755,9 +791,11 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
       // The backend handles the routing based on user type and mentor assignment
       
       // Set appropriate success message based on status
-      if (application.status === 'pending_mentor_approval') {
+      if (application.status ===
+   'pending_mentor_approval') {
         setSuccess(`${config.title} submitted successfully! Awaiting mentor approval.`);
-      } else if (application.status === 'submitted') {
+      } else if (application.status ===
+   'submitted') {
         setSuccess(`${config.title} submitted successfully for DRD review!`);
       } else {
         setSuccess(`${config.title} submitted successfully!`);
@@ -830,7 +868,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
         <div className="border-b border-gray-200 mb-6">
           <nav className="flex space-x-8">
             <button
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'entry'
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab ===
+   'entry'
                   ? 'border-[#005b96] text-[#005b96]'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
@@ -839,7 +878,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
               Idea Request Entry
             </button>
             <button
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === 'process'
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab ===
+   'process'
                   ? 'border-[#005b96] text-[#005b96]'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
@@ -850,7 +890,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
           </nav>
         </div>
 
-        {activeTab === 'entry' && (
+        {activeTab ===
+   'entry' && (
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* First Row - 4 columns */}
             <div className="grid grid-cols-4 gap-6">
@@ -916,7 +957,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
               )}
 
               {/* Complete Filing Specific Options */}
-              {formData.typeOfFiling === 'complete' && (
+              {formData.typeOfFiling ===
+   'complete' && (
                 <div className="col-span-2 space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <h4 className="font-medium text-blue-800 flex items-center gap-2">
                     <FileText className="w-4 h-4" />
@@ -934,7 +976,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                           type="radio"
                           name="completeFilingSource"
                           value="fresh"
-                          checked={formData.completeFilingSource === 'fresh'}
+                          checked={formData.completeFilingSource ===
+   'fresh'}
                           onChange={handleInputChange}
                           className="text-blue-600"
                         />
@@ -945,7 +988,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                           type="radio"
                           name="completeFilingSource"
                           value="from_provisional"
-                          checked={formData.completeFilingSource === 'from_provisional'}
+                          checked={formData.completeFilingSource ===
+   'from_provisional'}
                           onChange={handleInputChange}
                           className="text-blue-600"
                         />
@@ -955,7 +999,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                   </div>
 
                   {/* Published Provisional Selection */}
-                  {formData.completeFilingSource === 'from_provisional' && (
+                  {formData.completeFilingSource ===
+   'from_provisional' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Select Published Provisional Application<span className="text-red-500">*</span>
@@ -986,7 +1031,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                   {/* Prototype ZIP Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Upload Prototype (ZIP file){formData.completeFilingSource === 'fresh' && <span className="text-red-500">*</span>}
+                      Upload Prototype (ZIP file){formData.completeFilingSource ===
+   'fresh' && <span className="text-red-500">*</span>}
                     </label>
                     <p className="text-xs text-gray-500 mb-2">
                       Upload your working prototype as a ZIP file (max 50MB). Include source code, documentation, and any relevant files.
@@ -1129,7 +1175,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                     type="file"
                     onChange={handleFileUpload}
                     className="w-full text-sm"
-                    accept={formData.ideaFor === 'patent' ? '.doc,.docx,.zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed' : '.zip,.pdf,.doc,.docx'}
+                    accept={formData.ideaFor ===
+   'patent' ? '.doc,.docx,.zip,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/zip,application/x-zip-compressed' : '.zip,.pdf,.doc,.docx'}
                     required={formData.typeOfFiling !== 'complete'}
                   />
                   <p className="text-xs text-red-600 mt-1">{config.uploadNote}</p>
@@ -1162,7 +1209,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                 </div>
 
                 {/* Conditional Fields based on Employee Category */}
-                {formData.employeeCategory === 'internal' ? (
+                {formData.employeeCategory ===
+   'internal' ? (
                   <>
                     {/* Internal Employee Fields */}
                     <div>
@@ -1181,7 +1229,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
 
                     <div className="relative" ref={uidSuggestionsRef}>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {formData.employeeType === 'student' ? 'Registration Number' : 'UID/VID'}
+                        {formData.employeeType ===
+   'student' ? 'Registration Number' : 'UID/VID'}
                         <span className="text-red-500">*</span>
                       </label>
                       <input
@@ -1190,7 +1239,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                         value={formData.uid}
                         onChange={handleUidChange}
                         onFocus={() => formData.uid.length >= 3 && setShowUidSuggestions(true)}
-                        placeholder={formData.employeeType === 'student' ? 'Enter Registration Number' : 'Enter UID/VID'}
+                        placeholder={formData.employeeType ===
+   'student' ? 'Enter Registration Number' : 'Enter UID/VID'}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md"
                         autoComplete="off"
                       />
@@ -1274,7 +1324,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
 
               {/* Second row of fields */}
               <div className="grid grid-cols-3 gap-6">
-                {formData.employeeCategory === 'internal' ? (
+                {formData.employeeCategory ===
+   'internal' ? (
                   <>
                     {/* Internal Employee Fields Row 2 */}
                     <div>
@@ -1450,16 +1501,20 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                               <td className="px-4 py-2 border text-sm">{contributor.email}</td>
                               <td className="px-4 py-2 border text-sm">{contributor.phone}</td>
                               <td className="px-4 py-2 border text-sm text-center">
-                                {contributor.employeeCategory === 'internal' ? (
+                                {contributor.employeeCategory ===
+   'internal' ? (
                                   <span className="text-green-600 font-medium">₹{incentive.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 ) : (
                                   <span className="text-gray-400">N/A</span>
                                 )}
                               </td>
                               <td className="px-4 py-2 border text-sm text-center">
-                                {contributor.employeeCategory === 'internal' && contributor.employeeType !== 'student' ? (
+                                {contributor.employeeCategory ===
+   'internal' && contributor.employeeType !== 'student' ? (
                                   <span className="text-blue-600 font-medium">{points.toFixed(2)}</span>
-                                ) : contributor.employeeCategory === 'internal' && contributor.employeeType === 'student' ? (
+                                ) : contributor.employeeCategory ===
+   'internal' && contributor.employeeType ===
+   'student' ? (
                                   <span className="text-gray-400 text-xs">No Points</span>
                                 ) : (
                                   <span className="text-gray-400">N/A</span>
@@ -1490,8 +1545,10 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
 
             {/* Filing Type Info */}
             <div className="border-t pt-4 mb-4">
-              <div className={`p-4 rounded-md ${formData.typeOfFiling === 'complete' ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'}`}>
-                {formData.typeOfFiling === 'complete' ? (
+              <div className={`p-4 rounded-md ${formData.typeOfFiling ===
+   'complete' ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'}`}>
+                {formData.typeOfFiling ===
+   'complete' ? (
                   <div className="flex items-start">
                     <AlertCircle className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
                     <div>
@@ -1540,7 +1597,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                   type="submit"
                   disabled={loading || uploading || prototypeUploading || !consentChecked}
                   className={`text-white px-8 py-2.5 rounded-xl disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium ${
-                    formData.typeOfFiling === 'complete' 
+                    formData.typeOfFiling ===
+   'complete' 
                       ? 'bg-[#005b96] hover:bg-[#03396c]' 
                       : 'bg-green-600 hover:bg-green-700'
                   }`}
@@ -1559,12 +1617,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
           </form>
         )}
 
-        {activeTab === 'process' && (
+        {activeTab ===
+   'process' && (
           <div className="bg-white">
             {/* Summary section showing total incentives and points */}
             {(() => {
               const ownApps = applications.filter(app => app && app.id);
-              const contributedApps = contributedApplications.filter(app => app && app.id && !applications.some(ownApp => ownApp.id === app.id));
+              const contributedApps = contributedApplications.filter(app => app && app.id && !applications.some(ownApp => ownApp.id ===
+   app.id));
               
               // Calculate totals for published/completed applications only
               const publishedStatuses = ['published', 'completed', 'drd_head_approved'];
@@ -1653,12 +1713,14 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                     
                     // Add contributed applications that aren't already in their own applications (for all users)
                     const contributedApps = contributedApplications
-                      .filter(app => app && app.id && !applications.some(ownApp => ownApp.id === app.id))
+                      .filter(app => app && app.id && !applications.some(ownApp => ownApp.id ===
+   app.id))
                       .map(app => ({ ...app, isContributor: true }));
                     
                     const allApplications = [...ownApps, ...contributedApps];
                     
-                    if (allApplications.length === 0) {
+                    if (allApplications.length ===
+   0) {
                       return (
                         <tr>
                           <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
@@ -1692,17 +1754,28 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                         </td>
                         <td className="px-4 py-2 border text-sm">
                           <span className={`inline-flex items-center px-2 py-1 text-xs rounded-full font-medium ${
-                            app.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                            app.status === 'pending_mentor_approval' ? 'bg-indigo-100 text-indigo-800' :
-                            app.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
-                            app.status === 'under_drd_review' ? 'bg-yellow-100 text-yellow-800' :
-                            app.status === 'drd_approved' ? 'bg-green-100 text-green-800' :
-                            app.status === 'under_dean_review' ? 'bg-purple-100 text-purple-800' :
-                            app.status === 'dean_approved' ? 'bg-green-100 text-green-800' :
-                            app.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            app.status === 'published' ? 'bg-green-100 text-green-800' :
-                            app.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                            app.status === 'changes_required' ? 'bg-orange-100 text-orange-800' :
+                            app.status ===
+   'draft' ? 'bg-gray-100 text-gray-800' :
+                            app.status ===
+   'pending_mentor_approval' ? 'bg-indigo-100 text-indigo-800' :
+                            app.status ===
+   'submitted' ? 'bg-blue-100 text-blue-800' :
+                            app.status ===
+   'under_drd_review' ? 'bg-yellow-100 text-yellow-800' :
+                            app.status ===
+   'drd_approved' ? 'bg-green-100 text-green-800' :
+                            app.status ===
+   'under_dean_review' ? 'bg-purple-100 text-purple-800' :
+                            app.status ===
+   'dean_approved' ? 'bg-green-100 text-green-800' :
+                            app.status ===
+   'completed' ? 'bg-green-100 text-green-800' :
+                            app.status ===
+   'published' ? 'bg-green-100 text-green-800' :
+                            app.status ===
+   'rejected' ? 'bg-red-100 text-red-800' :
+                            app.status ===
+   'changes_required' ? 'bg-orange-100 text-orange-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {app.status?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
@@ -1726,7 +1799,10 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                         </td>
                         <td className="px-4 py-2 border text-sm">
                           {/* Show incentives only for published applications */}
-                          {(app.status === 'published' || app.status === 'completed' || app.status === 'drd_head_approved') ? (
+                          {(app.status ===
+   'published' || app.status ===
+   'completed' || app.status ===
+   'drd_head_approved') ? (
                             app.pointsAwarded || app.incentiveAmount ? (
                               <div className="space-y-1">
                                 <div className="flex items-center text-green-700">
@@ -1769,7 +1845,9 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                               View Details
                             </button>
                             {/* Show Edit button only for owner's draft or changes_required applications (NOT during pending_mentor_approval) */}
-                            {!app.isContributor && (app.status === 'draft' || app.status === 'changes_required') && (
+                            {!app.isContributor && (app.status ===
+   'draft' || app.status ===
+   'changes_required') && (
                               <button
                                 onClick={() => window.location.href = `/ipr/applications/${app.id}/edit`}
                                 className="bg-orange-500 text-white px-3 py-1 rounded-lg text-xs hover:bg-orange-600 transition-colors w-full"
@@ -1778,7 +1856,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                               </button>
                             )}
                             {/* Show Submit button for draft (provisional) applications */}
-                            {!app.isContributor && app.status === 'draft' && (
+                            {!app.isContributor && app.status ===
+   'draft' && (
                               <button
                                 onClick={async () => {
                                   try {
@@ -1795,7 +1874,8 @@ export default function IPRIdeaRequestForm({ initialType = 'patent' }: IPRIdeaRe
                               </button>
                             )}
                             {/* Show Resubmit button for changes_required status */}
-                            {!app.isContributor && app.status === 'changes_required' && (
+                            {!app.isContributor && app.status ===
+   'changes_required' && (
                               <button
                                 onClick={async () => {
                                   try {

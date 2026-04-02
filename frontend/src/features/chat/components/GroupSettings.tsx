@@ -26,12 +26,19 @@ export function GroupSettings() {
 
   if (!currentGroup) return null;
 
-  const isOwner = currentGroup.myRole === 'owner';
-  const isAdmin = currentGroup.myRole === 'owner' || currentGroup.myRole === 'admin';
+  const isOwner = currentGroup.myRole ===
+   'owner';
+  const isAdmin = currentGroup.myRole ===
+   'owner' || currentGroup.myRole ===
+   'admin';
   // System admin can delete any group; group admin can delete if granted canDeleteGroup permission
-  const isSystemAdmin = authUser?.userType === 'admin' || authUser?.role?.name === 'superadmin';
-  const isGroupAdmin = currentGroup.myRole === 'admin';
-  const groupAdminCanDelete = isGroupAdmin && (currentGroup as any).myCustomPermissions?.canDeleteGroup === true;
+  const isSystemAdmin = authUser?.userType ===
+   'admin' || authUser?.role?.name ===
+   'superadmin';
+  const isGroupAdmin = currentGroup.myRole ===
+   'admin';
+  const groupAdminCanDelete = isGroupAdmin && (currentGroup as any).myCustomPermissions?.canDeleteGroup ===
+   true;
   const canDeleteGroup = isSystemAdmin || groupAdminCanDelete;
   // Any member who is not the owner can leave
   const canLeaveGroup = !isOwner;
@@ -162,7 +169,8 @@ export function GroupSettings() {
         <button
           onClick={() => setActiveTab('general')}
           className={`flex-1 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'general'
+            activeTab ===
+   'general'
               ? 'text-blue-600 border-b-2 border-blue-600'
               : 'text-gray-500 hover:text-gray-700'
           }`}
@@ -173,7 +181,8 @@ export function GroupSettings() {
           <button
             onClick={() => setActiveTab('permissions')}
             className={`flex-1 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'permissions'
+              activeTab ===
+   'permissions'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -184,7 +193,8 @@ export function GroupSettings() {
         <button
           onClick={() => setActiveTab('danger')}
           className={`flex-1 py-2 text-sm font-medium transition-colors ${
-            activeTab === 'danger'
+            activeTab ===
+   'danger'
               ? 'text-red-600 border-b-2 border-red-600'
               : 'text-gray-500 hover:text-gray-700'
           }`}
@@ -195,7 +205,8 @@ export function GroupSettings() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
-        {activeTab === 'general' && (
+        {activeTab ===
+   'general' && (
           <div className="space-y-4">
             {/* Group Name */}
             <div>
@@ -265,7 +276,8 @@ export function GroupSettings() {
           </div>
         )}
 
-        {activeTab === 'permissions' && canManagePermissions && (
+        {activeTab ===
+   'permissions' && canManagePermissions && (
           <div className="space-y-1 divide-y divide-gray-200 dark:divide-gray-700">
             <div className="pb-2">
               <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Messaging</h4>
@@ -381,7 +393,8 @@ export function GroupSettings() {
           </div>
         )}
 
-        {activeTab === 'danger' && (
+        {activeTab ===
+   'danger' && (
           <div className="space-y-4">
             <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
               <p className="text-sm text-yellow-800 dark:text-yellow-300">

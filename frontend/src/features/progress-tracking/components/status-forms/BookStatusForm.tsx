@@ -63,7 +63,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
   
   // Update totalAuthors and sgtAffiliatedAuthors when they change
   const handleAuthorCountChange = (field: 'totalAuthors' | 'sgtAffiliatedAuthors', value: number) => {
-    if (field === 'totalAuthors') {
+    if (field ===
+   'totalAuthors') {
       setTotalAuthors(value);
       handleChange('totalAuthors', value);
       if (totalInternalAuthors > value) {
@@ -93,7 +94,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
     try {
       const response = await researchService.searchUsers(searchTerm, 'all');
       let userData = [];
-      if (response && typeof response === 'object') {
+      if (response && typeof response ===
+   'object') {
         if (response.data && Array.isArray(response.data)) {
           userData = response.data;
         } else if (response.users && Array.isArray(response.users)) {
@@ -119,7 +121,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
   
   // Select author from suggestion
   const selectAuthorFromSuggestion = async (userData: any) => {
-    if (userData.uid === user?.uid) {
+    if (userData.uid ===
+   user?.uid) {
       setSearchSuggestions([]);
       setShowSuggestions(false);
       setError('You cannot add yourself as a co-author.');
@@ -183,7 +186,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
   const lookupAuthor = async (uid: string) => {
     if (!uid) return;
     
-    if (uid === user?.uid) {
+    if (uid ===
+   user?.uid) {
       setNewAuthor({
         uid: '',
         name: '',
@@ -247,12 +251,14 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
       return;
     }
     
-    if (newAuthor.authorCategory === 'Internal' && !newAuthor.uid) {
+    if (newAuthor.authorCategory ===
+   'Internal' && !newAuthor.uid) {
       setError('UID/Registration Number is required for SGT authors');
       return;
     }
     
-    if (newAuthor.authorCategory === 'External') {
+    if (newAuthor.authorCategory ===
+   'External') {
       if (!newAuthor.email) {
         setError('Email is required for external authors');
         return;
@@ -267,7 +273,9 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
       }
     }
     
-    if (newAuthor.authorCategory === 'Internal' && newAuthor.uid === user?.uid) {
+    if (newAuthor.authorCategory ===
+   'Internal' && newAuthor.uid ===
+   user?.uid) {
       setError('You cannot add yourself as a co-author.');
       return;
     }
@@ -286,17 +294,21 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
         return;
       }
       
-      const internalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
-      const externalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'External').length;
+      const internalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
+      const externalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'External').length;
       const maxInternalAuthors = totalInternalAuthors - 1;
       const maxExternalAuthors = totalAuthors - totalInternalAuthors;
       
-      if (newAuthor.authorCategory === 'Internal' && internalAdded >= maxInternalAuthors) {
+      if (newAuthor.authorCategory ===
+   'Internal' && internalAdded >= maxInternalAuthors) {
         setError(`You can only add ${maxInternalAuthors} SGT author(s). You've already added ${internalAdded}.`);
         return;
       }
       
-      if (newAuthor.authorCategory === 'External' && externalAdded >= maxExternalAuthors) {
+      if (newAuthor.authorCategory ===
+   'External' && externalAdded >= maxExternalAuthors) {
         setError(`You can only add ${maxExternalAuthors} external author(s). You've already added ${externalAdded}.`);
         return;
       }
@@ -331,7 +343,9 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
   
   // Authors Summary Component - shown in all stages with edit/delete
   const AuthorsSummary = () => {
-    if (totalAuthors === 0 && coAuthors.length === 0) return null;
+    if (totalAuthors ===
+   0 && coAuthors.length ===
+   0) return null;
     
     const handleEditAuthor = (realIndex: number) => {
       const author = coAuthors[realIndex];
@@ -479,8 +493,10 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                 {(() => {
                   const maxCoAuthors = totalAuthors - 1;
                   const currentAdded = coAuthors.filter(a => a.name).length;
-                  const internalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
-                  const externalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'External').length;
+                  const internalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
+                  const externalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'External').length;
                   const maxInternalToAdd = totalInternalAuthors - 1;
                   const maxExternalToAdd = totalAuthors - totalInternalAuthors;
                   
@@ -509,12 +525,14 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                     Author From: <span className="text-red-500">*</span>
                   </label>
                   <div className="flex gap-6">
-                    {totalInternalAuthors - 1 > coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length && (
+                    {totalInternalAuthors - 1 > coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length && (
                       <label className="inline-flex items-center">
                         <input
                           type="radio"
                           value="Internal"
-                          checked={newAuthor.authorCategory === 'Internal'}
+                          checked={newAuthor.authorCategory ===
+   'Internal'}
                           onChange={(e) => {
                             setNewAuthor(prev => ({ 
                               ...prev, 
@@ -538,7 +556,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                         <input
                           type="radio"
                           value="External"
-                          checked={newAuthor.authorCategory === 'External'}
+                          checked={newAuthor.authorCategory ===
+   'External'}
                           onChange={(e) => {
                             setNewAuthor(prev => ({ 
                               ...prev, 
@@ -561,7 +580,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                 </div>
                 
                 {/* UID - Only for Internal */}
-                {newAuthor.authorCategory === 'Internal' && (
+                {newAuthor.authorCategory ===
+   'Internal' && (
                   <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       UID/Reg No: <span className="text-red-500">*</span>
@@ -641,7 +661,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                 )}
                 
                 {/* Name */}
-                <div className={newAuthor.authorCategory === 'External' ? '' : 'md:col-span-2'}>
+                <div className={newAuthor.authorCategory ===
+   'External' ? '' : 'md:col-span-2'}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Name: <span className="text-red-500">*</span>
                   </label>
@@ -649,9 +670,12 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                     type="text"
                     value={newAuthor.name}
                     onChange={(e) => setNewAuthor(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder={newAuthor.authorCategory === 'Internal' ? 'Auto-filled after entering UID' : 'Enter full name'}
-                    readOnly={newAuthor.authorCategory === 'Internal' && !!newAuthor.uid}
-                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 ${newAuthor.authorCategory === 'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
+                    placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'Auto-filled after entering UID' : 'Enter full name'}
+                    readOnly={newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
                   />
                 </div>
                 
@@ -664,29 +688,37 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                     type="email"
                     value={newAuthor.email}
                     onChange={(e) => setNewAuthor(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder={newAuthor.authorCategory === 'Internal' ? 'Auto-filled after entering UID' : 'email@example.com'}
-                    readOnly={newAuthor.authorCategory === 'Internal' && !!newAuthor.uid}
-                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 ${newAuthor.authorCategory === 'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
+                    placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'Auto-filled after entering UID' : 'email@example.com'}
+                    readOnly={newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
                   />
                 </div>
                 
                 {/* Affiliation */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {newAuthor.authorCategory === 'Internal' ? 'Institute:' : 'Organization/Institute:'} <span className="text-red-500">*</span>
+                    {newAuthor.authorCategory ===
+   'Internal' ? 'Institute:' : 'Organization/Institute:'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={newAuthor.affiliation}
                     onChange={(e) => setNewAuthor(prev => ({ ...prev, affiliation: e.target.value }))}
-                    placeholder={newAuthor.authorCategory === 'Internal' ? 'SGT University' : 'Enter organization/institute name'}
-                    readOnly={newAuthor.authorCategory === 'Internal'}
-                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 ${newAuthor.authorCategory === 'Internal' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                    placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'SGT University' : 'Enter organization/institute name'}
+                    readOnly={newAuthor.authorCategory ===
+   'Internal'}
+                    className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 ${newAuthor.authorCategory ===
+   'Internal' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   />
                 </div>
                 
                 {/* Designation - Only for External */}
-                {newAuthor.authorCategory === 'External' && (
+                {newAuthor.authorCategory ===
+   'External' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Designation: <span className="text-red-500">*</span>
@@ -776,7 +808,9 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
 
   // Render main form based on status
   const renderMainForm = () => {
-    if (!status || status === 'writing' || status === 'communicated') {
+    if (!status || status ===
+   'writing' || status ===
+   'communicated') {
       return (
         <div className="space-y-4">
           <RenderAuthorSection />
@@ -798,7 +832,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
           </div>
 
           {/* Our Authorized Publications - Only for non_indexed */}
-          {(data.bookIndexingType as string) === 'non_indexed' && (
+          {(data.bookIndexingType as string) ===
+   'non_indexed' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Our Authorized Publications <span className="text-red-500">*</span>
@@ -809,7 +844,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                     type="radio"
                     name="bookLetter"
                     value="yes"
-                    checked={(data.bookLetter as string) === 'yes'}
+                    checked={(data.bookLetter as string) ===
+   'yes'}
                     onChange={(e) => handleChange('bookLetter', e.target.value)}
                     className="w-4 h-4 text-teal-600"
                   />
@@ -820,7 +856,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                     type="radio"
                     name="bookLetter"
                     value="no"
-                    checked={(data.bookLetter as string) === 'no'}
+                    checked={(data.bookLetter as string) ===
+   'no'}
                     onChange={(e) => handleChange('bookLetter', e.target.value)}
                     className="w-4 h-4 text-teal-600"
                   />
@@ -897,7 +934,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                     type="radio"
                     name="isInterdisciplinary"
                     value={v}
-                    checked={(data.isInterdisciplinary as string) === v}
+                    checked={(data.isInterdisciplinary as string) ===
+   v}
                     onChange={(e) => handleChange('isInterdisciplinary', e.target.value)}
                     className="w-4 h-4 text-teal-600"
                   />
@@ -919,7 +957,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
                     type="radio"
                     name="communicatedWithOfficialId"
                     value={v}
-                    checked={(data.communicatedWithOfficialId as string) === v}
+                    checked={(data.communicatedWithOfficialId as string) ===
+   v}
                     onChange={(e) => handleChange('communicatedWithOfficialId', e.target.value)}
                     className="w-4 h-4 text-teal-600"
                   />
@@ -930,7 +969,8 @@ export default function BookStatusForm({ status, data, onChange }: BookStatusFor
           </div>
 
           {/* Personal Email - Only if communicated with personal ID */}
-          {(data.communicatedWithOfficialId as string) === 'no' && (
+          {(data.communicatedWithOfficialId as string) ===
+   'no' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Personal Email Used <span className="text-red-500">*</span>

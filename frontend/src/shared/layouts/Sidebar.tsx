@@ -27,7 +27,11 @@ import {
   Plus,
   List,
   UserPlus,
-  CheckSquare
+  CheckSquare,
+  Shield,
+  Store,
+  QrCode,
+  Award
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -56,13 +60,17 @@ const hasPermission = (permissions: DepartmentPermission[], permissionName: stri
 
 const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
   // If no permissions, return false
-  if (!permissions || permissions.length === 0) return false;
+  if (!permissions || permissions.length ===
+   0) return false;
   
   // Check for any DRD-related permission
   const drdKeys = [
     'ipr_review', 'ipr_approve', 'ipr_assign_school', 'ipr_recommend',
     'research_review', 'research_approve', 'research_assign_school',
     'book_review', 'book_approve', 'book_assign_school',
+    'applicant_analytics', 'drd_member_analytics',
+    'ipr_applicant_analytics', 'research_applicant_analytics', 'book_applicant_analytics',
+    'conference_applicant_analytics', 'grant_applicant_analytics',
     'drd_review', 'drd_approve', 'drd_recommend', 'drd_view_all',
     'view_all_ipr', 'review_ipr', 'approve_ipr', 'ipr'
   ];
@@ -87,6 +95,21 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
   return false;
 };
 
+const hasAnalyticsPermissions = (permissions: DepartmentPermission[]): boolean => {
+  const analyticsKeys = [
+    'applicant_analytics', 'drd_member_analytics',
+    'ipr_applicant_analytics', 'research_applicant_analytics',
+    'book_applicant_analytics', 'conference_applicant_analytics',
+    'grant_applicant_analytics',
+  ];
+  for (const dept of permissions) {
+    for (const perm of dept.permissions || []) {
+      if (analyticsKeys.some(k => perm.toLowerCase().includes(k))) return true;
+    }
+  }
+  return false;
+};
+
 const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => {
   const keys = ['finance', 'incentive', 'payment'];
   for (const dept of permissions) {
@@ -95,11 +118,27 @@ const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => 
   return false;
 };
 
-const getNavItems = (userRole: string | undefined, userType: string | undefined, permissions: DepartmentPermission[]): NavItem[] => {
-  const isStudent = userRole === 'student' || userType === 'student';
-  const isFaculty = userRole === 'faculty' || userType === 'faculty';
-  const isStaff = userRole === 'staff' || userType === 'staff';
-  const isAdmin = userRole === 'admin' || userType === 'admin';
+const getNavItems = (
+  userRole: string | undefined,
+  userType: string | undefined,
+  permissions: DepartmentPermission[],
+  extraFlags?: { isChairperson?: boolean; hasVolunteerAssignments?: boolean }
+): NavItem[] => {
+  const isStudent = userRole ===
+   'student' || userType ===
+   'student';
+  const isFaculty = userRole ===
+   'faculty' || userType ===
+   'faculty';
+  const isStaff = userRole ===
+   'staff' || userType ===
+   'staff';
+  const isAdmin = userRole ===
+   'admin' || userType ===
+   'admin';
+  const canCreateEvent = isFaculty || extraFlags?.isChairperson;
+  const canBrowseEvents = true;
+  const hasVolunteerAssignments = extraFlags?.hasVolunteerAssignments ?? false;
   
   logger.debug('getNavItems - role:', userRole, 'type:', userType, 'isAdmin:', isAdmin);
   logger.debug('getNavItems - permissions:', permissions);
@@ -118,6 +157,21 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
   // DRD Dashboard - Show for users with DRD permissions OR admins
   if (hasDrdAccess) {
     items.push({ name: 'DRD Dashboard', href: '/drd', icon: UserCheck });
+  }
+  
+  // DRD Analytics - Show for users with analytics permissions OR admins
+  const hasAnalyticsAccess = hasAnalyticsPermissions(permissions) || isAdmin;
+  if (hasAnalyticsAccess) {
+    items.push({
+      name: 'DRD Analytics',
+      href: '/drd/analytics/overview',
+      icon: BarChart3,
+      subItems: [
+        { name: 'Overview', href: '/drd/analytics/overview', icon: LayoutDashboard },
+        { name: 'Applicant Analytics', href: '/drd/analytics/applicant', icon: FileText },
+        { name: 'DRD Member Performance', href: '/drd/analytics/drd-member', icon: Users },
+      ],
+    });
   }
   
   // Finance Dashboard - Show if user has finance permissions
@@ -153,18 +207,46 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
     });
   }
   
-  // Event Management - Available for all authenticated users
-  items.push({
-    name: 'Event Management',
-    href: '/events',
-    icon: Calendar,
-    subItems: [
-      { name: 'Browse Events', href: '/events', icon: List },
-      { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare },
-      { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
-    ]
-  });
+  // Event Management - Not for staff/guard role (gate entry only access)
+  const eventSubItems: NavItem[] = [
+    ...(canBrowseEvents ? [{ name: 'Browse Events', href: '/events', icon: List }] : []),
+    { name: 'My Registrations', href: '/events/registrations', icon: UserPlus },
+    { name: 'My Certificates', href: '/events/my-certificates', icon: Award },
+    { name: 'Stall Application', href: '/events/stall-opportunities', icon: Store },
+    { name: 'Event Feedback Scanner', href: '/event-feedback-scanner', icon: QrCode },
+  ];
+  // My Created Events — only faculty and club chairpersons
+  if (canCreateEvent) {
+    eventSubItems.splice(1, 0, { name: 'My Created Events', href: '/events/my-events', icon: CheckSquare });
+  }
+  // Volunteer — only users who are actually assigned as volunteers
+  if (hasVolunteerAssignments) {
+    eventSubItems.push({ name: 'Volunteer', href: '/events/volunteer', icon: Shield });
+  }
+  if (!isStaff) {
+    items.push({
+      name: 'Event Management',
+      href: canBrowseEvents ? '/events' : '/events/registrations',
+      icon: Calendar,
+      subItems: eventSubItems,
+    });
+  }
   
+  
+  // Gate Entry - For staff/guard only (shown as main nav item)
+  if (isStaff) {
+    items.push({
+      name: 'Gate Entry',
+      href: '/admin/gate-entry',
+      icon: Shield,
+      subItems: [
+        { name: 'All Passes', href: '/admin/gate-entry', icon: List },
+        { name: 'Verify Pass', href: '/admin/gate-entry/verify', icon: QrCode },
+        { name: 'Create Pass', href: '/admin/gate-entry/create-pass', icon: Plus },
+      ]
+    });
+  }
+
   // Common items
   items.push(
     { name: 'Notifications', href: '/notifications', icon: Bell },
@@ -185,11 +267,13 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
         { name: 'Employees', href: '/admin/employees', icon: Users },
         { name: 'Students', href: '/admin/students', icon: GraduationCap },
         { name: 'Permissions', href: '/admin/permissions', icon: Settings },
+        { name: 'Reporting Structure', href: '/admin/reporting-structure', icon: Shield },
         { name: 'IPR School Assignment', href: '/admin/drd-school-assignment', icon: MapPin },
         { name: 'Research School Assignment', href: '/admin/research-school-assignment', icon: BookOpen },
         { name: 'Book School Assignment', href: '/admin/book-school-assignment', icon: BookOpen },
         { name: 'Conference School Assignment', href: '/admin/conference-school-assignment', icon: Presentation },
         { name: 'Grant School Assignment', href: '/admin/grant-school-assignment', icon: DollarSign },
+        { name: 'DRD Analytics Assignment', href: '/admin/drd-analytics-assignment', icon: BarChart3 },
         { name: 'IPR Policies', href: '/admin/incentive-policies', icon: Settings },
         { name: 'Research Policies', href: '/admin/research-policies', icon: FileText },
         { name: 'Book Policies', href: '/admin/book-policies', icon: BookOpen },
@@ -216,7 +300,8 @@ const getUserDisplayName = (user: any): string => {
 
 const getUserRoleLabel = (user: any): string => {
   const type = user?.userType?.toUpperCase() || user?.role?.name?.toUpperCase() || 'USER';
-  if (type === 'ADMIN') return 'ADMINISTRATOR';
+  if (type ===
+   'ADMIN') return 'ADMINISTRATOR';
   return type;
 };
 
@@ -230,11 +315,16 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, and Event Management expanded by default
+  const [expandedItems, setExpandedItems] = useState<string[]>(['Admin', 'Research & IPR', 'Event Management']); // Admin, Research & IPR, Event Management, and Ticket Management expanded by default
   const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
+  const [isChairperson, setIsChairperson] = useState(false);
+  const [hasVolunteerAssignments, setHasVolunteerAssignments] = useState(false);
 
   useEffect(() => {
-    if (user) fetchUserPermissions();
+    if (user) {
+      fetchUserPermissions();
+      fetchEventFlags();
+    }
   }, [user]);
 
   const fetchUserPermissions = async () => {
@@ -250,7 +340,34 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
     }
   };
 
-  const navItems = getNavItems(user?.role?.name, user?.userType, userPermissions);
+  const fetchEventFlags = async () => {
+    try {
+      // Check if student is a club chairperson
+      const isStudentUser = user?.role?.name ===
+   'student' || user?.userType ===
+   'student';
+      if (isStudentUser) {
+        const permsRes = await api.get('/noting/my-permissions');
+        if (permsRes.data?.data?.isClubChairperson) {
+          setIsChairperson(true);
+        }
+      }
+    } catch (error) {
+      logger.error('Error fetching noting permissions for sidebar:', error);
+    }
+    try {
+      // Check if user has any volunteer assignments
+      const volRes = await api.get('/events/volunteers/my');
+      const assignments = volRes.data?.data;
+      if (Array.isArray(assignments) && assignments.length > 0) {
+        setHasVolunteerAssignments(true);
+      }
+    } catch (error) {
+      logger.error('Error fetching volunteer assignments for sidebar:', error);
+    }
+  };
+
+  const navItems = getNavItems(user?.role?.name, user?.userType, userPermissions, { isChairperson, hasVolunteerAssignments });
   // No need to filter - getNavItems already handles role-based visibility
   const filteredNavItems = navItems;
 
@@ -291,7 +408,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       <nav className="flex-1 py-4 overflow-y-auto">
         {filteredNavItems.map((item: NavItem) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const isActive = pathname ===
+   item.href || pathname.startsWith(item.href + '/');
           const isExpanded = expandedItems.includes(item.name);
           const hasSubItems = item.subItems && item.subItems.length > 0;
           
@@ -319,7 +437,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                     <div className="mt-1 space-y-0.5 pl-4 pr-2">
                       {item.subItems!.map((subItem: NavItem) => {
                         const SubIcon = subItem.icon;
-                        const isSubActive = pathname === subItem.href;
+                        const isSubActive = pathname ===
+   subItem.href;
                         return (
                           <Link
                             key={subItem.name}

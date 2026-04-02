@@ -128,8 +128,7 @@ class EmailService {
 
     const text = `
 ${reportType.toUpperCase()} AUDIT REPORT
-========================================
-Period: ${periodString}
+=================================Period: ${periodString}
 
 SUMMARY
 -------

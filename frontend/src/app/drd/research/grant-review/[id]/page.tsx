@@ -152,7 +152,8 @@ export default function GrantReviewPage() {
       const response = await permissionManagementService.getUserPermissions(user!.id);
       const drdPermissions: Record<string, boolean> = {};
       response.data.centralDepartments.forEach(dept => {
-        if (dept.centralDept.departmentCode === 'DRD') {
+        if (dept.centralDept.departmentCode ===
+   'DRD') {
           Object.assign(drdPermissions, dept.permissions);
         }
       });
@@ -203,7 +204,8 @@ export default function GrantReviewPage() {
     logger.debug('Base amounts:', { totalIncentive, totalPoints });
 
     // Add international bonus
-    if (grant.projectType === 'international' && activePolicy.internationalBonus) {
+    if (grant.projectType ===
+   'international' && activePolicy.internationalBonus) {
       totalIncentive += Number(activePolicy.internationalBonus);
     }
 
@@ -214,11 +216,14 @@ export default function GrantReviewPage() {
 
     // Count internal investigators (applicant + team)
     // The applicant is always internal unless they are external AND the PI
-    const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+    const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
     const internalTeamMembers = grant.investigators?.filter(
       (inv: any) => {
         const isInternalInv = inv.isInternal !== false && 
-                              (inv.investigatorCategory === 'Internal' || inv.isInternal === true);
+                              (inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true);
         logger.debug('Checking team member:', { 
           name: inv.name, 
           investigatorCategory: inv.investigatorCategory,
@@ -242,13 +247,15 @@ export default function GrantReviewPage() {
     
     logger.debug('Total internal count:', totalInternalCount);
     
-    if (totalInternalCount === 0) {
+    if (totalInternalCount ===
+   0) {
       logger.debug('Returning 0 - no internal investigators');
       return { incentive: 0, points: 0 };
     }
 
     // Calculate based on split policy
-    if (activePolicy.splitPolicy === 'equal') {
+    if (activePolicy.splitPolicy ===
+   'equal') {
       // Equal split among all internal investigators (use floor to prevent exceeding total)
       const perPersonIncentive = Math.floor(totalIncentive / totalInternalCount);
       const perPersonPoints = Math.floor(totalPoints / totalInternalCount);
@@ -261,8 +268,10 @@ export default function GrantReviewPage() {
         { role: 'co_pi', percentage: 55 }
       ];
 
-      const piPercentage = rolePercentages.find(r => r.role === 'pi')?.percentage || 45;
-      const coPiTotalPercentage = rolePercentages.find(r => r.role === 'co_pi')?.percentage || 55;
+      const piPercentage = rolePercentages.find(r => r.role ===
+   'pi')?.percentage || 45;
+      const coPiTotalPercentage = rolePercentages.find(r => r.role ===
+   'co_pi')?.percentage || 55;
 
       // Count PIs and Co-PIs among ALL internal investigators (including applicant if internal)
       const allInternalInvestigators = [
@@ -270,17 +279,22 @@ export default function GrantReviewPage() {
         ...internalTeamMembers.map((inv: any) => ({ roleType: inv.roleType }))
       ];
       
-      const piCount = allInternalInvestigators.filter(inv => inv.roleType === 'pi').length;
-      const coPiCount = allInternalInvestigators.filter(inv => inv.roleType === 'co_pi').length;
+      const piCount = allInternalInvestigators.filter(inv => inv.roleType ===
+   'pi').length;
+      const coPiCount = allInternalInvestigators.filter(inv => inv.roleType ===
+   'co_pi').length;
 
-      if (roleType === 'pi') {
-        if (piCount === 0) return { incentive: 0, points: 0 };
+      if (roleType ===
+   'pi') {
+        if (piCount ===
+   0) return { incentive: 0, points: 0 };
         // PIs share the PI percentage equally (use floor to prevent exceeding total)
         const piIncentive = Math.floor((totalIncentive * piPercentage) / 100 / piCount);
         const piPoints = Math.floor((totalPoints * piPercentage) / 100 / piCount);
         return { incentive: piIncentive, points: piPoints };
       } else {
-        if (coPiCount === 0) return { incentive: 0, points: 0 };
+        if (coPiCount ===
+   0) return { incentive: 0, points: 0 };
         // Co-PIs share the Co-PI percentage equally (use floor to prevent exceeding total)
         const coPiIncentive = Math.floor((totalIncentive * coPiTotalPercentage) / 100 / coPiCount);
         const coPiPoints = Math.floor((totalPoints * coPiTotalPercentage) / 100 / coPiCount);
@@ -303,7 +317,8 @@ export default function GrantReviewPage() {
   };
 
   const handleRequestChanges = async () => {
-    if (!reviewComments.trim() && fieldSuggestions.length === 0) {
+    if (!reviewComments.trim() && fieldSuggestions.length ===
+   0) {
       toast({ type: 'warning', message: 'Please provide comments or field suggestions' });
       return;
     }
@@ -399,7 +414,9 @@ export default function GrantReviewPage() {
   const getFieldValue = (fieldName: string): string => {
     if (!grant) return '';
     const value = (grant as any)[fieldName];
-    if (value === null || value === undefined) return '';
+    if (value ===
+   null || value ===
+   undefined) return '';
     // Handle array values (like sdgGoals)
     if (Array.isArray(value)) return value.join(',');
     return String(value);
@@ -419,7 +436,8 @@ export default function GrantReviewPage() {
   const saveFieldSuggestion = () => {
     if (!tempSuggestion.fieldName || !tempSuggestion.suggestedValue) return;
     
-    const existingIndex = fieldSuggestions.findIndex(s => s.fieldName === tempSuggestion.fieldName);
+    const existingIndex = fieldSuggestions.findIndex(s => s.fieldName ===
+   tempSuggestion.fieldName);
     const newSuggestion: FieldSuggestion = {
       fieldName: tempSuggestion.fieldName,
       originalValue: tempSuggestion.originalValue || '',
@@ -456,9 +474,13 @@ export default function GrantReviewPage() {
     setTempSuggestion({ ...tempSuggestion, suggestedValue: value });
     
     // Auto-calculate duration when dates change
-    if (fieldName === 'projectStartDate' || fieldName === 'projectEndDate') {
-      const startDate = fieldName === 'projectStartDate' ? value : grant.projectStartDate;
-      const endDate = fieldName === 'projectEndDate' ? value : grant.projectEndDate;
+    if (fieldName ===
+   'projectStartDate' || fieldName ===
+   'projectEndDate') {
+      const startDate = fieldName ===
+   'projectStartDate' ? value : grant.projectStartDate;
+      const endDate = fieldName ===
+   'projectEndDate' ? value : grant.projectEndDate;
       
       if (startDate && endDate) {
         const duration = calculateDuration(startDate, endDate);
@@ -471,7 +493,8 @@ export default function GrantReviewPage() {
             note: 'Auto-calculated from dates'
           };
           
-          const existingIndex = fieldSuggestions.findIndex(s => s.fieldName === 'projectDurationMonths');
+          const existingIndex = fieldSuggestions.findIndex(s => s.fieldName ===
+   'projectDurationMonths');
           if (existingIndex >= 0) {
             const updated = [...fieldSuggestions];
             updated[existingIndex] = durationSuggestion;
@@ -485,8 +508,10 @@ export default function GrantReviewPage() {
   };
 
   const renderEditableField = (fieldName: string, displayValue: string | React.ReactNode, type: 'text' | 'number' | 'date' | 'select' | 'multiselect' = 'text', options?: string[]) => {
-    const isEditing = editingField === fieldName;
-    const suggestion = fieldSuggestions.find(s => s.fieldName === fieldName);
+    const isEditing = editingField ===
+   fieldName;
+    const suggestion = fieldSuggestions.find(s => s.fieldName ===
+   fieldName);
     
     if (!isEditMode) {
       return <div className="font-medium">{displayValue}</div>;
@@ -496,11 +521,13 @@ export default function GrantReviewPage() {
       return (
         <div className="space-y-2">
           <div className="text-xs text-gray-500">Original: {tempSuggestion.originalValue || 'N/A'}</div>
-          {type === 'multiselect' && options ? (
+          {type ===
+   'multiselect' && options ? (
             <div className="space-y-2 max-h-60 overflow-y-auto border border-blue-300 rounded-lg p-3">
               {options.map(opt => {
                 const isSelected = tempSuggestion.suggestedValue?.split(',').includes(opt);
-                const sdgLabel = SDG_GOALS.find(sdg => sdg.value === opt)?.label || opt;
+                const sdgLabel = SDG_GOALS.find(sdg => sdg.value ===
+   opt)?.label || opt;
                 return (
                   <label key={opt} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
                     <input
@@ -520,7 +547,8 @@ export default function GrantReviewPage() {
                 );
               })}
             </div>
-          ) : type === 'select' && options ? (
+          ) : type ===
+   'select' && options ? (
             <select
               value={tempSuggestion.suggestedValue || ''}
               onChange={(e) => setTempSuggestion({ ...tempSuggestion, suggestedValue: e.target.value })}
@@ -536,7 +564,8 @@ export default function GrantReviewPage() {
               type={type}
               value={tempSuggestion.suggestedValue || ''}
               onChange={(e) => {
-                if (type === 'date') {
+                if (type ===
+   'date') {
                   handleDateChange(fieldName, e.target.value);
                 } else {
                   setTempSuggestion({ ...tempSuggestion, suggestedValue: e.target.value });
@@ -628,9 +657,12 @@ export default function GrantReviewPage() {
   // Check if user has reviewed the current submission
   // If status is 'resubmitted', they can review again even if they reviewed before
   // If status is 'recommended' and user has approve permission, they can approve even if they reviewed (recommended) it
-  const canReviewAgain = grant.status === 'resubmitted';
-  const canApproveAfterRecommending = grant.status === 'recommended' && userPermissions.grant_approve;
-  const userHasReviewedCurrentSubmission = (canReviewAgain || canApproveAfterRecommending) ? false : grant.reviews?.some((review: any) => review.reviewerId === user?.id);
+  const canReviewAgain = grant.status ===
+   'resubmitted';
+  const canApproveAfterRecommending = grant.status ===
+   'recommended' && userPermissions.grant_approve;
+  const userHasReviewedCurrentSubmission = (canReviewAgain || canApproveAfterRecommending) ? false : grant.reviews?.some((review: any) => review.reviewerId ===
+   user?.id);
 
   logger.debug('Grant Status:', grant.status);
   logger.debug('Can Review Again:', canReviewAgain);
@@ -777,13 +809,19 @@ export default function GrantReviewPage() {
                   ];
                   
                   const internalPIs = allInvestigators.filter(inv => 
-                    inv.roleType === 'pi' && 
-                    (inv.isInternal !== false && (inv.investigatorCategory === 'Internal' || inv.isInternal === true || inv.uid !== null))
+                    inv.roleType ===
+   'pi' && 
+                    (inv.isInternal !== false && (inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true || inv.uid !== null))
                   ).length;
                   
                   const internalCoPIs = allInvestigators.filter(inv => 
-                    inv.roleType === 'co_pi' && 
-                    (inv.isInternal !== false && (inv.investigatorCategory === 'Internal' || inv.isInternal === true || inv.uid !== null))
+                    inv.roleType ===
+   'co_pi' && 
+                    (inv.isInternal !== false && (inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true || inv.uid !== null))
                   ).length;
                   
                   return `${internalPIs} / ${internalCoPIs}`;
@@ -810,7 +848,8 @@ export default function GrantReviewPage() {
                 <div className="flex flex-wrap gap-2">
                   {grant.sdgGoals.map((sdg: string) => (
                     <span key={sdg} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm">
-                      {SDG_GOALS.find(s => s.value === sdg)?.label || sdg.toUpperCase()}
+                      {SDG_GOALS.find(s => s.value ===
+   sdg)?.label || sdg.toUpperCase()}
                     </span>
                   ))}
                 </div>,
@@ -822,7 +861,8 @@ export default function GrantReviewPage() {
         </div>
 
         {/* Incentives & Points (Approved Grants) */}
-        {grant.status === 'approved' && (grant.calculatedIncentiveAmount || grant.incentiveAmount || grant.calculatedPoints || grant.pointsAwarded) && (
+        {grant.status ===
+   'approved' && (grant.calculatedIncentiveAmount || grant.incentiveAmount || grant.calculatedPoints || grant.pointsAwarded) && (
           <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl shadow-sm border-2 border-emerald-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <Award className="w-5 h-5 mr-2 text-emerald-600" />
@@ -911,7 +951,8 @@ export default function GrantReviewPage() {
                   <div className="font-medium">
                     {(() => {
                       // Applicant is internal unless they are external AND the PI
-                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                       const calc = calculateInvestigatorIncentive(
                         grant.myRole,
                         applicantIsInternal ? 'Internal' : 'External'
@@ -932,7 +973,8 @@ export default function GrantReviewPage() {
                   <div className="font-medium">
                     {(() => {
                       // Applicant is internal unless they are external AND the PI
-                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                       const calc = calculateInvestigatorIncentive(
                         grant.myRole,
                         applicantIsInternal ? 'Internal' : 'External'
@@ -964,7 +1006,8 @@ export default function GrantReviewPage() {
               {grant.investigators.map((inv: any, index: number) => {
                 // Determine if investigator is internal or external
                 const isInternal = inv.isInternal !== undefined ? inv.isInternal : 
-                                  inv.investigatorCategory === 'Internal' ||
+                                  inv.investigatorCategory ===
+   'Internal' ||
                                   inv.uid !== null;
                 
                 // Calculate incentive for this investigator
@@ -1059,7 +1102,8 @@ export default function GrantReviewPage() {
               </div>
             )}
 
-            {!userHasReviewedCurrentSubmission && grant.status === 'submitted' && userPermissions.grant_review && (
+            {!userHasReviewedCurrentSubmission && grant.status ===
+   'submitted' && userPermissions.grant_review && (
               <button
                 onClick={handleStartReview}
                 disabled={actionLoading}
@@ -1098,7 +1142,8 @@ export default function GrantReviewPage() {
                       </button>
                       <button
                         onClick={handleRequestChanges}
-                        disabled={actionLoading || (!reviewComments.trim() && fieldSuggestions.length === 0)}
+                        disabled={actionLoading || (!reviewComments.trim() && fieldSuggestions.length ===
+   0)}
                         className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center"
                       >
                         {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <AlertCircle className="w-5 h-5 mr-2" />}
@@ -1136,7 +1181,8 @@ export default function GrantReviewPage() {
                       </button>
                       <button
                         onClick={handleRequestChanges}
-                        disabled={actionLoading || (!reviewComments.trim() && fieldSuggestions.length === 0)}
+                        disabled={actionLoading || (!reviewComments.trim() && fieldSuggestions.length ===
+   0)}
                         className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center"
                       >
                         {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <AlertCircle className="w-5 h-5 mr-2" />}
@@ -1161,7 +1207,8 @@ export default function GrantReviewPage() {
                 )}
 
                 {/* Pure Approver Actions - Only show if user has ONLY approve permission (not review) OR status is recommended */}
-                {userPermissions.grant_approve && (!userPermissions.grant_review || grant.status === 'recommended') && (
+                {userPermissions.grant_approve && (!userPermissions.grant_review || grant.status ===
+   'recommended') && (
                   <>
                     <div className="border-t pt-4 mt-4">
                       <h3 className="text-sm font-semibold text-gray-700 mb-3">Final Approval Actions</h3>
@@ -1177,7 +1224,8 @@ export default function GrantReviewPage() {
                           </button>
                           <button
                             onClick={handleRequestChanges}
-                            disabled={actionLoading || (!reviewComments.trim() && fieldSuggestions.length === 0)}
+                            disabled={actionLoading || (!reviewComments.trim() && fieldSuggestions.length ===
+   0)}
                             className="flex-1 px-6 py-3 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center"
                           >
                             {actionLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <AlertCircle className="w-5 h-5 mr-2" />}

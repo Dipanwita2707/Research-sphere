@@ -38,7 +38,8 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
       const results = await chatService.searchGroupMembers(groupId, query, 20);
       // Filter out already selected users
       const filtered = results
-        .filter(m => !selectedUsers.some(s => s.id === m.user?.id))
+        .filter(m => !selectedUsers.some(s => s.id ===
+   m.user?.id))
         .map(m => m.user!)
         .filter(Boolean);
       setSearchResults(filtered as ChatUser[]);
@@ -63,7 +64,8 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
 
   // Add selected users to group
   const handleAddMembers = async () => {
-    if (selectedUsers.length === 0) return;
+    if (selectedUsers.length ===
+   0) return;
 
     setIsAdding(true);
     try {
@@ -128,7 +130,8 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
           <button
             onClick={() => setMode('search')}
             className={`flex-1 py-2 text-sm font-medium transition-colors ${
-              mode === 'search'
+              mode ===
+   'search'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -138,7 +141,8 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
           <button
             onClick={() => setMode('csv')}
             className={`flex-1 py-2 text-sm font-medium transition-colors ${
-              mode === 'csv'
+              mode ===
+   'csv'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -149,7 +153,8 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
 
         {/* Content */}
         <div className="p-4 max-h-[400px] overflow-y-auto">
-          {mode === 'search' ? (
+          {mode ===
+   'search' ? (
             <>
               {/* Selected Users */}
               {selectedUsers.length > 0 && (
@@ -315,7 +320,8 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
         </div>
 
         {/* Footer */}
-        {mode === 'search' && (
+        {mode ===
+   'search' && (
           <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={onClose}
@@ -325,7 +331,8 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
             </button>
             <button
               onClick={handleAddMembers}
-              disabled={selectedUsers.length === 0 || isAdding}
+              disabled={selectedUsers.length ===
+   0 || isAdding}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
             >
               {isAdding ? 'Adding...' : `Add ${selectedUsers.length || ''} Member${selectedUsers.length !== 1 ? 's' : ''}`}

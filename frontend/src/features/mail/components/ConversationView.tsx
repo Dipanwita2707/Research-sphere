@@ -27,16 +27,22 @@ import { getFileUrl } from '@/shared/api/api';
 import type { MailMessage, GroupRecipientLabel } from '../types';
 
 function getGroupBadgeColor(type: string) {
-  if (type === 'central_department' || type === 'centralDepartment') return { bg: '#f3e8ff', text: '#7c3aed', border: '#d8b4fe' };
-  if (type === 'school') return { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' };
+  if (type ===
+   'central_department' || type ===
+   'centralDepartment') return { bg: '#f3e8ff', text: '#7c3aed', border: '#d8b4fe' };
+  if (type ===
+   'school') return { bg: '#dbeafe', text: '#1d4ed8', border: '#93c5fd' };
   return { bg: '#dcfce7', text: '#16a34a', border: '#86efac' }; // department
 }
 
 function GroupBadge({ group }: { group: GroupRecipientLabel }) {
   const colors = getGroupBadgeColor(group.type);
-  const label = group.type === 'central_department' || group.type === 'centralDepartment'
+  const label = group.type ===
+   'central_department' || group.type ===
+   'centralDepartment'
     ? 'Central Dept'
-    : group.type === 'school' ? 'School' : 'Department';
+    : group.type ===
+   'school' ? 'School' : 'Department';
   return (
     <span
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
@@ -116,9 +122,12 @@ export default function ConversationView() {
   // Determine if thread has multiple participants (for showing Reply All)
   const hasMultipleRecipients = messages.some((msg) => {
     const allRecipients = msg.recipients || [];
-    const toCount = allRecipients.filter((r: any) => r.recipientType === 'TO').length;
-    const ccCount = allRecipients.filter((r: any) => r.recipientType === 'CC').length;
-    const bccCount = allRecipients.filter((r: any) => r.recipientType === 'BCC').length;
+    const toCount = allRecipients.filter((r: any) => r.recipientType ===
+   'TO').length;
+    const ccCount = allRecipients.filter((r: any) => r.recipientType ===
+   'CC').length;
+    const bccCount = allRecipients.filter((r: any) => r.recipientType ===
+   'BCC').length;
     // Include sender + all recipients as participants
     const totalParticipants = 1 + toCount + ccCount + bccCount; // 1 for sender
     return totalParticipants > 2; // more than just sender + 1 recipient
@@ -239,7 +248,8 @@ export default function ConversationView() {
           <MessageCard
             key={message.id}
             message={message}
-            isLast={i === messages.length - 1}
+            isLast={i ===
+   messages.length - 1}
             onReply={() => openCompose('reply', message.id)}
             onReplyAll={() => openCompose('replyAll', message.id)}
             onForward={() => openCompose('forward', message.id)}
@@ -314,9 +324,12 @@ function MessageCard({
   const senderName = sender?.displayName || sender?.uid || 'Unknown';
   const senderEmail = sender?.uid ? `${sender.uid}@ums.sgtu` : '';
 
-  const toRecipients = message.recipients?.filter((r: any) => r.recipientType === 'TO') || [];
-  const ccRecipients = message.recipients?.filter((r: any) => r.recipientType === 'CC') || [];
-  const bccRecipients = message.recipients?.filter((r: any) => r.recipientType === 'BCC') || [];
+  const toRecipients = message.recipients?.filter((r: any) => r.recipientType ===
+   'TO') || [];
+  const ccRecipients = message.recipients?.filter((r: any) => r.recipientType ===
+   'CC') || [];
+  const bccRecipients = message.recipients?.filter((r: any) => r.recipientType ===
+   'BCC') || [];
   const groupInfo = (message as any).metadata?.groupRecipients;
   const toGroups: GroupRecipientLabel[] = groupInfo?.to || [];
   const ccGroups: GroupRecipientLabel[] = groupInfo?.cc || [];

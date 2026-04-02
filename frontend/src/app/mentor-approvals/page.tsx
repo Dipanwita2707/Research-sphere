@@ -90,8 +90,10 @@ export default function UnifiedMentorApprovalsPage() {
     setError('');
     
     try {
-      if (mainTab === 'ipr') {
-        if (subTab === 'pending') {
+      if (mainTab ===
+   'ipr') {
+        if (subTab ===
+   'pending') {
           const data = await iprService.getPendingMentorApprovals();
           setIprPending(data || []);
         } else {
@@ -122,7 +124,8 @@ export default function UnifiedMentorApprovalsPage() {
     
     try {
       setSubmitting(true);
-      if (mainTab === 'ipr') {
+      if (mainTab ===
+   'ipr') {
         await iprService.approveMentorApplication(selectedItem.id, approvalComments);
       }
       setShowApprovalModal(false);
@@ -150,7 +153,8 @@ export default function UnifiedMentorApprovalsPage() {
     
     try {
       setSubmitting(true);
-      if (mainTab === 'ipr') {
+      if (mainTab ===
+   'ipr') {
         await iprService.rejectMentorApplication(selectedItem.id, rejectComments);
       }
       setShowRejectModal(false);
@@ -208,7 +212,8 @@ export default function UnifiedMentorApprovalsPage() {
             </div>
             
             <div className="flex gap-2">
-              {subTab === 'pending' && (
+              {subTab ===
+   'pending' && (
                 <>
                   <button
                     onClick={() => openCollaborativeReview(app)}
@@ -233,7 +238,8 @@ export default function UnifiedMentorApprovalsPage() {
                   </button>
                 </>
               )}
-              {subTab === 'history' && (
+              {subTab ===
+   'history' && (
                 <Link
                   href={`/ipr/applications/${app.id}`}
                   className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium flex items-center gap-2"
@@ -290,7 +296,8 @@ export default function UnifiedMentorApprovalsPage() {
               <button
                 onClick={() => { setMainTab('ipr'); setSubTab('pending'); }}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
-                  mainTab === 'ipr' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  mainTab ===
+   'ipr' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -302,13 +309,15 @@ export default function UnifiedMentorApprovalsPage() {
                     </span>
                   )}
                 </div>
-                {mainTab === 'ipr' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>}
+                {mainTab ===
+   'ipr' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>}
               </button>
               
               <button
                 onClick={() => { setMainTab('research'); setSubTab('pending'); }}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
-                  mainTab === 'research' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  mainTab ===
+   'research' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -320,7 +329,8 @@ export default function UnifiedMentorApprovalsPage() {
                     </span>
                   )}
                 </div>
-                {mainTab === 'research' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>}
+                {mainTab ===
+   'research' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400"></div>}
               </button>
             </div>
           </div>
@@ -331,11 +341,13 @@ export default function UnifiedMentorApprovalsPage() {
               <button
                 onClick={() => setSubTab('pending')}
                 className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  subTab === 'pending' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  subTab ===
+   'pending' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 Pending Approvals
-                {mainTab === 'ipr' && stats.iprPending > 0 && (
+                {mainTab ===
+   'ipr' && stats.iprPending > 0 && (
                   <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-bold bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300">
                     {stats.iprPending}
                   </span>
@@ -345,7 +357,8 @@ export default function UnifiedMentorApprovalsPage() {
               <button
                 onClick={() => setSubTab('history')}
                 className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  subTab === 'history' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  subTab ===
+   'history' ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
               >
                 Review History
@@ -368,8 +381,11 @@ export default function UnifiedMentorApprovalsPage() {
                   Retry
                 </button>
               </div>
-            ) : mainTab === 'ipr' && subTab === 'pending' ? (
-              iprPending.length === 0 ? (
+            ) : mainTab ===
+   'ipr' && subTab ===
+   'pending' ? (
+              iprPending.length ===
+   0 ? (
                 <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
                   <UserCheck className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Pending Approvals</h3>
@@ -380,7 +396,9 @@ export default function UnifiedMentorApprovalsPage() {
                   {iprPending.map(app => renderIprCard(app))}
                 </div>
               )
-            ) : mainTab === 'ipr' && subTab === 'history' ? (
+            ) : mainTab ===
+   'ipr' && subTab ===
+   'history' ? (
               iprHistory && iprHistory.data.all.length > 0 ? (
                 <div className="space-y-4">
                   {iprHistory.data.all.map((app: IprApplication) => renderIprCard(app))}
@@ -391,7 +409,8 @@ export default function UnifiedMentorApprovalsPage() {
                   <p className="text-gray-500">No review history yet</p>
                 </div>
               )
-            ) : mainTab === 'research' ? (
+            ) : mainTab ===
+   'research' ? (
               <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
                 <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Research Mentor Approvals Coming Soon</h3>

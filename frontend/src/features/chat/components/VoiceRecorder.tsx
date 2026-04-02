@@ -104,9 +104,11 @@ export function VoiceRecorder({ onSend, onCancel, isUploading }: VoiceRecorderPr
     } catch (error) {
       console.error('Failed to start recording:', error);
       const errorMessage = error instanceof DOMException 
-        ? error.name === 'NotAllowedError' 
+        ? error.name ===
+   'NotAllowedError' 
           ? 'Microphone access denied. Please allow microphone access in your browser settings.'
-          : error.name === 'NotFoundError'
+          : error.name ===
+   'NotFoundError'
           ? 'No microphone found. Please connect a microphone and try again.'
           : 'Could not access microphone. Please check your browser settings.'
         : 'Failed to start recording. Please try again.';

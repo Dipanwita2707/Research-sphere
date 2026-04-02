@@ -30,7 +30,8 @@ interface StaffMember {
 // Helper to get role name from string or object
 const getRoleName = (role: string | { id: string; name: string; displayName?: string } | undefined): string => {
   if (!role) return '';
-  return typeof role === 'object' ? role.name : role;
+  return typeof role ===
+   'object' ? role.name : role;
 };
 
 interface IPRPermission {
@@ -80,7 +81,9 @@ export default function StaffIPRPermissions() {
       const response = await api.get('/employees');
       const staff = response.data.data.filter((emp: any) => {
         const roleName = getRoleName(emp.role);
-        return roleName === 'staff' || roleName === 'faculty';
+        return roleName ===
+   'staff' || roleName ===
+   'faculty';
       });
       setStaffMembers(staff);
     } catch (error) {
@@ -98,8 +101,10 @@ export default function StaffIPRPermissions() {
       staff.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       staff.email.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesDepartment = departmentFilter === 'all' || 
-      staff.department.toLowerCase() === departmentFilter.toLowerCase();
+    const matchesDepartment = departmentFilter ===
+   'all' || 
+      staff.department.toLowerCase() ===
+   departmentFilter.toLowerCase();
     
     return matchesSearch && matchesDepartment;
   });
@@ -143,7 +148,8 @@ export default function StaffIPRPermissions() {
       // Update the staff member in the list
       setStaffMembers(prevStaff => 
         prevStaff.map(staff => 
-          staff.id === selectedStaff.id ? selectedStaff : staff
+          staff.id ===
+   selectedStaff.id ? selectedStaff : staff
         )
       );
       
@@ -156,7 +162,8 @@ export default function StaffIPRPermissions() {
   };
 
   const getPermissionsByCategory = (category: 'basic' | 'advanced' | 'admin') => {
-    return IPR_PERMISSIONS.filter(p => p.category === category);
+    return IPR_PERMISSIONS.filter(p => p.category ===
+   category);
   };
 
   const getCategoryColor = (category: string) => {
@@ -192,7 +199,8 @@ export default function StaffIPRPermissions() {
       {/* Message Display */}
       {message && (
         <div className={`mb-6 p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' : 
+          message.type ===
+   'success' ? 'bg-green-100 text-green-800 border border-green-200' : 
           'bg-red-100 text-red-800 border border-red-200'
         }`}>
           {message.text}
@@ -238,7 +246,8 @@ export default function StaffIPRPermissions() {
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="text-gray-600 mt-2">Loading staff...</p>
               </div>
-            ) : filteredStaff.length === 0 ? (
+            ) : filteredStaff.length ===
+   0 ? (
               <div className="text-center py-8">
                 <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-600">No staff members found</p>
@@ -249,7 +258,8 @@ export default function StaffIPRPermissions() {
                   <div
                     key={staff.id}
                     className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedStaff?.id === staff.id 
+                      selectedStaff?.id ===
+   staff.id 
                         ? 'border-blue-500 bg-blue-50' 
                         : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                     }`}
@@ -267,7 +277,8 @@ export default function StaffIPRPermissions() {
                       </div>
                       <div className="text-right">
                         <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                          getRoleName(staff.role) === 'faculty' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
+                          getRoleName(staff.role) ===
+   'faculty' ? 'bg-purple-100 text-purple-800' : 'bg-green-100 text-green-800'
                         }`}>
                           {getRoleName(staff.role)}
                         </span>
@@ -412,7 +423,8 @@ export default function StaffIPRPermissions() {
                     <span className="font-medium">{selectedStaff.firstName} {selectedStaff.lastName}</span> will have 
                     <span className="font-medium text-blue-600"> {selectedStaff.permissions.length} IPR permissions</span> assigned.
                   </p>
-                  {selectedStaff.permissions.length === 0 && (
+                  {selectedStaff.permissions.length ===
+   0 && (
                     <p className="text-sm text-amber-600 mt-1">
                       ⚠️ No IPR permissions assigned. Staff member won't be able to access IPR features.
                     </p>

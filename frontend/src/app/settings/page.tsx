@@ -203,11 +203,13 @@ export default function SettingsPage() {
         {/* Message Alert */}
         {message && (
           <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
-            message.type === 'success' 
+            message.type ===
+   'success' 
               ? 'bg-green-50 text-green-800 border border-green-200' 
               : 'bg-red-50 text-red-800 border border-red-200'
           }`}>
-            {message.type === 'success' ? (
+            {message.type ===
+   'success' ? (
               <CheckCircle className="w-5 h-5 text-green-600" />
             ) : (
               <AlertCircle className="w-5 h-5 text-red-600" />
@@ -226,7 +228,8 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`
                     flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors
-                    ${activeTab === tab.id
+                    ${activeTab ===
+   tab.id
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }
@@ -248,7 +251,8 @@ export default function SettingsPage() {
             ) : (
               <>
                 {/* Profile Tab */}
-                {activeTab === 'profile' && (
+                {activeTab ===
+   'profile' && (
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Photo</h3>
@@ -256,7 +260,7 @@ export default function SettingsPage() {
                     </div>
 
                     <ProfilePhotoUpload
-                      currentPhotoUrl={user?.profileImage ? getProfileImageUrl(user.profileImage) : null}
+                      currentPhotoUrl={user?.profileImageUrl ? getProfileImageUrl(user.profileImageUrl) : null}
                       userId={user?.id || ''}
                       onPhotoUpdated={async (url) => {
                         // Refresh user data from server to get new profile image URL
@@ -291,7 +295,8 @@ export default function SettingsPage() {
                 )}
 
                 {/* Notifications Tab */}
-                {activeTab === 'notifications' && (
+                {activeTab ===
+   'notifications' && (
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Notification Preferences</h3>
@@ -355,7 +360,8 @@ export default function SettingsPage() {
                 )}
 
                 {/* Security Tab */}
-                {activeTab === 'security' && (
+                {activeTab ===
+   'security' && (
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
@@ -476,7 +482,8 @@ export default function SettingsPage() {
                 )}
 
                 {/* Preferences Tab */}
-                {activeTab === 'preferences' && (
+                {activeTab ===
+   'preferences' && (
                   <div className="space-y-6">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Display Preferences</h3>
@@ -492,7 +499,8 @@ export default function SettingsPage() {
                             onClick={() => handlePreferenceChange('theme', 'light')}
                             className={`
                               flex items-center px-4 py-3 rounded-lg border-2 transition-colors
-                              ${preferences.theme === 'light' 
+                              ${preferences.theme ===
+   'light' 
                                 ? 'border-blue-500 bg-blue-50 text-blue-700' 
                                 : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                               }
@@ -505,7 +513,8 @@ export default function SettingsPage() {
                             onClick={() => handlePreferenceChange('theme', 'dark')}
                             className={`
                               flex items-center px-4 py-3 rounded-lg border-2 transition-colors
-                              ${preferences.theme === 'dark' 
+                              ${preferences.theme ===
+   'dark' 
                                 ? 'border-blue-500 bg-blue-50 text-blue-700' 
                                 : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                               }

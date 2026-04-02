@@ -262,7 +262,8 @@ export default function UniversityAnalyticsDashboard() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px ${
-              activeTab === tab.id
+              activeTab ===
+   tab.id
                 ? 'border-blue-600 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
@@ -274,7 +275,8 @@ export default function UniversityAnalyticsDashboard() {
       </div>
 
       {/* Overview Tab */}
-      {activeTab === 'overview' && overview && (
+      {activeTab ===
+   'overview' && overview && (
         <div className="space-y-6">
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -325,9 +327,12 @@ export default function UniversityAnalyticsDashboard() {
                 {topPerformers.slice(0, 5).map((performer, idx) => (
                   <div key={performer.userId} className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                      idx === 0 ? 'bg-yellow-100 text-yellow-700' :
-                      idx === 1 ? 'bg-gray-100 text-gray-700' :
-                      idx === 2 ? 'bg-orange-100 text-orange-700' :
+                      idx ===
+   0 ? 'bg-yellow-100 text-yellow-700' :
+                      idx ===
+   1 ? 'bg-gray-100 text-gray-700' :
+                      idx ===
+   2 ? 'bg-orange-100 text-orange-700' :
                       'bg-blue-50 text-blue-600'
                     }`}>
                       {idx + 1}
@@ -342,7 +347,8 @@ export default function UniversityAnalyticsDashboard() {
                     </div>
                   </div>
                 ))}
-                {topPerformers.length === 0 && (
+                {topPerformers.length ===
+   0 && (
                   <p className="text-center text-gray-500 py-4">No data available</p>
                 )}
               </div>
@@ -352,7 +358,8 @@ export default function UniversityAnalyticsDashboard() {
       )}
 
       {/* IPR Analytics Tab */}
-      {activeTab === 'ipr' && iprAnalytics && (
+      {activeTab ===
+   'ipr' && iprAnalytics && (
         <div className="space-y-6">
           {/* IPR Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -403,7 +410,8 @@ export default function UniversityAnalyticsDashboard() {
       )}
 
       {/* School-wise Tab */}
-      {activeTab === 'schools' && (
+      {activeTab ===
+   'schools' && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="font-semibold text-gray-900">School-wise Statistics</h3>
@@ -440,7 +448,8 @@ export default function UniversityAnalyticsDashboard() {
                     </td>
                   </tr>
                 ))}
-                {schoolStats.length === 0 && (
+                {schoolStats.length ===
+   0 && (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                       No school data available
@@ -454,7 +463,8 @@ export default function UniversityAnalyticsDashboard() {
       )}
 
       {/* Department-wise Tab */}
-      {activeTab === 'departments' && (
+      {activeTab ===
+   'departments' && (
         <div className="space-y-4">
           {!selectedSchool && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-yellow-800">
@@ -466,7 +476,8 @@ export default function UniversityAnalyticsDashboard() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="font-semibold text-gray-900">
-                  Department-wise Statistics - {schools.find(s => s.id === selectedSchool)?.facultyName}
+                  Department-wise Statistics - {schools.find(s => s.id ===
+   selectedSchool)?.facultyName}
                 </h3>
               </div>
               <div className="overflow-x-auto">
@@ -505,7 +516,8 @@ export default function UniversityAnalyticsDashboard() {
             </div>
           )}
 
-          {selectedSchool && departmentStats.length === 0 && (
+          {selectedSchool && departmentStats.length ===
+   0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
               <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No department data</h3>

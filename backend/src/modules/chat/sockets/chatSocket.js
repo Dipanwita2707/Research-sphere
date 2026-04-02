@@ -18,41 +18,48 @@ const initChatSocket = (io) => {
   io.on('connection', async (socket) => {
     const userId = socket.userId;
     const user = socket.user;
+    let groupIds = [];
 
     console.log(`🔌 User connected: ${user.uid} (${socket.id})`);
+    try {
+      // Set user online
+      await presenceService.setUserOnline(userId, socket.id);
 
-    // Set user online
-    await presenceService.setUserOnline(userId, socket.id);
-
-    // Get user's groups and join rooms
-    const userGroups = await prisma.chatGroupMember.findMany({
-      where: { userId },
-      select: { groupId: true },
-    });
-
-    const groupIds = userGroups.map((g) => g.groupId);
-    groupIds.forEach((groupId) => {
-      socket.join(`group:${groupId}`);
-    });
-
-    // Also join personal room for DMs
-    socket.join(`user:${userId}`);
-
-    // Broadcast online status to all groups
-    groupIds.forEach((groupId) => {
-      socket.to(`group:${groupId}`).emit('userOnline', {
-        userId,
-        user: {
-          id: user.id,
-          uid: user.uid,
-          firstName: user.employeeDetails?.firstName || user.studentLogin?.firstName,
-          lastName: user.employeeDetails?.lastName || user.studentLogin?.lastName,
-        },
+      // Get user's groups and join rooms
+      const userGroups = await prisma.chatGroupMember.findMany({
+        where: { userId },
+        select: { groupId: true },
       });
-    });
 
-    // ============ GROUP MESSAGE EVENTS ============
+      groupIds = userGroups.map((g) => g.groupId);
+      groupIds.forEach((groupId) => {
+        socket.join(`group:${groupId}`);
+      });
 
+      // Also join personal room for DMs
+      socket.join(`user:${userId}`);
+
+      // Broadcast online status to all groups
+      groupIds.forEach((groupId) => {
+        socket.to(`group:${groupId}`).emit('userOnline', {
+          userId,
+          user: {
+            id: user.id,
+            uid: user.uid,
+            firstName: user.employeeDetails?.firstName || user.studentLogin?.firstName,
+            lastName: user.employeeDetails?.lastName || user.studentLogin?.lastName,
+          },
+        });
+      });
+    } catch (error) {
+      console.error('Chat socket init failed:', error.message);
+      socket.emit('chatError', {
+        message: 'Chat is temporarily unavailable. Please try again shortly.',
+      });
+      return;
+    }
+
+    // ============ GROUP MESSAGE EVENTS =====
     /**
      * Send message to group
      */
@@ -234,8 +241,7 @@ const initChatSocket = (io) => {
       socket.emit('leftGroup', { groupId });
     });
 
-    // ============ DIRECT MESSAGE EVENTS ============
-
+    // ============ DIRECT MESSAGE EVENTS =====
     /**
      * Send direct message
      */
@@ -315,13 +321,16 @@ const initChatSocket = (io) => {
       }
     });
 
-    // ============ PRESENCE EVENTS ============
-
+    // ============ PRESENCE EVENTS =====
     /**
      * Heartbeat to keep connection alive and update last seen
      */
     socket.on('heartbeat', async () => {
-      await presenceService.updateLastSeen(userId);
+      try {
+        await presenceService.updateLastSeen(userId);
+      } catch (error) {
+        console.error('heartbeat error:', error.message);
+      }
     });
 
     /**
@@ -337,13 +346,18 @@ const initChatSocket = (io) => {
       }
     });
 
-    // ============ DISCONNECT ============
-
+    // ============ DISCONNECT =====
     socket.on('disconnect', async () => {
       console.log(`🔌 User disconnected: ${user.uid} (${socket.id})`);
 
-      // Set user offline
-      const { lastSeenAt } = await presenceService.setUserOffline(userId, socket.id);
+      let lastSeenAt = null;
+      try {
+        // Set user offline
+        const status = await presenceService.setUserOffline(userId, socket.id);
+        lastSeenAt = status.lastSeenAt;
+      } catch (error) {
+        console.error('disconnect presence update error:', error.message);
+      }
 
       // Clear any typing indicators
       const typing = typingUsers.get(userId);
@@ -356,7 +370,7 @@ const initChatSocket = (io) => {
       groupIds.forEach((groupId) => {
         socket.to(`group:${groupId}`).emit('userOffline', {
           userId,
-          lastSeenAt: lastSeenAt.toISOString(),
+          lastSeenAt: lastSeenAt ? lastSeenAt.toISOString() : new Date().toISOString(),
         });
       });
     });

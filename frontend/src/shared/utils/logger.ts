@@ -21,7 +21,8 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV ===
+   'development';
 
 const defaultConfig: LoggerConfig = {
   level: isDevelopment ? 'debug' : 'warn',

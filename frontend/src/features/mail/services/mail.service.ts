@@ -20,8 +20,7 @@ import type {
 
 const BASE_URL = '/mail';
 
-// ============ COMPOSE ============
-
+// ============ COMPOSE ====
 export const sendMail = async (data: ComposeMail): Promise<MailApiResponse<{ thread: MailThread; message: MailMessage }>> => {
   const response = await api.post(`${BASE_URL}/compose/send`, data);
   return response.data;
@@ -42,8 +41,7 @@ export const forwardMessage = async (messageId: string, data: ComposeMail): Prom
   return response.data;
 };
 
-// ============ INBOX / VIEWS ============
-
+// ============ INBOX / VIEWS ====
 export const getInbox = async (page = 1, limit = 50): Promise<MailApiResponse<MailThread[]>> => {
   const response = await api.get(`${BASE_URL}/inbox`, { params: { page, limit } });
   return response.data;
@@ -69,15 +67,13 @@ export const getMailCounts = async (): Promise<MailApiResponse<MailCounts>> => {
   return response.data;
 };
 
-// ============ THREAD ============
-
+// ============ THREAD ====
 export const getThread = async (threadId: string): Promise<MailApiResponse<MailConversation>> => {
   const response = await api.get(`${BASE_URL}/threads/${threadId}`);
   return response.data;
 };
 
-// ============ ACTIONS ============
-
+// ============ ACTIONS ====
 export const markRead = async (threadId: string): Promise<MailApiResponse<null>> => {
   const response = await api.post(`${BASE_URL}/inbox/mark-read/${threadId}`);
   return response.data;
@@ -113,8 +109,7 @@ export const unarchiveThread = async (threadId: string): Promise<MailApiResponse
   return response.data;
 };
 
-// ============ LABELS ============
-
+// ============ LABELS ====
 export const getLabels = async (): Promise<MailApiResponse<MailLabel[]>> => {
   const response = await api.get(`${BASE_URL}/labels`);
   return response.data;
@@ -155,8 +150,7 @@ export const getThreadLabels = async (threadId: string): Promise<MailApiResponse
   return response.data;
 };
 
-// ============ DRAFTS ============
-
+// ============ DRAFTS ====
 export const getDrafts = async (page = 1, limit = 50): Promise<MailApiResponse<MailDraft[]>> => {
   const response = await api.get(`${BASE_URL}/drafts`, { params: { page, limit } });
   return response.data;
@@ -177,8 +171,7 @@ export const deleteDraft = async (draftId: string): Promise<MailApiResponse<null
   return response.data;
 };
 
-// ============ SEARCH ============
-
+// ============ SEARCH ====
 export const searchMail = async (params: MailSearchParams): Promise<MailApiResponse<MailMessage[]>> => {
   const response = await api.get(`${BASE_URL}/search`, { params });
   return response.data;
@@ -200,8 +193,7 @@ export const getMailGroups = async (): Promise<MailApiResponse<{
   return response.data;
 };
 
-// ============ ATTACHMENTS ============
-
+// ============ ATTACHMENTS ====
 export const uploadAttachments = async (files: File[]): Promise<MailApiResponse<MailAttachment[]>> => {
   const formData = new FormData();
   files.forEach((file) => formData.append('files', file));

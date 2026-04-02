@@ -36,7 +36,9 @@ export default function ComposeModal() {
   } = useMailStore();
 
   const authUser = useAuthStore((s) => s.user);
-  const isStudent = authUser?.userType === 'student' || authUser?.role?.name === 'student';
+  const isStudent = authUser?.userType ===
+   'student' || authUser?.role?.name ===
+   'student';
   const isEmployee = !isStudent;
 
   const [toRecipients, setToRecipients] = useState<MailRecipientOption[]>([]);
@@ -59,7 +61,8 @@ export default function ComposeModal() {
   useEffect(() => {
     if (!showCompose) return;
 
-    if (composeMode === 'new') {
+    if (composeMode ===
+   'new') {
       resetForm();
       return;
     }
@@ -68,10 +71,12 @@ export default function ComposeModal() {
     const messageId = composeReplyToId || composeForwardId;
     if (!messageId || !conversation?.messages) return;
 
-    const msg = conversation.messages.find((m) => m.id === messageId);
+    const msg = conversation.messages.find((m) => m.id ===
+   messageId);
     if (!msg) return;
 
-    if (composeMode === 'reply') {
+    if (composeMode ===
+   'reply') {
       setSubject(msg.subject?.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`);
       console.log('Reply - Message sender:', msg.sender); // Debug log
       setToRecipients(msg.sender ? [{
@@ -83,12 +88,14 @@ export default function ComposeModal() {
         type: 'user',
       }] : []);
       setBody(''); // Clean blank reply
-    } else if (composeMode === 'replyAll') {
+    } else if (composeMode ===
+   'replyAll') {
       setSubject(msg.subject?.startsWith('Re:') ? msg.subject : `Re: ${msg.subject}`);
       console.log('Reply All - Message:', msg); // Debug log
       
       // TO = original sender + all original TO recipients (minus self)
-      const originalToRecipients = msg.recipients?.filter((r) => r.recipientType === 'TO') || [];
+      const originalToRecipients = msg.recipients?.filter((r) => r.recipientType ===
+   'TO') || [];
       const toRecipients: MailRecipientOption[] = [];
       
       // Add original sender if not self
@@ -120,7 +127,8 @@ export default function ComposeModal() {
       setToRecipients(toRecipients);
       
       // CC = original CC recipients (minus self)
-      const ccFromOriginal = (msg.recipients?.filter((r) => r.recipientType === 'CC') || [])
+      const ccFromOriginal = (msg.recipients?.filter((r) => r.recipientType ===
+   'CC') || [])
         .filter((r) => r.uid !== authUser?.uid)
         .map((r) => ({
           id: r.uid || r.userId,
@@ -134,7 +142,9 @@ export default function ComposeModal() {
       setCcRecipients(ccFromOriginal);
       
       // BCC = original BCC recipients that include current user (only show own BCC)
-      const bccFromOriginal = (msg.recipients?.filter((r) => r.recipientType === 'BCC' && r.uid === authUser?.uid) || [])
+      const bccFromOriginal = (msg.recipients?.filter((r) => r.recipientType ===
+   'BCC' && r.uid ===
+   authUser?.uid) || [])
         .map((r) => ({
           id: r.uid || r.userId,
           uid: r.uid || r.userId,
@@ -151,7 +161,8 @@ export default function ComposeModal() {
       }
       
       setBody(''); // Clean blank reply all
-    } else if (composeMode === 'forward') {
+    } else if (composeMode ===
+   'forward') {
       setSubject(msg.subject?.startsWith('Fwd:') ? msg.subject : `Fwd: ${msg.subject}`);
       setToRecipients([]);
       setBody(buildForwardBody(msg));
@@ -160,7 +171,9 @@ export default function ComposeModal() {
 
   // Auto-focus textarea for replies
   useEffect(() => {
-    if (showCompose && (composeMode === 'reply' || composeMode === 'replyAll') && bodyRef.current) {
+    if (showCompose && (composeMode ===
+   'reply' || composeMode ===
+   'replyAll') && bodyRef.current) {
       // Small delay to ensure the modal is fully rendered
       setTimeout(() => {
         bodyRef.current?.focus();
@@ -191,11 +204,13 @@ export default function ComposeModal() {
     const senderEmail = msg.sender?.uid ? `${msg.sender.uid}@ums.sgtu` : '';
     const date = new Date(msg.sentAt).toLocaleString();
     const toList = msg.recipients
-      ?.filter((r: any) => r.recipientType === 'TO')
+      ?.filter((r: any) => r.recipientType ===
+   'TO')
       .map((r: any) => `${r.displayName || r.uid} <${r.uid || r.userId}@ums.sgtu>`)
       .join(', ') || '';
     const ccList = msg.recipients
-      ?.filter((r: any) => r.recipientType === 'CC')
+      ?.filter((r: any) => r.recipientType ===
+   'CC')
       .map((r: any) => `${r.displayName || r.uid} <${r.uid || r.userId}@ums.sgtu>`)
       .join(', ') || '';
     
@@ -235,8 +250,11 @@ export default function ComposeModal() {
   const handleSend = async () => {
     setError(null);
 
-    if (composeMode === 'new' || composeMode === 'forward') {
-      if (toRecipients.length === 0) {
+    if (composeMode ===
+   'new' || composeMode ===
+   'forward') {
+      if (toRecipients.length ===
+   0) {
         setError('Please add at least one recipient');
         return;
       }
@@ -258,10 +276,15 @@ export default function ComposeModal() {
 
       const data: ComposeMail = {
         to: toRecipients.map((r) => {
-          if (r.type === 'user') return r.uid;
-          if (r.type === 'central_department' || r.type === 'centralDepartment') return `cdept:${r.id}`;
-          if (r.type === 'school') return `school:${r.id}`;
-          if (r.type === 'department') return `dept:${r.id}`;
+          if (r.type ===
+   'user') return r.uid;
+          if (r.type ===
+   'central_department' || r.type ===
+   'centralDepartment') return `cdept:${r.id}`;
+          if (r.type ===
+   'school') return `school:${r.id}`;
+          if (r.type ===
+   'department') return `dept:${r.id}`;
           return r.uid;
         }),
         cc: ccRecipients.map((r) => r.uid || r.id),
@@ -275,7 +298,8 @@ export default function ComposeModal() {
       };
 
       let success: boolean;
-      if (composeMode === 'forward' && composeForwardId) {
+      if (composeMode ===
+   'forward' && composeForwardId) {
         success = await forwardMessage(composeForwardId, data);
       } else {
         success = await sendMail(data);
@@ -285,7 +309,8 @@ export default function ComposeModal() {
         resetForm();
         closeCompose();
       }
-    } else if (composeMode === 'reply' && composeReplyToId) {
+    } else if (composeMode ===
+   'reply' && composeReplyToId) {
       const data: ReplyMail = {
         body: body,
         cc: ccRecipients.map((r) => r.uid || r.id),
@@ -297,7 +322,8 @@ export default function ComposeModal() {
         resetForm();
         closeCompose();
       }
-    } else if (composeMode === 'replyAll' && composeReplyToId) {
+    } else if (composeMode ===
+   'replyAll' && composeReplyToId) {
       const data: ReplyMail = {
         body: body,
         cc: ccRecipients.map((r) => r.uid || r.id),
@@ -411,7 +437,9 @@ export default function ComposeModal() {
             )}
 
             {/* Reply context - show what message we're replying to */}
-            {(composeMode === 'reply' || composeMode === 'replyAll') && conversation?.messages && (
+            {(composeMode ===
+   'reply' || composeMode ===
+   'replyAll') && conversation?.messages && (
               <div className="mx-4 mt-2 px-3 py-2 rounded-lg text-xs" style={{ background: '#f0f4f8', border: '1px solid #b3cde0', color: '#4a5568' }}>
                 <div className="flex items-center gap-2">
                   <Reply size={12} />
@@ -419,7 +447,8 @@ export default function ComposeModal() {
                   <span className="font-medium">
                     {(() => {
                       const messageId = composeReplyToId;
-                      const msg = conversation.messages.find((m) => m.id === messageId);
+                      const msg = conversation.messages.find((m) => m.id ===
+   messageId);
                       return msg?.sender?.displayName || msg?.sender?.uid || 'Unknown';
                     })()}
                   </span>
@@ -483,7 +512,9 @@ export default function ComposeModal() {
               )}
 
               {/* Subject */}
-              {(composeMode === 'new' || composeMode === 'forward') && (
+              {(composeMode ===
+   'new' || composeMode ===
+   'forward') && (
                 <input
                   type="text"
                   value={subject}
@@ -493,7 +524,9 @@ export default function ComposeModal() {
                 style={{ borderBottom: '1px solid #b3cde0', color: '#011f4b' }}
                 />
               )}
-              {(composeMode === 'reply' || composeMode === 'replyAll') && (
+              {(composeMode ===
+   'reply' || composeMode ===
+   'replyAll') && (
                 <div className="text-xs py-1" style={{ color: '#6497b1', borderBottom: '1px solid #e2e8f0' }}>
                   Subject: {subject}
                 </div>
@@ -507,11 +540,14 @@ export default function ComposeModal() {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder={
-                  composeMode === 'reply' 
+                  composeMode ===
+   'reply' 
                     ? 'Type your reply...' 
-                    : composeMode === 'replyAll' 
+                    : composeMode ===
+   'replyAll' 
                       ? 'Type your reply to all...' 
-                      : composeMode === 'forward'
+                      : composeMode ===
+   'forward'
                         ? 'Add a message...'
                         : 'Compose your message...'
                 }

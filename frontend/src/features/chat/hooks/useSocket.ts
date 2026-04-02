@@ -108,7 +108,8 @@ export function useSocket(options: UseSocketOptions = {}) {
     socket.on('newDirectMessage', (data: { message: DirectMessage }) => {
       // Determine the other user: if I sent it, the other user is the receiver; otherwise the sender
       const currentUserId = useAuthStore.getState().user?.id ?? null;
-      const otherUserId = data.message.senderId === currentUserId 
+      const otherUserId = data.message.senderId ===
+   currentUserId 
         ? data.message.receiverId 
         : data.message.senderId;
       addDirectMessage(otherUserId, data.message);

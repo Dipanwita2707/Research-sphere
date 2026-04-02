@@ -100,7 +100,8 @@ export default function DrdMainDashboard() {
       fetchUserPermissions();
       fetchStats();
       // Fetch mentor approvals for faculty
-      if (user?.userType === 'faculty') {
+      if (user?.userType ===
+   'faculty') {
         fetchMentorApprovals();
       }
     }
@@ -129,9 +130,11 @@ export default function DrdMainDashboard() {
       response.data.centralDepartments.forEach(dept => {
         const perms = dept.permissions || {};
         // Merge all permissions - the backend already includes role-based permissions
-        if (typeof perms === 'object') {
+        if (typeof perms ===
+   'object') {
           Object.keys(perms).forEach(key => {
-            if (perms[key] === true) {
+            if (perms[key] ===
+   true) {
               drdPermissions[key] = true;
             }
           });
@@ -174,7 +177,18 @@ export default function DrdMainDashboard() {
       'IPR School Assignment': ['ipr_assign_school'],
       'Research School Assignment': ['research_assign_school'],
       'Book School Assignment': ['book_assign_school'],
-      'Analytics & Reports': ['ipr_approve', 'research_approve', 'book_approve'],
+      'Analytics & Reports': [
+        'applicant_analytics',
+        'drd_member_analytics',
+        'ipr_applicant_analytics',
+        'research_applicant_analytics',
+        'book_applicant_analytics',
+        'conference_applicant_analytics',
+        'grant_applicant_analytics',
+        'ipr_approve',
+        'research_approve',
+        'book_approve',
+      ],
     };
     
     const requiredPerms = viewPermissionKeys[category] || [];
@@ -190,7 +204,18 @@ export default function DrdMainDashboard() {
       'IPR School Assignment': ['ipr_assign_school'],
       'Research School Assignment': ['research_assign_school'],
       'Book School Assignment': ['book_assign_school'],
-      'Analytics & Reports': ['ipr_approve', 'research_approve', 'book_approve'],
+      'Analytics & Reports': [
+        'applicant_analytics',
+        'drd_member_analytics',
+        'ipr_applicant_analytics',
+        'research_applicant_analytics',
+        'book_applicant_analytics',
+        'conference_applicant_analytics',
+        'grant_applicant_analytics',
+        'ipr_approve',
+        'research_approve',
+        'book_approve',
+      ],
     };
 
     return (actionPermissionMap[category] || []).filter(
@@ -286,14 +311,18 @@ export default function DrdMainDashboard() {
       </div>
 
       {/* Quick Actions - Based on Permissions or user type */}
-      {(userPermissions.ipr_file_new || userPermissions.research_file_new || userPermissions.book_file_new || userPermissions.grant_file_new || userPermissions.ipr_review || userPermissions.research_review || userPermissions.book_review || userPermissions.grant_review || userPermissions.conference_review || userPermissions.ipr_assign_school || userPermissions.research_assign_school || userPermissions.book_assign_school || userPermissions.grant_assign_school || userPermissions.conference_assign_school || user?.userType === 'faculty' || user?.userType === 'student') && (
+      {(userPermissions.ipr_file_new || userPermissions.research_file_new || userPermissions.book_file_new || userPermissions.grant_file_new || userPermissions.ipr_review || userPermissions.research_review || userPermissions.book_review || userPermissions.grant_review || userPermissions.conference_review || userPermissions.ipr_assign_school || userPermissions.research_assign_school || userPermissions.book_assign_school || userPermissions.grant_assign_school || userPermissions.conference_assign_school || user?.userType ===
+   'faculty' || user?.userType ===
+   'student') && (
         <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
             <Plus className="w-5 h-5 text-[#005b96] dark:text-blue-400" />
             Quick Actions
           </h2>
           <div className="flex flex-wrap gap-3">
-            {(userPermissions.ipr_file_new || user?.userType === 'faculty' || user?.userType === 'student') && (
+            {(userPermissions.ipr_file_new || user?.userType ===
+   'faculty' || user?.userType ===
+   'student') && (
               <Link
                 href="/ipr/apply"
                 className="flex items-center gap-2 px-5 py-3 bg-[#005b96] dark:bg-blue-600 text-white rounded-xl hover:bg-[#03396c] dark:hover:bg-blue-700 hover:shadow-lg transition-all font-medium"
@@ -302,7 +331,9 @@ export default function DrdMainDashboard() {
                 File New IPR Application
               </Link>
             )}
-            {(userPermissions.ipr_file_new || user?.userType === 'faculty' || user?.userType === 'student') && (
+            {(userPermissions.ipr_file_new || user?.userType ===
+   'faculty' || user?.userType ===
+   'student') && (
               <Link
                 href="/ipr/my-applications"
                 className="flex items-center gap-2 px-5 py-3 bg-[#e6f2fa] dark:bg-blue-900/30 text-[#005b96] dark:text-blue-400 border border-[#b3d4fc] dark:border-blue-800 rounded-xl hover:bg-[#d4e9f7] dark:hover:bg-blue-900/50 transition-all font-medium"
@@ -329,7 +360,9 @@ export default function DrdMainDashboard() {
                 Assign Schools
               </Link>
             )}
-            {(userPermissions.research_file_new || user?.userType === 'faculty' || user?.userType === 'student') && (
+            {(userPermissions.research_file_new || user?.userType ===
+   'faculty' || user?.userType ===
+   'student') && (
               <Link
                 href="/research/apply"
                 className="flex items-center gap-2 px-5 py-3 bg-purple-600 dark:bg-purple-700 text-white rounded-xl hover:bg-purple-700 dark:hover:bg-purple-800 hover:shadow-lg transition-all font-medium"
@@ -338,7 +371,9 @@ export default function DrdMainDashboard() {
                 File New Research Contribution
               </Link>
             )}
-            {(userPermissions.research_file_new || user?.userType === 'faculty' || user?.userType === 'student') && (
+            {(userPermissions.research_file_new || user?.userType ===
+   'faculty' || user?.userType ===
+   'student') && (
               <Link
                 href="/research/my-contributions"
                 className="flex items-center gap-2 px-5 py-3 bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-all font-medium"
@@ -427,7 +462,8 @@ export default function DrdMainDashboard() {
       )}
 
       {/* Mentor Approvals Section - For all faculty users */}
-      {user?.userType === 'faculty' && (
+      {user?.userType ===
+   'faculty' && (
         <div className={`mb-8 bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border ${pendingMentorApprovals.length > 0 ? 'border-orange-200 dark:border-orange-800' : 'border-gray-100 dark:border-gray-700'}`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
@@ -499,7 +535,8 @@ export default function DrdMainDashboard() {
           const hasView = hasViewPermission(categoryInfo.category);
           const actionPermissions = getActionPermissions(categoryInfo.category);
           
-          if (!hasView && actionPermissions.length === 0) {
+          if (!hasView && actionPermissions.length ===
+   0) {
             return null; // Hide section if no permissions
           }
 
@@ -645,7 +682,14 @@ function getPermissionLabel(permissionKey: string): string {
     'conference_file_new': 'File New Conference Papers',
     'conference_review': 'Review Conference Papers',
     'conference_approve': 'Final Approve/Reject Conferences',
-    'conference_assign_school': 'Assign Schools to Conference Reviewers'
+    'conference_assign_school': 'Assign Schools to Conference Reviewers',
+    'applicant_analytics': 'View Applicant Analytics',
+    'drd_member_analytics': 'View DRD Member Analytics',
+    'ipr_applicant_analytics': 'View IPR Applicant Analytics',
+    'research_applicant_analytics': 'View Research Applicant Analytics',
+    'book_applicant_analytics': 'View Book Applicant Analytics',
+    'conference_applicant_analytics': 'View Conference Applicant Analytics',
+    'grant_applicant_analytics': 'View Grant Applicant Analytics',
   };
   
   return labels[permissionKey] || permissionKey;

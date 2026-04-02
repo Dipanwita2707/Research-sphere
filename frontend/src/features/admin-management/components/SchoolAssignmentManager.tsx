@@ -18,11 +18,10 @@ import api from '@/shared/api/api';
 import { useToast } from '@/shared/ui-components/Toast';
 import logger from '@/shared/utils/logger';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface School {
+// =====================================================================
+  // Types
+// ==============================================================
+  export interface School {
   id: string;
   facultyCode: string;
   facultyName: string;
@@ -64,11 +63,10 @@ export interface SchoolWithMembers {
   members: AssignmentMember[];
 }
 
-// ============================================================================
-// Configuration Interface - This is what makes it reusable
-// ============================================================================
-
-export interface SchoolAssignmentConfig {
+// =====================================================================
+  // Configuration Interface - This is what makes it reusable
+// ==============================================================
+  export interface SchoolAssignmentConfig {
   // Page title and description
   title: string;
   description: string;
@@ -98,11 +96,10 @@ export interface SchoolAssignmentConfig {
   assignmentFieldName: 'assignedSchoolIds' | 'assignedResearchSchoolIds' | 'assignedBookSchoolIds' | 'assignedConferenceSchoolIds';
 }
 
-// ============================================================================
-// Default Configurations
-// ============================================================================
-
-export const DRD_MEMBER_CONFIG: SchoolAssignmentConfig = {
+// =====================================================================
+  // Default Configurations
+// ==============================================================
+  export const DRD_MEMBER_CONFIG: SchoolAssignmentConfig = {
   title: 'DRD Member School Assignment',
   description: 'Assign DRD Members to specific schools. Members will only see IPR applications from their assigned schools in their review queue.',
   icon: <MapPin className="text-green-600" />,
@@ -188,15 +185,15 @@ export const DRD_CONFERENCE_CONFIG: SchoolAssignmentConfig = {
   assignmentFieldName: 'assignedConferenceSchoolIds',
 };
 
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-const getActivePermissions = (permissions: Record<string, boolean> | string[] | undefined): string[] => {
+// =====================================================================
+  // Helper Functions
+// ==============================================================
+  const getActivePermissions = (permissions: Record<string, boolean> | string[] | undefined): string[] => {
   if (!permissions) return [];
   if (Array.isArray(permissions)) return permissions;
   return Object.entries(permissions)
-    .filter(([, value]) => value === true)
+    .filter(([, value]) => value ===
+   true)
     .map(([key]) => key);
 };
 
@@ -206,11 +203,10 @@ const formatPermissionLabel = (key: string): string => {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-// ============================================================================
-// Main Component
-// ============================================================================
-
-interface SchoolAssignmentManagerProps {
+// =====================================================================
+  // Main Component
+// ==============================================================
+  interface SchoolAssignmentManagerProps {
   config: SchoolAssignmentConfig;
 }
 
@@ -337,7 +333,8 @@ export default function SchoolAssignmentManager({ config }: SchoolAssignmentMana
   };
 
   const getSchoolName = (schoolId: string): string => {
-    const school = schools.find((s) => s.id === schoolId);
+    const school = schools.find((s) => s.id ===
+   schoolId);
     return school?.facultyName || 'Unknown School';
   };
 
@@ -426,7 +423,8 @@ export default function SchoolAssignmentManager({ config }: SchoolAssignmentMana
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  {members.filter((m) => m.assignedSchoolIds.length === 0).length}
+                  {members.filter((m) => m.assignedSchoolIds.length ===
+   0).length}
                 </p>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Unassigned</p>
               </div>
@@ -563,7 +561,8 @@ export default function SchoolAssignmentManager({ config }: SchoolAssignmentMana
                   </td>
                 </tr>
               ))}
-              {filteredMembers.length === 0 && (
+              {filteredMembers.length ===
+   0 && (
                 <tr>
                   <td colSpan={config.showPermissions ? 4 : 3} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                     No {config.labels.memberTypePlural.toLowerCase()} found

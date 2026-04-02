@@ -117,20 +117,15 @@ async function seedStudents() {
 
   for (const student of students) {
     try {
-      // Check if student already exists
-      const existing = await prisma.studentDetails.findUnique({
-        where: { studentId: student.studentId },
-      });
-
-      if (existing) {
-        console.log(`⏩ Student already exists: ${student.firstName} ${student.lastName} (${student.studentId})`);
-        createdStudents.push(existing);
-        continue;
-      }
-
-      // Create UserLogin first
-      const userLogin = await prisma.userLogin.create({
-        data: {
+      // Upsert user first so relation always remains valid in reseeded DBs.
+      const userLogin = await prisma.userLogin.upsert({
+        where: { uid: student.studentId },
+        update: {
+          email: student.email,
+          role: 'student',
+          status: 'active',
+        },
+        create: {
           uid: student.studentId,
           email: student.email,
           passwordHash: passwordHash,
@@ -139,9 +134,23 @@ async function seedStudents() {
         },
       });
 
-      // Create StudentDetails
-      const studentDetails = await prisma.studentDetails.create({
-        data: {
+      // Upsert student and hard-link it to the login record.
+      const studentDetails = await prisma.studentDetails.upsert({
+        where: { studentId: student.studentId },
+        update: {
+          userLoginId: userLogin.id,
+          registrationNo: student.registrationNo,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          email: student.email,
+          phone: student.phone,
+          gender: student.gender,
+          currentSemester: student.currentSemester,
+          displayName: `${student.firstName} ${student.lastName}`,
+          dataEntryStatus: 'approved',
+          isActive: true,
+        },
+        create: {
           userLoginId: userLogin.id,
           studentId: student.studentId,
           registrationNo: student.registrationNo,
@@ -158,7 +167,7 @@ async function seedStudents() {
       });
 
       createdStudents.push(studentDetails);
-      console.log(`✅ Created: ${student.firstName} ${student.lastName} (${student.studentId})`);
+      console.log(`✅ Upserted: ${student.firstName} ${student.lastName} (${student.studentId})`);
     } catch (error) {
       console.error(`❌ Error creating ${student.studentId}:`, error.message);
     }

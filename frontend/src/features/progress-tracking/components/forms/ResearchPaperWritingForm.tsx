@@ -71,7 +71,9 @@ export default function ResearchPaperWritingForm({ data, onChange }: ResearchPap
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Quartile - Show only for Scopus and Both */}
-          {(data.targetedResearchType === 'scopus' || data.targetedResearchType === 'both') && (
+          {(data.targetedResearchType ===
+   'scopus' || data.targetedResearchType ===
+   'both') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Quartile <span className="text-red-500">*</span>
@@ -93,7 +95,9 @@ export default function ResearchPaperWritingForm({ data, onChange }: ResearchPap
           )}
 
           {/* Impact Factor - Show only for SCI/SCIE and Both */}
-          {(data.targetedResearchType === 'sci_scie' || data.targetedResearchType === 'both') && (
+          {(data.targetedResearchType ===
+   'sci_scie' || data.targetedResearchType ===
+   'both') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Impact Factor <span className="text-red-500">*</span>
@@ -110,7 +114,9 @@ export default function ResearchPaperWritingForm({ data, onChange }: ResearchPap
           )}
 
           {/* SJR - Show only for Scopus and Both */}
-          {(data.targetedResearchType === 'scopus' || data.targetedResearchType === 'both') && (
+          {(data.targetedResearchType ===
+   'scopus' || data.targetedResearchType ===
+   'both') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">SJR</label>
               <input
@@ -132,7 +138,8 @@ export default function ResearchPaperWritingForm({ data, onChange }: ResearchPap
             </label>
             <select
               value={(data.isInterdisciplinary as boolean) ? 'yes' : 'no'}
-              onChange={(e) => handleChange('isInterdisciplinary', e.target.value === 'yes')}
+              onChange={(e) => handleChange('isInterdisciplinary', e.target.value ===
+   'yes')}
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             >
               <option value="yes">Yes</option>
@@ -184,7 +191,8 @@ export default function ResearchPaperWritingForm({ data, onChange }: ResearchPap
         {((data.sdgGoals as string[]) || []).length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3">
             {((data.sdgGoals as string[]) || []).map(sdgValue => {
-              const sdg = SDG_GOALS.find(s => s.value === sdgValue);
+              const sdg = SDG_GOALS.find(s => s.value ===
+   sdgValue);
               return sdg ? (
                 <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                   {sdg.label.replace('SDG ', '')}

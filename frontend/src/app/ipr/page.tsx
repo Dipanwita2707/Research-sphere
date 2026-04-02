@@ -119,7 +119,9 @@ export default function IPRDashboard() {
   };
 
   const filteredApplications = applications.filter(app => {
-    const matchesFilter = filter === 'all' || app.iprType === filter;
+    const matchesFilter = filter ===
+   'all' || app.iprType ===
+   filter;
     const matchesSearch = app.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          app.description.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
@@ -141,7 +143,8 @@ export default function IPRDashboard() {
             </div>
             <div className="flex items-center gap-4">
               {/* Only show mentor approvals if user is faculty and has pending mentor approvals */}
-              {user?.userType === 'faculty' && pendingMentorCount > 0 && (
+              {user?.userType ===
+   'faculty' && pendingMentorCount > 0 && (
                 <Link
                   href="/ipr/mentor-approvals"
                   className="relative bg-orange-500 hover:bg-orange-600 text-white px-5 py-3 rounded-lg font-medium transition-colors flex items-center"
@@ -386,7 +389,8 @@ export default function IPRDashboard() {
                   <div className="ml-3">
                     <p className="text-sm font-medium text-gray-600">Drafts</p>
                     <p className="text-xl font-bold text-gray-900">
-                      {applications.filter(app => app.status === 'draft').length}
+                      {applications.filter(app => app.status ===
+   'draft').length}
                     </p>
                   </div>
                 </div>

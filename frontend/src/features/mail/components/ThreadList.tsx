@@ -11,13 +11,15 @@ function formatTime(dateStr: string) {
   const diff = now.getTime() - date.getTime();
   const oneDay = 24 * 60 * 60 * 1000;
 
-  if (diff < oneDay && date.getDate() === now.getDate()) {
+  if (diff < oneDay && date.getDate() ===
+   now.getDate()) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   if (diff < 7 * oneDay) {
     return date.toLocaleDateString([], { weekday: 'short' });
   }
-  if (date.getFullYear() === now.getFullYear()) {
+  if (date.getFullYear() ===
+   now.getFullYear()) {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
   return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' });
@@ -61,7 +63,8 @@ export default function ThreadList() {
   const labels = useMailLabels();
   const isLoading = useIsMailLoading();
 
-  const currentLabel = labels.find((l) => l.id === currentLabelId);
+  const currentLabel = labels.find((l) => l.id ===
+   currentLabelId);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchMode, setIsSearchMode] = useState(false);
@@ -159,7 +162,8 @@ export default function ThreadList() {
       <div className="flex-shrink-0 px-4 py-3 bg-white" style={{ borderBottom: '2px solid #e8f0fe' }}>
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-base font-semibold flex items-center gap-2" style={{ color: '#011f4b' }}>
-            {currentView === 'label' && currentLabel ? (
+            {currentView ===
+   'label' && currentLabel ? (
               <>
                 <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: currentLabel.color || '#6b7280' }} />
                 {currentLabel.name}
@@ -193,7 +197,8 @@ export default function ThreadList() {
         </div>
 
         {/* Search bar */}
-        {(isSearchMode || currentView === 'search') && (
+        {(isSearchMode || currentView ===
+   'search') && (
           <div className="relative mt-1">
             <form onSubmit={handleSearch}>
               {/* Input row */}
@@ -437,7 +442,8 @@ export default function ThreadList() {
           <div className="flex items-center justify-center h-32">
             <div className="animate-spin w-6 h-6 border-2 border-gray-200 rounded-full" style={{ borderTopColor: '#005b96' }} />
           </div>
-        ) : threads.length === 0 ? (
+        ) : threads.length ===
+   0 ? (
           <div className="flex flex-col items-center justify-center h-32">
             <Mail size={32} className="mb-2" style={{ color: '#b3cde0' }} />
             <p className="text-sm" style={{ color: '#6497b1' }}>No messages</p>
@@ -447,7 +453,8 @@ export default function ThreadList() {
             <ThreadRow
               key={thread.id}
               thread={thread}
-              isActive={thread.id === currentThreadId}
+              isActive={thread.id ===
+   currentThreadId}
               onClick={() => fetchThread(thread.id)}
               onToggleStar={() => toggleStar(thread.id)}
               view={currentView}
@@ -504,7 +511,8 @@ function ThreadRow({ thread, isActive, onClick, onToggleStar, view }: ThreadRowP
             className="text-sm truncate"
             style={{ color: isUnread ? '#011f4b' : '#374151', fontWeight: isUnread ? 600 : 400 }}
           >
-            {view === 'sent'
+            {view ===
+   'sent'
               ? (
                   (thread as any).recipients?.map((r: any) => r.displayName || r.uid).join(', ') ||
                   thread.participants?.map((p: any) => p.user?.displayName || p.user?.uid).join(', ') ||

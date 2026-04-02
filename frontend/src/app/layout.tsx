@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import AuthProvider from '@/shared/providers/AuthProvider';
+import QueryProvider from '@/shared/providers/QueryProvider';
 import { ThemeProvider } from '@/shared/providers/ThemeProvider';
 import ErrorBoundary from '@/shared/providers/ErrorBoundary';
 import { ToastProvider } from '@/shared/ui-components/Toast';
 import { ConfirmModalProvider } from '@/shared/ui-components/ConfirmModal';
+import { NavigationProgress } from '@/shared/components/common/NavigationProgress';
 import '@/styles/globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -26,9 +28,12 @@ export default function RootLayout({
           <ThemeProvider>
             <ToastProvider>
               <ConfirmModalProvider>
-                <AuthProvider>
-                  {children}
-                </AuthProvider>
+                <QueryProvider>
+                  <AuthProvider>
+                    <NavigationProgress />
+                    {children}
+                  </AuthProvider>
+                </QueryProvider>
               </ConfirmModalProvider>
             </ToastProvider>
           </ThemeProvider>

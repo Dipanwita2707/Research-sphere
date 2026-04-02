@@ -99,10 +99,9 @@ router.post('/', upload.single('proposalFile'), grantController.createGrantAppli
  */
 router.get('/my-grants', grantController.getMyGrantApplications);
 
-// ============================================
+// =====================================
 // DRD Review Routes
-// ============================================
-
+// =====================================
 /**
  * @route   GET /api/grants/review/pending
  * @desc    Get pending grant applications for review (DRD)

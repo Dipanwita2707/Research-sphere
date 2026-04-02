@@ -6,6 +6,12 @@
 const { ValidationError } = require('../../../shared/utils/AppError');
 const { LIMITS } = require('../constants/noting.constants');
 const { CATEGORIES } = require('../config/noting.config');
+const {
+  sanitizePlainText,
+  sanitizeRichText,
+  sanitizeStringArray,
+  sanitizeUrl,
+} = require('../../../shared/utils/sanitize');
 
 /**
  * Validate description field
@@ -15,17 +21,17 @@ const { CATEGORIES } = require('../config/noting.config');
  * @throws {ValidationError} If validation fails
  */
 function validateDescription(description, required = false) {
-  const desc = String(description || '').trim();
+  const desc = sanitizeRichText(description || '', { maxLength: 50000 });
 
   if (required && !desc) {
-    throw new ValidationError('Description is required');
+    throw new ValidationError('Please add a description explaining your request before submitting.');
   }
 
   if (desc) {
     const wordCount = desc.split(/\s+/).filter(Boolean).length;
     if (wordCount > LIMITS.DESCRIPTION_MAX_WORDS) {
       throw new ValidationError(
-        `Description must be at most ${LIMITS.DESCRIPTION_MAX_WORDS} words (current: ${wordCount})`
+        `Description exceeds the word limit. Please reduce to ${LIMITS.DESCRIPTION_MAX_WORDS} words (currently: ${wordCount} words).`
       );
     }
   }
@@ -41,7 +47,7 @@ function validateDescription(description, required = false) {
  */
 function validateCategory(category, subcategory) {
   if (!category || !subcategory) {
-    throw new ValidationError('Category and subcategory are required');
+    throw new ValidationError('Please select both Category and Subcategory.');
   }
 
   const validCategories = Object.keys(CATEGORIES);
@@ -70,14 +76,12 @@ function sanitizeAttachments(attachmentsPayload) {
   return attachmentsPayload
     .filter((a) => a && (a.filePath || a.fileName))
     .map((a) => ({
-      filePath: String(a.filePath || '')
-        .trim()
-        .slice(0, LIMITS.FILE_PATH_MAX_LENGTH),
-      fileName: String(a.fileName || a.filePath || 'attachment')
-        .trim()
-        .slice(0, LIMITS.FILE_NAME_MAX_LENGTH),
+      filePath: sanitizeUrl(a.filePath || '', { maxLength: LIMITS.FILE_PATH_MAX_LENGTH }),
+      fileName: sanitizePlainText(a.fileName || a.filePath || 'attachment', {
+        maxLength: LIMITS.FILE_NAME_MAX_LENGTH,
+      }),
       fileDescription: a.fileDescription
-        ? String(a.fileDescription).trim().slice(0, LIMITS.FILE_DESCRIPTION_MAX_LENGTH)
+        ? sanitizePlainText(a.fileDescription, { maxLength: LIMITS.FILE_DESCRIPTION_MAX_LENGTH })
         : null,
     }))
     .filter((a) => a.filePath);
@@ -93,9 +97,7 @@ function sanitizePoints(points) {
     return [];
   }
 
-  const trimmed = points
-    .map((content) => String(content).trim())
-    .filter(Boolean);
+  const trimmed = sanitizeStringArray(points, { maxLength: 2000 });
 
   // Dedupe while preserving order (defensive against duplicate sends)
   const seen = new Set();
@@ -123,10 +125,298 @@ function parsePolicyCompliance(value) {
   return null;
 }
 
+const { sanitizeSponsors } = require('../../../shared/utils/validators');
+const { RECURRING_FREQUENCIES, APPROVAL_PERIODS } = require('../constants/noting.constants');
+
+/** Alias for shared sponsor sanitization (Cash: amount, In-kind: notes) */
+function sanitizeEventSponsors(sponsors) {
+  return sanitizeSponsors(sponsors);
+}
+
+function sanitizeEventResources(resources) {
+  if (!Array.isArray(resources)) return [];
+
+  return resources
+    .filter((resource) => resource && typeof resource === 'object')
+    .map((resource) => {
+      const pricePerPiece = resource.pricePerPiece != null && resource.pricePerPiece !== ''
+        ? Number(resource.pricePerPiece)
+        : undefined;
+      const quantity = resource.quantity != null && resource.quantity !== ''
+        ? Number(resource.quantity)
+        : undefined;
+      const estimatedCost = resource.estimatedCost != null && resource.estimatedCost !== ''
+        ? Number(resource.estimatedCost)
+        : undefined;
+
+      return {
+        category: sanitizePlainText(resource.category || 'internal', { maxLength: 32 }) || 'internal',
+        type: sanitizePlainText(resource.type || '', { maxLength: 256 }),
+        description: sanitizePlainText(resource.description || '', { maxLength: 2000 }),
+        pricePerPiece: Number.isFinite(pricePerPiece) ? pricePerPiece : undefined,
+        quantity: Number.isFinite(quantity) ? quantity : undefined,
+        estimatedCost: Number.isFinite(estimatedCost)
+          ? estimatedCost
+          : (Number.isFinite(pricePerPiece) && Number.isFinite(quantity)
+            ? pricePerPiece * quantity
+            : undefined),
+      };
+    })
+    .filter((resource) => resource.type || resource.description);
+}
+
+const VALID_RECURRING = Object.values(RECURRING_FREQUENCIES);
+
+const EVENT_SUBCATEGORIES = ['events'];
+
+/**
+ * Validate note for submission (create with submit=true or submitDraft)
+ * @param {Object} note - Note object with all fields
+ * @throws {ValidationError} If validation fails
+ */
+function validateNoteForSubmission(note) {
+  if (!note.departmentId || !note.departmentScope) {
+    throw new ValidationError('Please select a department before submitting this note.');
+  }
+
+  if (!['school', 'central'].includes(String(note.departmentScope).toLowerCase())) {
+    throw new ValidationError('Invalid department scope. Please reselect a valid department.');
+  }
+
+  if (note.policyCompliant === null || note.policyCompliant === undefined) {
+    throw new ValidationError('Please select Policy Compliance: choose "Yes, complies" or "No" in Additional Details.');
+  }
+
+  const points = Array.isArray(note.points) ? note.points : [];
+  const validPoints = points.filter((p) => p && String(p.content || '').trim());
+  if (validPoints.length === 0) {
+    throw new ValidationError('Please add at least one requirement point in the Requirements & Points section.');
+  }
+
+  if (note.approvalPeriod === APPROVAL_PERIODS.RECURRING) {
+    if (!note.recurringFrequency || !VALID_RECURRING.includes(note.recurringFrequency)) {
+      throw new ValidationError('Please select a frequency (e.g. Monthly, Weekly) when Approval Period is Recurring.');
+    }
+  }
+
+  if (note.amountRequired === true) {
+    const amt = note.amount;
+    if (amt == null || amt === '' || Number(amt) < 0 || Number.isNaN(Number(amt))) {
+      throw new ValidationError('Please enter a valid amount (₹) in Budget / Amount when "Amount required" is selected.');
+    }
+    const amtNum = Number(amt);
+    if (!Number.isInteger(amtNum)) {
+      throw new ValidationError('Amount must be a whole number (integer). Decimal values are not allowed.');
+    }
+    if (amtNum <= 1) {
+      throw new ValidationError('Amount must be greater than ₹1.');
+    }
+    if (amtNum > LIMITS.AMOUNT_MAX) {
+      throw new ValidationError(`Amount cannot exceed ₹10,00,000 (10 lakh). Please reduce the amount.`);
+    }
+  }
+
+  // Event noting validation — when subcategory is events, event structure is required
+  const subcategory = (note.subcategory || '').toLowerCase();
+  const isEventSubcategory = EVENT_SUBCATEGORIES.some((s) => subcategory.includes(s));
+  const notingEventType = note.notingEventType;
+
+  if (isEventSubcategory && !notingEventType) {
+    throw new ValidationError('Please select Event Structure: Venue Event, Stall-Based Event, or Fest.');
+  }
+  if (notingEventType === 'venue' || notingEventType === 'stall') {
+    const { eventName, eventType, eventStartDate, eventEndDate, eventPaymentType, eventParticipationType, eventRegistrationFeeIndividual, eventRegistrationFeeTeam, eventHasSponsorship, eventSponsors, eventHasResources, eventResources, eventDutyLeaveAvailable, eventDutyLeaveRoleType, stallConfig } = note;
+    if (!eventName || !String(eventName).trim()) throw new ValidationError('Please enter the Event Name.');
+    if (!eventType) throw new ValidationError('Please select the Event Type (e.g. Workshop, Seminar).');
+    if (!eventStartDate) throw new ValidationError('Please select the Event Start Date.');
+    if (!eventEndDate) throw new ValidationError('Please select the Event End Date.');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (eventStartDate && new Date(eventStartDate) < todayStart) {
+      throw new ValidationError('Event Start Date cannot be in the past. Please select a future date.');
+    }
+    if (eventStartDate && eventEndDate && new Date(eventEndDate) < new Date(eventStartDate)) {
+      throw new ValidationError('Event End Date should be after Start Date. Please correct the dates.');
+    }
+    if (eventHasSponsorship === true) {
+      const sponsors = Array.isArray(eventSponsors) ? eventSponsors : [];
+      const validSponsors = sponsors.filter((s) => s && String(s.name || '').trim());
+      if (validSponsors.length === 0) {
+        throw new ValidationError('Please add at least one sponsor with a name when Sponsorship is enabled.');
+      }
+      // Validate all required sponsor information
+      for (const sponsor of validSponsors) {
+        if (!sponsor.sponsorType || String(sponsor.sponsorType).trim() === '') {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Sponsor Type is required.`);
+        }
+        if (!sponsor.contactPerson || !String(sponsor.contactPerson).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Contact Person is required.`);
+        }
+        if (!sponsor.designation || !String(sponsor.designation).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Designation is required.`);
+        }
+        if (!sponsor.phone || !String(sponsor.phone).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Phone number is required.`);
+        }
+        if (!sponsor.email || !String(sponsor.email).trim()) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Email is required.`);
+        }
+        const emailRegex = /^\S+@\S+\.\S+$/;
+        if (!emailRegex.test(String(sponsor.email).trim())) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Please enter a valid email address.`);
+        }
+        if (!sponsor.sponsorLogo || !sponsor.sponsorLogo.filePath) {
+          throw new ValidationError(`Sponsor "${sponsor.name}" - Logo is required. Please upload a JPG or PNG file for sponsor identification.`);
+        }
+      }
+    }
+    if (eventHasResources === true) {
+      const resources = Array.isArray(eventResources) ? eventResources : [];
+      const validResources = resources.filter((r) => r && (String(r.type || '').trim() || String(r.description || '').trim()));
+      if (validResources.length === 0) {
+        throw new ValidationError('Please add at least one resource with type or description when Resources are enabled.');
+      }
+    }
+    if (eventDutyLeaveAvailable === true) {
+      if (!eventDutyLeaveRoleType || !['participants', 'organizers', 'both'].includes(eventDutyLeaveRoleType)) {
+        throw new ValidationError('Please select who is eligible for Duty Leave (Participants, Organizers, or Both) when Duty Leave is enabled.');
+      }
+    }
+    if (notingEventType === 'stall' && stallConfig) {
+      if (stallConfig.enableStudentApplied === true) {
+        const maxStalls = stallConfig.maxStudentStalls;
+        if (maxStalls == null || maxStalls === '' || Number(maxStalls) < 1) {
+          throw new ValidationError('Please enter Max Student Stalls (minimum 1) when Student-Applied Stalls is enabled.');
+        }
+      }
+      if (stallConfig.enableCreatorMade === true) {
+        const creatorStalls = Array.isArray(stallConfig.creatorStalls) ? stallConfig.creatorStalls : [];
+        for (let i = 0; i < creatorStalls.length; i++) {
+          const name = String(creatorStalls[i]?.name || '').trim();
+          if (!name) {
+            throw new ValidationError(`Creator Stall #${i + 1}: Please enter a name for each creator-made stall.`);
+          }
+        }
+      }
+    }
+    if (!eventPaymentType) throw new ValidationError('Please select Payment Type: Free or Paid.');
+    if (eventPaymentType === 'paid') {
+      const isTeam = eventParticipationType === 'team';
+      if (isTeam && (eventRegistrationFeeTeam == null || eventRegistrationFeeTeam === '' || Number(eventRegistrationFeeTeam) < 1)) {
+        throw new ValidationError('Participation fee must be at least ₹1.');
+      }
+      if (!isTeam && (eventRegistrationFeeIndividual == null || eventRegistrationFeeIndividual === '' || Number(eventRegistrationFeeIndividual) < 1)) {
+        throw new ValidationError('Participation fee must be at least ₹1.');
+      }
+    }
+  }
+
+  if (notingEventType === 'festival') {
+    const meta = note.festivalMeta || {};
+    const subEvents = note.subEvents || [];
+    if (!meta.name || !String(meta.name).trim()) throw new ValidationError('Please enter the Festival Name.');
+    if (!meta.startDate) throw new ValidationError('Please select the Festival Start Date.');
+    if (!meta.endDate) throw new ValidationError('Please select the Festival End Date.');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    if (meta.startDate && new Date(meta.startDate) < todayStart) {
+      throw new ValidationError('Festival Start Date cannot be in the past. Please select a future date.');
+    }
+    if (meta.startDate && meta.endDate && new Date(meta.endDate) < new Date(meta.startDate)) {
+      throw new ValidationError('Festival End Date should be after Start Date. Please correct the dates.');
+    }
+    if (subEvents.length === 0) throw new ValidationError('Please add at least one sub-event to the festival.');
+    for (let i = 0; i < subEvents.length; i++) {
+      const v = subEvents[i]?.venueFormData || subEvents[i] || {};
+      const label = `Sub-Event #${i + 1}`;
+      if (!v.eventName || !String(v.eventName).trim()) throw new ValidationError(`${label}: Please enter the Event Name.`);
+      if (!v.eventType) throw new ValidationError(`${label}: Please select the Event Type.`);
+      if (!v.eventStartDate) throw new ValidationError(`${label}: Please select the Start Date.`);
+      if (!v.eventEndDate) throw new ValidationError(`${label}: Please select the End Date.`);
+      const subTodayStart = new Date();
+      subTodayStart.setHours(0, 0, 0, 0);
+      if (v.eventStartDate && new Date(v.eventStartDate) < subTodayStart) {
+        throw new ValidationError(`${label}: Start Date cannot be in the past. Please select a future date.`);
+      }
+      if (v.eventStartDate && v.eventEndDate && new Date(v.eventEndDate) < new Date(v.eventStartDate)) {
+        throw new ValidationError(`${label}: End Date should be after Start Date. Please correct the dates.`);
+      }
+      if (v.eventHasSponsorship === true) {
+        const sponsors = Array.isArray(v.eventSponsors) ? v.eventSponsors : [];
+        const validSponsors = sponsors.filter((s) => s && String(s.name || '').trim());
+        if (validSponsors.length === 0) throw new ValidationError(`${label}: Please add at least one sponsor with a name when Sponsorship is enabled.`);
+        // Validate all required sponsor information
+        for (const sponsor of validSponsors) {
+          if (!sponsor.sponsorType || String(sponsor.sponsorType).trim() === '') {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Sponsor Type is required.`);
+          }
+          if (!sponsor.contactPerson || !String(sponsor.contactPerson).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Contact Person is required.`);
+          }
+          if (!sponsor.designation || !String(sponsor.designation).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Designation is required.`);
+          }
+          if (!sponsor.phone || !String(sponsor.phone).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Phone number is required.`);
+          }
+          if (!sponsor.email || !String(sponsor.email).trim()) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Email is required.`);
+          }
+          const emailRegex = /^\S+@\S+\.\S+$/;
+          if (!emailRegex.test(String(sponsor.email).trim())) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Please enter a valid email address.`);
+          }
+          if (!sponsor.sponsorLogo || !sponsor.sponsorLogo.filePath) {
+            throw new ValidationError(`${label}: Sponsor "${sponsor.name}" - Logo is required. Please upload a JPG or PNG file for sponsor identification.`);
+          }
+        }
+      }
+      if (v.eventHasResources === true) {
+        const resources = Array.isArray(v.eventResources) ? v.eventResources : [];
+        const validResources = resources.filter((r) => r && (String(r.type || '').trim() || String(r.description || '').trim()));
+        if (validResources.length === 0) throw new ValidationError(`${label}: Please add at least one resource when Resources are enabled.`);
+      }
+      if (v.eventDutyLeaveAvailable === true) {
+        if (!v.eventDutyLeaveRoleType || !['participants', 'organizers', 'both'].includes(v.eventDutyLeaveRoleType)) {
+          throw new ValidationError(`${label}: Please select Duty Leave eligibility when Duty Leave is enabled.`);
+        }
+      }
+      const subEvt = subEvents[i] || {};
+      const sc = subEvt.stallConfig;
+      if (subEvt.eventType === 'stall' && sc) {
+        if (sc.enableStudentApplied === true && (sc.maxStudentStalls == null || sc.maxStudentStalls === '' || Number(sc.maxStudentStalls) < 1)) {
+          throw new ValidationError(`${label}: Please enter Max Student Stalls (min 1) when Student-Applied Stalls is enabled.`);
+        }
+        if (sc.enableCreatorMade === true) {
+          const creatorStalls = Array.isArray(sc.creatorStalls) ? sc.creatorStalls : [];
+          for (let j = 0; j < creatorStalls.length; j++) {
+            if (!String(creatorStalls[j]?.name || '').trim()) {
+              throw new ValidationError(`${label}: Creator Stall #${j + 1} must have a name.`);
+            }
+          }
+        }
+      }
+      if (!v.eventPaymentType) throw new ValidationError(`${label}: Please select Payment Type (Free or Paid).`);
+      if (v.eventPaymentType === 'paid') {
+        const isTeam = v.eventParticipationType === 'team';
+        if (isTeam && (v.eventRegistrationFeeTeam == null || v.eventRegistrationFeeTeam === '' || Number(v.eventRegistrationFeeTeam) < 1)) {
+          throw new ValidationError(`${label}: Participation fee must be at least ₹1.`);
+        }
+        if (!isTeam && (v.eventRegistrationFeeIndividual == null || v.eventRegistrationFeeIndividual === '' || Number(v.eventRegistrationFeeIndividual) < 1)) {
+          throw new ValidationError(`${label}: Participation fee must be at least ₹1.`);
+        }
+      }
+    }
+  }
+}
+
 module.exports = {
   validateDescription,
   validateCategory,
+  validateNoteForSubmission,
   sanitizeAttachments,
   sanitizePoints,
   parsePolicyCompliance,
+  sanitizeEventSponsors,
+  sanitizeEventResources,
 };

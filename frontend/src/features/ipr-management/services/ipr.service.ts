@@ -220,12 +220,18 @@ class IprService {
   }
 
   // Get my IPR applications
-  async getMyApplications(): Promise<{
+  async getMyApplications(params?: { page?: number; limit?: number; status?: string; iprType?: string }): Promise<{
     data: IprApplication[];
     grouped: any;
     stats: any;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
   }> {
-    const response = await api.get('/ipr/my-applications');
+    const response = await api.get('/ipr/my-applications', { params });
     return response.data;
   }
 
@@ -576,7 +582,8 @@ class FileUploadService {
       return response.data.data.filePath;
     } catch (error: unknown) {
       logger.error('File upload error:', error);
-      if (error && typeof error === 'object' && 'response' in error) {
+      if (error && typeof error ===
+   'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { message?: string } } };
         throw new Error(axiosError.response?.data?.message || 'Failed to upload file');
       }
@@ -614,7 +621,8 @@ class FileUploadService {
       return response.data.data.filePath;
     } catch (error: unknown) {
       logger.error('Prototype upload error:', error);
-      if (error && typeof error === 'object' && 'response' in error) {
+      if (error && typeof error ===
+   'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: { message?: string } } };
         throw new Error(axiosError.response?.data?.message || 'Failed to upload prototype');
       }

@@ -58,10 +58,13 @@ export default function LabelManager() {
           className="w-4 h-4 rounded-full transition-transform"
           style={{
             backgroundColor: c,
-            outline: selected === c ? '2px solid white' : 'none',
+            outline: selected ===
+   c ? '2px solid white' : 'none',
             outlineOffset: '1px',
-            boxShadow: selected === c ? `0 0 0 3px ${c}80` : 'none',
-            transform: selected === c ? 'scale(1.2)' : 'scale(1)',
+            boxShadow: selected ===
+   c ? `0 0 0 3px ${c}80` : 'none',
+            transform: selected ===
+   c ? 'scale(1.2)' : 'scale(1)',
           }}
         />
       ))}
@@ -89,18 +92,23 @@ export default function LabelManager() {
 
       {/* Label list */}
       {customLabels.map((label) => {
-        const isActive = currentView === 'label' && currentLabelId === label.id;
+        const isActive = currentView ===
+   'label' && currentLabelId ===
+   label.id;
         return (
           <div key={label.id} className="group">
-            {editingId === label.id ? (
+            {editingId ===
+   label.id ? (
               <div className="px-3 py-1.5 rounded-lg mx-1 mb-1" style={{ background: 'rgba(255,255,255,0.08)' }}>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleUpdate(label.id);
-                    if (e.key === 'Escape') cancelEdit();
+                    if (e.key ===
+   'Enter') handleUpdate(label.id);
+                    if (e.key ===
+   'Escape') cancelEdit();
                   }}
                   className="w-full px-2 py-1 text-xs rounded border bg-transparent text-white placeholder-white/40"
                   style={{ borderColor: 'rgba(255,255,255,0.25)' }}
@@ -158,8 +166,10 @@ export default function LabelManager() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreate();
-              if (e.key === 'Escape') cancelEdit();
+              if (e.key ===
+   'Enter') handleCreate();
+              if (e.key ===
+   'Escape') cancelEdit();
             }}
             placeholder="Label name..."
             className="w-full px-2 py-1 text-xs rounded border bg-transparent text-white placeholder-white/40"
@@ -174,7 +184,8 @@ export default function LabelManager() {
         </div>
       )}
 
-      {customLabels.length === 0 && !isCreating && (
+      {customLabels.length ===
+   0 && !isCreating && (
         <p className="px-3 py-1 text-xs italic" style={{ color: 'rgba(255,255,255,0.35)' }}>No labels yet</p>
       )}
     </div>

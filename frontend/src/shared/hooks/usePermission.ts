@@ -31,7 +31,8 @@ export function usePermission() {
     if (Array.isArray(user.permissions)) {
       // Handle if permissions is an array of objects with 'name' property
       return user.permissions.map((p: { name?: string } | string) => 
-        typeof p === 'string' ? p : p.name || ''
+        typeof p ===
+   'string' ? p : p.name || ''
       ).filter(Boolean);
     }
     return [];
@@ -43,7 +44,8 @@ export function usePermission() {
       if (!user) return false;
       
       // Admin has all permissions
-      if (userType === 'admin') return true;
+      if (userType ===
+   'admin') return true;
       
       return permissions.includes(permission);
     },
@@ -56,7 +58,8 @@ export function usePermission() {
       if (!user) return false;
       
       // Admin has all permissions
-      if (userType === 'admin') return true;
+      if (userType ===
+   'admin') return true;
       
       return permissionList.some(permission => permissions.includes(permission));
     },
@@ -69,7 +72,8 @@ export function usePermission() {
       if (!user) return false;
       
       // Admin has all permissions
-      if (userType === 'admin') return true;
+      if (userType ===
+   'admin') return true;
       
       return permissionList.every(permission => permissions.includes(permission));
     },
@@ -85,7 +89,9 @@ export function usePermission() {
       
       // Check both userType and role.name
       return rolesToCheck.some(r => 
-        userType === r || roleName === r
+        userType ===
+   r || roleName ===
+   r
       );
     },
     [user, userType, roleName]
@@ -106,7 +112,9 @@ export function usePermission() {
       // Check roles first
       if (roles && roles.length > 0) {
         const hasMatchingRole = roles.some(r => 
-          userType === r || roleName === r
+          userType ===
+   r || roleName ===
+   r
         );
         if (!hasMatchingRole) {
           return false;
@@ -136,19 +144,22 @@ export function usePermission() {
   // Check if user is an admin
   const isAdmin = useMemo(() => {
     if (!user) return false;
-    return userType === 'admin';
+    return userType ===
+   'admin';
   }, [user, userType]);
 
   // Check if user is faculty
   const isFaculty = useMemo(() => {
     if (!user) return false;
-    return userType === 'faculty';
+    return userType ===
+   'faculty';
   }, [user, userType]);
 
   // Check if user is a student
   const isStudent = useMemo(() => {
     if (!user) return false;
-    return userType === 'student';
+    return userType ===
+   'student';
   }, [user, userType]);
 
   return {

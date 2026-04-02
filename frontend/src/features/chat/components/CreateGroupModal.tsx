@@ -83,7 +83,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         // Skip header row if it contains common header names
-        if (i === 0 && /uid|username|user|member|employee|student/i.test(line)) {
+        if (i ===
+   0 && /uid|username|user|member|employee|student/i.test(line)) {
           continue;
         }
         
@@ -242,14 +243,18 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab
+                activeTab ===
+   tab
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
                   : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
               }`}
             >
-              {tab === 'basic' && '1. Basic Info'}
-              {tab === 'members' && `2. Members ${memberUids.length > 0 ? `(${memberUids.length})` : ''}`}
-              {tab === 'permissions' && '3. Permissions'}
+              {tab ===
+   'basic' && '1. Basic Info'}
+              {tab ===
+   'members' && `2. Members ${memberUids.length > 0 ? `(${memberUids.length})` : ''}`}
+              {tab ===
+   'permissions' && '3. Permissions'}
             </button>
           ))}
         </div>
@@ -269,7 +274,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
           )}
 
           {/* Basic Info Tab */}
-          {activeTab === 'basic' && (
+          {activeTab ===
+   'basic' && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -326,7 +332,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
           )}
 
           {/* Members Tab */}
-          {activeTab === 'members' && (
+          {activeTab ===
+   'members' && (
             <div className="space-y-4">
               {/* Bulk CSV Upload */}
               <div className="p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
@@ -382,7 +389,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
                     onChange={(e) => setManualUid(e.target.value)}
                     placeholder="Enter UID (e.g., EMP001, STD12345)"
                     className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700"
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddUid()}
+                    onKeyPress={(e) => e.key ===
+   'Enter' && handleAddUid()}
                   />
                   <button
                     onClick={handleAddUid}
@@ -433,7 +441,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
           )}
 
           {/* Permissions Tab */}
-          {activeTab === 'permissions' && (
+          {activeTab ===
+   'permissions' && (
             <div className="space-y-6">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Configure default permissions for all members. You can customize individual member permissions after creating the group.
@@ -536,7 +545,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
           <div className="flex gap-2">
             {activeTab !== 'basic' && (
               <button
-                onClick={() => setActiveTab(activeTab === 'permissions' ? 'members' : 'basic')}
+                onClick={() => setActiveTab(activeTab ===
+   'permissions' ? 'members' : 'basic')}
                 className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
               >
                 ← Back
@@ -552,7 +562,8 @@ export function CreateGroupModal({ onClose }: CreateGroupModalProps) {
             </button>
             {activeTab !== 'permissions' ? (
               <button
-                onClick={() => setActiveTab(activeTab === 'basic' ? 'members' : 'permissions')}
+                onClick={() => setActiveTab(activeTab ===
+   'basic' ? 'members' : 'permissions')}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium"
               >
                 Next →

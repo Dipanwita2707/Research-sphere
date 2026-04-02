@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter, usePathname } from 'next/navigation';
@@ -9,6 +9,8 @@ import { useTheme } from '@/shared/providers/ThemeProvider';
 import api from '@/shared/api/api';
 import Link from 'next/link';
 import logger from '@/shared/utils/logger';
+import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
+import { useMyClubs } from '@/features/dsw/hooks';
 
 interface DepartmentPermission {
   category: string;
@@ -36,7 +38,8 @@ const hasPermission = (permissions: DepartmentPermission[], permissionName: stri
 };
 
 const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
-  if (!permissions || permissions.length === 0) return false;
+  if (!permissions || permissions.length ===
+   0) return false;
   
   const drdKeys = [
     'ipr_review', 'ipr_approve', 'ipr_assign_school', 'ipr_recommend',
@@ -84,9 +87,31 @@ export default function NavigationHeader() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
-  const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
-  const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+  const roleName = user?.role?.name || user?.userType || '';
+  const isStudent = roleName ===
+   'student';
+  const isFaculty = roleName ===
+   'faculty';
+  const isStaff = roleName ===
+   'staff';
+  const isAdmin = roleName ===
+   'admin' || roleName ===
+   'superadmin';
+  const { data: notingPermsData } = useNotingPermissions({ enabled: !!user });
+  const { data: myClubsData } = useMyClubs({ enabled: isStudent });
+  const isClubChairpersonFromNoting = !!notingPermsData?.isClubChairperson;
+  const canViewNotingAdminDashboard = isAdmin;
+  const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
+    club => club.chairpersonId ===
+   user.id && club.status ===
+   'active'
+  ));
+  const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
+  const canBrowseEvents = true;
+  const canViewEventDashboard =
+    isAdmin ||
+    hasPermission(userPermissions, 'event_view_reports') ||
+    hasPermission(userPermissions, 'event_manage_all');
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
@@ -178,17 +203,17 @@ export default function NavigationHeader() {
     // Build menu items based on permissions
   const menuItems: MenuItem[] = [];
 
-  // ============================================
-  // Build Submit & Track children - SIMPLIFIED 3 OPTIONS
+  // =====================================
+    // Build Submit & Track children - SIMPLIFIED 3 OPTIONS
   // 1. Monthly Progress Tracker
   // 2. My Research (view all submitted work)
   // 3. New Filing (file new work)
-  // ============================================
-  // Build Submit & Track children - 2 OPTIONS
+  // =====================================
+    // Build Submit & Track children - 2 OPTIONS
   // 1. My Research (view all submitted work)
   // 2. New Filing (file new work)
-  // ============================================
-  const submitTrackChildren: SubMenuItem[] = [
+  // =====================================
+    const submitTrackChildren: SubMenuItem[] = [
     // Option 1: My Research - View all submitted work (with sub-options)
     {
       name: 'My Research',
@@ -219,10 +244,10 @@ export default function NavigationHeader() {
     submitTrackChildren.push({ name: 'Mentor Approvals', href: '/mentor-approvals', description: 'Review & approve student work' });
   }
 
-  // ============================================
-  // Build Review & Approval children - ORGANIZED
-  // ============================================
-  const hasReviewAccess = hasDrdAccess || canReviewIpr || canApproveIpr || canReviewResearch || 
+  // =====================================
+    // Build Review & Approval children - ORGANIZED
+  // =====================================
+    const hasReviewAccess = hasDrdAccess || canReviewIpr || canApproveIpr || canReviewResearch || 
     canApproveResearch || canReviewBook || canApproveBook || canReviewConference || 
     canApproveConference || canReviewGrant || canApproveGrant || hasFinanceAccess;
 
@@ -249,10 +274,10 @@ export default function NavigationHeader() {
     reviewApprovalChildren.push({ name: '🏦 Finance & Payments', href: '/finance/dashboard', description: 'Manage incentive payments' });
   }
 
-  // ============================================
-  // Build Research and Development sub-items
-  // ============================================
-  const rndSubItems: SubMenuItem[] = [];
+  // =====================================
+    // Build Research and Development sub-items
+  // =====================================
+    const rndSubItems: SubMenuItem[] = [];
   
   if (canFileIpr || canFileResearch) {
     rndSubItems.push({
@@ -305,11 +330,38 @@ export default function NavigationHeader() {
     });
   }
 
-  // ============================================
-  // NAVIGATION - Main navigation menu
+  // =====================================
+    // NAVIGATION - Main navigation menu
   // Level 1: Academics, Research and Development
   // Level 2 (under R&D): Submit & Track, Review & Approve
-  // ============================================
+  // =====================================
+    // =====================================
+    // Build TMS (Ticket Management) children - role-based
+  // ===
+  // TMS HIDDEN — Development in progress ===
+  // Uncomment the block below to re-enable Ticket Management in navigation
+  // =====================================
+    const tmsChildren: SubMenuItem[] = [];
+  
+  if (isStudent) {
+    tmsChildren.push(
+      { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
+      { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
+    );
+  }
+  if (isFaculty || isStaff || isAdmin) {
+    tmsChildren.push(
+      { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
+    );
+  }
+  if (isAdmin) {
+    tmsChildren.push(
+      { name: '📊 TMS Dashboard', href: '/tms/admin', description: 'Analytics & overview' },
+      { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
+    );
+  }
+  
+
   const navigationSubItems: SubMenuItem[] = [
     // Academics
     {
@@ -324,7 +376,45 @@ export default function NavigationHeader() {
         { name: '✅ Attendance', href: '#', description: 'Attendance tracking (Coming Soon)' },
       ],
     },
+    // Events & Stalls
+    {
+      name: '🎪 Events & Stalls',
+      description: 'Browse events and stall opportunities',
+      children: [
+        ...(canBrowseEvents ? [{ name: '📅 All Events', href: '/events', description: 'Browse and register for events' }] : []),
+        { name: '🪄 Stall Opportunities', href: '/events/stall-opportunities', description: 'Apply for stalls at events' },
+        { name: '📋 My Registrations', href: '/events/registrations', description: 'View your event registrations' },
+      ],
+    },
   ];
+
+  const eventsMenu = navigationSubItems.find((item) => item.name ===
+   '🎪 Events & Stalls');
+  if (eventsMenu?.children && (isFaculty || isClubChairperson)) {
+    eventsMenu.children.splice(1, 0, {
+      name: '📝 My Created Events',
+      href: '/events/my-events',
+      description: 'Manage events you organized',
+    });
+  }
+  if (eventsMenu?.children && canViewEventDashboard) {
+    eventsMenu.children.splice(Math.min(eventsMenu.children.length, 2), 0, {
+      name: '📊 Event Dashboard',
+      href: '/events/admin',
+      description: 'Analytics, approval stages, and admin controls',
+    });
+  }
+
+  if (!isStudent) {
+    navigationSubItems.push({
+      name: '📋 Noting & Approval',
+      description: 'Create, monitor, and moderate approval notes',
+      children: [
+        { name: '📝 Noting Workspace', href: '/noting', description: 'Create and track approval notes' },
+        ...(canViewNotingAdminDashboard ? [{ name: '📊 Noting Dashboard', href: '/noting/admin', description: 'Analytics, activity, and moderation overview' }] : []),
+      ],
+    });
+  }
 
   // Add Research and Development if there are sub-items
   if (rndSubItems.length > 0) {
@@ -335,16 +425,25 @@ export default function NavigationHeader() {
     });
   }
 
+  // Add Ticket Management if there are sub-items
+  if (tmsChildren.length > 0) {
+    navigationSubItems.push({
+      name: '🎫 Ticket Management',
+      description: 'Grievances, Assistance & Enquiries',
+      children: tmsChildren,
+    });
+  }
+
   // Add Navigation menu
   menuItems.push({
     name: 'UMS Navigation',
     subItems: navigationSubItems,
   });
 
-  // ============================================
-  // ADMINISTRATION - For system admins only
-  // ============================================
-  if (isAdmin) {
+  // =====================================
+    // ADMINISTRATION - For system admins only
+  // =====================================
+    if (isAdmin) {
     menuItems.push({
       name: 'Administration',
       subItems: [
@@ -385,17 +484,30 @@ export default function NavigationHeader() {
             { name: '👨‍🏫 Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
             { name: '👨‍🎓 Students', href: '/admin/students', description: 'Manage student records' },
             { name: '🔐 Role Permissions', href: '/admin/permissions', description: 'Configure access rights' },
-            { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+            { name: '� Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
+            { name: '�📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+          ],
+        },
+        
+        // Gate Entry Management
+        {
+          name: '🚪 Gate Entry',
+          description: 'Manage campus gate entries',
+          children: [
+            { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' },
+            { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' },
+            { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' },
+            { name: '📊 Analytics', href: '/admin/gate-entry/analytics', description: 'Comprehensive analytics & insights' },
           ],
         },
       ],
     });
   }
 
-  // ============================================
-  // MY ACCOUNT - For students only
-  // ============================================
-  if (isStudent) {
+  // =====================================
+    // MY ACCOUNT - For students only
+  // =====================================
+    if (isStudent) {
     menuItems.push({
       name: 'My Account',
       subItems: [
@@ -405,10 +517,10 @@ export default function NavigationHeader() {
     });
   }
 
-  // ============================================
-  // CHAT - For all users
-  // ============================================
-  menuItems.push({
+  // =====================================
+    // CHAT - For all users
+  // =====================================
+    menuItems.push({
     name: 'Chat',
     subItems: [
       { name: '💬 All Chats', href: '/chat', description: 'View all conversations' },
@@ -451,7 +563,8 @@ export default function NavigationHeader() {
           <Link
             href="/dashboard"
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-              pathname === '/dashboard'
+              pathname ===
+   '/dashboard'
                 ? 'bg-white/20 text-white shadow-lg'
                 : 'text-white/90 hover:bg-white/15 hover:text-white'
             }`}
@@ -468,7 +581,8 @@ export default function NavigationHeader() {
             >
               <button
                 onClick={() => {
-                  if (activeDropdown === item.name) {
+                  if (activeDropdown ===
+   item.name) {
                     setActiveDropdown(null);
                     setActiveSubmenu(null);
                     setActiveSubmenu2(null);
@@ -484,17 +598,20 @@ export default function NavigationHeader() {
                   setActiveSubmenu2(null);
                 }}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${
-                  activeDropdown === item.name
+                  activeDropdown ===
+   item.name
                     ? 'bg-white/20 text-white shadow-lg'
                     : 'text-white/90 hover:bg-white/15 hover:text-white'
                 }`}
               >
                 {item.name}
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === item.name ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown ===
+   item.name ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Dropdown - Blue Glassmorphism Effect Full Width */}
-              {activeDropdown === item.name && item.subItems && (
+              {activeDropdown ===
+   item.name && item.subItems && (
                 <div 
                   className="fixed left-0 right-0 mt-2 shadow-2xl border-t border-gray-200 z-50 max-h-[80vh] overflow-y-auto"
                   style={{
@@ -590,8 +707,10 @@ export default function NavigationHeader() {
                         </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                          {item.subItems.find(si => si.name === activeSubmenu)?.children?.map((child) => {
-                            const isComingSoon = child.href === '#' || child.description?.includes('Coming Soon');
+                          {item.subItems.find(si => si.name ===
+   activeSubmenu)?.children?.map((child) => {
+                            const isComingSoon = child.href ===
+   '#' || child.description?.includes('Coming Soon');
                             const hasNestedChildren = child.children && child.children.length > 0;
                             
                             // Coming Soon items
@@ -705,10 +824,13 @@ export default function NavigationHeader() {
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {item.subItems
-                            .find(si => si.name === activeSubmenu)?.children
-                            ?.find(c => c.name === activeSubmenu2)?.children
+                            .find(si => si.name ===
+   activeSubmenu)?.children
+                            ?.find(c => c.name ===
+   activeSubmenu2)?.children
                             ?.map((grandChild) => {
-                              const isComingSoon = grandChild.href === '#' || grandChild.description?.includes('Coming Soon');
+                              const isComingSoon = grandChild.href ===
+   '#' || grandChild.description?.includes('Coming Soon');
                               const hasNestedChildren = grandChild.children && grandChild.children.length > 0;
                               
                               if (isComingSoon && !hasNestedChildren) {
@@ -824,11 +946,15 @@ export default function NavigationHeader() {
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {item.subItems
-                            .find(si => si.name === activeSubmenu)?.children
-                            ?.find(c => c.name === activeSubmenu2)?.children
-                            ?.find(gc => gc.name === activeSubmenu3)?.children
+                            .find(si => si.name ===
+   activeSubmenu)?.children
+                            ?.find(c => c.name ===
+   activeSubmenu2)?.children
+                            ?.find(gc => gc.name ===
+   activeSubmenu3)?.children
                             ?.map((greatGrandChild) => {
-                              const isComingSoon = greatGrandChild.href === '#' || greatGrandChild.description?.includes('Coming Soon');
+                              const isComingSoon = greatGrandChild.href ===
+   '#' || greatGrandChild.description?.includes('Coming Soon');
                               
                               if (isComingSoon) {
                                 return (
@@ -901,7 +1027,8 @@ export default function NavigationHeader() {
           {/* Quick Links Dropdown */}
           <div className="relative">
             <button
-              onClick={() => setActiveDropdown(activeDropdown === 'quicklinks' ? null : 'quicklinks')}
+              onClick={() => setActiveDropdown(activeDropdown ===
+   'quicklinks' ? null : 'quicklinks')}
               onMouseEnter={() => setActiveDropdown('quicklinks')}
               className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 group"
             >
@@ -909,11 +1036,13 @@ export default function NavigationHeader() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
               <span className="text-sm font-medium hidden lg:block">Quick Links</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeDropdown === 'quicklinks' ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeDropdown ===
+   'quicklinks' ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Quick Links Dropdown Menu */}
-            {activeDropdown === 'quicklinks' && (
+            {activeDropdown ===
+   'quicklinks' && (
               <div
                 className="absolute top-full right-0 mt-2 w-64 shadow-2xl border-t border-gray-200 z-50 rounded-lg overflow-hidden"
                 style={{
@@ -984,9 +1113,11 @@ export default function NavigationHeader() {
           <button 
             onClick={toggleTheme}
             className="p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={theme ===
+   'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {theme === 'dark' ? (
+            {theme ===
+   'dark' ? (
               <Sun className="w-5 h-5" />
             ) : (
               <Moon className="w-5 h-5" />

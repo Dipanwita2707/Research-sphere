@@ -1,4 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
+﻿const { PrismaClient } = require("@prisma/client");
 
 // Singleton pattern to prevent multiple Prisma Client instances
 let prisma;
@@ -14,16 +14,20 @@ const buildDbUrl = (extraParams = {}) => {
   return extras ? base + separator + extras : base;
 };
 
+// Connection pool size: reduced per-worker to accommodate PM2 cluster mode.
+const POOL_SIZE = parseInt(process.env.DB_POOL_SIZE, 10) || 12;
+const POOL_TIMEOUT = parseInt(process.env.DB_POOL_TIMEOUT, 10) || 30;
+
 if (process.env.NODE_ENV === 'production') {
-  // Production: single instance with tuned pool
+  // Production: single instance with tuned pool, emit events for error handling
   prisma = new PrismaClient({
-    log: ['error'],
+    log: [{ level: 'error', emit: 'event' }],
     datasources: {
-      db: { url: buildDbUrl({ connect_timeout: 15 }) },
+      db: { url: buildDbUrl({ connection_limit: POOL_SIZE, pool_timeout: POOL_TIMEOUT, connect_timeout: 15 }) },
     },
     transactionOptions: {
-      maxWait: 20000,
-      timeout: 30000,
+      maxWait: 5000,
+      timeout: 10000,
       isolationLevel: 'ReadCommitted',
     },
   });
@@ -31,13 +35,17 @@ if (process.env.NODE_ENV === 'production') {
   // Development: global singleton to survive HMR
   if (!global.prisma) {
     global.prisma = new PrismaClient({
-      log: ['warn', 'error'],
+      log: [
+        'warn',
+        'error',
+        { level: 'query', emit: 'event' }, // For slow query logging
+      ],
       datasources: {
-        db: { url: buildDbUrl({ connect_timeout: 15 }) },
+        db: { url: buildDbUrl({ connection_limit: POOL_SIZE, pool_timeout: POOL_TIMEOUT, connect_timeout: 15 }) },
       },
       transactionOptions: {
-        maxWait: 20000,
-        timeout: 30000,
+        maxWait: 5000,
+        timeout: 10000,
         isolationLevel: 'ReadCommitted',
       },
     });
@@ -45,24 +53,35 @@ if (process.env.NODE_ENV === 'production') {
   prisma = global.prisma;
 }
 
-// Aiven / cloud PostgreSQL periodically closes idle connections (OS error 10054 —
-// "connection forcibly closed by remote host"). Prisma's internal pool reconnects
-// automatically on the next query, so we just do a lightweight startup ping.
-// A full manual retry loop is not needed and causes log spam.
-const initConnection = async () => {
+// Connection retry logic
+let connectionAttempts = 0;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
+
+const connectWithRetry = async () => {
+  const log = require('../utils/logger');
   try {
-    await prisma.$queryRaw`SELECT 1`;
-    console.log('✅ Database connected successfully via Prisma');
+    await prisma.$connect();
+    log.ok('Database connected successfully via Prisma');
+    connectionAttempts = 0;
   } catch (error) {
-    // Non-fatal on startup — Prisma will reconnect on first real query
-    console.warn('⚠️ Database startup ping failed (Prisma will retry automatically):', error.message);
+    connectionAttempts++;
+    log.error(`Database connection attempt ${connectionAttempts} failed: ${error.message}`);
+    if (connectionAttempts < MAX_RETRIES) {
+      log.warn(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
+      setTimeout(connectWithRetry, RETRY_DELAY);
+    } else {
+      log.error('Max connection retries reached. Exiting...');
+      process.exit(1);
+    }
   }
 };
 
-initConnection();
+connectWithRetry();
 
-// Suppress noisy but harmless cloud-idle connection-reset messages
+// Error handler: suppress noisy cloud-idle resets, log everything else
 prisma.$on('error', (e) => {
+  const log = require('../utils/logger');
   const msg = (e.message || '').toLowerCase();
   if (
     msg.includes('connection reset') ||
@@ -70,23 +89,39 @@ prisma.$on('error', (e) => {
     msg.includes('kind: io') ||
     msg.includes('econnreset')
   ) {
-    // Prisma handles this internally — no log needed
+    // Prisma handles reconnection internally — no log needed
     return;
   }
-  console.error('Prisma runtime error:', e);
+  log.error('Prisma runtime error:', e);
+  if (connectionAttempts === 0) {
+    connectWithRetry();
+  }
 });
 
+// Slow query logging (development only) — log queries > 500ms
+if (process.env.NODE_ENV !== "production") {
+  const SLOW_QUERY_MS = parseInt(process.env.SLOW_QUERY_MS, 10) || 500;
+  prisma.$on("query", (e) => {
+    const duration = e.duration;
+    if (duration >= SLOW_QUERY_MS) {
+      const log = require("../utils/logger");
+      log.slowQuery(duration, e.query);
+    }
+  });
+}
+
 // Handle cleanup on application termination
-process.on('beforeExit', async () => {
+// AWS RDS is a persistent server — no keep-alive pings needed.
+process.on("beforeExit", async () => {
   await prisma.$disconnect();
 });
 
-process.on('SIGINT', async () => {
+process.on("SIGINT", async () => {
   await prisma.$disconnect();
   process.exit(0);
 });
 
-process.on('SIGTERM', async () => {
+process.on("SIGTERM", async () => {
   await prisma.$disconnect();
   process.exit(0);
 });

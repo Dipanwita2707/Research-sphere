@@ -75,7 +75,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
   const router = useRouter();
   const { user } = useAuthStore();
   const { toast } = useToast();
-  const isStudent = user?.userType === 'student';
+  const isStudent = user?.userType ===
+   'student';
   
   const [application, setApplication] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -145,8 +146,10 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
       });
       
       // If accepted, apply the suggestion to the form
-      if (action === 'accept') {
-        const suggestion = suggestions.find(s => s.id === suggestionId);
+      if (action ===
+   'accept') {
+        const suggestion = suggestions.find(s => s.id ===
+   suggestionId);
         if (suggestion) {
           applysuggestionToForm(suggestion);
         }
@@ -165,15 +168,20 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
     const fieldName = suggestion.fieldName;
     const value = suggestion.suggestedValue;
     
-    if (fieldName === 'title') {
+    if (fieldName ===
+   'title') {
       setFormData(prev => ({ ...prev, title: value }));
-    } else if (fieldName === 'description') {
+    } else if (fieldName ===
+   'description') {
       setFormData(prev => ({ ...prev, description: value }));
-    } else if (fieldName === 'remarks') {
+    } else if (fieldName ===
+   'remarks') {
       setFormData(prev => ({ ...prev, remarks: value }));
-    } else if (fieldName === 'projectType') {
+    } else if (fieldName ===
+   'projectType') {
       setFormData(prev => ({ ...prev, projectType: value }));
-    } else if (fieldName === 'filingType') {
+    } else if (fieldName ===
+   'filingType') {
       setFormData(prev => ({ ...prev, filingType: value }));
     }
   };
@@ -195,10 +203,13 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
   };
 
   const getSuggestionsForField = (fieldName: string) => {
-    return suggestions.filter(s => s.fieldName === fieldName && s.status === 'pending');
+    return suggestions.filter(s => s.fieldName ===
+   fieldName && s.status ===
+   'pending');
   };
 
-  const pendingSuggestions = suggestions.filter(s => s.status === 'pending');
+  const pendingSuggestions = suggestions.filter(s => s.status ===
+   'pending');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -245,7 +256,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
         filingType: formData.filingType,
         sdgs: formData.selectedSdgs.map(code => ({
           code,
-          title: SDG_OPTIONS.find(s => s.code === code)?.title || ''
+          title: SDG_OPTIONS.find(s => s.code ===
+   code)?.title || ''
         })),
         annexureFilePath,
         prototypeFilePath,
@@ -301,8 +313,10 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
 
   // Check if application can be edited (only draft, changes_required, or pending_mentor_approval)
   // Once resubmitted, it's under review and cannot be edited until DRD requests changes again
-  const canEdit = application?.status === 'draft' || 
-                  application?.status === 'changes_required' 
+  const canEdit = application?.status ===
+   'draft' || 
+                  application?.status ===
+   'changes_required' 
                   ;
   
   if (!canEdit) {
@@ -348,7 +362,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                 </p>
               </div>
             </div>
-            {application?.status === 'pending_mentor_approval' && (
+            {application?.status ===
+   'pending_mentor_approval' && (
               <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
                 Pending Mentor Approval
               </span>
@@ -374,7 +389,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
         )}
 
         {/* Changes Requested Banner */}
-        {application?.status === 'changes_required' && application?.changesRequestedBy && (
+        {application?.status ===
+   'changes_required' && application?.changesRequestedBy && (
           <div className={`mb-6 p-4 rounded-xl border ${
             application.changesRequestedBy.isMentor 
               ? 'bg-purple-50 border-purple-200' 
@@ -476,7 +492,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                     >
                       <Check className="w-3 h-3" /> Accept
@@ -484,7 +501,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                     >
                       <X className="w-3 h-3" /> Reject
@@ -534,7 +552,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                     >
                       <Check className="w-3 h-3" /> Accept
@@ -542,7 +561,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                     >
                       <X className="w-3 h-3" /> Reject
@@ -599,7 +619,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                         >
                           <Check className="w-3 h-3" /> Accept
@@ -607,7 +628,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                         >
                           <X className="w-3 h-3" /> Reject
@@ -656,7 +678,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                         >
                           <Check className="w-3 h-3" /> Accept
@@ -664,7 +687,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                         <button
                           type="button"
                           onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                          disabled={respondingTo === suggestion.id}
+                          disabled={respondingTo ===
+   suggestion.id}
                           className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                         >
                           <X className="w-3 h-3" /> Reject
@@ -739,7 +763,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'accept')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
                     >
                       <Check className="w-3 h-3" /> Accept
@@ -747,7 +772,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
                     <button
                       type="button"
                       onClick={() => handleRespondToSuggestion(suggestion.id, 'reject')}
-                      disabled={respondingTo === suggestion.id}
+                      disabled={respondingTo ===
+   suggestion.id}
                       className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-50"
                     >
                       <X className="w-3 h-3" /> Reject
@@ -807,7 +833,8 @@ export default function EditApplicationPage({ params }: EditApplicationPageProps
               
 
               {/* Supporting documents upload removed as requested. */}
-              {formData.filingType === 'complete' && (
+              {formData.filingType ===
+   'complete' && (
                 <div>
                   <label className="text-sm text-gray-700 mb-1 block">Replace Prototype (ZIP)</label>
                   <input type="file" accept=".zip" onChange={(e) => setPrototypeFile(e.target.files?.[0] || null)} />

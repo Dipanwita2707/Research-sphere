@@ -374,8 +374,10 @@ function ContributedIPRDetailContent() {
                         {review.reviewerRole?.replace(/_/g, ' ')}
                       </span>
                       <span className={`px-2 py-1 text-xs rounded ${
-                        review.decision === 'approved' ? 'bg-green-100 text-green-700' :
-                        review.decision === 'rejected' ? 'bg-red-100 text-red-700' :
+                        review.decision ===
+   'approved' ? 'bg-green-100 text-green-700' :
+                        review.decision ===
+   'rejected' ? 'bg-red-100 text-red-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>
                         {review.decision?.replace(/_/g, ' ')}
@@ -412,8 +414,10 @@ function ContributedIPRDetailContent() {
                         Field: {suggestion.fieldName?.replace(/_/g, ' ')}
                       </span>
                       <span className={`px-2 py-1 text-xs rounded ${
-                        suggestion.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                        suggestion.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                        suggestion.status ===
+   'accepted' ? 'bg-green-100 text-green-700' :
+                        suggestion.status ===
+   'rejected' ? 'bg-red-100 text-red-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>
                         {suggestion.status}

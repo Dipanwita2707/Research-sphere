@@ -1,487 +1,492 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { 
-  ArrowLeft, 
-  TrendingUp, 
-  Users, 
-  UserCheck, 
-  DollarSign, 
-  Calendar,
-  Clock,
-  Loader2,
-  AlertCircle,
-  Download,
-  BarChart3,
-  PieChart,
+import { useParams } from 'next/navigation';
+import {
   Activity,
-  IndianRupee
+  AlertCircle,
+  ArrowLeft,
+  BarChart3,
+  CalendarClock,
+  CheckCircle2,
+  Clock3,
+  IndianRupee,
+  RefreshCw,
+  ShieldCheck,
+  TrendingUp,
+  UserCheck,
+  UserMinus,
+  Users,
 } from 'lucide-react';
 import { eventService } from '@/features/event-management/services/event.service';
-import type { Event, EventStatistics } from '@/features/event-management/types/event.types';
+import type { EventStatistics } from '@/features/event-management/types/event.types';
 import { useToast } from '@/shared/ui-components/Toast';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import StatsCard from './components/StatsCard';
+import SponsorTable from './components/SponsorTable';
+import RevenueChart from './components/RevenueChart';
+import RecentRegistrationsTable from './components/RecentRegistrationsTable';
+import StatusBreakdownList from './components/StatusBreakdownList';
+import VolunteerLeaderboard from './components/VolunteerLeaderboard';
+import FlowByHourChart from './components/FlowByHourChart';
+
+const formatDays = (value: number | null | undefined) => {
+  if (value == null) return 'N/A';
+  if (value ===
+   0) return 'Today';
+  if (value > 0) return `In ${value} day${value ===
+   1 ? '' : 's'}`;
+  return `${Math.abs(value)} day${Math.abs(value) ===
+   1 ? '' : 's'} ago`;
+};
+
+const getStatusTone = (status?: string) => {
+  const normalized = String(status || '').toLowerCase();
+  if (normalized ===
+   'published' || normalized ===
+   'ongoing') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+  if (normalized ===
+   'completed') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+  if (normalized ===
+   'draft') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+  if (normalized ===
+   'cancelled') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+  return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+};
 
 export default function EventStatisticsPage() {
   const params = useParams();
-  const router = useRouter();
   const { toast } = useToast();
   const eventId = params.id as string;
 
-  const [event, setEvent] = useState<Event | null>(null);
   const [statistics, setStatistics] = useState<EventStatistics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  useEffect(() => {
-    loadEventAndStatistics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
-
-  const loadEventAndStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     try {
       setLoading(true);
-      const [eventData, statsData] = await Promise.all([
-        eventService.getEvent(eventId),
-        eventService.getStatistics(eventId)
-      ]);
-      setEvent(eventData);
-      setStatistics(statsData);
+      const stats = await eventService.getStatistics(eventId);
+      setStatistics(stats);
     } catch (error: any) {
-      toast({
-        type: 'error',
-        message: error.response?.data?.message || 'Failed to load statistics'
-      });
+      toast({ type: 'error', message: getErrorMessage(error) });
     } finally {
       setLoading(false);
     }
-  };
+  }, [eventId, toast]);
 
-  const handleExportReport = async () => {
+  useEffect(() => {
+    void loadStatistics();
+  }, [loadStatistics]);
+
+  const handleRefresh = async () => {
     try {
-      toast({ type: 'info', message: 'Generating report...' });
-      // Implement export functionality
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast({ type: 'success', message: 'Report downloaded successfully' });
-    } catch (error) {
-      toast({ type: 'error', message: 'Failed to export report' });
+      setRefreshing(true);
+      const stats = await eventService.getStatistics(eventId);
+      setStatistics(stats);
+      toast({ type: 'success', message: 'Statistics refreshed' });
+    } catch (error: any) {
+      toast({ type: 'error', message: getErrorMessage(error) });
+    } finally {
+      setRefreshing(false);
     }
   };
 
+  const event = statistics?.eventSummary;
+  const sponsorship = statistics?.sponsorship;
+  const participation = statistics?.participationMetrics;
+  const insights = statistics?.eventInsights;
+  const funnel = statistics?.registrationFunnel;
+  const paymentMetrics = statistics?.paymentMetrics;
+  const capacity = statistics?.capacityInsights;
+  const demographics = statistics?.participantDemographics;
+  const volunteerInsights = statistics?.volunteerInsights;
+  const teamInsights = statistics?.teamInsights;
+  const notingAndCustom = statistics?.notingAndCustomData;
+
+  const filteredRecentRegistrations = useMemo(() => {
+    const rows = statistics?.recentRegistrations || [];
+    const normalizedSearch = searchQuery.trim().toLowerCase();
+
+    return rows.filter((row) => {
+      const statusMatches = statusFilter ===
+   'all' || row.status ===
+   statusFilter;
+      if (!statusMatches) return false;
+
+      if (!normalizedSearch) return true;
+      return (
+        row.registrationId.toLowerCase().includes(normalizedSearch)
+        || (row.user?.name || '').toLowerCase().includes(normalizedSearch)
+        || (row.user?.uid || '').toLowerCase().includes(normalizedSearch)
+        || (row.user?.email || '').toLowerCase().includes(normalizedSearch)
+      );
+    });
+  }, [searchQuery, statistics?.recentRegistrations, statusFilter]);
+
+  const paymentBreakdownItems = useMemo(() => (
+    (paymentMetrics?.statusBreakdown || []).map((item) => ({
+      label: item.status,
+      count: item.count,
+      percent: item.percent,
+      amount: item.amount,
+    }))
+  ), [paymentMetrics?.statusBreakdown]);
+
+  const roleBreakdownItems = useMemo(() => (
+    (demographics?.byRole || []).map((item) => ({
+      label: item.role,
+      count: item.count,
+      percent: item.percent,
+    }))
+  ), [demographics?.byRole]);
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-orange-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Loading statistics...</p>
-        </div>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-ev-700" />
       </div>
     );
   }
 
-  if (!event || !statistics) {
+  if (!statistics || !event) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-[60vh] flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Data Not Available</h2>
-          <Link
-            href="/events"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Events
-          </Link>
+          <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-3" />
+          <p className="text-sm text-gray-600 dark:text-gray-300">Unable to load event statistics.</p>
         </div>
       </div>
     );
   }
-
-  const attendanceRate = statistics.totalRegistrations > 0
-    ? ((statistics.totalAttended / statistics.totalRegistrations) * 100).toFixed(1)
-    : '0';
-
-  const capacityUsage = event.maxCapacity
-    ? ((statistics.totalRegistrations / event.maxCapacity) * 100).toFixed(1)
-    : null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <Link
-            href={`/events/${eventId}`}
-            className="inline-flex items-center gap-2 text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300 mb-4 transition-colors"
+    <div className="space-y-6">
+      <div className="rounded-2xl border border-[#b3cde0]/60 bg-gradient-to-r from-[#f7fbff] to-white p-5 shadow-sm dark:border-gray-700 dark:from-gray-800 dark:to-gray-800">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Link
+                href={`/events/${eventId}`}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#b3cde0] text-ev-700 hover:bg-[#f8fbff] dark:border-gray-700 dark:text-ev-300"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+              <h1 className="text-xl font-bold text-ev-900 dark:text-white">Event Intelligence Dashboard</h1>
+              <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${getStatusTone(event.status)}`}>
+                {event.status}
+              </span>
+            </div>
+            <p className="text-sm text-gray-700 dark:text-gray-300">{event.name}</p>
+            <div className="flex flex-wrap gap-2 text-xs">
+              <span className="rounded-full bg-[#e8f1f8] px-2.5 py-1 font-medium text-ev-800 dark:bg-gray-700 dark:text-gray-200">{event.eventId}</span>
+              <span className="rounded-full bg-[#e8f1f8] px-2.5 py-1 font-medium capitalize text-ev-800 dark:bg-gray-700 dark:text-gray-200">{event.eventType}</span>
+              <span className="rounded-full bg-[#e8f1f8] px-2.5 py-1 font-medium capitalize text-ev-800 dark:bg-gray-700 dark:text-gray-200">{event.paymentType}</span>
+              {event.participationType ? (
+                <span className="rounded-full bg-[#e8f1f8] px-2.5 py-1 font-medium capitalize text-ev-800 dark:bg-gray-700 dark:text-gray-200">
+                  {event.participationType}
+                </span>
+              ) : null}
+              {event.opportunityMode ? (
+                <span className="rounded-full bg-[#e8f1f8] px-2.5 py-1 font-medium capitalize text-ev-800 dark:bg-gray-700 dark:text-gray-200">
+                  {event.opportunityMode}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-ev-700 px-4 py-2 text-sm font-medium text-white hover:bg-ev-800 disabled:opacity-60"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Event Details
-          </Link>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                Event Statistics
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                {event.name}
-              </p>
-            </div>
-            <button
-              onClick={handleExportReport}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              <Download className="w-4 h-4" />
-              Export Report
-            </button>
-          </div>
-        </div>
-
-        {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Registrations */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <TrendingUp className="w-5 h-5 text-green-500" />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-              {statistics.totalRegistrations}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Total Registrations
-            </p>
-            {capacityUsage && (
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                {capacityUsage}% of capacity
-              </p>
-            )}
-          </div>
-
-          {/* Confirmed Registrations */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                <UserCheck className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-              {statistics.confirmedRegistrations}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Confirmed
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-              {statistics.totalRegistrations > 0
-                ? `${((statistics.confirmedRegistrations / statistics.totalRegistrations) * 100).toFixed(0)}% of total`
-                : 'No registrations'}
-            </p>
-          </div>
-
-          {/* Attended */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Activity className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-              {statistics.totalAttended}
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Attended
-            </p>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-              {attendanceRate}% attendance rate
-            </p>
-          </div>
-
-          {/* Revenue (if paid) */}
-          {event.paymentType === 'paid' && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                  <IndianRupee className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-                </div>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-                ₹{statistics.totalRevenue?.toLocaleString('en-IN') || 0}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Total Revenue
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                Fee: ₹{event.registrationFee?.toLocaleString('en-IN') || 0}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Registration Status Breakdown */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-3">
-              <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <PieChart className="w-4 h-4" />
-                Registration Status
-              </h3>
-            </div>
-            <div className="p-6 space-y-4">
-              {/* Confirmed */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Confirmed
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 transition-all"
-                      style={{
-                        width: `${statistics.totalRegistrations > 0
-                          ? (statistics.confirmedRegistrations / statistics.totalRegistrations) * 100
-                          : 0}%`
-                      }}
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white w-8 text-right">
-                    {statistics.confirmedRegistrations}
-                  </span>
-                </div>
-              </div>
-
-              {/* Pending */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Pending
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-yellow-500 transition-all"
-                      style={{
-                        width: `${statistics.totalRegistrations > 0
-                          ? (statistics.pendingRegistrations / statistics.totalRegistrations) * 100
-                          : 0}%`
-                      }}
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white w-8 text-right">
-                    {statistics.pendingRegistrations}
-                  </span>
-                </div>
-              </div>
-
-              {/* Cancelled */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Cancelled
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-red-500 transition-all"
-                      style={{
-                        width: `${statistics.totalRegistrations > 0
-                          ? (statistics.cancelledRegistrations / statistics.totalRegistrations) * 100
-                          : 0}%`
-                      }}
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white w-8 text-right">
-                    {statistics.cancelledRegistrations}
-                  </span>
-                </div>
-              </div>
-
-              {/* Waitlisted */}
-              {statistics.waitlistedRegistrations > 0 && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full bg-gray-500"></div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Waitlisted
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 w-32 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gray-500 transition-all"
-                        style={{
-                          width: `${statistics.totalRegistrations > 0
-                            ? (statistics.waitlistedRegistrations / statistics.totalRegistrations) * 100
-                            : 0}%`
-                        }}
-                      />
-                    </div>
-                    <span className="text-sm font-bold text-gray-900 dark:text-white w-8 text-right">
-                      {statistics.waitlistedRegistrations}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Attendance Overview */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="bg-gradient-to-r from-teal-500 to-cyan-600 px-5 py-3">
-              <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Attendance Overview
-              </h3>
-            </div>
-            <div className="p-6 space-y-6">
-              {/* Attendance Rate Circular Progress */}
-              <div className="text-center">
-                <div className="relative inline-flex items-center justify-center w-32 h-32 mb-4">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      className="text-gray-200 dark:text-gray-700"
-                    />
-                    <circle
-                      cx="64"
-                      cy="64"
-                      r="56"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                      fill="none"
-                      strokeDasharray={`${2 * Math.PI * 56}`}
-                      strokeDashoffset={`${2 * Math.PI * 56 * (1 - Number(attendanceRate) / 100)}`}
-                      className="text-teal-500 transition-all duration-1000"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">
-                      {attendanceRate}%
-                    </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      Attended
-                    </span>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {statistics.totalAttended} out of {statistics.totalRegistrations} registered attendees
-                </p>
-              </div>
-
-              {/* Entry Statistics */}
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {statistics.totalEntries}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Total Entries
-                  </p>
-                </div>
-                <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                    {statistics.totalExits}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                    Total Exits
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Event Timeline */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden lg:col-span-2">
-            <div className="bg-gradient-to-r from-pink-500 to-rose-600 px-5 py-3">
-              <h3 className="text-base font-semibold text-white flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Event Timeline
-              </h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {/* Event Dates */}
-                <div className="flex items-start gap-4">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                    <Calendar className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                      Event Period
-                    </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {new Date(event.startDate).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                      })} - {new Date(event.endDate).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Registration Period */}
-                {event.registrationStartDate && event.registrationEndDate && (
-                  <div className="flex items-start gap-4">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                      <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        Registration Period
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {new Date(event.registrationStartDate).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric'
-                        })} - {new Date(event.registrationEndDate).toLocaleDateString('en-IN', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Venue */}
-                {event.venue && (
-                  <div className="flex items-start gap-4">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <Users className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        Venue
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {event.venue}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+            <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <StatsCard title="Total Registrations" value={statistics.totalRegistrations} icon={Users} />
+        <StatsCard
+          title="Confirmed"
+          value={statistics.confirmedRegistrations}
+          helper={`${funnel?.confirmationRate ?? 0}% confirmation`}
+          icon={CheckCircle2}
+          accentClassName="text-emerald-700 bg-emerald-50"
+        />
+        <StatsCard
+          title="Drop-offs"
+          value={participation?.dropOffRegistrations ?? statistics.cancelledRegistrations}
+          helper={`${funnel?.dropOffRate ?? 0}% drop-off`}
+          icon={UserMinus}
+          accentClassName="text-amber-700 bg-amber-50"
+        />
+        <StatsCard
+          title="Attendance"
+          value={statistics.totalAttended}
+          helper={`${funnel?.attendanceRate ?? insights?.engagementMetrics.attendanceRate ?? 0}% from confirmed`}
+          icon={Activity}
+          accentClassName="text-blue-700 bg-blue-50"
+        />
+        <StatsCard
+          title="Revenue"
+          value={`₹${Number(statistics.totalRevenue || 0).toLocaleString('en-IN')}`}
+          helper={paymentMetrics ? `${paymentMetrics.completedPayments} paid registrations` : 'No payment data'}
+          icon={IndianRupee}
+          accentClassName="text-indigo-700 bg-indigo-50"
+        />
+        <StatsCard
+          title="Scanners Active"
+          value={volunteerInsights?.scannersEnabled ?? 0}
+          helper={`${volunteerInsights?.totalVolunteers ?? statistics.volunteerCount} volunteers`}
+          icon={ShieldCheck}
+          accentClassName="text-purple-700 bg-purple-50"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm xl:col-span-2 dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-ev-700" />
+            <h2 className="text-base font-semibold text-ev-900 dark:text-white">Registration Trend & Funnel</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+            <div className="rounded-lg border border-[#b3cde0]/50 p-3 text-center dark:border-gray-700">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Registered</p>
+              <p className="mt-1 text-lg font-bold text-ev-900 dark:text-white">{funnel?.registered ?? statistics.totalRegistrations}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/50 p-3 text-center dark:border-gray-700">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Form Submitted</p>
+              <p className="mt-1 text-lg font-bold text-ev-900 dark:text-white">{funnel?.formSubmitted ?? 0}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/50 p-3 text-center dark:border-gray-700">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Confirmed</p>
+              <p className="mt-1 text-lg font-bold text-ev-900 dark:text-white">{funnel?.confirmed ?? statistics.confirmedRegistrations}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/50 p-3 text-center dark:border-gray-700">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Attended</p>
+              <p className="mt-1 text-lg font-bold text-ev-900 dark:text-white">{funnel?.attended ?? statistics.totalAttended}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/50 p-3 text-center dark:border-gray-700">
+              <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">Drop-offs</p>
+              <p className="mt-1 text-lg font-bold text-ev-900 dark:text-white">{funnel?.dropOffs ?? statistics.cancelledRegistrations}</p>
+            </div>
+          </div>
+          <RevenueChart data={statistics.registrationsByDate || []} />
+        </section>
+
+        <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-ev-700" />
+            <h2 className="text-base font-semibold text-ev-900 dark:text-white">Capacity & Timeline</h2>
+          </div>
+          <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="font-medium text-ev-900 dark:text-white">Capacity</p>
+              <p className="mt-1">Max capacity: {capacity?.maxCapacity ?? 'Not set'}</p>
+              <p>Utilization: {capacity?.registrationsUtilization ?? 0}%</p>
+              <p>Remaining slots: {capacity?.remainingCapacity ?? 'N/A'}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="font-medium text-ev-900 dark:text-white">Event timeline</p>
+              <p className="mt-1">Starts: {formatDays(capacity?.daysUntilStart)}</p>
+              <p>Ends: {formatDays(capacity?.daysUntilEnd)}</p>
+              <p>Duration: {capacity?.eventDurationDays ?? 'N/A'} day(s)</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="font-medium text-ev-900 dark:text-white">Registration window</p>
+              <p className="mt-1">Open now: {capacity?.registrationWindow?.isOpen ? 'Yes' : 'No'}</p>
+              <p>Window progress: {capacity?.registrationWindow?.progressPercent ?? 0}%</p>
+              <p>Days left: {capacity?.registrationWindow?.daysLeft ?? 'N/A'}</p>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center gap-2">
+            <IndianRupee className="h-4 w-4 text-ev-700" />
+            <h2 className="text-base font-semibold text-ev-900 dark:text-white">Payment Intelligence</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <StatsCard title="Completed" value={paymentMetrics?.completedPayments ?? 0} icon={CheckCircle2} accentClassName="text-emerald-700 bg-emerald-50" />
+            <StatsCard title="Pending" value={paymentMetrics?.pendingPayments ?? 0} icon={Clock3} accentClassName="text-amber-700 bg-amber-50" />
+            <StatsCard title="Failed" value={paymentMetrics?.failedPayments ?? 0} icon={AlertCircle} accentClassName="text-red-700 bg-red-50" />
+            <StatsCard title="Refunded" value={paymentMetrics?.refundedPayments ?? 0} icon={RefreshCw} accentClassName="text-gray-700 bg-gray-100" />
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Avg Revenue / Confirmed</p>
+              <p className="text-sm font-semibold text-ev-900 dark:text-white">₹{Number(paymentMetrics?.avgRevenuePerConfirmed || 0).toLocaleString('en-IN')}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Coupon Usage</p>
+              <p className="text-sm font-semibold text-ev-900 dark:text-white">{paymentMetrics?.couponUsageCount || 0}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Discount Given</p>
+              <p className="text-sm font-semibold text-ev-900 dark:text-white">₹{Number(paymentMetrics?.totalDiscountAmount || 0).toLocaleString('en-IN')}</p>
+            </div>
+          </div>
+          <StatusBreakdownList
+            items={paymentBreakdownItems}
+            emptyMessage="Payment status data unavailable."
+          />
+        </section>
+
+        <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-ev-700" />
+            <h2 className="text-base font-semibold text-ev-900 dark:text-white">Participant Mix</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <StatsCard title="With Team" value={demographics?.withTeamCount ?? 0} icon={Users} />
+            <StatsCard title="Looking for Teammates" value={demographics?.lookingForTeammatesCount ?? 0} icon={UserCheck} accentClassName="text-blue-700 bg-blue-50" />
+          </div>
+          <StatusBreakdownList
+            items={roleBreakdownItems}
+            emptyMessage="Role distribution not available."
+          />
+          <div className="rounded-xl border border-[#b3cde0]/50 p-3 dark:border-gray-700">
+            <p className="text-sm font-semibold text-ev-900 dark:text-white">Top registration days</p>
+            <div className="mt-2 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              {(statistics.topRegistrationDays || []).map((day) => (
+                <p key={day.date} className="flex items-center justify-between">
+                  <span>{new Date(day.date).toLocaleDateString('en-IN')}</span>
+                  <span className="font-medium">{day.count}</span>
+                </p>
+              ))}
+              {(statistics.topRegistrationDays || []).length ===
+   0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No trend data yet.</p>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="h-4 w-4 text-ev-700" />
+          <h2 className="text-base font-semibold text-ev-900 dark:text-white">Sponsorship Data</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <StatsCard title="Collected" value={`₹${Number(sponsorship?.totalSponsorshipAmountCollected || 0).toLocaleString('en-IN')}`} icon={IndianRupee} />
+          <StatsCard title="Confirmed Sponsors" value={sponsorship?.confirmedSponsorships.count || 0} helper={`₹${Number(sponsorship?.confirmedSponsorships.amount || 0).toLocaleString('en-IN')}`} icon={UserCheck} accentClassName="text-emerald-700 bg-emerald-50" />
+          <StatsCard title="Pending Sponsors" value={sponsorship?.pendingSponsorships.count || 0} helper={`₹${Number(sponsorship?.pendingSponsorships.amount || 0).toLocaleString('en-IN')}`} icon={UserMinus} accentClassName="text-amber-700 bg-amber-50" />
+        </div>
+        <SponsorTable sponsors={sponsorship?.sponsors || []} />
+      </section>
+
+      {teamInsights ? (
+        <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-ev-700" />
+            <h2 className="text-base font-semibold text-ev-900 dark:text-white">Team Intelligence</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-6">
+            <StatsCard title="Total Teams" value={teamInsights.totalTeams} icon={Users} />
+            <StatsCard title="Active Teams" value={teamInsights.activeTeams} icon={Activity} />
+            <StatsCard title="Forming Teams" value={teamInsights.formingTeams} icon={Clock3} accentClassName="text-amber-700 bg-amber-50" />
+            <StatsCard title="Complete Teams" value={teamInsights.completeTeams} icon={CheckCircle2} accentClassName="text-emerald-700 bg-emerald-50" />
+            <StatsCard title="Join Requests" value={teamInsights.pendingJoinRequests} icon={UserCheck} />
+            <StatsCard title="Invitations" value={teamInsights.pendingInvitations} icon={Users} />
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Confirmed Team Members</p>
+              <p className="text-sm font-semibold text-ev-900 dark:text-white">{teamInsights.confirmedTeamMembers}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Avg Team Size</p>
+              <p className="text-sm font-semibold text-ev-900 dark:text-white">{teamInsights.avgTeamSize}</p>
+            </div>
+            <div className="rounded-lg border border-[#b3cde0]/40 p-3 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Teams Looking for Members</p>
+              <p className="text-sm font-semibold text-ev-900 dark:text-white">{teamInsights.teamsLookingForMembers}</p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-ev-700" />
+          <h2 className="text-base font-semibold text-ev-900 dark:text-white">Volunteer & Gate Operations</h2>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <StatsCard title="Total Volunteers" value={volunteerInsights?.totalVolunteers ?? statistics.volunteerCount} icon={Users} />
+          <StatsCard title="QR Scanners Enabled" value={volunteerInsights?.scannersEnabled ?? 0} icon={ShieldCheck} accentClassName="text-emerald-700 bg-emerald-50" />
+          <StatsCard title="Peak Gate Hour" value={volunteerInsights?.peakHour ? `${String(volunteerInsights.peakHour.hour).padStart(2, '0')}:00` : 'N/A'} helper={volunteerInsights?.peakHour ? `${volunteerInsights.peakHour.total} scans` : undefined} icon={Clock3} />
+        </div>
+        <FlowByHourChart data={volunteerInsights?.scansByHour || []} />
+        <VolunteerLeaderboard rows={volunteerInsights?.topVolunteers || []} />
+      </section>
+
+      <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <h2 className="text-base font-semibold text-ev-900 dark:text-white">Noting + Custom Data</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <StatsCard title="Noting Source" value={notingAndCustom?.source ===
+   'noting' ? 'Noting' : 'Manual'} icon={BarChart3} />
+          <StatsCard title="Noting Sponsors" value={notingAndCustom?.sponsorsFromNotingCount || 0} icon={Users} />
+          <StatsCard title="Manual Sponsors" value={notingAndCustom?.sponsorsAddedManuallyCount || 0} icon={Users} />
+          <StatsCard title="Custom Fields" value={(notingAndCustom?.customFields || []).length} icon={Activity} />
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="rounded-xl border border-[#b3cde0]/60 p-4 dark:border-gray-700">
+            <p className="text-sm font-semibold text-ev-900 dark:text-white">Resource Summary</p>
+            <div className="mt-3 space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              <p>Resources from noting: {(notingAndCustom?.resourcesFromNoting || []).length}</p>
+              <p>Resources added by creator: {(notingAndCustom?.resourcesAddedByCreator || []).length}</p>
+              <p>Field response coverage: {notingAndCustom?.customFieldResponseCoverage?.coverageRate || 0}%</p>
+            </div>
+          </div>
+          <div className="rounded-xl border border-[#b3cde0]/60 p-4 dark:border-gray-700">
+            <p className="text-sm font-semibold text-ev-900 dark:text-white">Custom Field Performance</p>
+            <div className="mt-3 space-y-2">
+              {(notingAndCustom?.customFields || []).map((field) => (
+                <div key={field.id} className="flex items-center justify-between rounded-lg border border-[#b3cde0]/40 p-2 text-sm dark:border-gray-700">
+                  <span className="font-medium text-ev-900 dark:text-white">{field.fieldLabel}</span>
+                  <span className="text-gray-600 dark:text-gray-400">{field.responseCount} ({field.responseRate}%)</span>
+                </div>
+              ))}
+              {(notingAndCustom?.customFields || []).length ===
+   0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No custom fields configured for this event.</p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-xl border border-[#b3cde0]/60 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+        <h2 className="text-base font-semibold text-ev-900 dark:text-white">Recent Registrations</h2>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <input
+            value={searchQuery}
+            onChange={(targetEvent) => setSearchQuery(targetEvent.target.value)}
+            placeholder="Search by name, UID, email, or registration ID"
+            className="rounded-lg border border-[#b3cde0] px-3 py-2 text-sm focus:border-ev-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900/20"
+          />
+          <select
+            value={statusFilter}
+            onChange={(targetEvent) => setStatusFilter(targetEvent.target.value)}
+            className="rounded-lg border border-[#b3cde0] px-3 py-2 text-sm focus:border-ev-500 focus:outline-none dark:border-gray-700 dark:bg-gray-900/20"
+          >
+            <option value="all">All statuses</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="waitlisted">Waitlisted</option>
+          </select>
+        </div>
+        <RecentRegistrationsTable rows={filteredRecentRegistrations} />
+      </section>
     </div>
   );
 }

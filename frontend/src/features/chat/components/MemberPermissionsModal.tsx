@@ -61,10 +61,16 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isOwner = currentGroup?.myRole === 'owner';
-  const isAdmin = currentGroup?.myRole === 'owner' || currentGroup?.myRole === 'admin';
-  const isSystemAdmin = authUser?.userType === 'admin' || authUser?.role?.name === 'superadmin';
-  const isEditingSelf = member.userId === currentGroup?.createdById;
+  const isOwner = currentGroup?.myRole ===
+   'owner';
+  const isAdmin = currentGroup?.myRole ===
+   'owner' || currentGroup?.myRole ===
+   'admin';
+  const isSystemAdmin = authUser?.userType ===
+   'admin' || authUser?.role?.name ===
+   'superadmin';
+  const isEditingSelf = member.userId ===
+   currentGroup?.createdById;
 
   // Get display name
   const getMemberName = () => {
@@ -145,7 +151,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
       ],
     },
     // Only show admin permissions section for admin-role members when system admin is editing
-    ...(isSystemAdmin && selectedRole === 'admin' ? [{
+    ...(isSystemAdmin && selectedRole ===
+   'admin' ? [{
       title: 'Admin Privileges',
       permissions: [
         { key: 'canDeleteGroup' as const, label: 'Delete Group', description: 'Can delete/deactivate this group' },
@@ -186,7 +193,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
           <button
             onClick={() => setActiveTab('role')}
             className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'role'
+              activeTab ===
+   'role'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
             }`}
@@ -196,7 +204,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
           <button
             onClick={() => setActiveTab('permissions')}
             className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'permissions'
+              activeTab ===
+   'permissions'
                 ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20'
                 : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
             }`}
@@ -215,7 +224,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
           )}
 
           {/* Role Tab */}
-          {activeTab === 'role' && (
+          {activeTab ===
+   'role' && (
             <div className="space-y-3">
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Select a role for this member. Higher roles have more permissions by default.
@@ -223,9 +233,11 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
 
               {(['member', 'moderator', 'admin'] as MemberRole[]).map((role) => {
                 const isDisabled = 
-                  (role === 'admin' && !isOwner && !isSystemAdmin) ||
+                  (role ===
+   'admin' && !isOwner && !isSystemAdmin) ||
                   isEditingSelf ||
-                  member.memberRole === 'owner';
+                  member.memberRole ===
+   'owner';
 
                 return (
                   <button
@@ -233,7 +245,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
                     onClick={() => !isDisabled && setSelectedRole(role)}
                     disabled={isDisabled}
                     className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                      selectedRole === role
+                      selectedRole ===
+   role
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                     } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -244,12 +257,16 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
                           {roleLabels[role]}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {role === 'admin' && 'Full access to manage group settings and members'}
-                          {role === 'moderator' && 'Can moderate messages and manage basic settings'}
-                          {role === 'member' && 'Standard member with default permissions'}
+                          {role ===
+   'admin' && 'Full access to manage group settings and members'}
+                          {role ===
+   'moderator' && 'Can moderate messages and manage basic settings'}
+                          {role ===
+   'member' && 'Standard member with default permissions'}
                         </p>
                       </div>
-                      {selectedRole === role && (
+                      {selectedRole ===
+   role && (
                         <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
@@ -259,7 +276,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
                 );
               })}
 
-              {member.memberRole === 'owner' && (
+              {member.memberRole ===
+   'owner' && (
                 <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                   <p className="text-sm text-purple-700 dark:text-purple-400">
                     This member is the group owner. Owner role cannot be changed.
@@ -270,7 +288,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
           )}
 
           {/* Permissions Tab */}
-          {activeTab === 'permissions' && (
+          {activeTab ===
+   'permissions' && (
             <div className="space-y-4">
               {/* Enable Custom Permissions Toggle */}
               <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
@@ -362,7 +381,8 @@ export function MemberPermissionsModal({ member, onClose }: MemberPermissionsMod
           </button>
           <button
             onClick={handleSave}
-            disabled={isSaving || member.memberRole === 'owner'}
+            disabled={isSaving || member.memberRole ===
+   'owner'}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}

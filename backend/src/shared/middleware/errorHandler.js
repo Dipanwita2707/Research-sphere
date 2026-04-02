@@ -6,6 +6,49 @@
 
 const { AppError } = require('../utils/AppError');
 
+function formatIssuePath(path) {
+  if (!Array.isArray(path) || path.length === 0) return 'request';
+
+  return path
+    .map((segment, index) => {
+      if (typeof segment === 'number') {
+        return `[${segment}]`;
+      }
+      return index === 0 ? segment : `.${segment}`;
+    })
+    .join('');
+}
+
+function mapZodIssuesToFieldErrors(issues = []) {
+  const fieldErrors = {};
+
+  for (const issue of issues) {
+    const key = formatIssuePath(issue.path);
+    if (!fieldErrors[key]) {
+      fieldErrors[key] = issue.message;
+    }
+  }
+
+  return fieldErrors;
+}
+
+function mapValidationObjectToFieldErrors(errors = {}) {
+  const fieldErrors = {};
+
+  for (const [key, value] of Object.entries(errors)) {
+    if (!value) continue;
+    if (typeof value === 'string') {
+      fieldErrors[key] = value;
+      continue;
+    }
+    if (typeof value.message === 'string') {
+      fieldErrors[key] = value.message;
+    }
+  }
+
+  return fieldErrors;
+}
+
 /**
  * Handle Prisma-specific errors
  */
@@ -84,15 +127,24 @@ function sendErrorDev(err, req, res) {
     error: err,
   });
 
-  res.status(err.statusCode || 500).json({
+  // Even in dev, sanitize Prisma internal details from the response
+  const sanitizedMessage = (err.message && err.message.includes('prisma'))
+    ? 'A database query error occurred. Check server logs for details.'
+    : err.message;
+
+  const response = {
     success: false,
     status: err.status,
-    message: err.message,
-    error: err,
-    stack: err.stack,
+    message: sanitizedMessage,
     path: req.path,
     method: req.method,
-  });
+  };
+
+  if (err.errors && typeof err.errors === 'object') {
+    response.errors = err.errors;
+  }
+
+  res.status(err.statusCode || 500).json(response);
 }
 
 /**
@@ -101,11 +153,17 @@ function sendErrorDev(err, req, res) {
 function sendErrorProd(err, req, res) {
   // Operational, trusted error: send message to client
   if (err.isOperational) {
-    res.status(err.statusCode).json({
+    const response = {
       success: false,
       status: err.status,
       message: err.message,
-    });
+    };
+
+    if (err.errors && typeof err.errors === 'object') {
+      response.errors = err.errors;
+    }
+
+    res.status(err.statusCode).json(response);
   } else {
     // Programming or unknown error: don't leak error details
     console.error('ERROR 💥', err);
@@ -132,6 +190,12 @@ const errorHandler = (err, req, res, next) => {
     err = handlePrismaError(err);
   }
 
+  // Handle Prisma validation errors (invalid queries, unknown fields, etc.)
+  if (err.name === 'PrismaClientValidationError' || err.name === 'PrismaClientKnownRequestError') {
+    console.error('Prisma Validation Error:', err.message);
+    err = new AppError('A database query error occurred. Please try again or contact support.', 500, true);
+  }
+
   // Handle PostgreSQL errors
   if (err.code && err.code.startsWith('23')) {
     err = handlePostgresError(err);
@@ -143,9 +207,17 @@ const errorHandler = (err, req, res, next) => {
   }
 
   // Handle Validation errors
-  if (err.name === 'ValidationError') {
-    const message = Object.values(err.errors || {}).map(e => e.message).join(', ');
-    err = new AppError(message || 'Validation failed', 400, true);
+  if (err.name === 'ZodError' && Array.isArray(err.issues)) {
+    const fieldErrors = mapZodIssuesToFieldErrors(err.issues);
+    const message = Object.values(fieldErrors)[0] || 'Validation failed';
+    err = new AppError(message, 400, true, fieldErrors);
+  }
+
+  // Handle generic validation libraries (e.g., Mongoose), without overriding custom AppError ValidationError
+  if (err.name === 'ValidationError' && !(err instanceof AppError)) {
+    const fieldErrors = mapValidationObjectToFieldErrors(err.errors || {});
+    const message = Object.values(fieldErrors).join(', ') || 'Validation failed';
+    err = new AppError(message, 400, true, Object.keys(fieldErrors).length ? fieldErrors : undefined);
   }
 
   // Log error for monitoring

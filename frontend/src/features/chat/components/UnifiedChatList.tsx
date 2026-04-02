@@ -73,7 +73,8 @@ export function UnifiedChatList() {
     if (searchQuery.trim().length >= 2) {
       const q = searchQuery.toLowerCase();
       return items.filter((item) => {
-        if (item.type === 'group') {
+        if (item.type ===
+   'group') {
           return item.data.name.toLowerCase().includes(q);
         }
         const u = item.data.user;
@@ -161,7 +162,8 @@ export function UnifiedChatList() {
 
       {/* Unified Chat List */}
       <div className="flex-1 overflow-y-auto">
-        {unifiedList.length === 0 && !isSearching ? (
+        {unifiedList.length ===
+   0 && !isSearching ? (
           <div className="p-4 text-center text-gray-500 dark:text-gray-400">
             <p className="text-sm">No chats yet</p>
             <p className="text-xs mt-1">Search for a user or create a group to start chatting</p>
@@ -169,17 +171,20 @@ export function UnifiedChatList() {
         ) : (
           <div>
             {unifiedList.map((item) =>
-              item.type === 'group' ? (
+              item.type ===
+   'group' ? (
                 <GroupListItem
                   key={`group-${item.data.id}`}
                   group={item.data}
-                  isActive={currentGroupId === item.data.id}
+                  isActive={currentGroupId ===
+   item.data.id}
                 />
               ) : (
                 <ConversationItem
                   key={`dm-${item.data.user.id}`}
                   conversation={item.data}
-                  isActive={currentDMUserId === item.data.user.id}
+                  isActive={currentDMUserId ===
+   item.data.user.id}
                 />
               )
             )}

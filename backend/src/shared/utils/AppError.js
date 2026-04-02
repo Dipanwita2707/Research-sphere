@@ -8,11 +8,14 @@
  * @extends Error
  */
 class AppError extends Error {
-  constructor(message, statusCode, isOperational = true) {
+  constructor(message, statusCode, isOperational = true, errors = undefined) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
     this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
+    if (errors && typeof errors === 'object') {
+      this.errors = errors;
+    }
     Error.captureStackTrace(this, this.constructor);
   }
 }
@@ -21,8 +24,8 @@ class AppError extends Error {
  * 400 Bad Request - Client input validation errors
  */
 class ValidationError extends AppError {
-  constructor(message = 'Validation failed') {
-    super(message, 400);
+  constructor(message = 'Validation failed', errors = undefined) {
+    super(message, 400, true, errors);
   }
 }
 

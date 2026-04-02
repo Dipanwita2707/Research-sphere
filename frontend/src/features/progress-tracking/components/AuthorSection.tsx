@@ -41,8 +41,10 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
   
   // For conferences, only show author section for paper types
   const shouldShowAuthors = publicationType !== 'conference_paper' || 
-    conferenceSubType === 'paper_not_indexed' || 
-    conferenceSubType === 'paper_indexed_scopus';
+    conferenceSubType ===
+   'paper_not_indexed' || 
+    conferenceSubType ===
+   'paper_indexed_scopus';
 
   const [totalAuthors, setTotalAuthors] = useState(1);
   const [totalInternalAuthors, setTotalInternalAuthors] = useState(1);
@@ -59,7 +61,9 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
   const [searchTerm, setSearchTerm] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const isBook = publicationType === 'book' || publicationType === 'book_chapter';
+  const isBook = publicationType ===
+   'book' || publicationType ===
+   'book_chapter';
   const [newCoAuthor, setNewCoAuthor] = useState<CoAuthor>({
     name: '',
     authorType: 'Faculty',
@@ -71,9 +75,15 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
 
   // Show detailed fields for research papers AND conference papers with author requirements
   const isResearchOrScopusConference = 
-    publicationType === 'research_paper' || 
-    (publicationType === 'conference_paper' && (conferenceSubType === 'paper_not_indexed' || conferenceSubType === 'paper_indexed_scopus'));
-  const isBookOrChapter = publicationType === 'book' || publicationType === 'book_chapter';
+    publicationType ===
+   'research_paper' || 
+    (publicationType ===
+   'conference_paper' && (conferenceSubType ===
+   'paper_not_indexed' || conferenceSubType ===
+   'paper_indexed_scopus'));
+  const isBookOrChapter = publicationType ===
+   'book' || publicationType ===
+   'book_chapter';
   const hasExternalAuthors = totalAuthors > totalInternalAuthors;
 
   const updateData = (updates: Partial<AuthorData>) => {
@@ -87,7 +97,8 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
       }),
       ...(isResearchOrScopusConference && hasExternalAuthors && { 
         hasInternationalAuthor,
-        numForeignUniversities: hasInternationalAuthor === 'yes' ? numForeignUniversities : 0
+        numForeignUniversities: hasInternationalAuthor ===
+   'yes' ? numForeignUniversities : 0
       }),
       ...(isResearchOrScopusConference && { hasLpuStudents }),
       ...updates
@@ -104,7 +115,9 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
     }
 
     try {
-      const role = newCoAuthor.authorType === 'Student' ? 'student' : newCoAuthor.authorType === 'Faculty' ? 'faculty' : 'all';
+      const role = newCoAuthor.authorType ===
+   'Student' ? 'student' : newCoAuthor.authorType ===
+   'Faculty' ? 'faculty' : 'all';
       const response = await researchService.searchUsers(term, role);
       
       let userData: any[] = [];
@@ -132,14 +145,17 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
   
   // Select author from suggestions
   const selectAuthorFromSuggestion = async (userData: any) => {
-    if (userData.uid === user?.uid) {
+    if (userData.uid ===
+   user?.uid) {
       setError('Cannot add yourself as a co-author');
       return;
     }
 
     const userName = userData.name || userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-    const roleName = typeof userData.role === 'object' ? userData.role?.name : userData.role;
-    const authorType = roleName === 'student' ? 'Student' : 'Faculty';
+    const roleName = typeof userData.role ===
+   'object' ? userData.role?.name : userData.role;
+    const authorType = roleName ===
+   'student' ? 'Student' : 'Faculty';
 
     try {
       const fullData = await researchService.lookupByRegistration(userData.uid);
@@ -174,7 +190,8 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
     }
     
     // Check for duplicate
-    if (coAuthors.some(a => a.name.toLowerCase() === newCoAuthor.name.toLowerCase())) {
+    if (coAuthors.some(a => a.name.toLowerCase() ===
+   newCoAuthor.name.toLowerCase())) {
       setError('This co-author is already added');
       return;
     }
@@ -383,14 +400,17 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                         type="radio"
                         name="hasInternationalAuthor"
                         value={v}
-                        checked={hasInternationalAuthor === v}
+                        checked={hasInternationalAuthor ===
+   v}
                         onChange={(e) => {
                           const value = e.target.value as 'yes' | 'no';
                           setHasInternationalAuthor(value);
-                          if (value === 'no') {
+                          if (value ===
+   'no') {
                             setNumForeignUniversities(0);
                           }
-                          updateData({ hasInternationalAuthor: value, numForeignUniversities: value === 'no' ? 0 : numForeignUniversities });
+                          updateData({ hasInternationalAuthor: value, numForeignUniversities: value ===
+   'no' ? 0 : numForeignUniversities });
                         }}
                         className="w-4 h-4 text-indigo-600"
                       />
@@ -412,7 +432,8 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                       type="radio"
                       name="hasLpuStudents"
                       value={v}
-                      checked={hasLpuStudents === v}
+                      checked={hasLpuStudents ===
+   v}
                       onChange={(e) => {
                         const value = e.target.value as 'yes' | 'no';
                         setHasLpuStudents(value);
@@ -427,7 +448,8 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
             </div>
 
             {/* Foreign Universities - Only show when International Author is Yes */}
-            {hasInternationalAuthor === 'yes' && hasExternalAuthors && (
+            {hasInternationalAuthor ===
+   'yes' && hasExternalAuthors && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Foreign Universities Collaborated
@@ -487,9 +509,11 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                 >
                   <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      author.authorCategory === 'Internal' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                      author.authorCategory ===
+   'Internal' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
                     }`}>
-                      {author.authorType === 'Student' ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                      {author.authorType ===
+   'Student' ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-900">{author.name}</p>
@@ -547,7 +571,8 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                       setNewCoAuthor({
                         ...newCoAuthor,
                         authorCategory: category,
-                        affiliation: category === 'Internal' ? 'SGT University' : ''
+                        affiliation: category ===
+   'Internal' ? 'SGT University' : ''
                       });
                       setSearchTerm('');
                     }}
@@ -577,7 +602,8 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
               {/* Search/Name Input */}
               <div className="relative">
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  {newCoAuthor.authorCategory === 'Internal' ? 'Search by Name/ID' : 'Author Name'}
+                  {newCoAuthor.authorCategory ===
+   'Internal' ? 'Search by Name/ID' : 'Author Name'}
                 </label>
                 <div className="relative">
                   <input
@@ -586,13 +612,15 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                     onChange={(e) => {
                       const value = e.target.value;
                       setSearchTerm(value);
-                      if (newCoAuthor.authorCategory === 'Internal') {
+                      if (newCoAuthor.authorCategory ===
+   'Internal') {
                         searchAuthors(value);
                       } else {
                         setNewCoAuthor({ ...newCoAuthor, name: value });
                       }
                     }}
-                    placeholder={newCoAuthor.authorCategory === 'Internal' ? 'Type to search faculty/student...' : 'Enter author name'}
+                    placeholder={newCoAuthor.authorCategory ===
+   'Internal' ? 'Type to search faculty/student...' : 'Enter author name'}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm pl-8"
                   />
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -652,13 +680,15 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
                     onChange={(e) => setNewCoAuthor({ ...newCoAuthor, affiliation: e.target.value })}
                     placeholder="University/Organization"
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 text-sm"
-                    disabled={newCoAuthor.authorCategory === 'Internal'}
+                    disabled={newCoAuthor.authorCategory ===
+   'Internal'}
                   />
                 </div>
               </div>
 
               {/* Email (Optional for external) */}
-              {newCoAuthor.authorCategory === 'External' && (
+              {newCoAuthor.authorCategory ===
+   'External' && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Email (Optional)</label>
                   <input
@@ -704,7 +734,8 @@ export default function AuthorSection({ publicationType, conferenceSubType, onAu
           )}
 
           {/* Empty State */}
-          {coAuthors.length === 0 && !showCoAuthorForm && (
+          {coAuthors.length ===
+   0 && !showCoAuthorForm && (
             <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
               <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
               <p className="text-sm text-gray-500">No co-authors added yet</p>

@@ -10,6 +10,7 @@ import {
   GraduationCap, Plus, Edit, Search, Filter, UserCheck, UserX, 
   Key, ChevronDown, X, Loader2, AlertCircle, CheckCircle 
 } from 'lucide-react';
+import { validateCreateStudent, validateUpdateStudent } from '@/shared/validations/student.validation';
 
 interface Program {
   id: string;
@@ -84,6 +85,7 @@ export default function StudentManagement() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [submitting, setSubmitting] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     studentId: '',
@@ -255,6 +257,7 @@ export default function StudentManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMentorError('');
+    setFormErrors({});
 
     // Mentor is now optional. If provided, validate that program is selected first.
     if (!editingStudent && formData.mentorId && !formData.programId) {
@@ -262,13 +265,49 @@ export default function StudentManagement() {
       return;
     }
 
+    // Prepare data for validation
+    const dataToValidate = {
+      ...formData,
+      sectionId: formData.sectionId || '',
+      mentorId: formData.mentorId || '',
+      registrationNo: formData.registrationNo || '',
+      middleName: formData.middleName || '',
+      password: formData.password || '',
+      admissionDate: formData.admissionDate || '',
+      dateOfBirth: formData.dateOfBirth || '',
+      gender: formData.gender || '',
+      bloodGroup: formData.bloodGroup || '',
+      parentContact: formData.parentContact || '',
+      emergencyContact: formData.emergencyContact || '',
+      address: formData.address || '',
+    };
+
+    // Validate using Zod schema
+    const validation = editingStudent
+      ? validateUpdateStudent(dataToValidate)
+      : validateCreateStudent(dataToValidate);
+
+    if (!validation.success) {
+      // Set errors in state for display
+      const errors: Record<string, string> = {};
+      const issues = validation.error?.issues ?? (validation.error as any)?.errors ?? [];
+      issues.forEach((issue: any) => {
+        const path = Array.isArray(issue.path) ? issue.path.join('.') : '';
+        errors[path || 'form'] = issue.message;
+      });
+      setFormErrors(errors);
+      const firstErrorMessage = issues[0]?.message || 'Please fix the highlighted validation errors';
+      toast({ type: 'error', message: firstErrorMessage });
+      return;
+    }
+
     setSubmitting(true);
     try {
       if (editingStudent) {
-        await api.put(`/students/${editingStudent.id}`, formData);
+        await api.put(`/students/${editingStudent.id}`, validation.data);
         toast({ type: 'success', message: 'Student updated successfully' });
       } else {
-        await api.post('/students', formData);
+        await api.post('/students', validation.data);
         toast({ type: 'success', message: 'Student created successfully' });
       }
       setShowModal(false);
@@ -277,7 +316,24 @@ export default function StudentManagement() {
     } catch (error: unknown) {
       logger.error('Error saving student:', error);
       const msg = extractErrorMessage(error);
-      const errCode = (error as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      const errCode = (error as { response?: { data?: { error?: string; errors?: Record<string, string> } } })?.response?.data?.error;
+      
+      // Check if error response has validation errors
+      if (typeof error ===
+   'object' && error !== null && 'response' in error) {
+        const response = (error as any).response;
+        if (response?.data?.errors && typeof response.data.errors ===
+   'object') {
+          setFormErrors(response.data.errors);
+          const firstBackendError = Object.values(response.data.errors)[0];
+          if (typeof firstBackendError ===
+   'string' && firstBackendError.trim()) {
+            toast({ type: 'error', message: firstBackendError });
+            return;
+          }
+        }
+      }
+
       const isMentorError = errCode && ['MENTOR_REQUIRED', 'MENTOR_NOT_FOUND', 'MENTOR_NOT_FACULTY', 'MENTOR_DIFFERENT_DEPARTMENT'].includes(errCode);
       if (msg && (isMentorError || msg.toLowerCase().includes('mentor'))) {
         setMentorError(msg);
@@ -356,7 +412,8 @@ export default function StudentManagement() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => e.key ===
+   'Enter' && handleSearch()}
                   placeholder="Search by ID, name, email..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 />
@@ -404,7 +461,8 @@ export default function StudentManagement() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
             </div>
-          ) : students.length === 0 ? (
+          ) : students.length ===
+   0 ? (
             <div className="text-center py-12">
               <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No students found</p>
@@ -507,14 +565,16 @@ export default function StudentManagement() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setPagination(p => ({ ...p, page: p.page - 1 }))}
-                  disabled={pagination.page === 1}
+                  disabled={pagination.page ===
+   1}
                   className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setPagination(p => ({ ...p, page: p.page + 1 }))}
-                  disabled={pagination.page === pagination.totalPages}
+                  disabled={pagination.page ===
+   pagination.totalPages}
                   className="px-3 py-1 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                 >
                   Next
@@ -549,7 +609,7 @@ export default function StudentManagement() {
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+            <form onSubmit={handleSubmit} noValidate className="flex-1 overflow-y-auto p-6">
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div>
@@ -557,27 +617,38 @@ export default function StudentManagement() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Student ID <span className="text-red-500">*</span>
+                        Student ID / Registration No <span className="text-red-500">*</span>
+                        <span className="text-gray-500 text-xs ml-1">(9-10 digits only)</span>
                       </label>
                       <input
                         type="text"
                         value={formData.studentId}
-                        onChange={(e) => setFormData({ ...formData, studentId: e.target.value })}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                          setFormData({ ...formData, studentId: value, registrationNo: value });
+                        }}
                         disabled={!!editingStudent}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
+                        maxLength={10}
+                        placeholder="9-10 digits only"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 ${
+                          formErrors.studentId ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                         required
                       />
+                      {formErrors.studentId && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.studentId}
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Registration No <span className="text-red-500">*</span>
-                      </label>
+                    <div className="hidden">
                       <input
                         type="text"
                         value={formData.registrationNo}
                         onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        tabIndex={-1}
                       />
                     </div>
                     <div>
@@ -588,9 +659,17 @@ export default function StudentManagement() {
                         type="text"
                         value={formData.firstName}
                         onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.firstName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                         required
                       />
+                      {formErrors.firstName && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.firstName}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
@@ -598,8 +677,16 @@ export default function StudentManagement() {
                         type="text"
                         value={formData.middleName}
                         onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.middleName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.middleName && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.middleName}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
@@ -607,8 +694,16 @@ export default function StudentManagement() {
                         type="text"
                         value={formData.lastName}
                         onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.lastName ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.lastName && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.lastName}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -619,18 +714,36 @@ export default function StudentManagement() {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         disabled={!!editingStudent}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 ${
+                          formErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                         required
                       />
+                      {formErrors.email && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.email}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                       <input
                         type="tel"
                         value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        placeholder="10 digit number"
+                        maxLength={10}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.phone ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.phone && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.phone}
+                        </div>
+                      )}
                     </div>
                     {!editingStudent && (
                       <div>
@@ -642,8 +755,16 @@ export default function StudentManagement() {
                           value={formData.password}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                           placeholder="Leave empty for default"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                          className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                            formErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                          }`}
                         />
+                        {formErrors.password && (
+                          <div className="flex items-center mt-1 text-red-600 text-xs">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            {formErrors.password}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -660,7 +781,9 @@ export default function StudentManagement() {
                       <select
                         value={formData.programId}
                         onChange={(e) => setFormData({ ...formData, programId: e.target.value, sectionId: '', mentorId: '' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.programId ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                         required
                       >
                         <option value="">Select Program</option>
@@ -670,6 +793,12 @@ export default function StudentManagement() {
                           </option>
                         ))}
                       </select>
+                      {formErrors.programId && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.programId}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -702,7 +831,8 @@ export default function StudentManagement() {
                           Mentor assignment is optional. If assigned, mentor must be from the same department.
                         </p>
                       )}
-                      {formData.programId && mentors.length === 0 && !mentorError && (
+                      {formData.programId && mentors.length ===
+   0 && !mentorError && (
                         <p className="mt-1 text-sm text-amber-600">No faculty found in this department.</p>
                       )}
                     </div>
@@ -713,7 +843,9 @@ export default function StudentManagement() {
                       <select
                         value={formData.sectionId}
                         onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100 ${
+                          formErrors.sectionId ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                         disabled={!formData.programId}
                       >
                         <option value="">Select Section</option>
@@ -723,18 +855,32 @@ export default function StudentManagement() {
                           </option>
                         ))}
                       </select>
+                      {formErrors.sectionId && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.sectionId}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Current Semester</label>
                       <select
                         value={formData.currentSemester}
                         onChange={(e) => setFormData({ ...formData, currentSemester: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.currentSemester ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       >
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((sem) => (
                           <option key={sem} value={sem}>Semester {sem}</option>
                         ))}
                       </select>
+                      {formErrors.currentSemester && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.currentSemester}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Admission Date</label>
@@ -742,8 +888,16 @@ export default function StudentManagement() {
                         type="date"
                         value={formData.admissionDate}
                         onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.admissionDate ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.admissionDate && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.admissionDate}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -758,52 +912,96 @@ export default function StudentManagement() {
                         type="date"
                         value={formData.dateOfBirth}
                         onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.dateOfBirth ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.dateOfBirth && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.dateOfBirth}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                       <select
                         value={formData.gender}
                         onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.gender ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       >
                         <option value="">Select Gender</option>
                         <option value="male">Male</option>
                         <option value="female">Female</option>
                         <option value="other">Other</option>
                       </select>
+                      {formErrors.gender && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.gender}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
                       <select
                         value={formData.bloodGroup}
                         onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.bloodGroup ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       >
                         <option value="">Select Blood Group</option>
                         {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => (
                           <option key={bg} value={bg}>{bg}</option>
                         ))}
                       </select>
+                      {formErrors.bloodGroup && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.bloodGroup}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Parent Contact</label>
                       <input
                         type="tel"
                         value={formData.parentContact}
-                        onChange={(e) => setFormData({ ...formData, parentContact: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        onChange={(e) => setFormData({ ...formData, parentContact: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        placeholder="10 digit number"
+                        maxLength={10}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.parentContact ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.parentContact && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.parentContact}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Emergency Contact</label>
                       <input
                         type="tel"
                         value={formData.emergencyContact}
-                        onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                        placeholder="10 digit number"
+                        maxLength={10}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.emergencyContact ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.emergencyContact && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.emergencyContact}
+                        </div>
+                      )}
                     </div>
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
@@ -811,8 +1009,16 @@ export default function StudentManagement() {
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 ${
+                          formErrors.address ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                       />
+                      {formErrors.address && (
+                        <div className="flex items-center mt-1 text-red-600 text-xs">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          {formErrors.address}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

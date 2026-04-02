@@ -131,7 +131,8 @@ export function ConversationList() {
 
       {/* Conversation List */}
       <div className="flex-1 overflow-y-auto">
-        {conversations.length === 0 ? (
+        {conversations.length ===
+   0 ? (
           <div className="p-4 text-center text-gray-500 dark:text-gray-400">
             <p className="text-sm">No conversations yet</p>
             <p className="text-xs mt-1">Search for a user to start chatting</p>
@@ -142,7 +143,8 @@ export function ConversationList() {
               <ConversationItem
                 key={conversation.user.id}
                 conversation={conversation}
-                isActive={currentDMUserId === conversation.user.id}
+                isActive={currentDMUserId ===
+   conversation.user.id}
               />
             ))}
           </div>

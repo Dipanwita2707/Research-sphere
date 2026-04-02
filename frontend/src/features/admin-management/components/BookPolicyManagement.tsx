@@ -266,7 +266,8 @@ export default function BookPolicyManagement() {
 
       {/* Policies List */}
       <div className="space-y-4">
-        {policies.length === 0 ? (
+        {policies.length ===
+   0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
             <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No policies found</h3>
@@ -290,7 +291,8 @@ export default function BookPolicyManagement() {
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-xl font-semibold text-gray-900">{policy.policyName}</h3>
                     <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-700">
-                      {PUBLICATION_TYPES.find(t => t.value === policy.publicationType)?.label}
+                      {PUBLICATION_TYPES.find(t => t.value ===
+   policy.publicationType)?.label}
                     </span>
                     {policy.isActive && (
                       <span className="px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-700">

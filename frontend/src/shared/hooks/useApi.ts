@@ -40,22 +40,21 @@ export interface UseApiReturn<T> extends UseApiState<T> {
 }
 
 /**
- * useApi Hook
- * Handles API calls with loading, error, and data states
- * 
- * @example
- * // Basic usage
- * const { data, loading, error, refetch } = useApi<User[]>('/users', { fetchOnMount: true });
- * 
- * // With options
- * const { data, loading, fetch } = useApi<User>(`/users/${id}`, {
- *   fetchOnMount: false,
- *   onSuccess: (user) => handleSuccess(user),
- *   onError: (error) => handleError(error),
+ * @deprecated Use TanStack Query hooks (useQuery / useMutation) instead.
+ * This hook reimplements query caching, loading states, and error handling
+ * that TanStack Query already provides. It will be removed in a future release.
+ *
+ * Migration example:
+ * ```ts
+ * // Before:
+ * const { data, loading, error } = useApi<User[]>('/users', { fetchOnMount: true });
+ *
+ * // After:
+ * const { data, isLoading, error } = useQuery({
+ *   queryKey: ['users'],
+ *   queryFn: () => api.get('/users').then(r => r.data),
  * });
- * 
- * // Manual fetch
- * await fetch();
+ * ```
  */
 export function useApi<T = unknown>(
   url: string,
@@ -98,7 +97,8 @@ export function useApi<T = unknown>(
       let data = response.data;
 
       // Handle nested data structure
-      if (data && typeof data === 'object' && 'data' in data) {
+      if (data && typeof data ===
+   'object' && 'data' in data) {
         data = data.data;
       }
 
@@ -117,7 +117,9 @@ export function useApi<T = unknown>(
       return transformedData;
     } catch (error) {
       // Ignore abort errors
-      if ((error as Error).name === 'AbortError' || (error as AxiosError).code === 'ERR_CANCELED') {
+      if ((error as Error).name ===
+   'AbortError' || (error as AxiosError).code ===
+   'ERR_CANCELED') {
         return null;
       }
 
@@ -237,7 +239,8 @@ export function useMutation<T = unknown, D = unknown>(
         let responseData = response.data;
 
         // Handle nested data structure
-        if (responseData && typeof responseData === 'object' && 'data' in responseData) {
+        if (responseData && typeof responseData ===
+   'object' && 'data' in responseData) {
           responseData = responseData.data;
         }
 

@@ -1,29 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BarChart3, TrendingUp, Users, Calendar, Award, Activity } from 'lucide-react';
-import { dswAPI } from '@/features/dsw/services/api';
-import { DSWStatistics } from '@/features/dsw/types';
+import { useStatistics } from '@/features/dsw/hooks';
+import { getErrorMessage } from '@/shared/utils/errorHandler';
+import { PageSkeleton } from '@/shared/components/PageSkeleton';
 
 export default function StatisticsPage() {
-  const [stats, setStats] = useState<DSWStatistics | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchStatistics();
-  }, []);
-
-  const fetchStatistics = async () => {
-    try {
-      setLoading(true);
-      const response = await dswAPI.getStatistics();
-      if (response.success && response.data) {
-        setStats(response.data);
-      }
-    } catch (err: any) {
-      console.error('Error fetching statistics:', err);
-      // Set default stats on error so page still shows
-      setStats({
+  const { data: response, isLoading, error } = useStatistics();
+  const stats = response?.success
+    ? response.data
+    : {
         totalClubs: 0,
         activeClubs: 0,
         totalMembers: 0,
@@ -31,130 +18,85 @@ export default function StatisticsPage() {
         pendingApprovals: 0,
         clubsByCategory: [],
         clubsByStatus: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+      };
+  const errorMessage = error ? getErrorMessage(error) : null;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading statistics...</p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <PageSkeleton message="Loading statistics..." />;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Club Statistics
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Analytics and insights for student clubs
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-ev-900">Club Statistics</h1>
+        <p className="mt-2 text-ev-400">Analytics and insights for student clubs</p>
       </div>
 
+      {errorMessage && (
+        <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+          <p className="text-red-700 text-sm">{errorMessage}</p>
+        </div>
+      )}
+
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="ev-stat">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Clubs
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {stats?.totalClubs || 0}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                {stats?.activeClubs || 0} active
-              </p>
+              <p className="text-sm font-medium text-ev-400">Total Clubs</p>
+              <p className="text-2xl font-bold text-ev-900 mt-1">{stats?.totalClubs || 0}</p>
+              <p className="text-xs text-ev-400 mt-1">{stats?.activeClubs || 0} active</p>
             </div>
-            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
-              <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
+            <div className="p-3 bg-ev-50 rounded-lg"><Users className="w-6 h-6 text-ev-700" /></div>
           </div>
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+        <div className="ev-stat">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Members
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {stats?.totalMembers || 0}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Across all clubs
-              </p>
+              <p className="text-sm font-medium text-ev-400">Total Members</p>
+              <p className="text-2xl font-bold text-ev-900 mt-1">{stats?.totalMembers || 0}</p>
+              <p className="text-xs text-ev-400 mt-1">Across all clubs</p>
             </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
+            <div className="p-3 bg-ev-50 rounded-lg"><TrendingUp className="w-6 h-6 text-ev-700" /></div>
           </div>
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+        <div className="ev-stat">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Categories
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {stats?.totalCategories || 0}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Club types
-              </p>
+              <p className="text-sm font-medium text-ev-400">Categories</p>
+              <p className="text-2xl font-bold text-ev-900 mt-1">{stats?.totalCategories || 0}</p>
+              <p className="text-xs text-ev-400 mt-1">Club types</p>
             </div>
-            <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-              <Award className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-            </div>
+            <div className="p-3 bg-ev-50 rounded-lg"><Award className="w-6 h-6 text-ev-700" /></div>
           </div>
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+        <div className="ev-stat">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Pending Approvals
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                {stats?.pendingApprovals || 0}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Awaiting review
-              </p>
+              <p className="text-sm font-medium text-ev-400">Pending Approvals</p>
+              <p className="text-2xl font-bold text-ev-900 mt-1">{stats?.pendingApprovals || 0}</p>
+              <p className="text-xs text-ev-400 mt-1">Awaiting review</p>
             </div>
-            <div className="p-3 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
-              <Calendar className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-            </div>
+            <div className="p-3 bg-ev-50 rounded-lg"><Calendar className="w-6 h-6 text-ev-700" /></div>
           </div>
         </div>
       </div>
 
       {/* Category Breakdown */}
       {stats?.clubsByCategory && stats.clubsByCategory.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Clubs by Category
-          </h2>
-          <div className="space-y-3">
-            {stats.clubsByCategory.map((category: any) => (
-              <div key={category.categoryId} className="flex items-center justify-between">
+        <div className="ev-card">
+          <div className="px-6 py-4 border-b border-[#b3cde0]/40">
+            <h2 className="ev-section-title">Clubs by Category</h2>
+          </div>
+          <div className="p-6 space-y-1">
+            {stats.clubsByCategory.map((category: { categoryId: string; categoryName: string; _count: number }) => (
+              <div key={category.categoryId} className="flex items-center justify-between py-2 border-b border-[#edf4f8] last:border-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400"></div>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {category.categoryName}
-                  </span>
+                  <div className="w-2 h-2 rounded-full bg-ev-700"></div>
+                  <span className="text-sm text-ev-800">{category.categoryName}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                <span className="text-sm font-semibold text-ev-900">
                   {category._count} club{category._count !== 1 ? 's' : ''}
                 </span>
               </div>
@@ -165,36 +107,31 @@ export default function StatisticsPage() {
 
       {/* Status Breakdown */}
       {stats?.clubsByStatus && stats.clubsByStatus.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Clubs by Status
-          </h2>
-          <div className="space-y-3">
-            {stats.clubsByStatus.map((status: any) => (
-              <div key={status.status} className="flex items-center justify-between">
+        <div className="ev-card">
+          <div className="px-6 py-4 border-b border-[#b3cde0]/40">
+            <h2 className="ev-section-title">Clubs by Status</h2>
+          </div>
+          <div className="p-6 space-y-1">
+            {stats.clubsByStatus.map((status: { status: string; count: number }) => (
+              <div key={status.status} className="flex items-center justify-between py-2 border-b border-[#edf4f8] last:border-0">
                 <div className="flex items-center gap-3">
-                  <Activity className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
-                    {status.status.replace('_', ' ')}
-                  </span>
+                  <Activity className="w-4 h-4 text-ev-400" />
+                  <span className="text-sm text-ev-800 capitalize">{status.status.replace('_', ' ')}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">
-                  {status._count}
-                </span>
+                <span className="text-sm font-semibold text-ev-900">{status.count}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Charts Placeholder */}
-      {(!stats?.clubsByCategory || stats.clubsByCategory.length === 0) && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12 text-center border border-gray-200 dark:border-gray-700">
-          <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-            No Data Available
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
+      {/* Empty state */}
+      {(!stats?.clubsByCategory || stats.clubsByCategory.length ===
+   0) && (
+        <div className="ev-card p-12 text-center">
+          <BarChart3 className="w-14 h-14 text-ev-200 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-ev-900 mb-2">No Data Available</h3>
+          <p className="text-ev-400 text-sm">
             Detailed analytics will be available once clubs are created and active.
           </p>
         </div>

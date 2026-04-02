@@ -134,34 +134,41 @@ export const useChatStore = create<ChatState>()(
         
         updateGroup: (groupId, updates) => set((state) => ({
           groups: state.groups.map((g) => 
-            g.id === groupId ? { ...g, ...updates } : g
+            g.id ===
+   groupId ? { ...g, ...updates } : g
           ),
-          currentGroup: state.currentGroup?.id === groupId 
+          currentGroup: state.currentGroup?.id ===
+   groupId 
             ? { ...state.currentGroup, ...updates } 
             : state.currentGroup,
         })),
         
         removeGroup: (groupId) => set((state) => ({
           groups: state.groups.filter((g) => g.id !== groupId),
-          currentGroupId: state.currentGroupId === groupId ? null : state.currentGroupId,
-          currentGroup: state.currentGroup?.id === groupId ? null : state.currentGroup,
+          currentGroupId: state.currentGroupId ===
+   groupId ? null : state.currentGroupId,
+          currentGroup: state.currentGroup?.id ===
+   groupId ? null : state.currentGroup,
         })),
         
         updateGroupMember: (groupId, userId, updates) => set((state) => {
           const updateMembers = (members?: ChatGroupMember[]) => {
             if (!members) return members;
             return members.map((m) => 
-              m.userId === userId ? { ...m, ...updates } : m
+              m.userId ===
+   userId ? { ...m, ...updates } : m
             );
           };
           
           return {
             groups: state.groups.map((g) => 
-              g.id === groupId 
+              g.id ===
+   groupId 
                 ? { ...g, members: updateMembers(g.members) }
                 : g
             ),
-            currentGroup: state.currentGroup?.id === groupId
+            currentGroup: state.currentGroup?.id ===
+   groupId
               ? { ...state.currentGroup, members: updateMembers(state.currentGroup.members) }
               : state.currentGroup,
           };
@@ -183,7 +190,8 @@ export const useChatStore = create<ChatState>()(
         addMessage: (groupId, message) => set((state) => {
           const existing = state.messagesByGroup[groupId] || [];
           // Check for duplicate
-          if (existing.some((m) => m.id === message.id)) {
+          if (existing.some((m) => m.id ===
+   message.id)) {
             return state;
           }
           return {
@@ -212,7 +220,8 @@ export const useChatStore = create<ChatState>()(
           messagesByGroup: {
             ...state.messagesByGroup,
             [groupId]: (state.messagesByGroup[groupId] || []).map((m) =>
-              m.id === message.id ? message : m
+              m.id ===
+   message.id ? message : m
             ),
           },
         })),
@@ -230,7 +239,8 @@ export const useChatStore = create<ChatState>()(
             [groupId]: (state.messagesByGroup[groupId] || []).map((m) => {
               if (messageIds.includes(m.id)) {
                 const existingReceipts = m.readBy || [];
-                if (!existingReceipts.some((r) => r.userId === userId)) {
+                if (!existingReceipts.some((r) => r.userId ===
+   userId)) {
                   return {
                     ...m,
                     readBy: [...existingReceipts, { userId, readAt }],
@@ -251,7 +261,8 @@ export const useChatStore = create<ChatState>()(
         
         addDirectMessage: (userId, message) => set((state) => {
           const existing = state.directMessagesByUser[userId] || [];
-          if (existing.some((m) => m.id === message.id)) {
+          if (existing.some((m) => m.id ===
+   message.id)) {
             return state;
           }
           return {
@@ -280,7 +291,8 @@ export const useChatStore = create<ChatState>()(
           directMessagesByUser: {
             ...state.directMessagesByUser,
             [userId]: (state.directMessagesByUser[userId] || []).map((m) =>
-              m.id === message.id ? message : m
+              m.id ===
+   message.id ? message : m
             ),
           },
         })),
@@ -301,7 +313,8 @@ export const useChatStore = create<ChatState>()(
               ...state.directMessagesByUser,
               [userId]: (state.directMessagesByUser[userId] || []).map((m) => {
                 // Only mark messages sent by me as read (other user read them)
-                if (currentUserId && m.senderId === currentUserId && !m.readAt) {
+                if (currentUserId && m.senderId ===
+   currentUserId && !m.readAt) {
                   return { ...m, readAt };
                 }
                 return m;
@@ -316,7 +329,8 @@ export const useChatStore = create<ChatState>()(
           // Try to find user info from conversations if not provided
           let dmUser = user ?? null;
           if (userId && !dmUser) {
-            const conv = state.conversations.find(c => c.user.id === userId);
+            const conv = state.conversations.find(c => c.user.id ===
+   userId);
             if (conv) {
               dmUser = conv.user;
             }
@@ -332,7 +346,8 @@ export const useChatStore = create<ChatState>()(
         // Typing actions
         setTypingUsers: (groupId, user) => set((state) => {
           const existing = state.typingByGroup[groupId] || [];
-          if (existing.some((u) => u.userId === user.userId)) {
+          if (existing.some((u) => u.userId ===
+   user.userId)) {
             return state;
           }
           return {

@@ -324,9 +324,12 @@ export default function ResearchPolicyManagement() {
       }
 
       // Validate role percentages only if using role-based distribution
-      if (formData.distributionMethod === 'author_role_based') {
-        const firstAuthorPct = formData.rolePercentages.find(rp => rp.role === 'first_author')?.percentage || 0;
-        const correspondingAuthorPct = formData.rolePercentages.find(rp => rp.role === 'corresponding_author')?.percentage || 0;
+      if (formData.distributionMethod ===
+   'author_role_based') {
+        const firstAuthorPct = formData.rolePercentages.find(rp => rp.role ===
+   'first_author')?.percentage || 0;
+        const correspondingAuthorPct = formData.rolePercentages.find(rp => rp.role ===
+   'corresponding_author')?.percentage || 0;
         const totalDefinedPct = firstAuthorPct + correspondingAuthorPct;
         
         if (totalDefinedPct > 100) {
@@ -341,7 +344,8 @@ export default function ResearchPolicyManagement() {
       }
 
       // Validate position percentages if using position-based distribution
-      if (formData.distributionMethod === 'author_position_based') {
+      if (formData.distributionMethod ===
+   'author_position_based') {
         const totalPositionPct = formData.positionPercentages.reduce((sum, pp) => sum + pp.percentage, 0);
         if (totalPositionPct !== 100) {
           setError(`Position percentages must total 100%. Currently: ${totalPositionPct}%`);
@@ -374,7 +378,8 @@ export default function ResearchPolicyManagement() {
       };
 
       // Calculate base amount and points from Q1 for backward compatibility
-      const q1Incentive = formData.quartileIncentives.find(q => q.quartile === 'Q1') || formData.quartileIncentives[0];
+      const q1Incentive = formData.quartileIncentives.find(q => q.quartile ===
+   'Q1') || formData.quartileIncentives[0];
 
       const policyData = {
         publicationType: formData.publicationType,
@@ -421,7 +426,8 @@ export default function ResearchPolicyManagement() {
   };
 
   const getPublicationTypeInfo = (type: string) => {
-    return PUBLICATION_TYPES.find(t => t.value === type) || { value: type, label: type, icon: '📄' };
+    return PUBLICATION_TYPES.find(t => t.value ===
+   type) || { value: type, label: type, icon: '📄' };
   };
 
   const formatDate = (dateStr?: string) => {
@@ -515,7 +521,8 @@ export default function ResearchPolicyManagement() {
       {/* Policies Grid */}
       <div className="grid gap-6">
         {PUBLICATION_TYPES.map(pubType => {
-          const typePolicies = policies.filter(p => p.publicationType === pubType.value);
+          const typePolicies = policies.filter(p => p.publicationType ===
+   pubType.value);
           const activePolicy = typePolicies.find(p => p.isActive);
 
           return (
@@ -625,18 +632,21 @@ export default function ResearchPolicyManagement() {
                         <div className="flex items-center gap-2 bg-purple-50 rounded px-3 py-2 border border-purple-200">
                           <Hash className="w-4 h-4 text-purple-600" />
                           <span className="text-sm font-semibold text-purple-700">
-                            {DISTRIBUTION_METHODS.find(m => m.value === activePolicy.distributionMethod)?.label || 'Author Role Based'}
+                            {DISTRIBUTION_METHODS.find(m => m.value ===
+   activePolicy.distributionMethod)?.label || 'Author Role Based'}
                           </span>
                         </div>
                       </div>
 
                       {/* Role Percentages - Only for author_role_based */}
-                      {(!activePolicy.distributionMethod || activePolicy.distributionMethod === 'author_role_based') && (
+                      {(!activePolicy.distributionMethod || activePolicy.distributionMethod ===
+   'author_role_based') && (
                       <div className="mb-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Author Role Percentages</h4>
                         <div className="space-y-2">
                           {((activePolicy.indexingBonuses as any)?.rolePercentages || DEFAULT_ROLE_PERCENTAGES).map((rp: RolePercentage) => {
-                            const roleInfo = AUTHOR_ROLES.find(r => r.value === rp.role);
+                            const roleInfo = AUTHOR_ROLES.find(r => r.value ===
+   rp.role);
                             return (
                               <div key={rp.role} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                                 <span className="text-sm text-gray-700">{roleInfo?.label || rp.role}</span>
@@ -647,8 +657,10 @@ export default function ResearchPolicyManagement() {
                           {/* Show calculated Co-Author percentage */}
                           {(() => {
                             const rolePercentages = (activePolicy.indexingBonuses as any)?.rolePercentages || DEFAULT_ROLE_PERCENTAGES;
-                            const firstPct = rolePercentages.find((r: RolePercentage) => r.role === 'first_author')?.percentage || 0;
-                            const corrPct = rolePercentages.find((r: RolePercentage) => r.role === 'corresponding_author')?.percentage || 0;
+                            const firstPct = rolePercentages.find((r: RolePercentage) => r.role ===
+   'first_author')?.percentage || 0;
+                            const corrPct = rolePercentages.find((r: RolePercentage) => r.role ===
+   'corresponding_author')?.percentage || 0;
                             const coAuthorPct = 100 - firstPct - corrPct;
                             return (
                               <div className="flex items-center justify-between bg-amber-50 rounded px-3 py-2 border border-amber-200">
@@ -662,12 +674,14 @@ export default function ResearchPolicyManagement() {
                       )}
 
                       {/* Position Percentages - Only for author_position_based */}
-                      {activePolicy.distributionMethod === 'author_position_based' && (
+                      {activePolicy.distributionMethod ===
+   'author_position_based' && (
                       <div className="mb-4">
                         <h4 className="text-sm font-semibold text-gray-700 mb-2">Author Position Percentages</h4>
                         <div className="space-y-2">
                           {((activePolicy.indexingBonuses as any)?.positionPercentages || DEFAULT_POSITION_PERCENTAGES).map((pp: PositionPercentage) => {
-                            const positionInfo = AUTHOR_POSITIONS.find(p => p.position === pp.position);
+                            const positionInfo = AUTHOR_POSITIONS.find(p => p.position ===
+   pp.position);
                             return (
                               <div key={pp.position} className="flex items-center justify-between bg-purple-50 rounded px-3 py-2">
                                 <span className="text-sm text-gray-700">{positionInfo?.label || pp.position}</span>
@@ -759,12 +773,14 @@ export default function ResearchPolicyManagement() {
                     onChange={(e) => {
                       const selectedType = e.target.value;
                       // Redirect to book policies page if book is selected
-                      if (selectedType === 'book') {
+                      if (selectedType ===
+   'book') {
                         window.location.href = '/admin/book-policies';
                         return;
                       }
                       // Redirect to book chapter policies page if book_chapter is selected
-                      if (selectedType === 'book_chapter') {
+                      if (selectedType ===
+   'book_chapter') {
                         window.location.href = '/admin/book-chapter-policies';
                         return;
                       }
@@ -858,7 +874,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               quartileIncentives: formData.quartileIncentives.map(qi => 
-                                qi.quartile === q.quartile ? { ...qi, incentiveAmount: Number(e.target.value) } : qi
+                                qi.quartile ===
+   q.quartile ? { ...qi, incentiveAmount: Number(e.target.value) } : qi
                               )
                             })}
                             min="0"
@@ -876,7 +893,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               quartileIncentives: formData.quartileIncentives.map(qi => 
-                                qi.quartile === q.quartile ? { ...qi, points: Number(e.target.value) } : qi
+                                qi.quartile ===
+   q.quartile ? { ...qi, points: Number(e.target.value) } : qi
                               )
                             })}
                             min="0"
@@ -930,7 +948,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               sjrRanges: formData.sjrRanges.map(r => 
-                                r.id === range.id ? { ...r, minSJR: Number(e.target.value) } : r
+                                r.id ===
+   range.id ? { ...r, minSJR: Number(e.target.value) } : r
                               )
                             })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -947,7 +966,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               sjrRanges: formData.sjrRanges.map(r => 
-                                r.id === range.id ? { ...r, maxSJR: Number(e.target.value) } : r
+                                r.id ===
+   range.id ? { ...r, maxSJR: Number(e.target.value) } : r
                               )
                             })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -964,7 +984,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               sjrRanges: formData.sjrRanges.map(r => 
-                                r.id === range.id ? { ...r, incentiveAmount: Number(e.target.value) } : r
+                                r.id ===
+   range.id ? { ...r, incentiveAmount: Number(e.target.value) } : r
                               )
                             })}
                             min="0"
@@ -982,7 +1003,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               sjrRanges: formData.sjrRanges.map(r => 
-                                r.id === range.id ? { ...r, points: Number(e.target.value) } : r
+                                r.id ===
+   range.id ? { ...r, points: Number(e.target.value) } : r
                               )
                             })}
                             min="0"
@@ -1028,7 +1050,8 @@ export default function ResearchPolicyManagement() {
                 
                 <div className="space-y-3">
                   {INDEXING_CATEGORIES.map((cat: any) => {
-                    const catBonus = formData.indexingCategoryBonuses.find(b => b.category === cat.value);
+                    const catBonus = formData.indexingCategoryBonuses.find(b => b.category ===
+   cat.value);
                     const categoryLabel = cat.label;
                     
                     return (
@@ -1051,7 +1074,8 @@ export default function ResearchPolicyManagement() {
                               onChange={(e) => setFormData({
                                 ...formData,
                                 indexingCategoryBonuses: formData.indexingCategoryBonuses.map(b =>
-                                  b.category === cat.value
+                                  b.category ===
+   cat.value
                                     ? { ...b, incentiveAmount: Number(e.target.value) }
                                     : b
                                 )
@@ -1071,7 +1095,8 @@ export default function ResearchPolicyManagement() {
                               onChange={(e) => setFormData({
                                 ...formData,
                                 indexingCategoryBonuses: formData.indexingCategoryBonuses.map(b =>
-                                  b.category === cat.value
+                                  b.category ===
+   cat.value
                                     ? { ...b, points: Number(e.target.value) }
                                     : b
                                 )
@@ -1116,7 +1141,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               naasRatingIncentives: formData.naasRatingIncentives.map((n, i) =>
-                                i === idx ? { ...n, minRating: Number(e.target.value) } : n
+                                i ===
+   idx ? { ...n, minRating: Number(e.target.value) } : n
                               )
                             })}
                             className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
@@ -1131,7 +1157,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               naasRatingIncentives: formData.naasRatingIncentives.map((n, i) =>
-                                i === idx ? { ...n, maxRating: Number(e.target.value) } : n
+                                i ===
+   idx ? { ...n, maxRating: Number(e.target.value) } : n
                               )
                             })}
                             className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
@@ -1145,7 +1172,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               naasRatingIncentives: formData.naasRatingIncentives.map((n, i) =>
-                                i === idx ? { ...n, incentiveAmount: Number(e.target.value) } : n
+                                i ===
+   idx ? { ...n, incentiveAmount: Number(e.target.value) } : n
                               )
                             })}
                             className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
@@ -1159,7 +1187,8 @@ export default function ResearchPolicyManagement() {
                             onChange={(e) => setFormData({
                               ...formData,
                               naasRatingIncentives: formData.naasRatingIncentives.map((n, i) =>
-                                i === idx ? { ...n, points: Number(e.target.value) } : n
+                                i ===
+   idx ? { ...n, points: Number(e.target.value) } : n
                               )
                             })}
                             className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm"
@@ -1187,18 +1216,21 @@ export default function ResearchPolicyManagement() {
                       key={method.value}
                       onClick={() => setFormData({ ...formData, distributionMethod: method.value as DistributionMethod })}
                       className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                        formData.distributionMethod === method.value
+                        formData.distributionMethod ===
+   method.value
                           ? 'border-purple-500 bg-purple-50'
                           : 'border-gray-200 bg-white hover:border-purple-300'
                       }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                          formData.distributionMethod === method.value
+                          formData.distributionMethod ===
+   method.value
                             ? 'border-purple-500 bg-purple-500'
                             : 'border-gray-300'
                         }`}>
-                          {formData.distributionMethod === method.value && (
+                          {formData.distributionMethod ===
+   method.value && (
                             <div className="w-2 h-2 bg-white rounded-full" />
                           )}
                         </div>
@@ -1213,7 +1245,8 @@ export default function ResearchPolicyManagement() {
               </div>
 
               {/* Author Role Percentages - Only shown for author_role_based */}
-              {formData.distributionMethod === 'author_role_based' && (
+              {formData.distributionMethod ===
+   'author_role_based' && (
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Percent className="w-5 h-5 text-blue-600" />
@@ -1234,7 +1267,8 @@ export default function ResearchPolicyManagement() {
                 
                 <div className="space-y-3">
                   {formData.rolePercentages.map(rp => {
-                    const roleInfo = AUTHOR_ROLES.find(r => r.value === rp.role);
+                    const roleInfo = AUTHOR_ROLES.find(r => r.value ===
+   rp.role);
                     return (
                       <div key={rp.role} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                         <div className="flex-1">
@@ -1248,7 +1282,8 @@ export default function ResearchPolicyManagement() {
                               onChange={(e) => setFormData({
                                 ...formData,
                                 rolePercentages: formData.rolePercentages.map(r => 
-                                  r.role === rp.role ? { ...r, percentage: Number(e.target.value) } : r
+                                  r.role ===
+   rp.role ? { ...r, percentage: Number(e.target.value) } : r
                                 )
                               })}
                               min="1"
@@ -1264,8 +1299,10 @@ export default function ResearchPolicyManagement() {
                   
                   {/* Show calculated Co-Author percentage */}
                   {(() => {
-                    const firstPct = formData.rolePercentages.find(rp => rp.role === 'first_author')?.percentage || 0;
-                    const corrPct = formData.rolePercentages.find(rp => rp.role === 'corresponding_author')?.percentage || 0;
+                    const firstPct = formData.rolePercentages.find(rp => rp.role ===
+   'first_author')?.percentage || 0;
+                    const corrPct = formData.rolePercentages.find(rp => rp.role ===
+   'corresponding_author')?.percentage || 0;
                     const coAuthorPct = 100 - firstPct - corrPct;
                     return (
                       <div className="flex items-center gap-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
@@ -1288,8 +1325,10 @@ export default function ResearchPolicyManagement() {
 
                 <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
                   {(() => {
-                    const firstPct = formData.rolePercentages.find(rp => rp.role === 'first_author')?.percentage || 0;
-                    const corrPct = formData.rolePercentages.find(rp => rp.role === 'corresponding_author')?.percentage || 0;
+                    const firstPct = formData.rolePercentages.find(rp => rp.role ===
+   'first_author')?.percentage || 0;
+                    const corrPct = formData.rolePercentages.find(rp => rp.role ===
+   'corresponding_author')?.percentage || 0;
                     const totalDefined = firstPct + corrPct;
                     return (
                       <p className="text-sm text-blue-800">
@@ -1308,7 +1347,8 @@ export default function ResearchPolicyManagement() {
               )}
 
               {/* Author Position Percentages - Only shown for author_position_based */}
-              {formData.distributionMethod === 'author_position_based' && (
+              {formData.distributionMethod ===
+   'author_position_based' && (
               <div className="border-t pt-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <Hash className="w-5 h-5 text-purple-600" />
@@ -1328,7 +1368,8 @@ export default function ResearchPolicyManagement() {
                 
                 <div className="space-y-3">
                   {formData.positionPercentages.map(pp => {
-                    const positionInfo = AUTHOR_POSITIONS.find(p => p.position === pp.position);
+                    const positionInfo = AUTHOR_POSITIONS.find(p => p.position ===
+   pp.position);
                     return (
                       <div key={pp.position} className="flex items-center gap-4 p-3 bg-purple-50 rounded-lg">
                         <div className="flex-1">
@@ -1342,7 +1383,8 @@ export default function ResearchPolicyManagement() {
                               onChange={(e) => setFormData({
                                 ...formData,
                                 positionPercentages: formData.positionPercentages.map(p => 
-                                  p.position === pp.position ? { ...p, percentage: Number(e.target.value) } : p
+                                  p.position ===
+   pp.position ? { ...p, percentage: Number(e.target.value) } : p
                                 )
                               })}
                               min="0"
@@ -1382,7 +1424,8 @@ export default function ResearchPolicyManagement() {
                         {totalPositionPct !== 100 && (
                           <span className="text-red-600 ml-2">⚠️ Must equal exactly 100%</span>
                         )}
-                        {totalPositionPct === 100 && (
+                        {totalPositionPct ===
+   100 && (
                           <span className="text-green-600 ml-2">✓ Perfect!</span>
                         )}
                       </p>
@@ -1410,7 +1453,8 @@ export default function ResearchPolicyManagement() {
                     ))}
                   </select>
                   <p className="text-xs text-gray-500 mt-1">
-                    {SPLIT_POLICIES.find(p => p.value === formData.splitPolicy)?.description}
+                    {SPLIT_POLICIES.find(p => p.value ===
+   formData.splitPolicy)?.description}
                   </p>
                 </div>
                 <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">

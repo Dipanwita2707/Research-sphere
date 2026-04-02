@@ -187,14 +187,18 @@ export default function ProgramManagement() {
 
   // Filter departments by selected school
   const filteredDepartments = departments.filter(dept => 
-    !selectedSchool || dept.facultyId === selectedSchool
+    !selectedSchool || dept.facultyId ===
+   selectedSchool
   );
 
   // Filter programs
   const filteredPrograms = programs.filter(prog => {
-    const matchesSchool = !selectedSchool || prog.department?.faculty?.id === selectedSchool;
-    const matchesDepartment = !selectedDepartment || prog.departmentId === selectedDepartment;
-    const matchesType = !selectedProgramType || prog.programType === selectedProgramType;
+    const matchesSchool = !selectedSchool || prog.department?.faculty?.id ===
+   selectedSchool;
+    const matchesDepartment = !selectedDepartment || prog.departmentId ===
+   selectedDepartment;
+    const matchesType = !selectedProgramType || prog.programType ===
+   selectedProgramType;
     const matchesSearch = !searchTerm ||
       prog.programName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prog.programCode.toLowerCase().includes(searchTerm.toLowerCase());
@@ -349,7 +353,8 @@ export default function ProgramManagement() {
       </div>
 
       {/* Programs List Grouped by Department */}
-      {Object.keys(groupedPrograms).length === 0 ? (
+      {Object.keys(groupedPrograms).length ===
+   0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <GraduationCap className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-700">No programs found</h3>

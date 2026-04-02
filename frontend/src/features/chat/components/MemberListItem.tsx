@@ -26,14 +26,20 @@ export function MemberListItem({ member, groupId, myRole, onManagePermissions }:
   
   const isOnline = useIsOnline(member.userId);
   const authUser = useAuthStore((s) => s.user);
-  const isSystemAdmin = authUser?.userType === 'admin' || authUser?.role?.name === 'superadmin';
+  const isSystemAdmin = authUser?.userType ===
+   'admin' || authUser?.role?.name ===
+   'superadmin';
   const user = member.user;
 
   const canManageMember = 
     isSystemAdmin ||
-    myRole === 'owner' || 
-    (myRole === 'admin' && member.memberRole !== 'owner' && member.memberRole !== 'admin') ||
-    (myRole === 'moderator' && member.memberRole === 'member');
+    myRole ===
+   'owner' || 
+    (myRole ===
+   'admin' && member.memberRole !== 'owner' && member.memberRole !== 'admin') ||
+    (myRole ===
+   'moderator' && member.memberRole ===
+   'member');
 
   const getUserName = () => {
     if (!user) return 'Unknown';
@@ -65,7 +71,8 @@ export function MemberListItem({ member, groupId, myRole, onManagePermissions }:
       member: '',
     };
 
-    if (member.memberRole === 'member') return null;
+    if (member.memberRole ===
+   'member') return null;
 
     return (
       <span className={`text-[10px] px-1.5 py-0.5 rounded ${roleColors[member.memberRole]}`}>
@@ -183,7 +190,8 @@ export function MemberListItem({ member, groupId, myRole, onManagePermissions }:
           {showMenu && (
             <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">
               {/* Role options */}
-              {(myRole === 'owner' || isSystemAdmin) && member.memberRole !== 'owner' && (
+              {(myRole ===
+   'owner' || isSystemAdmin) && member.memberRole !== 'owner' && (
                 <>
                   <button
                     onClick={() => handleRoleChange('admin')}
@@ -220,7 +228,9 @@ export function MemberListItem({ member, groupId, myRole, onManagePermissions }:
               </button>
 
               {/* Manage Permissions */}
-              {(myRole === 'owner' || myRole === 'admin' || isSystemAdmin) && onManagePermissions && (
+              {(myRole ===
+   'owner' || myRole ===
+   'admin' || isSystemAdmin) && onManagePermissions && (
                 <button
                   onClick={() => {
                     setShowMenu(false);

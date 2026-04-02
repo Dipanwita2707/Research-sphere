@@ -71,7 +71,8 @@ export default function ContributedResearchPage() {
       let totalPoints = 0;
       
       approvedContribs.forEach((c: ResearchContribution) => {
-        const userAuthor = c.authors?.find(a => a.userId === user?.id);
+        const userAuthor = c.authors?.find(a => a.userId ===
+   user?.id);
         if (userAuthor) {
           totalIncentives += Number(userAuthor.incentiveShare) || 0;
           totalPoints += Number(userAuthor.pointsShare) || 0;
@@ -92,7 +93,8 @@ export default function ContributedResearchPage() {
   };
 
   const getUserRole = (contribution: ResearchContribution) => {
-    const userAuthor = contribution.authors?.find(a => a.userId === user?.id);
+    const userAuthor = contribution.authors?.find(a => a.userId ===
+   user?.id);
     if (!userAuthor) return null;
     
     const roleLabels: Record<string, string> = {
@@ -106,7 +108,8 @@ export default function ContributedResearchPage() {
   };
 
   const getUserShare = (contribution: ResearchContribution) => {
-    const userAuthor = contribution.authors?.find(a => a.userId === user?.id);
+    const userAuthor = contribution.authors?.find(a => a.userId ===
+   user?.id);
     if (!userAuthor) return { incentive: 0, points: 0 };
     
     return {
@@ -176,7 +179,8 @@ export default function ContributedResearchPage() {
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               </div>
-            ) : contributions.length === 0 ? (
+            ) : contributions.length ===
+   0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No co-authored research</h3>
@@ -224,7 +228,8 @@ export default function ContributedResearchPage() {
                               </>
                             )}
                           </div>
-                          {contribution.status === 'approved' && (userShare.incentive > 0 || userShare.points > 0) && (
+                          {contribution.status ===
+   'approved' && (userShare.incentive > 0 || userShare.points > 0) && (
                             <div className="flex items-center space-x-3 text-sm mt-1">
                               {userShare.incentive > 0 && (
                                 <span className="text-green-600 font-medium">Your share: ₹{userShare.incentive.toLocaleString()}</span>

@@ -94,6 +94,16 @@ const upload = multer({
   },
 });
 
+/** Noting attachments: 5MB per file */
+const NOTING_FILE_MAX_BYTES = 5 * 1024 * 1024;
+const uploadNoting = multer({
+  storage: memoryStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: NOTING_FILE_MAX_BYTES,
+  },
+});
+
 const uploadPrototype = multer({
   storage: memoryStorage,
   fileFilter: prototypeFileFilter,
@@ -245,7 +255,8 @@ const downloadFile = async (req, res) => {
     const result = await downloadFromS3(filePath);
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Content-Length', result.contentLength);
-    res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300'); // Cache 5 min for repeat loads (e.g. sponsor logos)
     result.stream.pipe(res);
   } catch (error) {
     console.error('File download error:', error);
@@ -356,6 +367,7 @@ const deleteFile = async (req, res) => {
 
 module.exports = {
   upload,
+  uploadNoting,
   uploadPrototype,
   uploadFile,
   uploadPrototypeFile,

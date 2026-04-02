@@ -148,12 +148,17 @@ export default function EditContributionPage() {
         const sdgGoalsData = (response.data as any).sdg_goals;
         const sdgArray = Array.isArray(sdgGoalsData) 
           ? sdgGoalsData 
-          : (typeof sdgGoalsData === 'string' ? sdgGoalsData.split(',').map((s: string) => s.trim()).filter((s: string) => s) : []);
+          : (typeof sdgGoalsData ===
+   'string' ? sdgGoalsData.split(',').map((s: string) => s.trim()).filter((s: string) => s) : []);
         
         // Map quartile values (handle both Prisma enum names and display values)
         let mappedQuartile = response.data.quartile || '';
-        if (mappedQuartile === 'Top_1_' || mappedQuartile === 'Top 1%') mappedQuartile = 'top1';
-        else if (mappedQuartile === 'Top_5_' || mappedQuartile === 'Top 5%') mappedQuartile = 'top5';
+        if (mappedQuartile ===
+   'Top_1_' || mappedQuartile ===
+   'Top 1%') mappedQuartile = 'top1';
+        else if (mappedQuartile ===
+   'Top_5_' || mappedQuartile ===
+   'Top 5%') mappedQuartile = 'top5';
         else if (mappedQuartile) mappedQuartile = mappedQuartile.toLowerCase();
         
         setFormData({
@@ -331,10 +336,13 @@ export default function EditContributionPage() {
       
       // Convert boolean string values to yes/no for radio buttons
       if (['hasInternationalAuthor', 'isInterdisciplinary', 'hasLpuStudents'].includes(formFieldName)) {
-        valueToApply = suggestion.suggestedValue === 'true' || suggestion.suggestedValue === 'Yes' ? 'yes' : 'no';
+        valueToApply = suggestion.suggestedValue ===
+   'true' || suggestion.suggestedValue ===
+   'Yes' ? 'yes' : 'no';
       }
       // Convert targetedResearchType display values to form values
-      else if (formFieldName === 'targetedResearchType') {
+      else if (formFieldName ===
+   'targetedResearchType') {
         const displayToFormMap: Record<string, string> = {
           'Scopus': 'scopus',
           'SCI/SCIE': 'wos',
@@ -343,16 +351,19 @@ export default function EditContributionPage() {
         valueToApply = displayToFormMap[suggestion.suggestedValue] || suggestion.suggestedValue.toLowerCase();
         
         // Clear dependent fields
-        if (valueToApply === 'scopus') {
+        if (valueToApply ===
+   'scopus') {
           // Clear impact factor for scopus
           setFormData(prev => ({ ...prev, impactFactor: '' }));
-        } else if (valueToApply === 'wos') {
+        } else if (valueToApply ===
+   'wos') {
           // Clear SJR and quartile for WOS
           setFormData(prev => ({ ...prev, sjr: '', quartile: '' }));
         }
       }
       // Convert quartile display values to form values
-      else if (formFieldName === 'quartile') {
+      else if (formFieldName ===
+   'quartile') {
         const displayToFormMap: Record<string, string> = {
           'Top 1%': 'top1',
           'Top 5%': 'top5',
@@ -364,14 +375,18 @@ export default function EditContributionPage() {
         valueToApply = displayToFormMap[suggestion.suggestedValue] || suggestion.suggestedValue.toLowerCase();
       }
       // Convert SDG goals string to array
-      else if (formFieldName === 'sdgGoals') {
-        valueToApply = typeof suggestion.suggestedValue === 'string' 
+      else if (formFieldName ===
+   'sdgGoals') {
+        valueToApply = typeof suggestion.suggestedValue ===
+   'string' 
           ? suggestion.suggestedValue.split(',').map(s => s.trim()).filter(s => s)
           : suggestion.suggestedValue;
       }
       // Convert indexingCategories string to array if needed
-      else if (formFieldName === 'indexingCategories') {
-        valueToApply = typeof suggestion.suggestedValue === 'string'
+      else if (formFieldName ===
+   'indexingCategories') {
+        valueToApply = typeof suggestion.suggestedValue ===
+   'string'
           ? suggestion.suggestedValue.split(',').map(s => s.trim()).filter(s => s)
           : suggestion.suggestedValue;
       }
@@ -409,8 +424,10 @@ export default function EditContributionPage() {
   const buildSubmitData = () => {
     // Normalize quartile value for backend (convert form values to backend format)
     let normalizedQuartile: any = formData.quartile;
-    if (formData.quartile === 'top1') normalizedQuartile = 'Top_1_';
-    else if (formData.quartile === 'top5') normalizedQuartile = 'Top_5_';
+    if (formData.quartile ===
+   'top1') normalizedQuartile = 'Top_1_';
+    else if (formData.quartile ===
+   'top5') normalizedQuartile = 'Top_5_';
     else if (formData.quartile) normalizedQuartile = formData.quartile.toUpperCase();
     
     const baseData = {
@@ -418,15 +435,18 @@ export default function EditContributionPage() {
       journalName: formData.journalName,
       targetedResearchType: formData.targetedResearchType,
       indexingCategories: formData.indexingCategories, // Include indexing categories for incentive calculation
-      internationalAuthor: formData.hasInternationalAuthor === 'yes',
+      internationalAuthor: formData.hasInternationalAuthor ===
+   'yes',
       foreignCollaborationsCount: formData.numForeignUniversities ? Number(formData.numForeignUniversities) : 0,
       impactFactor: formData.impactFactor ? Number(formData.impactFactor) : undefined,
       sjr: formData.sjr ? Number(formData.sjr) : undefined,
       naasRating: formData.naasRating ? Number(formData.naasRating) : undefined,
       subsidiaryImpactFactor: formData.subsidiaryImpactFactor ? Number(formData.subsidiaryImpactFactor) : undefined,
       quartile: normalizedQuartile || undefined,
-      interdisciplinaryFromSgt: formData.isInterdisciplinary === 'yes',
-      studentsFromSgt: formData.hasLpuStudents === 'yes',
+      interdisciplinaryFromSgt: formData.isInterdisciplinary ===
+   'yes',
+      studentsFromSgt: formData.hasLpuStudents ===
+   'yes',
       sdg_goals: formData.sdgGoals.length > 0 ? formData.sdgGoals : undefined,
       weblink: formData.weblink || undefined,
       issue: formData.issue || undefined,
@@ -440,7 +460,9 @@ export default function EditContributionPage() {
     };
 
     // Add book-specific fields if it's a book or book_chapter
-    if (contribution?.publicationType === 'book' || contribution?.publicationType === 'book_chapter') {
+    if (contribution?.publicationType ===
+   'book' || contribution?.publicationType ===
+   'book_chapter') {
       return {
         ...baseData,
         bookIndexingType: formData.bookIndexingType || undefined,
@@ -475,7 +497,8 @@ export default function EditContributionPage() {
   };
 
   const handleSaveAndResubmit = async () => {
-    const pending = editSuggestions.filter(s => s.status === 'pending');
+    const pending = editSuggestions.filter(s => s.status ===
+   'pending');
     if (pending.length > 0) {
       toast({ type: 'warning', message: `Please resolve all ${pending.length} pending suggestion(s) before resubmitting.` });
       return;
@@ -497,10 +520,13 @@ export default function EditContributionPage() {
   };
 
   const getSuggestionForField = (backendFieldName: string): EditSuggestion | undefined => {
-    return editSuggestions.find(s => s.fieldName === backendFieldName && s.status === 'pending');
+    return editSuggestions.find(s => s.fieldName ===
+   backendFieldName && s.status ===
+   'pending');
   };
 
-  const pendingSuggestions = editSuggestions.filter(s => s.status === 'pending');
+  const pendingSuggestions = editSuggestions.filter(s => s.status ===
+   'pending');
 
   const renderSuggestionCard = (backendFieldName: string) => {
     const suggestion = getSuggestionForField(backendFieldName);
@@ -535,14 +561,17 @@ export default function EditContributionPage() {
           <div className="flex items-center gap-2 ml-4">
             <button
               onClick={() => handleAcceptSuggestion(suggestion)}
-              disabled={suggestionLoading === suggestion.id}
+              disabled={suggestionLoading ===
+   suggestion.id}
               className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
-              {suggestionLoading === suggestion.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-1" />Apply</>}
+              {suggestionLoading ===
+   suggestion.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Check className="w-4 h-4 mr-1" />Apply</>}
             </button>
             <button
               onClick={() => handleRejectSuggestion(suggestion)}
-              disabled={suggestionLoading === suggestion.id}
+              disabled={suggestionLoading ===
+   suggestion.id}
               className="flex items-center px-3 py-1.5 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 disabled:opacity-50"
             >
               <X className="w-4 h-4 mr-1" />Reject
@@ -554,7 +583,9 @@ export default function EditContributionPage() {
   };
 
   const hasSuggestion = (backendFieldName: string) => {
-    return editSuggestions.some(s => s.fieldName === backendFieldName && s.status === 'pending');
+    return editSuggestions.some(s => s.fieldName ===
+   backendFieldName && s.status ===
+   'pending');
   };
 
   if (loading) {
@@ -624,7 +655,8 @@ export default function EditContributionPage() {
         </div>
       )}
 
-      {editSuggestions.length > 0 && pendingSuggestions.length === 0 && (
+      {editSuggestions.length > 0 && pendingSuggestions.length ===
+   0 && (
         <div className="max-w-4xl mx-auto px-4 pt-6">
           <div className="bg-green-50 border border-green-200 rounded-xl p-4">
             <div className="flex items-start space-x-3">
@@ -672,7 +704,8 @@ export default function EditContributionPage() {
         </div>
 
         {/* Research Paper Specific Fields */}
-        {contribution.publicationType === 'research_paper' && (
+        {contribution.publicationType ===
+   'research_paper' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Research Details</h2>
             <div className="space-y-6">
@@ -689,7 +722,8 @@ export default function EditContributionPage() {
                         type="radio" 
                         name="targetedResearchType" 
                         value={v} 
-                        checked={formData.targetedResearchType === v} 
+                        checked={formData.targetedResearchType ===
+   v} 
                         onChange={handleInputChange} 
                         className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" 
                       />
@@ -740,7 +774,8 @@ export default function EditContributionPage() {
                     </label>
                   ))}
                 </div>
-                {formData.indexingCategories.length === 0 && (
+                {formData.indexingCategories.length ===
+   0 && (
                   <p className="mt-2 text-sm text-red-600">⚠️ Please select at least one indexing category</p>
                 )}
                 {renderSuggestionCard('indexingCategories')}
@@ -759,7 +794,8 @@ export default function EditContributionPage() {
                         type="radio" 
                         name="hasInternationalAuthor" 
                         value={v} 
-                        checked={formData.hasInternationalAuthor === v} 
+                        checked={formData.hasInternationalAuthor ===
+   v} 
                         onChange={handleInputChange} 
                         className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" 
                       />
@@ -840,7 +876,8 @@ export default function EditContributionPage() {
                                 type="radio" 
                                 name="quartile" 
                                 value={q.value}
-                                checked={formData.quartile === q.value}
+                                checked={formData.quartile ===
+   q.value}
                                 onChange={handleInputChange}
                                 className="w-4 h-4 text-blue-600"
                               />
@@ -979,7 +1016,8 @@ export default function EditContributionPage() {
                         type="radio" 
                         name="isInterdisciplinary" 
                         value={v} 
-                        checked={formData.isInterdisciplinary === v} 
+                        checked={formData.isInterdisciplinary ===
+   v} 
                         onChange={handleInputChange} 
                         className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" 
                       />
@@ -1003,7 +1041,8 @@ export default function EditContributionPage() {
                         type="radio" 
                         name="hasLpuStudents" 
                         value={v} 
-                        checked={formData.hasLpuStudents === v} 
+                        checked={formData.hasLpuStudents ===
+   v} 
                         onChange={handleInputChange} 
                         className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500" 
                       />
@@ -1128,7 +1167,8 @@ export default function EditContributionPage() {
                         { value: 'sdg15', label: 'SDG 15: Life on Land' },
                         { value: 'sdg16', label: 'SDG 16: Peace, Justice and Strong Institutions' },
                         { value: 'sdg17', label: 'SDG 17: Partnerships for the Goals' },
-                      ].find(s => s.value === sdgValue);
+                      ].find(s => s.value ===
+   sdgValue);
                       return sdg ? (
                         <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                           {sdg.label.replace('SDG ', '')}
@@ -1261,14 +1301,18 @@ export default function EditContributionPage() {
         )}
 
         {/* Book and Book Chapter Details */}
-        {(contribution.publicationType === 'book' || contribution.publicationType === 'book_chapter') && (
+        {(contribution.publicationType ===
+   'book' || contribution.publicationType ===
+   'book_chapter') && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {contribution.publicationType === 'book' ? 'Book Details' : 'Book Chapter Details'}
+              {contribution.publicationType ===
+   'book' ? 'Book Details' : 'Book Chapter Details'}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Book Title (for book_chapter only) */}
-              {contribution.publicationType === 'book_chapter' && (
+              {contribution.publicationType ===
+   'book_chapter' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Book Title</label>
                   <input
@@ -1342,7 +1386,8 @@ export default function EditContributionPage() {
               </div>
 
               {/* Book Publication Type (for book only) */}
-              {contribution.publicationType === 'book' && (
+              {contribution.publicationType ===
+   'book' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Book Publication Type *</label>
                   <select
@@ -1379,7 +1424,8 @@ export default function EditContributionPage() {
               </div>
 
               {/* Chapter Number (for book_chapter only) */}
-              {contribution.publicationType === 'book_chapter' && (
+              {contribution.publicationType ===
+   'book_chapter' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Chapter Number</label>
                   <input
@@ -1408,7 +1454,8 @@ export default function EditContributionPage() {
               </div>
 
               {/* Editors (for book_chapter only) */}
-              {contribution.publicationType === 'book_chapter' && (
+              {contribution.publicationType ===
+   'book_chapter' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Editors</label>
                   <input
@@ -1432,7 +1479,8 @@ export default function EditContributionPage() {
                       type="radio"
                       name="isInterdisciplinary"
                       value="yes"
-                      checked={formData.isInterdisciplinary === 'yes'}
+                      checked={formData.isInterdisciplinary ===
+   'yes'}
                       onChange={handleInputChange}
                       className="mr-2"
                     />
@@ -1443,7 +1491,8 @@ export default function EditContributionPage() {
                       type="radio"
                       name="isInterdisciplinary"
                       value="no"
-                      checked={formData.isInterdisciplinary === 'no'}
+                      checked={formData.isInterdisciplinary ===
+   'no'}
                       onChange={handleInputChange}
                       className="mr-2"
                     />
@@ -1462,7 +1511,8 @@ export default function EditContributionPage() {
                       type="radio"
                       name="communicatedWithOfficialId"
                       value="yes"
-                      checked={formData.communicatedWithOfficialId === 'yes'}
+                      checked={formData.communicatedWithOfficialId ===
+   'yes'}
                       onChange={handleInputChange}
                       className="mr-2"
                     />
@@ -1473,7 +1523,8 @@ export default function EditContributionPage() {
                       type="radio"
                       name="communicatedWithOfficialId"
                       value="no"
-                      checked={formData.communicatedWithOfficialId === 'no'}
+                      checked={formData.communicatedWithOfficialId ===
+   'no'}
                       onChange={handleInputChange}
                       className="mr-2"
                     />
@@ -1484,7 +1535,8 @@ export default function EditContributionPage() {
               </div>
 
               {/* Personal Email (conditional) */}
-              {formData.communicatedWithOfficialId === 'no' && (
+              {formData.communicatedWithOfficialId ===
+   'no' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Personal Email *</label>
                   <input
@@ -1593,7 +1645,8 @@ export default function EditContributionPage() {
                         { value: 'sdg15', label: 'SDG 15: Life on Land' },
                         { value: 'sdg16', label: 'SDG 16: Peace, Justice and Strong Institutions' },
                         { value: 'sdg17', label: 'SDG 17: Partnerships for the Goals' },
-                      ].find(s => s.value === sdgValue);
+                      ].find(s => s.value ===
+   sdgValue);
                       return sdg ? (
                         <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                           {sdg.label.replace('SDG ', '')}
@@ -1619,7 +1672,8 @@ export default function EditContributionPage() {
         )}
 
         {/* Conference Paper Details */}
-        {contribution.publicationType === 'conference_paper' && (
+        {contribution.publicationType ===
+   'conference_paper' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Conference Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1692,7 +1746,8 @@ export default function EditContributionPage() {
                     {renderSuggestionCard('proceedingsTitle')}
                   </div>
 
-                  {formData.conferenceSubType === 'paper_indexed_scopus' && (
+                  {formData.conferenceSubType ===
+   'paper_indexed_scopus' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Proceedings Quartile *</label>
                       <select
@@ -1734,7 +1789,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="isPresenter"
                           value="yes"
-                          checked={formData.isPresenter === 'yes'}
+                          checked={formData.isPresenter ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1745,7 +1801,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="isPresenter"
                           value="no"
-                          checked={formData.isPresenter === 'no'}
+                          checked={formData.isPresenter ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1763,7 +1820,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="fullPaper"
                           value="yes"
-                          checked={formData.fullPaper === 'yes'}
+                          checked={formData.fullPaper ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1774,7 +1832,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="fullPaper"
                           value="no"
-                          checked={formData.fullPaper === 'no'}
+                          checked={formData.fullPaper ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1792,7 +1851,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="virtualConference"
                           value="yes"
-                          checked={formData.virtualConference === 'yes'}
+                          checked={formData.virtualConference ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1803,7 +1863,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="virtualConference"
                           value="no"
-                          checked={formData.virtualConference === 'no'}
+                          checked={formData.virtualConference ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1821,7 +1882,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="conferenceHeldAtSgt"
                           value="yes"
-                          checked={formData.conferenceHeldAtSgt === 'yes'}
+                          checked={formData.conferenceHeldAtSgt ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1832,7 +1894,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="conferenceHeldAtSgt"
                           value="no"
-                          checked={formData.conferenceHeldAtSgt === 'no'}
+                          checked={formData.conferenceHeldAtSgt ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1850,7 +1913,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="conferenceBestPaperAward"
                           value="yes"
-                          checked={formData.conferenceBestPaperAward === 'yes'}
+                          checked={formData.conferenceBestPaperAward ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1861,7 +1925,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="conferenceBestPaperAward"
                           value="no"
-                          checked={formData.conferenceBestPaperAward === 'no'}
+                          checked={formData.conferenceBestPaperAward ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1879,7 +1944,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="interdisciplinaryFromSgt"
                           value="yes"
-                          checked={formData.interdisciplinaryFromSgt === 'yes'}
+                          checked={formData.interdisciplinaryFromSgt ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1890,7 +1956,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="interdisciplinaryFromSgt"
                           value="no"
-                          checked={formData.interdisciplinaryFromSgt === 'no'}
+                          checked={formData.interdisciplinaryFromSgt ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1908,7 +1975,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="studentsFromSgt"
                           value="yes"
-                          checked={formData.studentsFromSgt === 'yes'}
+                          checked={formData.studentsFromSgt ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1919,7 +1987,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="studentsFromSgt"
                           value="no"
-                          checked={formData.studentsFromSgt === 'no'}
+                          checked={formData.studentsFromSgt ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1937,7 +2006,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="industryCollaboration"
                           value="yes"
-                          checked={formData.industryCollaboration === 'yes'}
+                          checked={formData.industryCollaboration ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1948,7 +2018,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="industryCollaboration"
                           value="no"
-                          checked={formData.industryCollaboration === 'no'}
+                          checked={formData.industryCollaboration ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1966,7 +2037,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="centralFacilityUsed"
                           value="yes"
-                          checked={formData.centralFacilityUsed === 'yes'}
+                          checked={formData.centralFacilityUsed ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1977,7 +2049,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="centralFacilityUsed"
                           value="no"
-                          checked={formData.centralFacilityUsed === 'no'}
+                          checked={formData.centralFacilityUsed ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -1995,7 +2068,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="communicatedWithOfficialId"
                           value="yes"
-                          checked={formData.communicatedWithOfficialId === 'yes'}
+                          checked={formData.communicatedWithOfficialId ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -2006,7 +2080,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="communicatedWithOfficialId"
                           value="no"
-                          checked={formData.communicatedWithOfficialId === 'no'}
+                          checked={formData.communicatedWithOfficialId ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -2016,7 +2091,8 @@ export default function EditContributionPage() {
                     {renderSuggestionCard('communicatedWithOfficialId')}
                   </div>
 
-                  {formData.communicatedWithOfficialId === 'no' && (
+                  {formData.communicatedWithOfficialId ===
+   'no' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Personal Email *</label>
                       <input
@@ -2214,7 +2290,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="attendedVirtual"
                           value="yes"
-                          checked={formData.attendedVirtual === 'yes'}
+                          checked={formData.attendedVirtual ===
+   'yes'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -2225,7 +2302,8 @@ export default function EditContributionPage() {
                           type="radio"
                           name="attendedVirtual"
                           value="no"
-                          checked={formData.attendedVirtual === 'no'}
+                          checked={formData.attendedVirtual ===
+   'no'}
                           onChange={handleInputChange}
                           className="mr-2"
                         />
@@ -2235,7 +2313,8 @@ export default function EditContributionPage() {
                     {renderSuggestionCard('attendedVirtual')}
                   </div>
 
-                  {formData.conferenceSubType === 'organizer_coordinator_member' && (
+                  {formData.conferenceSubType ===
+   'organizer_coordinator_member' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Event Category</label>
                       <select
@@ -2334,7 +2413,8 @@ export default function EditContributionPage() {
                         { value: 'sdg15', label: 'SDG 15: Life on Land' },
                         { value: 'sdg16', label: 'SDG 16: Peace, Justice and Strong Institutions' },
                         { value: 'sdg17', label: 'SDG 17: Partnerships for the Goals' },
-                      ].find(s => s.value === sdgValue);
+                      ].find(s => s.value ===
+   sdgValue);
                       return sdg ? (
                         <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                           {sdg.label.replace('SDG ', '')}
@@ -2361,7 +2441,8 @@ export default function EditContributionPage() {
         )}
 
         {/* Grant message */}
-        {contribution.publicationType === 'grant_proposal' && (
+        {contribution.publicationType ===
+   'grant_proposal' && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Grant Details</h2>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

@@ -18,7 +18,7 @@ interface StatCardProps {
 
 export default function AnimatedStatsGrid({ stats }: { stats: StatCardProps[] }) {
   return (
-    <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <StaggerContainer className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-4 sm:mb-8">
       {stats.map((stat, index) => (
         <StatCard key={index} {...stat} />
       ))}
@@ -31,7 +31,8 @@ function StatCard({ title, value, icon: Icon, color, change, changeType, progres
   const [displayValue, setDisplayValue] = useState(0);
 
   useEffect(() => {
-    if (inView && typeof value === 'number') {
+    if (inView && typeof value ===
+   'number') {
       let start = 0;
       const end = value;
       const duration = 2000;
@@ -58,7 +59,7 @@ function StatCard({ title, value, icon: Icon, color, change, changeType, progres
       <motion.div
         ref={ref}
         whileHover={{ y: -8, scale: 1.03 }}
-        className="relative bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border border-gray-100 dark:border-gray-700 min-h-[220px] flex flex-col"
+        className="relative bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border border-gray-100 dark:border-gray-700 min-h-[160px] sm:min-h-[220px] flex flex-col"
       >
         {/* Animated Background Gradient */}
         <motion.div
@@ -78,22 +79,23 @@ function StatCard({ title, value, icon: Icon, color, change, changeType, progres
           <motion.div
             whileHover={{ rotate: 360, scale: 1.1 }}
             transition={{ duration: 0.6 }}
-            className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-4 shadow-md`}
+            className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-3 sm:mb-4 shadow-md`}
           >
-            <Icon className="w-6 h-6 text-white" />
+            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </motion.div>
 
           {/* Title */}
-          <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">{title}</h3>
+          <h3 className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2">{title}</h3>
 
           {/* Value with Count Up Animation */}
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
             animate={inView ? { scale: 1, opacity: 1 } : {}}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-3xl font-bold text-gray-900 dark:text-white mb-3"
+            className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3"
           >
-            {typeof displayValue === 'number' ? displayValue : displayValue}
+            {typeof displayValue ===
+   'number' ? displayValue : displayValue}
           </motion.div>
 
           {/* Change Indicator */}
@@ -106,10 +108,12 @@ function StatCard({ title, value, icon: Icon, color, change, changeType, progres
             >
               <span
                 className={`text-sm font-medium ${
-                  changeType === 'increase' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                  changeType ===
+   'increase' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                 }`}
               >
-                {changeType === 'increase' ? '↑' : '↓'} {change}
+                {changeType ===
+   'increase' ? '↑' : '↓'} {change}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400">vs last month</span>
             </motion.div>

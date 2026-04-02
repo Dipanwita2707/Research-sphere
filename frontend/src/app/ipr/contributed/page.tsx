@@ -180,7 +180,8 @@ function ContributedIPRsContent() {
         </div>
       )}
 
-      {applications.length === 0 ? (
+      {applications.length ===
+   0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
           <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-700 mb-2">No Contributed Applications</h3>

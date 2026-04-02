@@ -63,7 +63,8 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 space-y-0.5">
         {navItems.map((item) => {
-          const isActive = currentView === item.view;
+          const isActive = currentView ===
+   item.view;
           return (
             <button
               key={item.view}
@@ -110,7 +111,8 @@ export default function Sidebar() {
           onClick={() => setCurrentView('search')}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all duration-150"
           style={
-            currentView === 'search'
+            currentView ===
+   'search'
               ? { background: 'rgba(255,255,255,0.15)', color: 'white' }
               : { color: 'rgba(255,255,255,0.6)' }
           }

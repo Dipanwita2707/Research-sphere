@@ -107,7 +107,8 @@ class ConferencePolicyService {
       const response = await api.get(`/conference-policies/active/${subType}`);
       return response.data.data;
     } catch (error: unknown) {
-      if (isAxiosError(error) && error.response?.status === 404) {
+      if (isAxiosError(error) && error.response?.status ===
+   404) {
         return null;
       }
       throw error;

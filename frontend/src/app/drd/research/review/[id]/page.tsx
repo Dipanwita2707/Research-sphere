@@ -229,7 +229,8 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
   if (!filePath) return null;
   
   // If it's already an object with s3Key
-  if (typeof filePath === 'object' && filePath !== null && 's3Key' in filePath) {
+  if (typeof filePath ===
+   'object' && filePath !== null && 's3Key' in filePath) {
     const obj = filePath as ManuscriptFileInfo;
     return {
       s3Key: obj.s3Key,
@@ -240,10 +241,12 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
   }
   
   // If it's a string, try to parse as JSON first
-  if (typeof filePath === 'string') {
+  if (typeof filePath ===
+   'string') {
     try {
       const parsed = JSON.parse(filePath);
-      if (parsed && typeof parsed === 'object' && 's3Key' in parsed) {
+      if (parsed && typeof parsed ===
+   'object' && 's3Key' in parsed) {
         return {
           s3Key: parsed.s3Key,
           name: parsed.name || parsed.s3Key.split('/').pop() || 'document',
@@ -309,7 +312,8 @@ export default function ResearchReviewPage() {
       const response = await permissionManagementService.getUserPermissions(user!.id);
       const drdPermissions: Record<string, boolean> = {};
       response.data.centralDepartments.forEach(dept => {
-        if (dept.centralDept.departmentCode === 'DRD') {
+        if (dept.centralDept.departmentCode ===
+   'DRD') {
           Object.assign(drdPermissions, dept.permissions);
         }
       });
@@ -421,7 +425,8 @@ export default function ResearchReviewPage() {
   };
 
   const handleRequestChanges = async () => {
-    if (!reviewComments.trim() && fieldSuggestions.length === 0) {
+    if (!reviewComments.trim() && fieldSuggestions.length ===
+   0) {
       addToast({ type: 'warning', message: 'Please provide comments or field suggestions for the changes required' });
       return;
     }
@@ -470,22 +475,26 @@ export default function ResearchReviewPage() {
     }
   };
 
-  // ============================================
-  // Collaborative Editing Functions
-  // ============================================
-
-  const getFieldValue = (fieldName: string): string => {
+  // =====================================
+    // Collaborative Editing Functions
+  // ==============================
+    const getFieldValue = (fieldName: string): string => {
     if (!contribution) return '';
     const value = (contribution as any)[fieldName];
-    if (value === null || value === undefined) return '';
+    if (value ===
+   null || value ===
+   undefined) return '';
     if (Array.isArray(value)) return value.join(','); // Handle array values for multiselect
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-    if (typeof value === 'number') return value.toString();
+    if (typeof value ===
+   'boolean') return value ? 'Yes' : 'No';
+    if (typeof value ===
+   'number') return value.toString();
     return String(value);
   };
 
   const getFieldLabel = (fieldName: string): string => {
-    const field = EDITABLE_FIELDS.find(f => f.key === fieldName);
+    const field = EDITABLE_FIELDS.find(f => f.key ===
+   fieldName);
     return field?.label || fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
   };
 
@@ -509,7 +518,8 @@ export default function ResearchReviewPage() {
     if (!tempSuggestion.fieldName || !tempSuggestion.suggestedValue) return;
     
     // Check if suggestion already exists for this field
-    const existingIndex = fieldSuggestions.findIndex(s => s.fieldName === tempSuggestion.fieldName);
+    const existingIndex = fieldSuggestions.findIndex(s => s.fieldName ===
+   tempSuggestion.fieldName);
     
     const newSuggestion: FieldSuggestion = {
       fieldName: tempSuggestion.fieldName,
@@ -535,16 +545,19 @@ export default function ResearchReviewPage() {
   };
 
   const hasSuggestionForField = (fieldName: string): boolean => {
-    return fieldSuggestions.some(s => s.fieldName === fieldName);
+    return fieldSuggestions.some(s => s.fieldName ===
+   fieldName);
   };
 
   const getSuggestionForField = (fieldName: string): FieldSuggestion | undefined => {
-    return fieldSuggestions.find(s => s.fieldName === fieldName);
+    return fieldSuggestions.find(s => s.fieldName ===
+   fieldName);
   };
 
   // Render editable field with suggestion capability
   const renderEditableField = (fieldName: string, displayValue: string | React.ReactNode, type: 'text' | 'number' | 'textarea' | 'select' | 'date' | 'multiselect' = 'text', options?: string[]) => {
-    const isEditing = editingField === fieldName;
+    const isEditing = editingField ===
+   fieldName;
     const hasSuggestion = hasSuggestionForField(fieldName);
     const suggestion = getSuggestionForField(fieldName);
     
@@ -570,14 +583,16 @@ export default function ResearchReviewPage() {
       return (
         <div className="space-y-2">
           <div className="text-xs text-gray-500">Original: {tempSuggestion.originalValue || 'N/A'}</div>
-          {type === 'textarea' ? (
+          {type ===
+   'textarea' ? (
             <textarea
               value={tempSuggestion.suggestedValue || ''}
               onChange={(e) => setTempSuggestion({ ...tempSuggestion, suggestedValue: e.target.value })}
               className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
               rows={3}
             />
-          ) : type === 'multiselect' && options ? (
+          ) : type ===
+   'multiselect' && options ? (
             <div className="grid grid-cols-2 gap-2 p-3 bg-white border border-blue-300 rounded-lg">
               {options.map(opt => {
                 const currentValues = (tempSuggestion.suggestedValue || '').split(',').map((v: string) => v.trim()).filter(Boolean);
@@ -601,7 +616,8 @@ export default function ResearchReviewPage() {
                 );
               })}
             </div>
-          ) : type === 'select' && options ? (
+          ) : type ===
+   'select' && options ? (
             <select
               value={tempSuggestion.suggestedValue || ''}
               onChange={(e) => setTempSuggestion({ ...tempSuggestion, suggestedValue: e.target.value })}
@@ -711,7 +727,9 @@ export default function ResearchReviewPage() {
 
   // Check if current user recommended this contribution
   const userRecommendedThis = contribution.reviews?.some(
-    (review: any) => review.reviewerId === user?.id && review.decision === 'recommended'
+    (review: any) => review.reviewerId ===
+   user?.id && review.decision ===
+   'recommended'
   );
 
   return (
@@ -856,11 +874,16 @@ export default function ResearchReviewPage() {
         <div className={`bg-white rounded-xl shadow-sm border ${isEditMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'} p-6`}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
-              {contribution.publicationType === 'research_paper' ? 'Journal Details' :
-               contribution.publicationType === 'book' ? 'Book Details' :
-               contribution.publicationType === 'book_chapter' ? 'Book Chapter Details' :
-               contribution.publicationType === 'conference_paper' ? 'Conference Details' :
-               contribution.publicationType === 'grant_proposal' ? 'Grant Details' :
+              {contribution.publicationType ===
+   'research_paper' ? 'Journal Details' :
+               contribution.publicationType ===
+   'book' ? 'Book Details' :
+               contribution.publicationType ===
+   'book_chapter' ? 'Book Chapter Details' :
+               contribution.publicationType ===
+   'conference_paper' ? 'Conference Details' :
+               contribution.publicationType ===
+   'grant_proposal' ? 'Grant Details' :
                'Publication Details'}
             </h2>
             {isEditMode && (
@@ -886,7 +909,9 @@ export default function ResearchReviewPage() {
             )}
             
             {/* Book and Book Chapter specific */}
-            {(contribution.publicationType === 'book' || contribution.publicationType === 'book_chapter') && (
+            {(contribution.publicationType ===
+   'book' || contribution.publicationType ===
+   'book_chapter') && (
               <>
                 {((contribution as any).publisherName || isEditMode) && (
                   <div>
@@ -944,19 +969,24 @@ export default function ResearchReviewPage() {
                   <div className="text-sm text-gray-500">Communicated with Official ID</div>
                   {isEditMode ? (
                     renderEditableField('communicatedWithOfficialId', 
-                      (contribution as any).communicatedWithOfficialId === true ? 'yes' : 
-                      (contribution as any).communicatedWithOfficialId === false ? 'no' : 
+                      (contribution as any).communicatedWithOfficialId ===
+   true ? 'yes' : 
+                      (contribution as any).communicatedWithOfficialId ===
+   false ? 'no' : 
                       (contribution as any).communicatedWithOfficialId || '', 
                       'select', ['yes', 'no'])
                   ) : (
                     <div className="font-medium capitalize">
-                      {(contribution as any).communicatedWithOfficialId === true ? 'Yes' : 
-                       (contribution as any).communicatedWithOfficialId === false ? 'No' : 
+                      {(contribution as any).communicatedWithOfficialId ===
+   true ? 'Yes' : 
+                       (contribution as any).communicatedWithOfficialId ===
+   false ? 'No' : 
                        'Not provided'}
                     </div>
                   )}
                 </div>
-                {((contribution as any).communicatedWithOfficialId === false || isEditMode) && (
+                {((contribution as any).communicatedWithOfficialId ===
+   false || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Personal Email</div>
                     {isEditMode ? (
@@ -966,7 +996,8 @@ export default function ResearchReviewPage() {
                     )}
                   </div>
                 )}
-                {contribution.publicationType === 'book_chapter' && (
+                {contribution.publicationType ===
+   'book_chapter' && (
                   <>
                     {((contribution as any).bookTitle || isEditMode) && (
                       <div>
@@ -1004,7 +1035,8 @@ export default function ResearchReviewPage() {
             )}
 
             {/* Research Paper specific */}
-            {contribution.publicationType === 'research_paper' && (
+            {contribution.publicationType ===
+   'research_paper' && (
               <>
                 {(contribution.doi || isEditMode) && (
                   <div>
@@ -1117,7 +1149,8 @@ export default function ResearchReviewPage() {
                             {INDEXING_CATEGORY_LABELS[cat] || cat}
                           </span>
                         ))}
-                        {(!(contribution as any).indexingCategories || (contribution as any).indexingCategories.length === 0) && (
+                        {(!(contribution as any).indexingCategories || (contribution as any).indexingCategories.length ===
+   0) && (
                           <span className="text-gray-400 italic">No indexing categories selected</span>
                         )}
                       </div>
@@ -1168,7 +1201,8 @@ export default function ResearchReviewPage() {
             )}
             
             {/* Conference specific */}
-            {contribution.publicationType === 'conference_paper' && (
+            {contribution.publicationType ===
+   'conference_paper' && (
               <>
                 {/* Conference Sub Type - Always show */}
                 {((contribution as any).conferenceSubType || isEditMode) && (
@@ -1201,7 +1235,8 @@ export default function ResearchReviewPage() {
                         {renderEditableField('proceedingsTitle', (contribution as any).proceedingsTitle || '', 'text')}
                       </div>
                     )}
-                    {((contribution as any).proceedingsQuartile || isEditMode) && (contribution as any).conferenceSubType === 'paper_indexed_scopus' && (
+                    {((contribution as any).proceedingsQuartile || isEditMode) && (contribution as any).conferenceSubType ===
+   'paper_indexed_scopus' && (
                       <div>
                         <div className="text-sm text-gray-500">Proceedings Quartile</div>
                         {renderEditableField('proceedingsQuartile', (contribution as any).proceedingsQuartile || '', 'select', ['q1', 'q2', 'q3', 'q4'])}
@@ -1234,7 +1269,9 @@ export default function ResearchReviewPage() {
                     {((contribution as any).fullPaper !== undefined || isEditMode) && (
                       <div>
                         <div className="text-sm text-gray-500">Full Paper</div>
-                        {renderEditableField('fullPaper', (contribution as any).fullPaper === true ? 'yes' : (contribution as any).fullPaper === false ? 'no' : '', 'select', ['yes', 'no'])}
+                        {renderEditableField('fullPaper', (contribution as any).fullPaper ===
+   true ? 'yes' : (contribution as any).fullPaper ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                       </div>
                     )}
                     {((contribution as any).paperDoi || isEditMode) && (
@@ -1288,7 +1325,9 @@ export default function ResearchReviewPage() {
                     {((contribution as any).conferenceBestPaperAward !== undefined || isEditMode) && (
                       <div>
                         <div className="text-sm text-gray-500">Best Paper Award</div>
-                        {renderEditableField('conferenceBestPaperAward', (contribution as any).conferenceBestPaperAward === true ? 'yes' : (contribution as any).conferenceBestPaperAward === false ? 'no' : '', 'select', ['yes', 'no'])}
+                        {renderEditableField('conferenceBestPaperAward', (contribution as any).conferenceBestPaperAward ===
+   true ? 'yes' : (contribution as any).conferenceBestPaperAward ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                       </div>
                     )}
                   </>
@@ -1328,43 +1367,57 @@ export default function ResearchReviewPage() {
                 {((contribution as any).virtualConference !== undefined || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Virtual Conference</div>
-                    {renderEditableField('virtualConference', (contribution as any).virtualConference === true ? 'yes' : (contribution as any).virtualConference === false ? 'no' : '', 'select', ['yes', 'no'])}
+                    {renderEditableField('virtualConference', (contribution as any).virtualConference ===
+   true ? 'yes' : (contribution as any).virtualConference ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                   </div>
                 )}
                 {((contribution as any).conferenceHeldAtSgt !== undefined || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Held at SGT</div>
-                    {renderEditableField('conferenceHeldAtSgt', (contribution as any).conferenceHeldAtSgt === true ? 'yes' : (contribution as any).conferenceHeldAtSgt === false ? 'no' : '', 'select', ['yes', 'no'])}
+                    {renderEditableField('conferenceHeldAtSgt', (contribution as any).conferenceHeldAtSgt ===
+   true ? 'yes' : (contribution as any).conferenceHeldAtSgt ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                   </div>
                 )}
                 {((contribution as any).interdisciplinaryFromSgt !== undefined || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Interdisciplinary (from SGT)</div>
-                    {renderEditableField('interdisciplinaryFromSgt', (contribution as any).interdisciplinaryFromSgt === true ? 'yes' : (contribution as any).interdisciplinaryFromSgt === false ? 'no' : '', 'select', ['yes', 'no'])}
+                    {renderEditableField('interdisciplinaryFromSgt', (contribution as any).interdisciplinaryFromSgt ===
+   true ? 'yes' : (contribution as any).interdisciplinaryFromSgt ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                   </div>
                 )}
                 {((contribution as any).studentsFromSgt !== undefined || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Student(s) (from SGT)</div>
-                    {renderEditableField('studentsFromSgt', (contribution as any).studentsFromSgt === true ? 'yes' : (contribution as any).studentsFromSgt === false ? 'no' : '', 'select', ['yes', 'no'])}
+                    {renderEditableField('studentsFromSgt', (contribution as any).studentsFromSgt ===
+   true ? 'yes' : (contribution as any).studentsFromSgt ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                   </div>
                 )}
                 {((contribution as any).industryCollaboration !== undefined || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Industry Collaboration</div>
-                    {renderEditableField('industryCollaboration', (contribution as any).industryCollaboration === true ? 'yes' : (contribution as any).industryCollaboration === false ? 'no' : '', 'select', ['yes', 'no'])}
+                    {renderEditableField('industryCollaboration', (contribution as any).industryCollaboration ===
+   true ? 'yes' : (contribution as any).industryCollaboration ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                   </div>
                 )}
                 {((contribution as any).centralFacilityUsed !== undefined || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Central Facility Used</div>
-                    {renderEditableField('centralFacilityUsed', (contribution as any).centralFacilityUsed === true ? 'yes' : (contribution as any).centralFacilityUsed === false ? 'no' : '', 'select', ['yes', 'no'])}
+                    {renderEditableField('centralFacilityUsed', (contribution as any).centralFacilityUsed ===
+   true ? 'yes' : (contribution as any).centralFacilityUsed ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                   </div>
                 )}
                 {((contribution as any).communicatedWithOfficialId !== undefined || isEditMode) && (
                   <div>
                     <div className="text-sm text-gray-500">Communicated with Official ID</div>
-                    {renderEditableField('communicatedWithOfficialId', (contribution as any).communicatedWithOfficialId === true ? 'yes' : (contribution as any).communicatedWithOfficialId === false ? 'no' : '', 'select', ['yes', 'no'])}
+                    {renderEditableField('communicatedWithOfficialId', (contribution as any).communicatedWithOfficialId ===
+   true ? 'yes' : (contribution as any).communicatedWithOfficialId ===
+   false ? 'no' : '', 'select', ['yes', 'no'])}
                   </div>
                 )}
                 {((contribution as any).facultyRemarks || isEditMode) && (
@@ -1377,7 +1430,8 @@ export default function ResearchReviewPage() {
             )}
             
             {/* Grant specific */}
-            {contribution.publicationType === 'grant_proposal' && (
+            {contribution.publicationType ===
+   'grant_proposal' && (
               <>
                 {(contribution.grantTitle || isEditMode) && (
                   <div>
@@ -1422,7 +1476,9 @@ export default function ResearchReviewPage() {
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">{author.name}</div>
                     <div className="text-sm text-gray-500">
-                      {contribution.publicationType === 'book' || contribution.publicationType === 'book_chapter' ? (
+                      {contribution.publicationType ===
+   'book' || contribution.publicationType ===
+   'book_chapter' ? (
                         <span>{author.affiliation || (author.userId ? 'SGT University' : 'External')}</span>
                       ) : (
                         <>
@@ -1432,7 +1488,8 @@ export default function ResearchReviewPage() {
                       )}
                     </div>
                     {/* Display incentives for internal authors */}
-                    {(author.userId || author.authorType?.startsWith('internal_') || author.authorCategory === 'Internal') && (
+                    {(author.userId || author.authorType?.startsWith('internal_') || author.authorCategory ===
+   'Internal') && (
                       <div className="flex items-center gap-4 mt-1 text-xs">
                         <span className="text-green-600 font-medium">
                           Incentive: ₹{author.incentiveShare ? Number(author.incentiveShare).toLocaleString() : '0'}
@@ -1688,12 +1745,14 @@ export default function ResearchReviewPage() {
                             {tracker.statusHistory.map((history, idx) => (
                               <div key={history.id} className="relative flex items-start pl-8">
                                 <div className={`absolute left-1.5 w-3 h-3 rounded-full border-2 border-white ${
-                                  idx === 0 ? 'bg-indigo-600' : 'bg-gray-400'
+                                  idx ===
+   0 ? 'bg-indigo-600' : 'bg-gray-400'
                                 }`}></div>
                                 <div className="flex-1">
                                   <div className="flex items-center justify-between">
                                     <span className={`text-sm font-medium ${
-                                      idx === 0 ? 'text-indigo-700' : 'text-gray-700'
+                                      idx ===
+   0 ? 'text-indigo-700' : 'text-gray-700'
                                     }`}>
                                       {statusLabels[history.toStatus as keyof typeof statusLabels]}
                                     </span>
@@ -1765,9 +1824,12 @@ export default function ResearchReviewPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Review History</h2>
             <div className="space-y-3">
               {contribution.reviews.map((review: any, index: number) => {
-                const isApproval = review.decision === 'approved';
-                const isRecommendation = review.decision === 'recommended';
-                const isCurrentUserReview = review.reviewerId === user?.id;
+                const isApproval = review.decision ===
+   'approved';
+                const isRecommendation = review.decision ===
+   'recommended';
+                const isCurrentUserReview = review.reviewerId ===
+   user?.id;
                 
                 return (
                   <div 
@@ -1775,8 +1837,10 @@ export default function ResearchReviewPage() {
                     className={`p-4 rounded-lg border-l-4 ${
                       isApproval ? 'bg-green-50 border-green-500' :
                       isRecommendation ? 'bg-blue-50 border-blue-500' :
-                      review.decision === 'rejected' ? 'bg-red-50 border-red-500' :
-                      review.decision === 'changes_required' ? 'bg-orange-50 border-orange-500' :
+                      review.decision ===
+   'rejected' ? 'bg-red-50 border-red-500' :
+                      review.decision ===
+   'changes_required' ? 'bg-orange-50 border-orange-500' :
                       'bg-gray-50 border-gray-500'
                     }`}
                   >
@@ -1803,8 +1867,10 @@ export default function ResearchReviewPage() {
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         isApproval ? 'bg-green-100 text-green-700' :
                         isRecommendation ? 'bg-blue-100 text-blue-700' :
-                        review.decision === 'rejected' ? 'bg-red-100 text-red-700' :
-                        review.decision === 'changes_required' ? 'bg-orange-100 text-orange-700' :
+                        review.decision ===
+   'rejected' ? 'bg-red-100 text-red-700' :
+                        review.decision ===
+   'changes_required' ? 'bg-orange-100 text-orange-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
                         {isApproval ? '✓ Final Approval' : 
@@ -1837,7 +1903,8 @@ export default function ResearchReviewPage() {
           // Check if current user has already reviewed THIS VERSION of the contribution
           // For resubmitted contributions, allow reviewing again
           const userHasReviewed = contribution.status !== 'resubmitted' && 
-            contribution.reviews?.some((review: any) => review.reviewerId === user?.id);
+            contribution.reviews?.some((review: any) => review.reviewerId ===
+   user?.id);
           
           return (
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -1850,7 +1917,8 @@ export default function ResearchReviewPage() {
                   </div>
                 </div>
               )}
-              {!userHasReviewed && contribution.status === 'submitted' && (
+              {!userHasReviewed && contribution.status ===
+   'submitted' && (
                 <button
                   onClick={handleStartReview}
                   disabled={actionLoading}
@@ -2038,7 +2106,8 @@ export default function ResearchReviewPage() {
               </div>
               
               <div className="space-y-4 mb-6">
-                {fieldSuggestions.length === 0 ? (
+                {fieldSuggestions.length ===
+   0 ? (
                   <p className="text-gray-500 text-center py-4">No suggestions added yet.</p>
                 ) : (
                   fieldSuggestions.map((suggestion, index) => (
@@ -2099,7 +2168,8 @@ export default function ResearchReviewPage() {
                     setShowSuggestionsPreview(false);
                     handleRequestChanges();
                   }}
-                  disabled={actionLoading || fieldSuggestions.length === 0}
+                  disabled={actionLoading || fieldSuggestions.length ===
+   0}
                   className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center justify-center"
                 >
                   {actionLoading ? (

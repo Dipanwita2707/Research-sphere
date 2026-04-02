@@ -20,12 +20,14 @@ import type {
   ApiResponse,
   GroupPermissions,
   UserChatAccess,
+  ChatPermissionStats,
+  ChatUserPermission,
+  BulkUserPermissionResult,
 } from '../types';
 
 const BASE_URL = '/chat';
 
-// ============ GROUP API ============
-
+// ============ GROUP API ====
 /**
  * Create a new chat group
  */
@@ -185,8 +187,7 @@ export const unmuteMember = async (groupId: string, userId: string): Promise<voi
   await api.post(`${BASE_URL}/groups/${groupId}/members/${userId}/unmute`);
 };
 
-// ============ MESSAGE API ============
-
+// ============ MESSAGE API ====
 /**
  * Get messages for a group
  */
@@ -279,8 +280,7 @@ export const getUnreadCount = async (groupId: string): Promise<number> => {
   return response.data.data?.unreadCount || 0;
 };
 
-// ============ DIRECT MESSAGE API ============
-
+// ============ DIRECT MESSAGE API ====
 /**
  * Get conversations list
  */
@@ -355,8 +355,7 @@ export const searchUsersForDM = async (query: string, limit?: number): Promise<C
   return response.data.data || [];
 };
 
-// ============ STATUS API ============
-
+// ============ STATUS API ====
 /**
  * Get user status
  */
@@ -396,8 +395,7 @@ export const updatePrivacySettings = async (lastSeenPrivacy: string): Promise<vo
   await api.put(`${BASE_URL}/status/privacy`, { lastSeenPrivacy });
 };
 
-// ============ UPLOAD API ============
-
+// ============ UPLOAD API ====
 /**
  * Upload file for group chat
  */
@@ -455,8 +453,7 @@ export const getChatFileUrl = (filePath: string): string => {
   return `${baseUrl}/chat/upload/files/${encodeURIComponent(filePath)}`;
 };
 
-// ============ USER PERMISSIONS API ============
-
+// ============ USER PERMISSIONS API ====
 /**
  * Get my chat permissions (user-level access)
  */
@@ -465,8 +462,7 @@ export const getMyPermissions = async (): Promise<UserChatAccess> => {
   return response.data.data!;
 };
 
-// ============ UTILITY FUNCTIONS ============
-
+// ============ UTILITY FUNCTIONS ====
 /**
  * Get profile image URL - resolves relative backend paths to full URLs
  * Handles: full URLs, /uploads/... paths, and bare filenames
@@ -490,4 +486,89 @@ export const getProfileImageUrl = (imagePath: string | null | undefined): string
 
   // Bare filename like 1771319953331-b7aed9be.jpeg
   return `${backendHost}/uploads/profiles/${imagePath}`;
+};
+
+// ============ USER MANAGEMENT (Admin) ====
+
+/**
+ * Get all users authorized to use chat, with optional pagination and search
+ */
+export const getAuthorizedUsers = async (params?: {
+  page?: number;
+  limit?: number;
+  search?: string;
+}): Promise<{ users: ChatUserPermission[]; pagination: { totalPages: number; total: number } }> => {
+  const response = await api.get<ApiResponse<ChatUserPermission[]>>(`${BASE_URL}/user-permissions`, { params });
+  return {
+    users: response.data.data || [],
+    pagination: (response.data as any).pagination || { totalPages: 1, total: 0 },
+  };
+};
+
+/**
+ * Get aggregate stats about chat permissions
+ */
+export const getChatPermissionStats = async (): Promise<ChatPermissionStats> => {
+  const response = await api.get<ApiResponse<ChatPermissionStats>>(`${BASE_URL}/user-permissions/stats`);
+  return response.data.data!;
+};
+
+/**
+ * Search users who have NOT yet been added to the chat system
+ */
+export const searchUnaddedUsers = async (query: string, limit = 10): Promise<ChatUser[]> => {
+  const response = await api.get<ApiResponse<ChatUser[]>>(`${BASE_URL}/user-permissions/search-unadded`, {
+    params: { query, limit },
+  });
+  return response.data.data || [];
+};
+
+/**
+ * Add a single user to the chat system with permissions
+ */
+export const addChatUser = async (data: {
+  uid: string;
+  permissions?: Partial<ChatUserPermission>;
+}): Promise<ChatUser> => {
+  const response = await api.post<ApiResponse<ChatUser>>(`${BASE_URL}/user-permissions`, data);
+  return response.data.data!;
+};
+
+/**
+ * Bulk-add users to the chat system — accepts either a list of UIDs or a CSV FormData
+ */
+export const bulkAddChatUsers = async (
+  data: FormData | { identifiers: string[]; permissions?: Partial<ChatUserPermission> }
+): Promise<BulkUserPermissionResult> => {
+  const response = await api.post<ApiResponse<BulkUserPermissionResult>>(
+    `${BASE_URL}/user-permissions/bulk`,
+    data,
+    data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+  );
+  return response.data.data!;
+};
+
+/**
+ * Enable or disable chat access for a user
+ */
+export const toggleChatUser = async (userId: string, enabled: boolean): Promise<void> => {
+  await api.patch(`${BASE_URL}/user-permissions/${userId}/toggle`, { chatEnabled: enabled });
+};
+
+/**
+ * Update per-user chat permissions
+ */
+export const updateChatUserPermissions = async (
+  userId: string,
+  permissions: Partial<ChatUserPermission>
+): Promise<ChatUser> => {
+  const response = await api.patch<ApiResponse<ChatUser>>(`${BASE_URL}/user-permissions/${userId}`, permissions);
+  return response.data.data!;
+};
+
+/**
+ * Remove a user from the chat system entirely
+ */
+export const removeChatUser = async (userId: string): Promise<void> => {
+  await api.delete(`${BASE_URL}/user-permissions/${userId}`);
 };

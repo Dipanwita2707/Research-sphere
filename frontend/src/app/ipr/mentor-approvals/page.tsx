@@ -78,7 +78,8 @@ export default function MentorApprovalsPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'history') {
+    if (activeTab ===
+   'history') {
       fetchMentorHistory();
     }
   }, [activeTab]);
@@ -191,7 +192,8 @@ export default function MentorApprovalsPage() {
     return STATUS_CONFIG[status] || { label: status, color: 'text-gray-700', bgColor: 'bg-gray-100' };
   };
 
-  const applications = activeTab === 'pending' ? pendingApplications : (historyData?.all || []);
+  const applications = activeTab ===
+   'pending' ? pendingApplications : (historyData?.all || []);
 
   if (loading) {
     return (
@@ -216,7 +218,8 @@ export default function MentorApprovalsPage() {
       </div>
 
       {/* Stats Cards (for history tab) */}
-      {activeTab === 'history' && historyData && (
+      {activeTab ===
+   'history' && historyData && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-lg p-4 border border-gray-200">
             <div className="flex items-center gap-3">
@@ -271,7 +274,8 @@ export default function MentorApprovalsPage() {
           <button
             onClick={() => setActiveTab('pending')}
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-              activeTab === 'pending'
+              activeTab ===
+   'pending'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
@@ -287,7 +291,8 @@ export default function MentorApprovalsPage() {
           <button
             onClick={() => setActiveTab('history')}
             className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-              activeTab === 'history'
+              activeTab ===
+   'history'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
@@ -305,9 +310,11 @@ export default function MentorApprovalsPage() {
         </div>
       )}
 
-      {applications.length === 0 ? (
+      {applications.length ===
+   0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          {activeTab === 'pending' ? (
+          {activeTab ===
+   'pending' ? (
             <>
               <CheckCheck className="w-16 h-16 text-green-500 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Approvals</h3>
@@ -331,7 +338,8 @@ export default function MentorApprovalsPage() {
             const typeConfig = getIprTypeConfig(app.iprType);
             const TypeIcon = typeConfig.icon;
             const statusConfig = getStatusConfig(app.status);
-            const isPending = app.status === 'pending_mentor_approval';
+            const isPending = app.status ===
+   'pending_mentor_approval';
 
             return (
               <div
@@ -355,8 +363,11 @@ export default function MentorApprovalsPage() {
                     </div>
                     <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
                       {isPending ? <Clock className="w-4 h-4 mr-1" /> : 
-                       app.status === 'submitted' || app.status === 'under_drd_review' ? <Send className="w-4 h-4 mr-1" /> :
-                       app.status === 'changes_required' ? <RefreshCw className="w-4 h-4 mr-1" /> :
+                       app.status ===
+   'submitted' || app.status ===
+   'under_drd_review' ? <Send className="w-4 h-4 mr-1" /> :
+                       app.status ===
+   'changes_required' ? <RefreshCw className="w-4 h-4 mr-1" /> :
                        <CheckCircle className="w-4 h-4 mr-1" />}
                       {statusConfig.label}
                     </span>

@@ -9,6 +9,9 @@ router.use(protect);
 // Upload file to S3
 router.post('/upload', s3FileService.upload.single('file'), s3FileService.uploadFile);
 
+// Upload noting attachment (5MB max per file)
+router.post('/upload-noting', s3FileService.uploadNoting.single('file'), s3FileService.uploadFile);
+
 // Upload prototype ZIP file (up to 50MB) for IPR Complete Filing
 router.post('/upload-prototype', s3FileService.uploadPrototype.single('file'), s3FileService.uploadPrototypeFile);
 

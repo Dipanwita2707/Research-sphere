@@ -6,10 +6,10 @@ import NavigationHeader from '@/shared/layouts/NavigationHeader';
 export default function ChatPageLayout({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
-      <div className="flex flex-col h-screen overflow-hidden">
+      <div className="h-[100dvh] overflow-hidden">
         <NavigationHeader />
-        {/* Offset the fixed 64px header */}
-        <div className="flex-1 overflow-hidden pt-16">
+        {/* Render chat content in the exact space below the fixed 64px header */}
+        <div className="mt-16 h-[calc(100dvh-4rem)] overflow-hidden">
           {children}
         </div>
       </div>

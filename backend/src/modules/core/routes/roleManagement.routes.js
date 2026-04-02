@@ -6,10 +6,9 @@ const { protect, restrictTo } = require('../../../shared/middleware/auth');
 // All routes require authentication
 router.use(protect);
 
-// ============================================
+// =====================================
 // PUBLIC ROUTES (for authenticated users)
-// ============================================
-
+// =====================================
 // Get all active roles (for role selection dropdowns)
 router.get('/list', roleController.getAllRoles);
 
@@ -22,10 +21,9 @@ router.get('/:id/permissions', roleController.getRolePermissions);
 // Get permission definitions for role creation
 router.get('/definitions/all', roleController.getPermissionDefinitionsForRole);
 
-// ============================================
+// =====================================
 // ADMIN ONLY ROUTES
-// ============================================
-
+// =====================================
 // Create a new role
 router.post('/create', restrictTo('admin'), roleController.createRole);
 

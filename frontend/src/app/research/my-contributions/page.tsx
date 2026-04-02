@@ -97,14 +97,8 @@ export default function MyContributionsPage() {
     try {
       const response = await researchService.getMyGrantApplications();
       const data = response.data || [];
-      
-      // Sort by createdAt in descending order
-      const sortedData = [...data].sort((a: GrantApplication, b: GrantApplication) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      setGrants(sortedData);
-      return sortedData;
+      setGrants(data);
+      return data;
     } catch (error: unknown) {
       logger.error('Error fetching grant applications:', error);
       return [];
@@ -116,14 +110,8 @@ export default function MyContributionsPage() {
       setLoading(true);
       const response = await researchService.getMyContributions();
       const data = response.data?.contributions || response.data || [];
-      
-      // Sort by createdAt in descending order (newest first)
-      const sortedData = [...data].sort((a: ResearchContribution, b: ResearchContribution) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      setContributions(sortedData);
-      return sortedData;
+      setContributions(data);
+      return data;
     } catch (error: unknown) {
       logger.error('Error fetching contributions:', error);
       return [];
@@ -163,7 +151,8 @@ export default function MyContributionsPage() {
       }
       
       // Determine if applicant is internal
-      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
       
       if (!applicantIsInternal) {
         return { incentive: 0, points: 0 };
@@ -171,13 +160,16 @@ export default function MyContributionsPage() {
       
       // Get internal team members
       const internalTeamMembers = (grant.investigators || []).filter((inv: any) => 
-        inv.investigatorCategory === 'Internal' || inv.isInternal === true
+        inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true
       );
       
       // Total internal count includes applicant
       const totalInternal = 1 + internalTeamMembers.length;
       
-      if (totalInternal === 0) {
+      if (totalInternal ===
+   0) {
         return { incentive: 0, points: 0 };
       }
       
@@ -205,16 +197,21 @@ export default function MyContributionsPage() {
     
     setStats({
       total: contributions.length + grants.length,
-      drafts: contributions.filter((c: ResearchContribution) => c.status === 'draft').length + 
-              grants.filter((g: GrantApplication) => g.status === 'draft').length,
+      drafts: contributions.filter((c: ResearchContribution) => c.status ===
+   'draft').length + 
+              grants.filter((g: GrantApplication) => g.status ===
+   'draft').length,
       action_required: contributions.filter((c: ResearchContribution) => actionRequiredStatuses.includes(c.status)).length +
-                       grants.filter((g: GrantApplication) => g.status === 'changes_required').length,
+                       grants.filter((g: GrantApplication) => g.status ===
+   'changes_required').length,
       in_progress: contributions.filter((c: ResearchContribution) => inProgressStatuses.includes(c.status)).length +
                    grants.filter((g: GrantApplication) => ['submitted', 'under_review', 'resubmitted'].includes(g.status)).length,
       completed: contributions.filter((c: ResearchContribution) => completedStatuses.includes(c.status)).length +
                  grants.filter((g: GrantApplication) => ['approved', 'completed'].includes(g.status)).length,
-      rejected: contributions.filter((c: ResearchContribution) => c.status === 'rejected').length +
-                grants.filter((g: GrantApplication) => g.status === 'rejected').length,
+      rejected: contributions.filter((c: ResearchContribution) => c.status ===
+   'rejected').length +
+                grants.filter((g: GrantApplication) => g.status ===
+   'rejected').length,
       totalIncentives: creditedIncentives + totalGrantIncentives,
       totalPoints: creditedPoints + totalGrantPoints,
     });
@@ -226,19 +223,26 @@ export default function MyContributionsPage() {
     let filtered = [...contributions];
     
     // Tab filter
-    if (activeTab === 'action_required') {
-      filtered = filtered.filter(c => c.status === 'changes_required');
-    } else if (activeTab === 'draft') {
-      filtered = filtered.filter(c => c.status === 'draft');
-    } else if (activeTab === 'in_progress') {
+    if (activeTab ===
+   'action_required') {
+      filtered = filtered.filter(c => c.status ===
+   'changes_required');
+    } else if (activeTab ===
+   'draft') {
+      filtered = filtered.filter(c => c.status ===
+   'draft');
+    } else if (activeTab ===
+   'in_progress') {
       filtered = filtered.filter(c => ['submitted', 'under_review', 'resubmitted', 'pending_mentor_approval'].includes(c.status));
-    } else if (activeTab === 'completed') {
+    } else if (activeTab ===
+   'completed') {
       filtered = filtered.filter(c => ['approved', 'completed', 'rejected'].includes(c.status));
     }
     
     // Publication type filter
     if (publicationTypeFilter && publicationTypeFilter !== 'grant') {
-      filtered = filtered.filter(c => c.publicationType === publicationTypeFilter);
+      filtered = filtered.filter(c => c.publicationType ===
+   publicationTypeFilter);
     }
     
     // Search filter
@@ -261,13 +265,19 @@ export default function MyContributionsPage() {
     let filtered = [...grants];
     
     // Tab filter
-    if (activeTab === 'action_required') {
-      filtered = filtered.filter(g => g.status === 'changes_required');
-    } else if (activeTab === 'draft') {
-      filtered = filtered.filter(g => g.status === 'draft');
-    } else if (activeTab === 'in_progress') {
+    if (activeTab ===
+   'action_required') {
+      filtered = filtered.filter(g => g.status ===
+   'changes_required');
+    } else if (activeTab ===
+   'draft') {
+      filtered = filtered.filter(g => g.status ===
+   'draft');
+    } else if (activeTab ===
+   'in_progress') {
       filtered = filtered.filter(g => ['submitted', 'under_review', 'resubmitted'].includes(g.status));
-    } else if (activeTab === 'completed') {
+    } else if (activeTab ===
+   'completed') {
       filtered = filtered.filter(g => ['approved', 'completed', 'rejected'].includes(g.status));
     }
     
@@ -465,11 +475,16 @@ export default function MyContributionsPage() {
           <nav className="flex overflow-x-auto">
             {TABS.map(tab => {
               const Icon = tab.icon;
-              const isActive = activeTab === tab.key;
-              const count = tab.key === 'all' ? stats.total :
-                           tab.key === 'action_required' ? stats.action_required :
-                           tab.key === 'draft' ? stats.drafts :
-                           tab.key === 'in_progress' ? stats.in_progress :
+              const isActive = activeTab ===
+   tab.key;
+              const count = tab.key ===
+   'all' ? stats.total :
+                           tab.key ===
+   'action_required' ? stats.action_required :
+                           tab.key ===
+   'draft' ? stats.drafts :
+                           tab.key ===
+   'in_progress' ? stats.in_progress :
                            stats.completed + stats.rejected;
               
               return (
@@ -526,16 +541,20 @@ export default function MyContributionsPage() {
 
         {/* Contributions List */}
         <div className="divide-y divide-gray-100">
-          {filteredContributions.length === 0 && filteredGrants.length === 0 ? (
+          {filteredContributions.length ===
+   0 && filteredGrants.length ===
+   0 ? (
             <div className="py-16 text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FolderOpen className="w-8 h-8 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No contributions found</h3>
               <p className="text-gray-500 mb-6 max-w-sm mx-auto">
-                {activeTab === 'all' 
+                {activeTab ===
+   'all' 
                   ? "You haven't submitted any research contributions yet. Start by creating your first submission."
-                  : `No ${TABS.find(t => t.key === activeTab)?.label.toLowerCase()} contributions to display.`}
+                  : `No ${TABS.find(t => t.key ===
+   activeTab)?.label.toLowerCase()} contributions to display.`}
               </p>
               <Link
                 href="/research/apply"
@@ -559,7 +578,8 @@ export default function MyContributionsPage() {
                   <Link
                     href={`/research/grant/${grant.id}`}
                     className={`block p-5 hover:bg-gray-50/80 transition-all duration-200 ${
-                      index === 0 ? 'rounded-t-none' : ''
+                      index ===
+   0 ? 'rounded-t-none' : ''
                     }`}
                   >
                     <div className="flex items-start gap-4">
@@ -595,7 +615,8 @@ export default function MyContributionsPage() {
                             {grant.projectType && (
                               <div className="mt-2">
                                 <span className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 text-xs font-medium rounded">
-                                  {grant.projectType === 'indian' ? 'Indian Project' : 'International Project'}
+                                  {grant.projectType ===
+   'indian' ? 'Indian Project' : 'International Project'}
                                 </span>
                               </div>
                             )}
@@ -609,7 +630,8 @@ export default function MyContributionsPage() {
                             </div>
                             
                             {/* Action Buttons for Draft */}
-                            {grant.status === 'draft' && (
+                            {grant.status ===
+   'draft' && (
                               <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
                                 <button
                                   onClick={(e) => handleGrantSubmit(grant.id, e)}
@@ -653,14 +675,16 @@ export default function MyContributionsPage() {
               const StatusIcon = statusConfig.icon;
               const pubTypeConfig = PUBLICATION_TYPE_CONFIG[contribution.publicationType];
               const PubTypeIcon = pubTypeConfig?.icon || FileText;
-              const isExpanded = expandedApp === contribution.id;
+              const isExpanded = expandedApp ===
+   contribution.id;
               
               return (
                 <div key={contribution.id} className="relative">
                   <Link
                     href={`/research/contribution/${contribution.id}`}
                     className={`block p-5 hover:bg-gray-50/80 transition-all duration-200 ${
-                      index === 0 ? 'rounded-t-none' : ''
+                      index ===
+   0 ? 'rounded-t-none' : ''
                     }`}
                   >
                     <div className="flex items-start gap-4">
@@ -740,7 +764,8 @@ export default function MyContributionsPage() {
                             </div>
                             
                             {/* Action Buttons for Draft */}
-                            {contribution.status === 'draft' && (
+                            {contribution.status ===
+   'draft' && (
                               <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
                                 <button
                                   onClick={(e) => handleSubmit(contribution.id, e)}
@@ -760,7 +785,8 @@ export default function MyContributionsPage() {
                             )}
                             
                             {/* Resubmit for Changes Required */}
-                            {contribution.status === 'changes_required' && (
+                            {contribution.status ===
+   'changes_required' && (
                               <button
                                 onClick={(e) => handleResubmit(contribution.id, e)}
                                 className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"

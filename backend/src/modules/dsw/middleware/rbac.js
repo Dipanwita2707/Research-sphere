@@ -1,26 +1,51 @@
 /**
  * DSW RBAC (Role-Based Access Control) Middleware
- * Enforces strict authorization for all DSW operations
+ * Uses centralized permission system from permissions.config.js
+ *
+ * MIGRATED: Now uses centralized permission checking instead of hardcoded role arrays
+ * - Permission checks use getDefaultPermissions() for inherent rights
+ * - Explicit permissions checked via centralDeptPermissions
+ * - Context-aware checks (club ownership) are preserved as secondary validation
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-const { DSWPermissions, ErrorMessages } = require('../constants');
+const prisma = require("../../../shared/config/database");
+const { ErrorMessages } = require("../constants");
+const {
+  checkPermission,
+  checkAnyPermission,
+  requireDSWPermission,
+} = require("../../../shared/middleware/auth");
+const {
+  getDefaultPermissions,
+} = require("../../../shared/config/permissions.config");
 
 /**
- * Check if user has required permission
- * @param {string} permission - Permission to check
- * @param {Object} user - User object with role
+ * Check if user has required DSW permission (using centralized system)
+ * @param {string} permissionKey - Permission key from permissions.config.js
+ * @param {Object} user - User object with role and permissions
  * @returns {boolean} True if authorized
  */
-function hasPermission(permission, user) {
-  const allowedRoles = DSWPermissions[permission];
-  if (!allowedRoles) return false;
-  return allowedRoles.includes(user.role);
+function hasPermission(permissionKey, user) {
+  if (!user) return false;
+
+  // Check 1: Default permissions based on role
+  const defaultPerms = getDefaultPermissions(user.role);
+  if (defaultPerms[permissionKey] === true) {
+    return true;
+  }
+
+  // Check 2: Explicit permissions from centralDeptPermissions
+  const hasExplicitPermission = user.centralDeptPermissions?.some(
+    (deptPerm) =>
+      deptPerm.permissions && deptPerm.permissions[permissionKey] === true,
+  );
+
+  return hasExplicitPermission;
 }
 
 /**
  * Middleware: Check if user can create club noting
+ * Uses centralized permission: dsw_create_club_noting
  */
 function canCreateClubNoting(req, res, next) {
   const { user } = req;
@@ -28,15 +53,17 @@ function canCreateClubNoting(req, res, next) {
   if (!user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required',
+      message: "Authentication required",
     });
   }
 
-  if (!hasPermission('CREATE_CLUB_NOTING', user)) {
+  if (!hasPermission("dsw_create_club_noting", user)) {
     return res.status(403).json({
       success: false,
       message: ErrorMessages.UNAUTHORIZED,
-      detail: 'Only faculty members can create club creation notings',
+      detail:
+        "You need dsw_create_club_noting permission to create club notings",
+      requiredPermission: "dsw_create_club_noting",
     });
   }
 
@@ -45,6 +72,7 @@ function canCreateClubNoting(req, res, next) {
 
 /**
  * Middleware: Check if user can view club
+ * Uses centralized permission: dsw_view_club
  */
 function canViewClub(req, res, next) {
   const { user } = req;
@@ -52,14 +80,15 @@ function canViewClub(req, res, next) {
   if (!user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required',
+      message: "Authentication required",
     });
   }
 
-  if (!hasPermission('VIEW_CLUB', user)) {
+  if (!hasPermission("dsw_view_club", user)) {
     return res.status(403).json({
       success: false,
       message: ErrorMessages.UNAUTHORIZED,
+      requiredPermission: "dsw_view_club",
     });
   }
 
@@ -79,7 +108,11 @@ function optionalAuth(req, res, next) {
 
 /**
  * Middleware: Check if user can manage club members
- * Must be Vice Chairperson or Faculty Facilitator of the club
+ * Uses centralized permission: dsw_manage_members
+ *
+ * Two-layer authorization:
+ * 1. Permission check (admin, superadmin, or explicit dsw_manage_members)
+ * 2. Context check (must be Chairperson or Faculty Facilitator of THIS club)
  */
 async function canManageMembers(req, res, next) {
   const { user } = req;
@@ -88,20 +121,24 @@ async function canManageMembers(req, res, next) {
   if (!user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required',
+      message: "Authentication required",
     });
   }
 
-  // Admins can always manage
-  if (user.role === 'admin' || user.role === 'superadmin') {
-    return next();
+  // Layer 1: Check if user has dsw_manage_members permission (admins get this by default)
+  if (hasPermission("dsw_manage_members", user)) {
+    // Admin/superadmin with permission can manage any club
+    if (user.role === "admin" || user.role === "superadmin") {
+      return next();
+    }
   }
 
+  // Layer 2: Context check - must be Chairperson or Faculty Facilitator of THIS club
   try {
     const club = await prisma.club.findUnique({
       where: { id: clubId },
       select: {
-        viceChairpersonId: true,
+        chairpersonId: true,
         facultyFacilitatorId: true,
       },
     });
@@ -113,30 +150,38 @@ async function canManageMembers(req, res, next) {
       });
     }
 
-    // Check if user is Vice Chairperson or Faculty Facilitator
-    if (club.viceChairpersonId !== user.id && club.facultyFacilitatorId !== user.id) {
-      return res.status(403).json({
-        success: false,
-        message: ErrorMessages.UNAUTHORIZED,
-        detail: 'Only Vice Chairperson or Faculty Facilitator can manage members',
-      });
+    // Check if user is Chairperson or Faculty Facilitator of THIS club
+    if (
+      club.chairpersonId === user.id ||
+      club.facultyFacilitatorId === user.id
+    ) {
+      req.club = club;
+      return next();
     }
 
-    // Store club in request for use in controller
-    req.club = club;
-    next();
+    return res.status(403).json({
+      success: false,
+      message: ErrorMessages.UNAUTHORIZED,
+      detail:
+        "Only Chairperson or Faculty Facilitator of this club can manage members",
+      requiredPermission: "dsw_manage_members (or club relationship)",
+    });
   } catch (error) {
-    console.error('Error in canManageMembers middleware:', error);
+    console.error("Error in canManageMembers middleware:", error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
 
 /**
  * Middleware: Check if user can request club changes
- * Must be Faculty Facilitator of the club
+ * Uses centralized permission: dsw_request_club_change
+ *
+ * Two-layer authorization:
+ * 1. Permission check (admin, superadmin, or explicit permission)
+ * 2. Context check (must be Faculty Facilitator of THIS club)
  */
 async function canRequestClubChange(req, res, next) {
   const { user } = req;
@@ -145,15 +190,26 @@ async function canRequestClubChange(req, res, next) {
   if (!user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required',
+      message: "Authentication required",
     });
   }
 
-  // Admins can always request changes
-  if (user.role === 'admin' || user.role === 'superadmin') {
+  // Admin/superadmin can always request changes
+  if (user.role === "admin" || user.role === "superadmin") {
     return next();
   }
 
+  // Check permission first
+  if (!hasPermission("dsw_request_club_change", user)) {
+    return res.status(403).json({
+      success: false,
+      message: ErrorMessages.UNAUTHORIZED,
+      detail: "You need dsw_request_club_change permission",
+      requiredPermission: "dsw_request_club_change",
+    });
+  }
+
+  // Context check - must be Faculty Facilitator of THIS club
   try {
     const club = await prisma.club.findUnique({
       where: { id: clubId },
@@ -174,23 +230,24 @@ async function canRequestClubChange(req, res, next) {
       return res.status(403).json({
         success: false,
         message: ErrorMessages.UNAUTHORIZED,
-        detail: 'Only Faculty Facilitator can request club changes',
+        detail: "Only Faculty Facilitator of this club can request changes",
       });
     }
 
     req.club = club;
     next();
   } catch (error) {
-    console.error('Error in canRequestClubChange middleware:', error);
+    console.error("Error in canRequestClubChange middleware:", error);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: "Internal server error",
     });
   }
 }
 
 /**
  * Middleware: Check if user can view audit logs
+ * Uses centralized permission: dsw_view_audit_logs
  */
 function canViewAuditLogs(req, res, next) {
   const { user } = req;
@@ -198,15 +255,16 @@ function canViewAuditLogs(req, res, next) {
   if (!user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required',
+      message: "Authentication required",
     });
   }
 
-  if (!hasPermission('VIEW_AUDIT_LOGS', user)) {
+  if (!hasPermission("dsw_view_audit_logs", user)) {
     return res.status(403).json({
       success: false,
       message: ErrorMessages.UNAUTHORIZED,
-      detail: 'Only admins can view audit logs',
+      detail: "dsw_view_audit_logs permission required",
+      requiredPermission: "dsw_view_audit_logs",
     });
   }
 
@@ -214,7 +272,59 @@ function canViewAuditLogs(req, res, next) {
 }
 
 /**
- * Middleware: Check if user is DSW admin
+ * Middleware: Check if user can approve clubs
+ * Uses centralized permission: dsw_approve_club
+ */
+function canApproveClub(req, res, next) {
+  const { user } = req;
+
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required",
+    });
+  }
+
+  if (!hasPermission("dsw_approve_club", user)) {
+    return res.status(403).json({
+      success: false,
+      message: ErrorMessages.UNAUTHORIZED,
+      detail: "dsw_approve_club permission required",
+      requiredPermission: "dsw_approve_club",
+    });
+  }
+
+  next();
+}
+
+/**
+ * Middleware: Check if user can view all clubs
+ * Uses centralized permission: dsw_view_all_clubs
+ */
+function canViewAllClubs(req, res, next) {
+  const { user } = req;
+
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required",
+    });
+  }
+
+  if (!hasPermission("dsw_view_all_clubs", user)) {
+    return res.status(403).json({
+      success: false,
+      message: ErrorMessages.UNAUTHORIZED,
+      detail: "dsw_view_all_clubs permission required",
+      requiredPermission: "dsw_view_all_clubs",
+    });
+  }
+
+  next();
+}
+
+/**
+ * Middleware: Check if user is DSW admin (has dsw_approve_club permission)
  */
 function isDSWAdmin(req, res, next) {
   const { user } = req;
@@ -222,15 +332,21 @@ function isDSWAdmin(req, res, next) {
   if (!user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required',
+      message: "Authentication required",
     });
   }
 
-  if (user.role !== 'admin' && user.role !== 'superadmin') {
+  // Check for admin-level DSW permissions
+  const hasAdminPerms =
+    hasPermission("dsw_approve_club", user) ||
+    hasPermission("dsw_approve_club_change", user);
+
+  if (!hasAdminPerms) {
     return res.status(403).json({
       success: false,
       message: ErrorMessages.UNAUTHORIZED,
-      detail: 'DSW admin access required',
+      detail:
+        "DSW admin permissions required (dsw_approve_club or dsw_approve_club_change)",
     });
   }
 
@@ -247,7 +363,7 @@ async function getUserClubRelationship(userId, clubId) {
   const club = await prisma.club.findUnique({
     where: { id: clubId },
     select: {
-      viceChairpersonId: true,
+      chairpersonId: true,
       facultyFacilitatorId: true,
       members: {
         where: {
@@ -263,11 +379,11 @@ async function getUserClubRelationship(userId, clubId) {
   }
 
   return {
-    isViceChairperson: club.viceChairpersonId === userId,
+    isChairperson: club.chairpersonId === userId,
     isFacultyFacilitator: club.facultyFacilitatorId === userId,
     isMember: club.members.length > 0,
     canManageMembers:
-      club.viceChairpersonId === userId || club.facultyFacilitatorId === userId,
+      club.chairpersonId === userId || club.facultyFacilitatorId === userId,
   };
 }
 
@@ -275,6 +391,8 @@ module.exports = {
   hasPermission,
   canCreateClubNoting,
   canViewClub,
+  canViewAllClubs,
+  canApproveClub,
   optionalAuth,
   canManageMembers,
   canRequestClubChange,

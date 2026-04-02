@@ -176,14 +176,17 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
   const calculateMinimumInvestigators = (): number => {
     let minRequired = 1; // At minimum, just the user
     
-    if (formData.projectType === 'international' && consortiumOrganizations.length > 0) {
+    if (formData.projectType ===
+   'international' && consortiumOrganizations.length > 0) {
       // For international projects, count consortium members
       const totalConsortiumMembers = consortiumOrganizations.reduce((sum, org) => sum + org.numberOfMembers, 0);
       minRequired = totalConsortiumMembers + 1; // +1 for user
       
       // If user is Co-PI and PI is internal, add 1 for internal PI slot
-      if (formData.myRole === 'co_pi' && !formData.isPIExternal) {
-        const hasPIInTeam = investigators.some(inv => inv.roleType === 'pi');
+      if (formData.myRole ===
+   'co_pi' && !formData.isPIExternal) {
+        const hasPIInTeam = investigators.some(inv => inv.roleType ===
+   'pi');
         if (!hasPIInTeam) {
           minRequired = totalConsortiumMembers + 2; // +1 for user (Co-PI) + 1 for internal PI slot
         }
@@ -194,8 +197,10 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
       minRequired = teamMemberCount + 1; // +1 for user
       
       // If user is Co-PI and PI is internal, add 1 for internal PI slot
-      if (formData.myRole === 'co_pi' && !formData.isPIExternal) {
-        const hasPIInTeam = investigators.some(inv => inv.roleType === 'pi');
+      if (formData.myRole ===
+   'co_pi' && !formData.isPIExternal) {
+        const hasPIInTeam = investigators.some(inv => inv.roleType ===
+   'pi');
         if (!hasPIInTeam) {
           minRequired = teamMemberCount + 2; // +1 for user (Co-PI) + 1 for internal PI slot
         }
@@ -261,13 +266,16 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
   
   // Auto-update totalInvestigators based on consortium members (for international projects)
   useEffect(() => {
-    if (formData.projectType === 'international' && consortiumOrganizations.length > 0) {
+    if (formData.projectType ===
+   'international' && consortiumOrganizations.length > 0) {
       const totalConsortiumMembers = consortiumOrganizations.reduce((sum, org) => sum + org.numberOfMembers, 0);
       let minRequired = totalConsortiumMembers + 1; // +1 for the user
       
       // If user is Co-PI and PI is internal, add 1 for the internal PI slot
-      if (formData.myRole === 'co_pi' && !formData.isPIExternal) {
-        const hasPIInTeam = investigators.some(inv => inv.roleType === 'pi');
+      if (formData.myRole ===
+   'co_pi' && !formData.isPIExternal) {
+        const hasPIInTeam = investigators.some(inv => inv.roleType ===
+   'pi');
         if (!hasPIInTeam) {
           minRequired = totalConsortiumMembers + 2; // +1 for user (Co-PI) + 1 for internal PI slot
         }
@@ -293,9 +301,11 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     // Otherwise: team members + 1 (user)
     let requiredTotal = teamMemberCount + 1; // +1 for the user (PI/Co-PI)
     
-    if (formData.myRole === 'co_pi' && !formData.isPIExternal) {
+    if (formData.myRole ===
+   'co_pi' && !formData.isPIExternal) {
       // User is Co-PI and PI is internal, so we need another person as PI
-      const hasPIInTeam = investigators.some(inv => inv.roleType === 'pi');
+      const hasPIInTeam = investigators.some(inv => inv.roleType ===
+   'pi');
       if (!hasPIInTeam) {
         requiredTotal = teamMemberCount + 2; // +1 for user (Co-PI) + 1 for PI slot
       }
@@ -367,7 +377,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     investigatorCategory: 'Internal' | 'External'
   ): { incentive: number; points: number } => {
     // External investigators get ZERO
-    if (investigatorCategory === 'External') {
+    if (investigatorCategory ===
+   'External') {
       return { incentive: 0, points: 0 };
     }
 
@@ -381,7 +392,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     const totalPoints = Number(activePolicy.basePoints);
 
     // Add international bonus
-    if (formData.projectType === 'international' && activePolicy.internationalBonus) {
+    if (formData.projectType ===
+   'international' && activePolicy.internationalBonus) {
       totalIncentive += Number(activePolicy.internationalBonus);
     }
 
@@ -393,17 +405,20 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     // Count internal investigators
     const internalInvestigators = [
       { roleType: formData.myRole, isInternal: true }, // Applicant (always internal)
-      ...investigators.filter(inv => inv.investigatorCategory === 'Internal')
+      ...investigators.filter(inv => inv.investigatorCategory ===
+   'Internal')
     ];
 
     const totalInternalCount = internalInvestigators.length;
     
-    if (totalInternalCount === 0) {
+    if (totalInternalCount ===
+   0) {
       return { incentive: 0, points: 0 };
     }
 
     // Calculate based on split policy
-    if (activePolicy.splitPolicy === 'equal') {
+    if (activePolicy.splitPolicy ===
+   'equal') {
       // Equal split among all internal investigators (use floor to prevent exceeding total)
       const perPersonIncentive = Math.floor(totalIncentive / totalInternalCount);
       const perPersonPoints = Math.floor(totalPoints / totalInternalCount);
@@ -415,21 +430,28 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
         { role: 'co_pi', percentage: 55 }
       ];
 
-      const piPercentage = rolePercentages.find(r => r.role === 'pi')?.percentage || 45;
-      const coPiTotalPercentage = rolePercentages.find(r => r.role === 'co_pi')?.percentage || 55;
+      const piPercentage = rolePercentages.find(r => r.role ===
+   'pi')?.percentage || 45;
+      const coPiTotalPercentage = rolePercentages.find(r => r.role ===
+   'co_pi')?.percentage || 55;
 
       // Count PIs and Co-PIs
-      const piCount = internalInvestigators.filter(inv => inv.roleType === 'pi').length;
-      const coPiCount = internalInvestigators.filter(inv => inv.roleType === 'co_pi').length;
+      const piCount = internalInvestigators.filter(inv => inv.roleType ===
+   'pi').length;
+      const coPiCount = internalInvestigators.filter(inv => inv.roleType ===
+   'co_pi').length;
 
-      if (roleType === 'pi') {
-        if (piCount === 0) return { incentive: 0, points: 0 };
+      if (roleType ===
+   'pi') {
+        if (piCount ===
+   0) return { incentive: 0, points: 0 };
         // PIs share the PI percentage equally (use floor to prevent exceeding total)
         const piIncentive = Math.floor((totalIncentive * piPercentage) / 100 / piCount);
         const piPoints = Math.floor((totalPoints * piPercentage) / 100 / piCount);
         return { incentive: piIncentive, points: piPoints };
       } else {
-        if (coPiCount === 0) return { incentive: 0, points: 0 };
+        if (coPiCount ===
+   0) return { incentive: 0, points: 0 };
         // Co-PIs share the Co-PI percentage equally (use floor to prevent exceeding total)
         const coPiIncentive = Math.floor((totalIncentive * coPiTotalPercentage) / 100 / coPiCount);
         const coPiPoints = Math.floor((totalPoints * coPiTotalPercentage) / 100 / coPiCount);
@@ -470,7 +492,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
       
       // Load edit suggestions if any
       if (grant.editSuggestions && grant.editSuggestions.length > 0) {
-        setEditSuggestions(grant.editSuggestions.filter((s: EditSuggestion) => s.status === 'pending'));
+        setEditSuggestions(grant.editSuggestions.filter((s: EditSuggestion) => s.status ===
+   'pending'));
       }
       
       setFormData({
@@ -527,11 +550,14 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     
-    if (type === 'checkbox') {
+    if (type ===
+   'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
-    } else if (type === 'number') {
-      setFormData(prev => ({ ...prev, [name]: value === '' ? '' : Number(value) }));
+    } else if (type ===
+   'number') {
+      setFormData(prev => ({ ...prev, [name]: value ===
+   '' ? '' : Number(value) }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
@@ -606,31 +632,39 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     }
     
     // Validate minimum total investigators
-    const consortiumMembers = formData.projectType === 'international' 
+    const consortiumMembers = formData.projectType ===
+   'international' 
       ? consortiumOrganizations.reduce((sum, org) => sum + org.numberOfMembers, 0)
       : 0;
-    const minInvestigators = formData.projectType === 'international' ? consortiumMembers + 1 : 1;
+    const minInvestigators = formData.projectType ===
+   'international' ? consortiumMembers + 1 : 1;
     if (formData.totalInvestigators < minInvestigators) {
-      setError(`For ${formData.projectType === 'international' ? 'international' : 'Indian'} projects, minimum ${minInvestigators} investigator(s) required (${consortiumMembers} consortium members + 1 you)`);
+      setError(`For ${formData.projectType ===
+   'international' ? 'international' : 'Indian'} projects, minimum ${minInvestigators} investigator(s) required (${consortiumMembers} consortium members + 1 you)`);
       return false;
     }
     
-    if (formData.projectCategory === 'govt' && !formData.fundingAgencyType) {
+    if (formData.projectCategory ===
+   'govt' && !formData.fundingAgencyType) {
       setError('Please select a funding agency');
       return false;
     }
     
-    if (formData.fundingAgencyType === 'other' && !formData.fundingAgencyName.trim()) {
+    if (formData.fundingAgencyType ===
+   'other' && !formData.fundingAgencyName.trim()) {
       setError('Please enter the funding agency name');
       return false;
     }
     
-    if ((formData.projectCategory === 'non_govt' || formData.projectCategory === 'industry') && !formData.fundingAgencyName.trim()) {
+    if ((formData.projectCategory ===
+   'non_govt' || formData.projectCategory ===
+   'industry') && !formData.fundingAgencyName.trim()) {
       setError('Please enter the funding agency name');
       return false;
     }
     
-    if (formData.projectType === 'international') {
+    if (formData.projectType ===
+   'international') {
       if (formData.numberOfConsortiumOrgs < 1) {
         setError('At least one consortium organization is required for international projects');
         return false;
@@ -650,11 +684,14 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     }
     
     // Validate only one PI in total (user's role + team members)
-    const teamPIs = investigators.filter(inv => inv.roleType === 'pi').length;
-    const userIsPI = formData.myRole === 'pi' ? 1 : 0;
+    const teamPIs = investigators.filter(inv => inv.roleType ===
+   'pi').length;
+    const userIsPI = formData.myRole ===
+   'pi' ? 1 : 0;
     const totalPIs = teamPIs + userIsPI;
     
-    if (totalPIs === 0) {
+    if (totalPIs ===
+   0) {
       setError('At least one Principal Investigator (PI) is required');
       return false;
     }
@@ -665,7 +702,9 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     }
     
     // If user is Co-PI and PI is internal, ensure PI is in team
-    if (formData.myRole === 'co_pi' && !formData.isPIExternal && teamPIs === 0) {
+    if (formData.myRole ===
+   'co_pi' && !formData.isPIExternal && teamPIs ===
+   0) {
       setError('Since you are a Co-PI and the PI is internal, you must add an internal team member with the PI role');
       return false;
     }
@@ -674,15 +713,19 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
     let actualTotal = investigators.length + 1; // +1 for user
     
     // If user is Co-PI and PI is internal, ensure space for internal PI
-    if (formData.myRole === 'co_pi' && !formData.isPIExternal) {
-      const hasPIInTeam = investigators.some(inv => inv.roleType === 'pi');
+    if (formData.myRole ===
+   'co_pi' && !formData.isPIExternal) {
+      const hasPIInTeam = investigators.some(inv => inv.roleType ===
+   'pi');
       if (!hasPIInTeam) {
         actualTotal = investigators.length + 2; // +1 for user (Co-PI) + 1 for PI slot
       }
     }
     
     if (formData.totalInvestigators < actualTotal) {
-      const explanation = formData.myRole === 'co_pi' && !formData.isPIExternal && !investigators.some(inv => inv.roleType === 'pi')
+      const explanation = formData.myRole ===
+   'co_pi' && !formData.isPIExternal && !investigators.some(inv => inv.roleType ===
+   'pi')
         ? `you (Co-PI) + ${investigators.length} team members + 1 internal PI slot`
         : `you + ${investigators.length} team members`;
       setError(`Total investigators (${formData.totalInvestigators}) must be at least ${actualTotal} (${explanation})`);
@@ -697,10 +740,12 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
       ...formData,
       submittedAmount: formData.submittedAmount ? parseFloat(formData.submittedAmount) : null,
       projectDurationMonths: formData.projectDurationMonths ? parseInt(formData.projectDurationMonths) : null,
-      consortiumOrganizations: formData.projectType === 'international' ? consortiumOrganizations : [],
+      consortiumOrganizations: formData.projectType ===
+   'international' ? consortiumOrganizations : [],
       investigators: investigators.map((inv, index) => ({
         ...inv,
-        isInternal: inv.investigatorCategory === 'Internal',
+        isInternal: inv.investigatorCategory ===
+   'Internal',
         displayOrder: index
       }))
     };
@@ -850,7 +895,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               </div>
               
               {editSuggestions.map((suggestion) => {
-                const sdgLabel = suggestion.fieldName === 'sdgGoals' 
+                const sdgLabel = suggestion.fieldName ===
+   'sdgGoals' 
                   ? 'SDG Goals'
                   : suggestion.fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                 
@@ -869,16 +915,20 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Current Value</div>
                         <div className="p-2 bg-red-50 border border-red-200 rounded text-sm">
-                          {suggestion.fieldName === 'sdgGoals' 
-                            ? suggestion.originalValue.split(',').map(sdg => SDG_GOALS.find(s => s.value === sdg)?.label || sdg).join(', ')
+                          {suggestion.fieldName ===
+   'sdgGoals' 
+                            ? suggestion.originalValue.split(',').map(sdg => SDG_GOALS.find(s => s.value ===
+   sdg)?.label || sdg).join(', ')
                             : suggestion.originalValue || 'N/A'}
                         </div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Suggested Value</div>
                         <div className="p-2 bg-green-50 border border-green-200 rounded text-sm">
-                          {suggestion.fieldName === 'sdgGoals'
-                            ? suggestion.suggestedValue.split(',').map(sdg => SDG_GOALS.find(s => s.value === sdg)?.label || sdg).join(', ')
+                          {suggestion.fieldName ===
+   'sdgGoals'
+                            ? suggestion.suggestedValue.split(',').map(sdg => SDG_GOALS.find(s => s.value ===
+   sdg)?.label || sdg).join(', ')
                             : suggestion.suggestedValue}
                         </div>
                       </div>
@@ -894,10 +944,12 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleAcceptSuggestion(suggestion)}
-                        disabled={suggestionLoading === suggestion.id}
+                        disabled={suggestionLoading ===
+   suggestion.id}
                         className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        {suggestionLoading === suggestion.id ? (
+                        {suggestionLoading ===
+   suggestion.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <CheckCircle className="w-4 h-4" />
@@ -906,10 +958,12 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       </button>
                       <button
                         onClick={() => handleRejectSuggestion(suggestion)}
-                        disabled={suggestionLoading === suggestion.id}
+                        disabled={suggestionLoading ===
+   suggestion.id}
                         className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        {suggestionLoading === suggestion.id ? (
+                        {suggestionLoading ===
+   suggestion.id ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <X className="w-4 h-4" />
@@ -921,7 +975,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 );
               })}
               
-              {editSuggestions.length === 0 && (
+              {editSuggestions.length ===
+   0 && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg text-center">
                   <CheckCircle className="w-6 h-6 text-green-600 mx-auto mb-2" />
                   <p className="text-green-700 font-medium">All suggestions have been resolved!</p>
@@ -948,7 +1003,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="projectStatus"
                       value="submitted"
-                      checked={formData.projectStatus === 'submitted'}
+                      checked={formData.projectStatus ===
+   'submitted'}
                       onChange={handleInputChange}
                       className="text-orange-600 focus:ring-orange-500"
                     />
@@ -959,7 +1015,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="projectStatus"
                       value="approved"
-                      checked={formData.projectStatus === 'approved'}
+                      checked={formData.projectStatus ===
+   'approved'}
                       onChange={handleInputChange}
                       className="text-orange-600 focus:ring-orange-500"
                     />
@@ -978,7 +1035,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="projectCategory"
                       value="govt"
-                      checked={formData.projectCategory === 'govt'}
+                      checked={formData.projectCategory ===
+   'govt'}
                       onChange={(e) => {
                         handleInputChange(e);
                         setFormData(prev => ({ ...prev, fundingAgencyType: '', fundingAgencyName: '' }));
@@ -992,7 +1050,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="projectCategory"
                       value="non_govt"
-                      checked={formData.projectCategory === 'non_govt'}
+                      checked={formData.projectCategory ===
+   'non_govt'}
                       onChange={(e) => {
                         handleInputChange(e);
                         setFormData(prev => ({ ...prev, fundingAgencyType: '', fundingAgencyName: '' }));
@@ -1006,7 +1065,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="projectCategory"
                       value="industry"
-                      checked={formData.projectCategory === 'industry'}
+                      checked={formData.projectCategory ===
+   'industry'}
                       onChange={(e) => {
                         handleInputChange(e);
                         setFormData(prev => ({ ...prev, fundingAgencyType: '', fundingAgencyName: '' }));
@@ -1021,7 +1081,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             {/* Funding Agency - Conditional */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {formData.projectCategory === 'govt' && (
+              {formData.projectCategory ===
+   'govt' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Funding Agency *
@@ -1040,9 +1101,12 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 </div>
               )}
               
-              {(formData.fundingAgencyType === 'other' || 
-                formData.projectCategory === 'non_govt' || 
-                formData.projectCategory === 'industry') && (
+              {(formData.fundingAgencyType ===
+   'other' || 
+                formData.projectCategory ===
+   'non_govt' || 
+                formData.projectCategory ===
+   'industry') && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Funding Agency Name *
@@ -1133,7 +1197,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               {formData.sdgGoals.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {formData.sdgGoals.map((sdgValue) => {
-                    const sdg = SDG_GOALS.find(s => s.value === sdgValue);
+                    const sdg = SDG_GOALS.find(s => s.value ===
+   sdgValue);
                     return (
                       <span key={sdgValue} className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
                         {sdg?.label.split(':')[0]}
@@ -1170,7 +1235,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="projectType"
                       value="indian"
-                      checked={formData.projectType === 'indian'}
+                      checked={formData.projectType ===
+   'indian'}
                       onChange={handleInputChange}
                       className="text-orange-600 focus:ring-orange-500"
                     />
@@ -1181,7 +1247,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="projectType"
                       value="international"
-                      checked={formData.projectType === 'international'}
+                      checked={formData.projectType ===
+   'international'}
                       onChange={handleInputChange}
                       className="text-orange-600 focus:ring-orange-500"
                     />
@@ -1190,7 +1257,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 </div>
               </div>
               
-              {formData.projectType === 'international' && (
+              {formData.projectType ===
+   'international' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     No. of Representative Country Organizations in Consortium *
@@ -1209,7 +1277,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             </div>
             
             {/* Consortium Organizations */}
-            {formData.projectType === 'international' && formData.numberOfConsortiumOrgs > 0 && (
+            {formData.projectType ===
+   'international' && formData.numberOfConsortiumOrgs > 0 && (
               <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <h3 className="font-medium text-blue-900">Consortium Organizations</h3>
                 {consortiumOrganizations.map((org, index) => (
@@ -1328,7 +1397,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="myRole"
                       value="pi"
-                      checked={formData.myRole === 'pi'}
+                      checked={formData.myRole ===
+   'pi'}
                       onChange={(e) => {
                         setFormData(prev => ({
                           ...prev,
@@ -1345,7 +1415,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       type="radio"
                       name="myRole"
                       value="co_pi"
-                      checked={formData.myRole === 'co_pi'}
+                      checked={formData.myRole ===
+   'co_pi'}
                       onChange={(e) => {
                         setFormData(prev => ({
                           ...prev,
@@ -1360,7 +1431,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   </label>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.myRole === 'pi' 
+                  {formData.myRole ===
+   'pi' 
                     ? 'You are the PI. Only one PI is allowed per project.' 
                     : 'You are a Co-PI. The PI role will be assigned to another team member.'}
                 </p>
@@ -1408,12 +1480,14 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       }}
                       className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
                       min="1"
-                      max={formData.projectType === 'international' 
+                      max={formData.projectType ===
+   'international' 
                         ? formData.totalInvestigators - consortiumOrganizations.reduce((sum, org) => sum + org.numberOfMembers, 0)
                         : formData.totalInvestigators}
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      {formData.projectType === 'international' 
+                      {formData.projectType ===
+   'international' 
                         ? `Max: ${formData.totalInvestigators - consortiumOrganizations.reduce((sum, org) => sum + org.numberOfMembers, 0)} (Total - External members)` 
                         : 'Including you'}
                     </p>
@@ -1446,7 +1520,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               <InvestigatorManager
                 investigators={investigators}
                 onChange={setInvestigators}
-                consortiumOrganizations={formData.projectType === 'international' ? consortiumOrganizations : []}
+                consortiumOrganizations={formData.projectType ===
+   'international' ? consortiumOrganizations : []}
                 totalInvestigators={formData.totalInvestigators}
                 numberOfInternalPIs={formData.numberOfInternalPIs}
                 numberOfInternalCoPIs={formData.numberOfInternalCoPIs}
@@ -1457,7 +1532,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             )}
             
             {/* Investigator Summary Table */}
-            {(investigators.length > 0 || formData.totalInvestigators === 1) && (
+            {(investigators.length > 0 || formData.totalInvestigators ===
+   1) && (
               <div className="mt-4 overflow-x-auto">
                 <h4 className="text-sm font-medium text-gray-700 mb-2">Team Summary (Total: {investigators.length + 1})</h4>
                 
@@ -1470,14 +1546,16 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         <p className="font-semibold mb-1">Active Grant Policy: {activePolicy.policyName}</p>
                         <div className="flex flex-wrap gap-4 text-xs">
                           <span>Base: ₹{Number(activePolicy.baseIncentiveAmount).toLocaleString()} / {activePolicy.basePoints} pts</span>
-                          {activePolicy.internationalBonus && formData.projectType === 'international' && (
+                          {activePolicy.internationalBonus && formData.projectType ===
+   'international' && (
                             <span>International Bonus: ₹{Number(activePolicy.internationalBonus).toLocaleString()}</span>
                           )}
                           {activePolicy.consortiumBonus && formData.numberOfConsortiumOrgs > 0 && (
                             <span>Consortium Bonus: ₹{Number(activePolicy.consortiumBonus).toLocaleString()} × {formData.numberOfConsortiumOrgs}</span>
                           )}
                           <span className="font-medium">
-                            Split: {activePolicy.splitPolicy === 'equal' ? 'Equal among all' : 'Role-based (PI/Co-PI)'}
+                            Split: {activePolicy.splitPolicy ===
+   'equal' ? 'Equal among all' : 'Role-based (PI/Co-PI)'}
                           </span>
                         </div>
                         <p className="text-xs mt-1 text-green-700">
@@ -1524,7 +1602,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       <td className="px-4 py-2 text-sm text-gray-600">{user?.employee?.designation || user?.employeeDetails?.designation?.name || '-'}</td>
                       <td className="px-4 py-2">
                         <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                          {formData.myRole === 'pi' ? 'PI' : 'Co-PI'}
+                          {formData.myRole ===
+   'pi' ? 'PI' : 'Co-PI'}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-sm">
@@ -1569,15 +1648,18 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           <td className="px-4 py-2 text-sm text-gray-600">{inv.designation || '-'}</td>
                           <td className="px-4 py-2">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
-                              inv.roleType === 'pi' ? 'bg-purple-100 text-purple-700' :
+                              inv.roleType ===
+   'pi' ? 'bg-purple-100 text-purple-700' :
                               'bg-orange-100 text-orange-700'
                             }`}>
-                              {inv.roleType === 'pi' ? 'PI' : 'Co-PI'}
+                              {inv.roleType ===
+   'pi' ? 'PI' : 'Co-PI'}
                             </span>
                           </td>
                           <td className="px-4 py-2 text-sm">
                             <span className={`px-2 py-1 rounded text-xs ${
-                              inv.investigatorCategory === 'Internal' 
+                              inv.investigatorCategory ===
+   'Internal' 
                                 ? 'bg-green-100 text-green-700' 
                                 : 'bg-blue-100 text-blue-700'
                             }`}>
@@ -1615,7 +1697,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           {(() => {
                             const applicantCalc = calculateInvestigatorIncentive(formData.myRole, 'Internal');
                             const teamTotal = investigators
-                              .filter(inv => inv.investigatorCategory === 'Internal')
+                              .filter(inv => inv.investigatorCategory ===
+   'Internal')
                               .reduce((sum, inv) => {
                                 const calc = calculateInvestigatorIncentive(inv.roleType, inv.investigatorCategory);
                                 return sum + calc.incentive;
@@ -1633,7 +1716,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           {(() => {
                             const applicantCalc = calculateInvestigatorIncentive(formData.myRole, 'Internal');
                             const teamTotal = investigators
-                              .filter(inv => inv.investigatorCategory === 'Internal')
+                              .filter(inv => inv.investigatorCategory ===
+   'Internal')
                               .reduce((sum, inv) => {
                                 const calc = calculateInvestigatorIncentive(inv.roleType, inv.investigatorCategory);
                                 return sum + calc.points;
@@ -1839,7 +1923,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 </label>
                 <input
                   type="text"
-                  value={schools.find(s => s.id === formData.schoolId)?.facultyName || 'Not set'}
+                  value={schools.find(s => s.id ===
+   formData.schoolId)?.facultyName || 'Not set'}
                   readOnly
                   className="w-full rounded-lg border-gray-300 bg-gray-50 shadow-sm cursor-not-allowed text-gray-600"
                 />
@@ -1851,7 +1936,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 </label>
                 <input
                   type="text"
-                  value={departments.find(d => d.id === formData.departmentId)?.departmentName || 'Not set'}
+                  value={departments.find(d => d.id ===
+   formData.departmentId)?.departmentName || 'Not set'}
                   readOnly
                   className="w-full rounded-lg border-gray-300 bg-gray-50 shadow-sm cursor-not-allowed text-gray-600"
                 />

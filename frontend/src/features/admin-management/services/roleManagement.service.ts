@@ -2,9 +2,23 @@ import api from '@/shared/api/api';
 
 export type RoleDepartmentType = 'SCHOOL' | 'CENTRAL' | 'BOTH';
 
+export interface RoleAnalyticsCategoryScope {
+  schools: string[];
+  departments: string[];
+}
+
+export interface RoleAnalyticsScope {
+  ipr?: RoleAnalyticsCategoryScope;
+  research?: RoleAnalyticsCategoryScope;
+  book?: RoleAnalyticsCategoryScope;
+  conference?: RoleAnalyticsCategoryScope;
+  grants?: RoleAnalyticsCategoryScope;
+}
+
 export interface RolePermissions {
   schoolDeptPermissions?: Record<string, boolean>;
   centralDeptPermissions?: Record<string, boolean>;
+  analyticsScope?: RoleAnalyticsScope;
 }
 
 export interface Role {

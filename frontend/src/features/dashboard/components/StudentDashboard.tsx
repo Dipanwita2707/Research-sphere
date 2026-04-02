@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import { 
   FileText,
@@ -34,19 +34,32 @@ import {
   Sparkles,
   ArrowRight
 } from 'lucide-react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  LineChart, Line, AreaChart, Area
-} from 'recharts';
+import dynamic from 'next/dynamic';
+// Recharts — lazy-loaded so it doesn't block initial paint (it's ~500KB)
+const BarChart = dynamic(() => import('recharts').then(m => ({ default: m.BarChart })), { ssr: false });
+const Bar = dynamic(() => import('recharts').then(m => ({ default: m.Bar })), { ssr: false });
+const LineChart = dynamic(() => import('recharts').then(m => ({ default: m.LineChart })), { ssr: false });
+const Line = dynamic(() => import('recharts').then(m => ({ default: m.Line })), { ssr: false });
+const AreaChart = dynamic(() => import('recharts').then(m => ({ default: m.AreaChart })), { ssr: false });
+const Area = dynamic(() => import('recharts').then(m => ({ default: m.Area })), { ssr: false });
+const XAxis = dynamic(() => import('recharts').then(m => ({ default: m.XAxis })), { ssr: false });
+const YAxis = dynamic(() => import('recharts').then(m => ({ default: m.YAxis })), { ssr: false });
+const CartesianGrid = dynamic(() => import('recharts').then(m => ({ default: m.CartesianGrid })), { ssr: false });
+const Tooltip = dynamic(() => import('recharts').then(m => ({ default: m.Tooltip })), { ssr: false });
+const Legend = dynamic(() => import('recharts').then(m => ({ default: m.Legend })), { ssr: false });
+const ResponsiveContainer = dynamic(() => import('recharts').then(m => ({ default: m.ResponsiveContainer })), { ssr: false });
 import { logger } from '@/shared/utils/logger';
 import { FadeInUp } from '../animations/AnimatedComponents';
-import UniversityEventsSlideshow from './UniversityEventsSlideshow';
-import PermissionBasedDashboard from './PermissionBasedDashboard';
-import CurrentActionSection from './CurrentActionSection';
-import RecentNotifications from './RecentNotifications';
-import SocialFootprints from './SocialFootprints';
-import Footer from '../layouts/Footer';
-import TourGuide, { TourStep, TourStartButton } from './TourGuide';
+// Lazy-load below-the-fold heavy components so they don't block initial paint
+const UniversityEventsSlideshow = dynamic(() => import('./UniversityEventsSlideshow'), { ssr: false });
+const PermissionBasedDashboard = dynamic(() => import('./PermissionBasedDashboard'), { ssr: false });
+const CurrentActionSection = dynamic(() => import('./CurrentActionSection'), { ssr: false });
+const RecentNotifications = dynamic(() => import('./RecentNotifications'), { ssr: false });
+const SocialFootprints = dynamic(() => import('./SocialFootprints'), { ssr: false });
+const Footer = dynamic(() => import('../layouts/Footer'), { ssr: false });
+const TourGuide = dynamic(() => import('./TourGuide'), { ssr: false });
+import { TourStep, TourStartButton } from './TourGuide';
+import { eventService } from '@/features/event-management/services/event.service';
 
 interface StudentData {
   uid: string;
@@ -1143,80 +1156,64 @@ const academicCalendarEvents = [
   { date: '2026-01-14', title: 'Makar Sankranti / Pongal', type: 'holiday' as const, description: 'Harvest festival celebrated across India - Restricted Holiday' },
   { date: '2026-01-23', title: 'Netaji Subhas Chandra Bose Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Netaji Subhas Chandra Bose - Restricted Holiday (Parakram Diwas)' },
   { date: '2026-01-26', title: 'Republic Day', type: 'holiday' as const, description: 'National holiday - Celebration of Indian Constitution adoption - Gazetted Holiday' },
-  
-  // February 2026 - Official Holidays
+
+  // February 2026 - Official Holidays & Exams
   { date: '2026-02-01', title: 'Guru Ravi Das Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Sant Guru Ravi Das - Restricted Holiday' },
   { date: '2026-02-02', title: 'Data Structures & Algorithms Exam', type: 'exam' as const, description: 'End-term examination', courseCode: 'CS301', room: 'Room 201', building: 'Block A', time: '10:00 AM - 1:00 PM', examType: 'End Semester', maxMarks: 100, duration: '3 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-05', title: 'Mid-Semester Exam Begins', type: 'exam' as const, description: 'Mid-term examinations start for all departments', courseCode: 'ALL', room: 'As per datesheet', building: 'All Blocks', time: '9:00 AM onwards', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Check datesheet for subject-wise schedule', 'Carry hall ticket', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-06', title: 'Operating Systems Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS302', room: 'Room 105', building: 'Block B', time: '10:00 AM - 12:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-12', title: 'Swami Dayananda Saraswati Jayanti', type: 'holiday' as const, description: 'Birthday of Swami Dayananda Saraswati - Restricted Holiday' },
-  { date: '2026-02-14', title: 'Valentine\'s Day Celebration', type: 'event' as const, description: 'Campus cultural event organized by Student Council' },
   { date: '2026-02-15', title: 'Maha Shivaratri', type: 'holiday' as const, description: 'Hindu festival dedicated to Lord Shiva - Gazetted Holiday' },
   { date: '2026-02-16', title: 'Database Management Systems Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS303', room: 'Room 302', building: 'Block A', time: '2:00 PM - 4:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-19', title: 'Shivaji Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Chhatrapati Shivaji Maharaj - Restricted Holiday' },
   { date: '2026-02-20', title: 'Computer Networks Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS304', room: 'Room 401', building: 'Block C', time: '10:00 AM - 12:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
   { date: '2026-02-26', title: 'Mid-Semester Results', type: 'crucial' as const, description: 'Mid-term exam results announcement' },
   { date: '2026-02-27', title: 'Software Engineering Exam', type: 'exam' as const, description: 'Mid-term examination', courseCode: 'CS305', room: 'Room 201', building: 'Block A', time: '10:00 AM - 12:00 PM', examType: 'Mid Semester', maxMarks: 50, duration: '2 hours', instructions: ['Carry your admit card and ID card', 'Report 30 minutes before exam', 'No electronic devices allowed', 'Use only blue/black pen'] },
-  
-  // February 2026 - SGT University Events
-  { date: '2026-02-05', title: 'Interview & Counseling Sessions', type: 'event' as const, description: 'Admissions & Student Interaction - SGT University Event' },
-  
-  // March 2026 - Official Holidays & SGT Events
-  { date: '2026-03-01', title: 'Basant Utsav 2026', type: 'event' as const, description: 'Spring Festival / Agriculture Celebration - SGT University Event' },
+
+  // March 2026 - Official Holidays
   { date: '2026-03-03', title: 'Holi', type: 'holiday' as const, description: 'Festival of colors - Gazetted Holiday' },
-  { date: '2026-03-08', title: 'International Women\'s Day', type: 'event' as const, description: 'Special celebration and seminar' },
-  { date: '2026-03-15', title: 'Agri Job Fair', type: 'event' as const, description: 'Career Placement in Agriculture - SGT University Event' },
-  { date: '2026-03-25', title: 'Sports Week Begins', type: 'event' as const, description: 'Inter-department sports competitions' },
-  
-  // April 2026 - Official Holidays & SGT Events
+
+  // April 2026 - Official Holidays & Crucial
   { date: '2026-04-03', title: 'Good Friday', type: 'holiday' as const, description: 'Christian holy day - Gazetted Holiday' },
   { date: '2026-04-06', title: 'End-Semester Exam Registration', type: 'crucial' as const, description: 'Last date for exam form submission' },
   { date: '2026-04-14', title: 'Dr. Ambedkar Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Dr. B.R. Ambedkar - Gazetted Holiday' },
-  { date: '2026-04-14', title: 'Baisakhi Festival', type: 'event' as const, description: 'Regional Cultural Celebration - SGT University Event' },
   { date: '2026-04-21', title: 'Mahavir Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Lord Mahavir - Gazetted Holiday' },
   { date: '2026-04-22', title: 'Ram Navami', type: 'holiday' as const, description: 'Birth of Lord Rama - Restricted Holiday' },
-  
-  // May 2026 - Official Holidays & SGT Events
+
+  // May 2026 - Official Holidays & Exams
   { date: '2026-05-01', title: 'May Day', type: 'holiday' as const, description: 'International Workers\' Day - Gazetted Holiday' },
   { date: '2026-05-04', title: 'End-Semester Exams Begin', type: 'exam' as const, description: 'Final examinations start for all programs', courseCode: 'ALL', room: 'As per datesheet', building: 'All Blocks', time: '9:00 AM onwards', examType: 'End Semester', maxMarks: 100, duration: '3 hours', instructions: ['Check datesheet for subject-wise schedule', 'Carry hall ticket and ID card', 'No electronic devices allowed', 'Use only blue/black pen'] },
-  { date: '2026-05-10', title: 'International Nanoscience Conference', type: 'event' as const, description: 'Research & Applied Sciences - SGT University Event' },
   { date: '2026-05-12', title: 'Buddha Purnima', type: 'holiday' as const, description: 'Birth anniversary of Gautama Buddha - Gazetted Holiday' },
-  
-  // June 2026 - SGT Events
+
+  // June 2026 - Crucial dates
   { date: '2026-06-05', title: 'Summer Vacation Begins', type: 'crucial' as const, description: 'Semester break starts' },
   { date: '2026-06-15', title: 'Annual Convocation 2026', type: 'crucial' as const, description: 'Graduation Ceremony - SGT University Event' },
   { date: '2026-06-15', title: 'Result Declaration', type: 'crucial' as const, description: 'End-semester results published' },
   { date: '2026-06-17', title: 'Eid ul-Adha (Bakrid)', type: 'holiday' as const, description: 'Islamic festival of sacrifice - Gazetted Holiday' },
-  
-  // July 2026 - Official Holidays
+
+  // July 2026
   { date: '2026-07-15', title: 'New Session Begins', type: 'crucial' as const, description: 'Next academic year starts' },
   { date: '2026-07-17', title: 'Muharram', type: 'holiday' as const, description: 'Islamic New Year - Gazetted Holiday' },
-  
-  // August 2026 - Official Holidays
+
+  // August 2026
   { date: '2026-08-08', title: 'Janmashtami', type: 'holiday' as const, description: 'Birth anniversary of Lord Krishna - Gazetted Holiday' },
   { date: '2026-08-15', title: 'Independence Day', type: 'holiday' as const, description: 'National holiday - Flag hoisting ceremony - Gazetted Holiday' },
-  { date: '2026-08-26', title: 'Freshers\' Week', type: 'event' as const, description: 'Welcome program for new students' },
-  
-  // September 2026 - Official Holidays
-  { date: '2026-09-05', title: 'Teachers\' Day', type: 'event' as const, description: 'Birth anniversary of Dr. Sarvepalli Radhakrishnan - Celebration for teachers' },
+
+  // September 2026
   { date: '2026-09-16', title: 'Milad-un-Nabi', type: 'holiday' as const, description: 'Prophet Muhammad\'s Birthday - Gazetted Holiday' },
-  
-  // October 2026 - Official Holidays
+
+  // October 2026
   { date: '2026-10-02', title: 'Mahatma Gandhi Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Mahatma Gandhi - Gazetted Holiday' },
   { date: '2026-10-20', title: 'Dussehra (Vijaya Dashami)', type: 'holiday' as const, description: 'Victory of good over evil - Gazetted Holiday' },
-  { date: '2026-10-31', title: 'Sardar Patel Jayanti', type: 'event' as const, description: 'National Unity Day - Birth anniversary of Sardar Vallabhbhai Patel' },
-  
-  // November 2026 - Official Holidays
+
+  // November 2026
   { date: '2026-11-08', title: 'Diwali (Deepavali)', type: 'holiday' as const, description: 'Festival of lights - Gazetted Holiday' },
   { date: '2026-11-09', title: 'Govardhan Puja', type: 'holiday' as const, description: 'Day after Diwali - Restricted Holiday' },
   { date: '2026-11-10', title: 'Bhai Dooj', type: 'holiday' as const, description: 'Festival celebrating brother-sister bond - Restricted Holiday' },
-  { date: '2026-11-14', title: 'Children\'s Day', type: 'event' as const, description: 'Birth anniversary of Jawaharlal Nehru - Special activities for children' },
   { date: '2026-11-23', title: 'Guru Nanak Jayanti', type: 'holiday' as const, description: 'Birth anniversary of Guru Nanak Dev - Gazetted Holiday' },
-  { date: '2026-11-26', title: 'Constitution Day', type: 'event' as const, description: 'Commemoration of adoption of Indian Constitution' },
-  
-  // December 2026 - Official Holidays
+
+  // December 2026
   { date: '2026-12-25', title: 'Christmas', type: 'holiday' as const, description: 'Birth of Jesus Christ - Gazetted Holiday' },
-  { date: '2026-12-31', title: 'New Year\'s Eve', type: 'event' as const, description: 'End of year celebration' }
 ];
 
 export default function StudentDashboard() {
@@ -1257,6 +1254,34 @@ export default function StudentDashboard() {
   // Placement Drives State
   const [selectedPlacementDrive, setSelectedPlacementDrive] = useState<typeof placementDrives[0] | null>(null);
   const [showAllPlacementDrives, setShowAllPlacementDrives] = useState(false);
+
+  // Real Events State - fetched from API
+  const [upcomingRealEvents, setUpcomingRealEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [myRegisteredEventIds, setMyRegisteredEventIds] = useState<Set<string>>(new Set());
+
+  // Merge real API events into the academic calendar for display
+  const allCalendarEvents = useMemo(() => {
+    const realMapped = upcomingRealEvents
+      .filter((e: any) => e.startDate)
+      .map((e: any) => ({
+        date: e.startDate.substring(0, 10),
+        title: e.name,
+        type: 'event' as const,
+        description: e.description || `${e.eventType || 'University'} event`,
+        realEventId: e.id,
+        venue: e.venue,
+        startDateRaw: e.startDate,
+        endDateRaw: e.endDate,
+        bannerImageUrl: e.bannerImageUrl || null,
+        eventType: e.eventType,
+        paymentType: e.paymentType,
+        registrationFee: e.registrationFee,
+        teamRegistrationFee: e.teamRegistrationFee,
+        status: e.status,
+      }));
+    return [...academicCalendarEvents, ...realMapped];
+  }, [upcomingRealEvents]);
 
   // Virtual Tour State
   const [showTour, setShowTour] = useState(false);
@@ -1648,6 +1673,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     fetchStudentData();
+    fetchRealEvents();
   }, []);
 
   // Auto-scroll for authorities 3D carousel
@@ -1692,6 +1718,63 @@ export default function StudentDashboard() {
     }
   };
 
+  // Fetch real events from the API (published & ongoing)
+  const fetchRealEvents = async () => {
+    try {
+      setEventsLoading(true);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Fetch published/ongoing events AND my registrations in parallel
+      const [publishedResult, ongoingResult, myRegsResult] = await Promise.allSettled([
+        eventService.getEvents({ status: 'published' }, 1, 100),
+        eventService.getEvents({ status: 'ongoing' }, 1, 100),
+        eventService.getMyRegistrations(1, 200),
+      ]);
+
+      // Build set of event IDs the student is registered for
+      if (myRegsResult.status ===
+   'fulfilled') {
+        const registeredIds = new Set<string>(
+          (myRegsResult.value.registrations || [])
+            .filter((r: any) => r.status !== 'cancelled')
+            .map((r: any) => r.eventId as string)
+        );
+        setMyRegisteredEventIds(registeredIds);
+      }
+
+      const allEvents: any[] = [];
+      if (publishedResult.status ===
+   'fulfilled') {
+        allEvents.push(...(publishedResult.value.events || []));
+      }
+      if (ongoingResult.status ===
+   'fulfilled') {
+        allEvents.push(...(ongoingResult.value.events || []));
+      }
+
+      // Deduplicate by id, keep only upcoming (startDate >= today)
+      const seen = new Set<string>();
+      const upcoming = allEvents.filter((e: any) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        const eventStart = e.startDate ? new Date(e.startDate) : null;
+        return eventStart && eventStart >= today;
+      });
+
+      // Sort by startDate ascending
+      upcoming.sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+      console.log(`✅ Fetched ${upcoming.length} real upcoming events`);
+      setUpcomingRealEvents(upcoming);
+    } catch (error) {
+      logger.error('Failed to fetch real events:', error);
+      setUpcomingRealEvents([]);
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
   const getUserName = () => {
     if (user?.firstName && user?.lastName) {
       return `${user.firstName} ${user.lastName}`;
@@ -1725,7 +1808,8 @@ export default function StudentDashboard() {
 
   const isExamDate = (day: number) => {
     const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return examSchedule.find(exam => exam.date === dateStr);
+    return examSchedule.find(exam => exam.date ===
+   dateStr);
   };
 
   // Render mini month for year view
@@ -1744,7 +1828,8 @@ export default function StudentDashboard() {
     // Days of month
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `2026-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const exam = examSchedule.find(exam => exam.date === dateStr);
+      const exam = examSchedule.find(exam => exam.date ===
+   dateStr);
       
       days.push(
         <div
@@ -1792,7 +1877,9 @@ export default function StudentDashboard() {
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const exam = isExamDate(day);
-      const isToday = day === new Date().getDate() && currentMonth.getMonth() === new Date().getMonth();
+      const isToday = day ===
+   new Date().getDate() && currentMonth.getMonth() ===
+   new Date().getMonth();
       
       days.push(
         <div
@@ -1855,7 +1942,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setCgpaActiveTab('statistical')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  cgpaActiveTab === 'statistical'
+                  cgpaActiveTab ===
+   'statistical'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -1865,7 +1953,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setCgpaActiveTab('marks')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  cgpaActiveTab === 'marks'
+                  cgpaActiveTab ===
+   'marks'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -1875,7 +1964,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setCgpaActiveTab('grades')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  cgpaActiveTab === 'grades'
+                  cgpaActiveTab ===
+   'grades'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -1886,7 +1976,8 @@ export default function StudentDashboard() {
 
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {/* Statistical Analysis Tab */}
-              {cgpaActiveTab === 'statistical' && (
+              {cgpaActiveTab ===
+   'statistical' && (
                 <div className="space-y-6">
                   {/* Grades Distribution Chart - Professional Recharts */}
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -1919,7 +2010,8 @@ export default function StudentDashboard() {
                             }}
                             formatter={(value, name) => [value, 'Subjects']}
                             labelFormatter={(label) => {
-                              const item = gradesChartData.find(d => d.grade === label);
+                              const item = gradesChartData.find(d => d.grade ===
+   label);
                               return `Grade: ${label} (${item?.fullForm})`;
                             }}
                           />
@@ -2067,7 +2159,8 @@ export default function StudentDashboard() {
               )}
 
               {/* Marks Tab */}
-              {cgpaActiveTab === 'marks' && (
+              {cgpaActiveTab ===
+   'marks' && (
                 <div className="space-y-6">
                   {/* Term Selector - Clickable */}
                   <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -2076,7 +2169,8 @@ export default function StudentDashboard() {
                         key={term}
                         onClick={() => setSelectedMarksTerm(term)}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
-                          selectedMarksTerm === term
+                          selectedMarksTerm ===
+   term
                             ? 'bg-blue-600 text-white shadow-lg'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                         }`}
@@ -2106,10 +2200,14 @@ export default function StudentDashboard() {
                               Credit: {subject.credit}
                             </span>
                             <span className={`px-3 py-1 text-white text-xs font-bold rounded ${
-                              subject.grade === 'O' ? 'bg-green-600' :
-                              subject.grade === 'A+' ? 'bg-blue-600' :
-                              subject.grade === 'A' ? 'bg-cyan-600' :
-                              subject.grade === 'B+' ? 'bg-yellow-500' :
+                              subject.grade ===
+   'O' ? 'bg-green-600' :
+                              subject.grade ===
+   'A+' ? 'bg-blue-600' :
+                              subject.grade ===
+   'A' ? 'bg-cyan-600' :
+                              subject.grade ===
+   'B+' ? 'bg-yellow-500' :
                               'bg-gray-500'
                             }`}>
                               Grade: {subject.grade}
@@ -2136,7 +2234,8 @@ export default function StudentDashboard() {
               )}
 
               {/* Grades Tab */}
-              {cgpaActiveTab === 'grades' && (
+              {cgpaActiveTab ===
+   'grades' && (
                 <div className="space-y-6">
                   {/* Grade Summary Chart */}
                   <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -2164,7 +2263,8 @@ export default function StudentDashboard() {
                         key={term}
                         onClick={() => setSelectedGradesTerm(term)}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
-                          selectedGradesTerm === term
+                          selectedGradesTerm ===
+   term
                             ? 'bg-blue-600 text-white shadow-lg'
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'
                         }`}
@@ -2194,10 +2294,14 @@ export default function StudentDashboard() {
                           </p>
                         </div>
                         <div className={`w-14 h-14 rounded-xl flex items-center justify-center font-bold text-white text-lg shadow-lg ${
-                          item.grade === 'O' ? 'bg-gradient-to-br from-green-500 to-green-600' :
-                          item.grade === 'A+' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
-                          item.grade === 'A' ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' :
-                          item.grade === 'B+' ? 'bg-gradient-to-br from-yellow-500 to-amber-600' :
+                          item.grade ===
+   'O' ? 'bg-gradient-to-br from-green-500 to-green-600' :
+                          item.grade ===
+   'A+' ? 'bg-gradient-to-br from-blue-500 to-blue-600' :
+                          item.grade ===
+   'A' ? 'bg-gradient-to-br from-cyan-500 to-cyan-600' :
+                          item.grade ===
+   'B+' ? 'bg-gradient-to-br from-yellow-500 to-amber-600' :
                           'bg-gradient-to-br from-gray-400 to-gray-500'
                         }`}>
                           {item.grade}
@@ -2246,7 +2350,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setAttendanceActiveTab('overview')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  attendanceActiveTab === 'overview'
+                  attendanceActiveTab ===
+   'overview'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -2256,7 +2361,8 @@ export default function StudentDashboard() {
               <button
                 onClick={() => setAttendanceActiveTab('comparison')}
                 className={`flex-1 px-6 py-3 text-sm font-semibold transition-colors ${
-                  attendanceActiveTab === 'comparison'
+                  attendanceActiveTab ===
+   'comparison'
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-white dark:bg-gray-700'
                     : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                 }`}
@@ -2267,7 +2373,8 @@ export default function StudentDashboard() {
 
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
               {/* Term-wise Overview Tab */}
-              {attendanceActiveTab === 'overview' && (
+              {attendanceActiveTab ===
+   'overview' && (
                 <div className="space-y-6">
                   {/* Term-wise Attendance Chart */}
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -2369,7 +2476,8 @@ export default function StudentDashboard() {
               )}
 
               {/* Comparison Analysis Tab */}
-              {attendanceActiveTab === 'comparison' && (
+              {attendanceActiveTab ===
+   'comparison' && (
                 <div className="space-y-6">
                   {/* Comparison Line Chart */}
                   <div className="bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -2498,7 +2606,8 @@ export default function StudentDashboard() {
       )}
 
       {/* Happening Modal */}
-      {activeModal === 'happening' && (
+      {activeModal ===
+   'happening' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-orange-400 to-orange-500 p-6 rounded-t-2xl">
@@ -2531,13 +2640,17 @@ export default function StudentDashboard() {
               ].map((item) => (
                 <div key={item.id} className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-l-4 border-orange-400">
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    item.priority === 'high' ? 'bg-red-100 dark:bg-red-900/30' :
-                    item.priority === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
+                    item.priority ===
+   'high' ? 'bg-red-100 dark:bg-red-900/30' :
+                    item.priority ===
+   'medium' ? 'bg-yellow-100 dark:bg-yellow-900/30' :
                     'bg-blue-100 dark:bg-blue-900/30'
                   }`}>
                     <FileText className={`w-6 h-6 ${
-                      item.priority === 'high' ? 'text-red-600' :
-                      item.priority === 'medium' ? 'text-yellow-600' :
+                      item.priority ===
+   'high' ? 'text-red-600' :
+                      item.priority ===
+   'medium' ? 'text-yellow-600' :
                       'text-blue-600'
                     }`} />
                   </div>
@@ -2545,8 +2658,10 @@ export default function StudentDashboard() {
                     <div className="flex items-start justify-between">
                       <h4 className="font-semibold text-gray-900 dark:text-white">{item.title}</h4>
                       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        item.priority === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                        item.priority === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        item.priority ===
+   'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                        item.priority ===
+   'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
                         'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}>
                         {item.priority}
@@ -2570,7 +2685,8 @@ export default function StudentDashboard() {
       )}
 
       {/* Messages Modal */}
-      {activeModal === 'messages' && (
+      {activeModal ===
+   'messages' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-orange-400 via-orange-500 to-yellow-500 p-6 rounded-t-2xl">
@@ -2628,7 +2744,8 @@ export default function StudentDashboard() {
       )}
 
       {/* Assignments Modal */}
-      {activeModal === 'assignments' && (
+      {activeModal ===
+   'assignments' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 rounded-t-2xl">
@@ -2695,14 +2812,17 @@ export default function StudentDashboard() {
       )}
 
       {/* Events Modal */}
-      {activeModal === 'events' && (
+      {activeModal ===
+   'events' && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-cyan-400 to-blue-500 p-6 rounded-t-2xl">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-3xl font-bold text-white">Upcoming Events</h3>
-                  <p className="text-cyan-100 mt-1">Campus events and activities</p>
+                  <p className="text-cyan-100 mt-1">
+                    {eventsLoading ? 'Loading...' : `${upcomingRealEvents.length} event${upcomingRealEvents.length !== 1 ? 's' : ''} you can register for`}
+                  </p>
                 </div>
                 <button
                   onClick={() => setActiveModal(null)}
@@ -2714,104 +2834,156 @@ export default function StudentDashboard() {
             </div>
             
             <div className="p-6">
-              <div className="grid gap-4">
-                {[
-                  { 
-                    id: 1, 
-                    title: 'Annual Tech Fest 2026', 
-                    date: '15th February', 
-                    time: '9:00 AM - 6:00 PM', 
-                    venue: 'Main Auditorium', 
-                    category: 'Technical',
-                    description: 'Join us for the biggest tech event of the year featuring coding competitions, hackathons, and tech talks',
-                    registrationLink: 'https://sgtuniversity.ac.in', // Placeholder - will be replaced
-                    image: '🎯'
-                  },
-                  { 
-                    id: 2, 
-                    title: 'Sports Week 2026', 
-                    date: '20th-25th February', 
-                    time: 'All Day', 
-                    venue: 'Sports Complex', 
-                    category: 'Sports',
-                    description: 'Inter-college sports competition including cricket, football, basketball, and athletics',
-                    registrationLink: 'https://sgtuniversity.ac.in',
-                    image: '⚽'
-                  },
-                  { 
-                    id: 3, 
-                    title: 'Cultural Night - Sangam 2026', 
-                    date: '28th February', 
-                    time: '6:00 PM - 10:00 PM', 
-                    venue: 'Open Air Theatre', 
-                    category: 'Cultural',
-                    description: 'Celebrate diversity with music, dance, drama and fashion shows from across India',
-                    registrationLink: 'https://sgtuniversity.ac.in',
-                    image: '🎭'
-                  },
-                ].map((event) => (
-                  <div key={event.id} className="p-6 bg-gradient-to-r from-white to-blue-50 dark:from-gray-800 dark:to-blue-900/20 rounded-xl border-2 border-blue-300 dark:border-blue-700 hover:shadow-xl transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="text-6xl">{event.image}</div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{event.title}</h4>
-                            <span className="inline-block mt-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm font-semibold">
-                              {event.category}
-                            </span>
+              {eventsLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <div className="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Loading events...</p>
+                </div>
+              ) : upcomingRealEvents.length ===
+   0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <Calendar className="w-16 h-16 text-gray-300 dark:text-gray-600" />
+                  <p className="text-xl font-semibold text-gray-500 dark:text-gray-400">No Upcoming Events</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500">There are no published events you are eligible for right now.</p>
+                  <a
+                    href="https://sgt-event.vercel.app/student"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+                  >
+                    Browse All Events <ExternalLink className="w-4 h-4" />
+                  </a>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {upcomingRealEvents.map((event: any) => {
+                    const startDate = event.startDate ? new Date(event.startDate) : null;
+                    const endDate = event.endDate ? new Date(event.endDate) : null;
+                    const formatDate = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+                    const eventTypeIcons: Record<string, string> = {
+                      seminar: '🎓', workshop: '🔧', fest: '🎉', conference: '🏛️',
+                      competition: '🏆', cultural: '🎭', technical: '💻', sports: '⚽', other: '📌'
+                    };
+                    const icon = eventTypeIcons[event.eventType] || '📌';
+
+                    const isPaid = event.paymentType ===
+   'paid';
+                    const fee = isPaid ? (event.registrationFee || event.teamRegistrationFee) : null;
+                    const isRegistered = myRegisteredEventIds.has(event.id);
+
+                    return (
+                      <div key={event.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all overflow-hidden">
+                        {/* Banner Image */}
+                        {event.bannerImageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={event.bannerImageUrl}
+                            alt={event.name}
+                            className="w-full h-40 object-cover"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-full h-40 bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-7xl select-none">
+                            {icon}
                           </div>
-                        </div>
-                        
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{event.description}</p>
-                        
-                        <div className="grid grid-cols-3 gap-4 mb-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <p className="text-xs text-gray-500">Date</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.date}</p>
+                        )}
+                        <div className="p-5">
+                          <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+                              <div>
+                                <h4 className="text-xl font-bold text-gray-900 dark:text-white">{event.name}</h4>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                  <span className="inline-block px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold capitalize">
+                                    {event.eventType || 'Event'}
+                                  </span>
+                                  {event.status ===
+   'ongoing' && (
+                                    <span className="inline-block px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">
+                                      🟢 Ongoing
+                                    </span>
+                                  )}
+                                  {isPaid && fee && (
+                                    <span className="inline-block px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-semibold">
+                                      ₹{fee} Entry
+                                    </span>
+                                  )}
+                                  {!isPaid && (
+                                    <span className="inline-block px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-semibold">
+                                      Free
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <p className="text-xs text-gray-500">Time</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.time}</p>
+
+                            {event.description && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">{event.description}</p>
+                            )}
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                              {startDate && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-gray-500">Date</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                      {formatDate(startDate)}{endDate && endDate.toDateString() !== startDate.toDateString() ? ` – ${formatDate(endDate)}` : ''}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                              {startDate && (
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-gray-500">Time</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatTime(startDate)}</p>
+                                  </div>
+                                </div>
+                              )}
+                              {event.venue && (
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                                  <div>
+                                    <p className="text-xs text-gray-500">Venue</p>
+                                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.venue}</p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <p className="text-xs text-gray-500">Venue</p>
-                              <p className="text-sm font-semibold text-gray-900 dark:text-white">{event.venue}</p>
+
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {isRegistered ? (
+                                <>
+                                  <div className="flex items-center gap-2 px-4 py-2.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-lg text-sm font-semibold">
+                                    <CheckCircle className="w-4 h-4" />
+                                    Registered
+                                  </div>
+                                  <a
+                                    href="/events/registrations"
+                                    className="flex-1 min-w-[120px] bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white py-2.5 rounded-lg font-semibold transition-colors text-center flex items-center justify-center gap-2 text-sm"
+                                  >
+                                    View Ticket <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                </>
+                              ) : (
+                                <a
+                                  href="https://sgt-event.vercel.app/student"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex-1 min-w-[120px] bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors text-center flex items-center justify-center gap-2 text-sm"
+                                >
+                                  Register Now <ExternalLink className="w-4 h-4" />
+                                </a>
+                              )}
                             </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          <a
-                            href="https://sgt-event.vercel.app/student"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2.5 rounded-lg font-semibold transition-colors text-center flex items-center justify-center gap-2"
-                          >
-                            Register Now <ExternalLink className="w-4 h-4" />
-                          </a>
-                          <a
-                            href={event.registrationLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-4 py-2.5 border-2 border-blue-500 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors font-semibold flex items-center gap-2"
-                          >
-                            View Details <ExternalLink className="w-4 h-4" />
-                          </a>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -3015,18 +3187,24 @@ export default function StudentDashboard() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
             {/* Header */}
             <div className={`bg-gradient-to-r ${
-              selectedPlacementDrive.colorScheme === 'blue' ? 'from-blue-500 to-indigo-600' :
-              selectedPlacementDrive.colorScheme === 'purple' ? 'from-purple-500 to-pink-600' :
-              selectedPlacementDrive.colorScheme === 'teal' ? 'from-teal-500 to-cyan-600' :
+              selectedPlacementDrive.colorScheme ===
+   'blue' ? 'from-blue-500 to-indigo-600' :
+              selectedPlacementDrive.colorScheme ===
+   'purple' ? 'from-purple-500 to-pink-600' :
+              selectedPlacementDrive.colorScheme ===
+   'teal' ? 'from-teal-500 to-cyan-600' :
               'from-amber-500 to-orange-600'
             } p-6 rounded-t-2xl`}>
               <div className="flex justify-between items-start">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg">
                     <span className={`text-xl font-bold ${
-                      selectedPlacementDrive.colorScheme === 'blue' ? 'text-blue-600' :
-                      selectedPlacementDrive.colorScheme === 'purple' ? 'text-purple-600' :
-                      selectedPlacementDrive.colorScheme === 'teal' ? 'text-teal-600' :
+                      selectedPlacementDrive.colorScheme ===
+   'blue' ? 'text-blue-600' :
+                      selectedPlacementDrive.colorScheme ===
+   'purple' ? 'text-purple-600' :
+                      selectedPlacementDrive.colorScheme ===
+   'teal' ? 'text-teal-600' :
                       'text-amber-600'
                     }`}>{selectedPlacementDrive.shortName}</span>
                   </div>
@@ -3055,8 +3233,10 @@ export default function StudentDashboard() {
                   <Clock className="w-4 h-4" /> {selectedPlacementDrive.timing}
                 </span>
                 <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  selectedPlacementDrive.status === 'ongoing' ? 'bg-green-500 text-white' :
-                  selectedPlacementDrive.status === 'completed' ? 'bg-gray-500 text-white' :
+                  selectedPlacementDrive.status ===
+   'ongoing' ? 'bg-green-500 text-white' :
+                  selectedPlacementDrive.status ===
+   'completed' ? 'bg-gray-500 text-white' :
                   'bg-orange-500 text-white'
                 }`}>
                   {selectedPlacementDrive.statusText}
@@ -3189,9 +3369,12 @@ export default function StudentDashboard() {
                 </button>
                 <button
                   className={`flex-1 bg-gradient-to-r ${
-                    selectedPlacementDrive.colorScheme === 'blue' ? 'from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' :
-                    selectedPlacementDrive.colorScheme === 'purple' ? 'from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700' :
-                    selectedPlacementDrive.colorScheme === 'teal' ? 'from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700' :
+                    selectedPlacementDrive.colorScheme ===
+   'blue' ? 'from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700' :
+                    selectedPlacementDrive.colorScheme ===
+   'purple' ? 'from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700' :
+                    selectedPlacementDrive.colorScheme ===
+   'teal' ? 'from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700' :
                     'from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700'
                   } text-white py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2`}
                 >
@@ -3237,18 +3420,24 @@ export default function StudentDashboard() {
                       setSelectedPlacementDrive(drive);
                     }}
                     className={`p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1 ${
-                      drive.colorScheme === 'blue' ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800' :
-                      drive.colorScheme === 'purple' ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-purple-800' :
-                      drive.colorScheme === 'teal' ? 'border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 dark:border-teal-800' :
+                      drive.colorScheme ===
+   'blue' ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800' :
+                      drive.colorScheme ===
+   'purple' ? 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 dark:border-purple-800' :
+                      drive.colorScheme ===
+   'teal' ? 'border-teal-200 bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 dark:border-teal-800' :
                       'border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 dark:border-amber-800'
                     }`}
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-14 h-14 bg-white dark:bg-gray-700 rounded-xl flex items-center justify-center shadow-sm border border-gray-100 dark:border-gray-600">
                         <span className={`text-lg font-bold ${
-                          drive.colorScheme === 'blue' ? 'text-blue-600' :
-                          drive.colorScheme === 'purple' ? 'text-purple-600' :
-                          drive.colorScheme === 'teal' ? 'text-teal-600' :
+                          drive.colorScheme ===
+   'blue' ? 'text-blue-600' :
+                          drive.colorScheme ===
+   'purple' ? 'text-purple-600' :
+                          drive.colorScheme ===
+   'teal' ? 'text-teal-600' :
                           'text-amber-600'
                         }`}>{drive.shortName}</span>
                       </div>
@@ -3259,8 +3448,10 @@ export default function StudentDashboard() {
                             <p className="text-sm text-gray-600 dark:text-gray-400">{drive.role}</p>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            drive.status === 'ongoing' ? 'bg-green-500 text-white' :
-                            drive.status === 'completed' ? 'bg-gray-400 text-white' :
+                            drive.status ===
+   'ongoing' ? 'bg-green-500 text-white' :
+                            drive.status ===
+   'completed' ? 'bg-gray-400 text-white' :
                             'bg-orange-500 text-white'
                           }`}>
                             {drive.statusText}
@@ -3300,18 +3491,18 @@ export default function StudentDashboard() {
         </div>
       )}
 
-      <div className="space-y-6" style={{ fontSize: '1.15em' }}>
+      <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
         {/* Welcome Section */}
         <FadeInUp delay={0.1}>
-          <div data-tour-id="welcome-section" className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-8 backdrop-blur-sm">
+          <div data-tour-id="welcome-section" className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/30 dark:from-gray-800 dark:via-gray-800 dark:to-gray-800 rounded-xl sm:rounded-2xl shadow-lg border border-blue-100 dark:border-gray-700 p-4 sm:p-6 lg:p-8 backdrop-blur-sm">
             {/* Main Grid: Left Content + Right Slideshow */}
-            <div className="grid lg:grid-cols-12 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
               {/* Left Side: Profile + Cards */}
-              <div className="lg:col-span-7 space-y-6">
+              <div className="lg:col-span-7 space-y-4 sm:space-y-6">
                 {/* Profile Section */}
-                <div className="flex items-start gap-6">
+                <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
                   {/* Profile Picture */}
-                  <div data-tour-id="profile-picture" className="relative flex-shrink-0 group">
+                  <div data-tour-id="profile-picture" className="relative flex-shrink-0 group mx-auto sm:mx-0">
                     <div className="relative">
                       {/* Animated Ring */}
                       <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-75 group-hover:opacity-100 blur-md group-hover:blur-lg transition-all duration-300 animate-pulse"></div>
@@ -3346,41 +3537,41 @@ export default function StudentDashboard() {
                   </div>
 
                   {/* Greeting and Info */}
-                  <div className="flex-1">
-                    <p className="text-base text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 flex items-center gap-2 justify-center sm:justify-start">
                       <Clock className="w-4 h-4" />
                       {getCurrentDate()}
                     </p>
-                    <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-1 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                    <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-1 bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
                       {getGreeting()},
                     </h1>
-                    <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2 sm:mb-3">
                       {getUserName()}
                     </h2>
                     
-                    <div className="space-y-1 text-base">
-                      <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
-                        <GraduationCap className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                        <span><span className="font-semibold">Registration Number: </span> {studentData?.uid} | <span className="font-semibold">Section:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
+                    <div className="space-y-1 text-sm sm:text-base">
+                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
+                        <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm"><span className="font-semibold">Reg#:</span> {studentData?.uid} | <span className="font-semibold">Sec:</span> {studentData?.section} | <span className="font-semibold">Batch:</span> {studentData?.batch}</span>
                       </div>
-                      <div className="text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
+                      <div className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 bg-white/60 dark:bg-gray-700/60 backdrop-blur-sm px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 w-fit">
                         {studentData?.program}
                       </div>
                     </div>
 
-                    <p className="mt-3 text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
+                    <p className="mt-2 sm:mt-3 text-gray-600 dark:text-gray-400 text-xs sm:text-sm leading-relaxed">
                       Welcome to your Student dashboard. Track your progress, manage your work, and stay connected.
                     </p>
                   </div>
                 </div>
 
                 {/* 5 Stats Cards in a row - With Internal Animations */}
-                <div className="grid grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
                   {/* Happening Card - Warm Coral Theme */}
                   <div 
                     data-tour-id="happening-card"
                     onClick={() => setActiveModal('happening')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #f97316 0%, #ea580c 50%, #dc2626 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3400,11 +3591,11 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <FileText className="w-5 h-5 drop-shadow-sm" />
+                        <FileText className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="w-2 h-2 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.happening}</p>
-                      <p className="text-sm font-medium opacity-90">Happening Now</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.happening}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Happening Now</p>
                     </div>
                   </div>
 
@@ -3412,7 +3603,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="messages-card"
                     onClick={() => setActiveModal('messages')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3429,11 +3620,11 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <MessageSquare className="w-5 h-5 drop-shadow-sm" />
+                        <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <span className="text-[8px] bg-white/25 px-1.5 py-0.5 rounded-full font-semibold">New</span>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.messages}</p>
-                      <p className="text-sm font-medium opacity-90">Messages</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.messages}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Messages</p>
                     </div>
                   </div>
 
@@ -3441,7 +3632,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="assignments-card"
                     onClick={() => setActiveModal('assignments')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 50%, #0369a1 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3457,15 +3648,15 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <BookOpen className="w-5 h-5 drop-shadow-sm" />
+                        <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="flex gap-0.5">
                           <div className="w-1.5 h-3 bg-white/40 rounded-full"></div>
                           <div className="w-1.5 h-2 bg-white/30 rounded-full mt-1"></div>
                           <div className="w-1.5 h-2.5 bg-white/35 rounded-full mt-0.5"></div>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.assignments}</p>
-                      <p className="text-sm font-medium opacity-90">Assignments</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">{studentData?.assignments}</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Assignments</p>
                     </div>
                   </div>
 
@@ -3473,7 +3664,7 @@ export default function StudentDashboard() {
                   <div 
                     data-tour-id="events-card"
                     onClick={() => setActiveModal('events')}
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 50%, #0f766e 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3492,20 +3683,22 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <Calendar className="w-5 h-5 drop-shadow-sm" />
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" />
                         <div className="w-5 h-5 rounded-full border-2 border-white/30 flex items-center justify-center">
                           <div className="w-1.5 h-1.5 bg-white/60 rounded-full animate-ping" style={{ animationDuration: '1.5s' }}></div>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">{studentData?.events}</p>
-                      <p className="text-sm font-medium opacity-90">Upcoming Events</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">
+                        {eventsLoading ? '...' : upcomingRealEvents.length}
+                      </p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Upcoming Events</p>
                     </div>
                   </div>
 
                   {/* Fees Card - Forest Green Theme */}
                   <div 
                     data-tour-id="fees-card"
-                    className="relative overflow-hidden rounded-xl p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
+                    className="relative overflow-hidden rounded-lg sm:rounded-xl p-2 sm:p-3 text-white shadow-lg hover:shadow-xl transition-shadow cursor-pointer group"
                     style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%)' }}
                   >
                     {/* Animated Background Elements */}
@@ -3522,7 +3715,7 @@ export default function StudentDashboard() {
                     {/* Content */}
                     <div className="relative z-10">
                       <div className="flex items-center justify-between mb-1">
-                        <svg className="w-5 h-5 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 drop-shadow-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <div className="flex items-center gap-0.5">
@@ -3531,14 +3724,14 @@ export default function StudentDashboard() {
                           </svg>
                         </div>
                       </div>
-                      <p className="text-4xl font-bold drop-shadow-sm">₹0</p>
-                      <p className="text-sm font-medium opacity-90">Fees Cleared</p>
+                      <p className="text-2xl sm:text-3xl md:text-4xl font-bold drop-shadow-sm">₹0</p>
+                      <p className="text-xs sm:text-sm font-medium opacity-90">Fees Cleared</p>
                     </div>
                   </div>
                 </div>
 
                 {/* CGPA and Attendance Cards - Side by Side - SGT Theme */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* CGPA Card - Academic Blue Theme */}
                   <div 
                     data-tour-id="cgpa-card"
@@ -3651,7 +3844,8 @@ export default function StudentDashboard() {
                         <div className="flex items-center justify-between bg-gray-100 dark:bg-gray-700 group-hover:bg-white/10 backdrop-blur-sm rounded-lg px-2 py-1.5 border border-gray-200 dark:border-gray-600 group-hover:border-white/10 transition-all duration-500">
                           <p className="text-[10px] font-medium text-gray-600 dark:text-gray-400 group-hover:text-white/90">Today</p>
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-semibold ${
-                            studentData?.attendance.today === 'Present' ? 'bg-gray-200 dark:bg-gray-600 group-hover:bg-white/30 text-gray-700 dark:text-gray-200 group-hover:text-white' : 'bg-red-100 dark:bg-red-900 group-hover:bg-red-400/50 text-red-700 dark:text-red-200 group-hover:text-white'
+                            studentData?.attendance.today ===
+   'Present' ? 'bg-gray-200 dark:bg-gray-600 group-hover:bg-white/30 text-gray-700 dark:text-gray-200 group-hover:text-white' : 'bg-red-100 dark:bg-red-900 group-hover:bg-red-400/50 text-red-700 dark:text-red-200 group-hover:text-white'
                           }`}>
                             {studentData?.attendance.today}
                           </span>
@@ -3808,10 +4002,13 @@ export default function StudentDashboard() {
                             const currentDate = new Date(year, month, day);
                             // Use local date formatting to avoid timezone issues
                             const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                            const dayEvents = academicCalendarEvents.filter(e => e.date === dateString);
-                            const filteredEvents = calendarFilter === 'all' 
+                            const dayEvents = allCalendarEvents.filter(e => e.date ===
+   dateString);
+                            const filteredEvents = calendarFilter ===
+   'all' 
                               ? dayEvents 
-                              : dayEvents.filter(e => e.type === calendarFilter);
+                              : dayEvents.filter(e => e.type ===
+   calendarFilter);
 
                             const hasEvents = filteredEvents.length > 0;
                             const eventType = hasEvents ? filteredEvents[0].type : null;
@@ -3820,16 +4017,20 @@ export default function StudentDashboard() {
                             let bgGradient = '';
                             let ringColor = '';
                             
-                            if (eventType === 'holiday') {
+                            if (eventType ===
+   'holiday') {
                               bgGradient = 'from-red-400 to-pink-500';
                               ringColor = 'ring-red-400/50';
-                            } else if (eventType === 'exam') {
+                            } else if (eventType ===
+   'exam') {
                               bgGradient = 'from-orange-400 to-amber-500';
                               ringColor = 'ring-orange-400/50';
-                            } else if (eventType === 'event') {
+                            } else if (eventType ===
+   'event') {
                               bgGradient = 'from-purple-400 to-violet-500';
                               ringColor = 'ring-purple-400/50';
-                            } else if (eventType === 'crucial') {
+                            } else if (eventType ===
+   'crucial') {
                               bgGradient = 'from-blue-400 to-cyan-500';
                               ringColor = 'ring-blue-400/50';
                             }
@@ -3877,7 +4078,8 @@ export default function StudentDashboard() {
                             key={filter.key}
                             onClick={() => setCalendarFilter(filter.key as any)}
                             className={`px-3 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 ${
-                              calendarFilter === filter.key
+                              calendarFilter ===
+   filter.key
                                 ? `bg-gradient-to-r ${filter.color} text-white shadow-lg scale-105 ring-2 ring-white/50`
                                 : `${filter.bgColor} ${filter.textColor} hover:scale-105 border border-current/20`
                             }`}
@@ -3888,7 +4090,8 @@ export default function StudentDashboard() {
                       </div>
 
                       {/* View Timetable Button */}
-                      {calendarFilter === 'exam' && (
+                      {calendarFilter ===
+   'exam' && (
                         <div className="mt-2 text-center">
                           <button
                             onClick={() => setShowFullTimetable(true)}
@@ -3914,10 +4117,13 @@ export default function StudentDashboard() {
           const month = selectedDate!.getMonth() + 1;
           const day = selectedDate!.getDate();
           const dateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          const dayEvents = academicCalendarEvents.filter(e => e.date === dateString);
-          const filteredEvents = calendarFilter === 'all' 
+          const dayEvents = allCalendarEvents.filter(e => e.date ===
+   dateString);
+          const filteredEvents = calendarFilter ===
+   'all' 
             ? dayEvents 
-            : dayEvents.filter(e => e.type === calendarFilter);
+            : dayEvents.filter(e => e.type ===
+   calendarFilter);
 
           return filteredEvents.length > 0 ? (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn" onClick={() => setSelectedDate(null)}>
@@ -3938,11 +4144,25 @@ export default function StudentDashboard() {
                   };
 
                   // Check if this is an exam with detailed info
-                  const isExamWithDetails = event.type === 'exam' && (event as any).courseCode;
+                  const isExamWithDetails = event.type ===
+   'exam' && (event as any).courseCode;
                   const examDetails = event as any;
+                  // Check if this is a real API event
+                  const isRealEvent = !!(event as any).realEventId;
+                  const realEvent = event as any;
 
                   return (
                     <div key={idx} className={idx > 0 ? 'border-t-4 border-gray-200 dark:border-gray-700' : ''}>
+                      {/* Banner image for real events */}
+                      {isRealEvent && realEvent.bannerImageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={realEvent.bannerImageUrl}
+                          alt={event.title}
+                          className="w-full h-36 object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      )}
                       <div className={`bg-gradient-to-r ${headerColors[event.type]} p-5 text-white relative overflow-hidden`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full -ml-12 -mb-12"></div>
@@ -3952,8 +4172,12 @@ export default function StudentDashboard() {
                             {isExamWithDetails && (
                               <p className="text-white/80 text-sm mt-1">{examDetails.courseCode}</p>
                             )}
+                            {isRealEvent && (
+                              <p className="text-white/80 text-sm mt-1 capitalize">{realEvent.eventType || 'University Event'}</p>
+                            )}
                           </div>
-                          {idx === 0 && (
+                          {idx ===
+   0 && (
                             <button
                               onClick={() => setSelectedDate(null)}
                               className="text-white hover:bg-white/20 rounded-lg p-1.5 transition-all ml-2"
@@ -3983,7 +4207,11 @@ export default function StudentDashboard() {
                               <span className="text-xs font-medium">Time</span>
                             </div>
                             <p className="text-sm font-bold text-gray-900 dark:text-white">
-                              {isExamWithDetails ? examDetails.time : 'All Day'}
+                              {isExamWithDetails
+                                ? examDetails.time
+                                : isRealEvent && realEvent.startDateRaw
+                                  ? new Date(realEvent.startDateRaw).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                                  : 'All Day'}
                             </p>
                           </div>
                         </div>
@@ -4054,20 +4282,83 @@ export default function StudentDashboard() {
                           </div>
                         )}
 
+                        {/* Venue for real events */}
+                        {isRealEvent && realEvent.venue && (
+                          <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-3 border border-teal-100 dark:border-teal-800 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                            <div>
+                              <p className="text-xs text-teal-600 dark:text-teal-400 font-medium">Venue</p>
+                              <p className="text-sm font-bold text-gray-900 dark:text-white">{realEvent.venue}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Payment badge for real events */}
+                        {isRealEvent && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {realEvent.paymentType ===
+   'paid' ? (
+                              <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full text-xs font-semibold">
+                                ₹{realEvent.registrationFee || realEvent.teamRegistrationFee} Entry Fee
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-semibold">
+                                Free Entry
+                              </span>
+                            )}
+                            {realEvent.status ===
+   'ongoing' && (
+                              <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">🟢 Ongoing</span>
+                            )}
+                          </div>
+                        )}
+
                         {/* Description for non-exam events */}
                         {!isExamWithDetails && event.description && (
                           <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800 rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-2">
-                              {event.type === 'holiday' && <span className="text-2xl">🏖️</span>}
-                              {event.type === 'event' && <span className="text-2xl">🎉</span>}
-                              {event.type === 'crucial' && <span className="text-2xl">⭐</span>}
+                              {event.type ===
+   'holiday' && <span className="text-2xl">🏖️</span>}
+                              {event.type ===
+   'event' && <span className="text-2xl">🎉</span>}
+                              {event.type ===
+   'crucial' && <span className="text-2xl">⭐</span>}
                               <span className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">{event.type}</span>
                             </div>
                             <p className="text-sm text-gray-700 dark:text-gray-300">{event.description}</p>
                           </div>
                         )}
 
-                        {idx === filteredEvents.length - 1 && (
+                        {/* Register / View Ticket button for real events */}
+                        {isRealEvent && (() => {
+                          const calRegistered = myRegisteredEventIds.has(realEvent.realEventId);
+                          return calRegistered ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-xl text-sm font-semibold">
+                                <CheckCircle className="w-4 h-4" />
+                                You are Registered!
+                              </div>
+                              <a
+                                href="/events/registrations"
+                                className="w-full bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white py-3 rounded-xl font-semibold transition-all text-center flex items-center justify-center gap-2 text-sm"
+                              >
+                                View Ticket <ExternalLink className="w-4 h-4" />
+                              </a>
+                            </div>
+                          ) : (
+                            <a
+                              href="https://sgt-event.vercel.app/student"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white py-3 rounded-xl font-semibold transition-all text-center flex items-center justify-center gap-2 text-sm"
+                            >
+                              Register Now <ExternalLink className="w-4 h-4" />
+                            </a>
+                          );
+                        })()}
+
+                        {idx ===
+   filteredEvents.length - 1 && (
                           <button
                             onClick={() => setSelectedDate(null)}
                             className={`w-full bg-gradient-to-r ${headerColors[event.type]} text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all`}
@@ -4086,12 +4377,12 @@ export default function StudentDashboard() {
 
         {/* Quick Access Section - White with Blue Border */}
         <FadeInUp delay={0.3}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Quick Access</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl sm:rounded-2xl shadow-sm p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4">Quick Access</h2>
             
-            <div className="grid md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
               {/* Today's Timetable */}
-              <div data-tour-id="todays-timetable" className="bg-white dark:bg-gray-800 rounded-xl p-4 border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col h-[420px]"
+              <div data-tour-id="todays-timetable" className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 border-2 border-blue-400 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 flex flex-col min-h-[350px] sm:h-[420px]"
                 style={{ boxShadow: '0 4px 20px rgba(59, 130, 246, 0.15)' }}
               >
                 <div className="flex items-center gap-2 mb-3">
@@ -4114,9 +4405,11 @@ export default function StudentDashboard() {
                         <div className="flex items-center justify-between mb-1">
                           <p className="font-semibold text-sm text-gray-900 dark:text-white">{classItem.subject}</p>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            classItem.type === 'Lab' 
+                            classItem.type ===
+   'Lab' 
                               ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' 
-                              : classItem.type === 'Tutorial'
+                              : classItem.type ===
+   'Tutorial'
                               ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
                               : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                           }`}>
@@ -4216,9 +4509,12 @@ export default function StudentDashboard() {
                       key={drive.id}
                       onClick={() => setSelectedPlacementDrive(drive)}
                       className={`rounded-xl p-3 border hover:shadow-md transition-all cursor-pointer group ${
-                        drive.colorScheme === 'blue' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800' :
-                        drive.colorScheme === 'purple' ? 'bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800' :
-                        drive.colorScheme === 'teal' ? 'bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 border-teal-200 dark:border-teal-800' :
+                        drive.colorScheme ===
+   'blue' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800' :
+                        drive.colorScheme ===
+   'purple' ? 'bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800' :
+                        drive.colorScheme ===
+   'teal' ? 'bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 border-teal-200 dark:border-teal-800' :
                         'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800'
                       }`}
                     >
@@ -4227,17 +4523,23 @@ export default function StudentDashboard() {
                           <span className={`font-bold ${
                             drive.shortName.length > 5 ? 'text-[10px]' : drive.shortName.length > 3 ? 'text-sm' : 'text-lg'
                           } ${
-                            drive.colorScheme === 'blue' ? 'text-blue-600' :
-                            drive.colorScheme === 'purple' ? 'text-purple-600' :
-                            drive.colorScheme === 'teal' ? 'text-teal-600' :
+                            drive.colorScheme ===
+   'blue' ? 'text-blue-600' :
+                            drive.colorScheme ===
+   'purple' ? 'text-purple-600' :
+                            drive.colorScheme ===
+   'teal' ? 'text-teal-600' :
                             'text-amber-600'
                           }`}>{drive.shortName}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className={`text-base font-bold text-gray-900 dark:text-white transition-colors ${
-                            drive.colorScheme === 'blue' ? 'group-hover:text-blue-600' :
-                            drive.colorScheme === 'purple' ? 'group-hover:text-purple-600' :
-                            drive.colorScheme === 'teal' ? 'group-hover:text-teal-600' :
+                            drive.colorScheme ===
+   'blue' ? 'group-hover:text-blue-600' :
+                            drive.colorScheme ===
+   'purple' ? 'group-hover:text-purple-600' :
+                            drive.colorScheme ===
+   'teal' ? 'group-hover:text-teal-600' :
                             'group-hover:text-amber-600'
                           }`}>{drive.company}</h4>
                           <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{drive.role} | {drive.eligibility}</p>
@@ -4251,8 +4553,10 @@ export default function StudentDashboard() {
                           </div>
                         </div>
                         <span className={`px-2 py-0.5 text-white text-[9px] font-bold rounded-full ${
-                          drive.status === 'ongoing' ? 'bg-blue-500' :
-                          drive.status === 'completed' ? 'bg-green-500' :
+                          drive.status ===
+   'ongoing' ? 'bg-blue-500' :
+                          drive.status ===
+   'completed' ? 'bg-green-500' :
                           'bg-orange-500'
                         }`}>{drive.statusText}</span>
                       </div>
@@ -4307,7 +4611,8 @@ export default function StudentDashboard() {
                   }}
                   className={`
                     px-4 py-2 rounded-lg text-base font-medium transition-all
-                    ${activeAnnouncementTab === category.name
+                    ${activeAnnouncementTab ===
+   category.name
                       ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                     }
@@ -4316,7 +4621,8 @@ export default function StudentDashboard() {
                   {category.name}
                   <span className={`
                     ml-2 px-2 py-0.5 rounded-full text-sm font-bold
-                    ${activeAnnouncementTab === category.name
+                    ${activeAnnouncementTab ===
+   category.name
                       ? 'bg-white/20 text-white'
                       : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                     }
@@ -4339,7 +4645,8 @@ export default function StudentDashboard() {
                 >
                   {/* Announcement Header */}
                   <div
-                    onClick={() => setExpandedAnnouncement(expandedAnnouncement === announcement.id ? null : announcement.id)}
+                    onClick={() => setExpandedAnnouncement(expandedAnnouncement ===
+   announcement.id ? null : announcement.id)}
                     className="flex items-start gap-4 p-4 cursor-pointer"
                   >
                     {/* Bullet Point */}
@@ -4365,7 +4672,8 @@ export default function StudentDashboard() {
                         {announcement.date}
                       </span>
                       <div className="transition-transform duration-300" style={{
-                        transform: expandedAnnouncement === announcement.id ? 'rotate(180deg)' : 'rotate(0deg)'
+                        transform: expandedAnnouncement ===
+   announcement.id ? 'rotate(180deg)' : 'rotate(0deg)'
                       }}>
                         <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
                       </div>
@@ -4373,7 +4681,8 @@ export default function StudentDashboard() {
                   </div>
 
                   {/* Expanded Details */}
-                  {expandedAnnouncement === announcement.id && (
+                  {expandedAnnouncement ===
+   announcement.id && (
                     <div className="px-4 pb-4 pt-2 border-t border-gray-200 dark:border-gray-600 bg-white/50 dark:bg-gray-900/30">
                       <div className="pl-6">
                         <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed mb-3">
@@ -4396,7 +4705,8 @@ export default function StudentDashboard() {
               ))}
 
               {/* No announcements message */}
-              {(!announcementsData[activeAnnouncementTab] || announcementsData[activeAnnouncementTab].length === 0) && (
+              {(!announcementsData[activeAnnouncementTab] || announcementsData[activeAnnouncementTab].length ===
+   0) && (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                     <FileText className="w-8 h-8 text-gray-400" />
@@ -4466,8 +4776,10 @@ export default function StudentDashboard() {
                   const isVisible = Math.abs(position) <= 2;
                   if (!isVisible) return null;
                   
-                  const isCenter = position === 0;
-                  const isAdjacent = Math.abs(position) === 1;
+                  const isCenter = position ===
+   0;
+                  const isAdjacent = Math.abs(position) ===
+   1;
                   
                   // Calculate overlapping positions like SGT website
                   const translateX = position * 180; // Cards overlap
@@ -4681,7 +4993,8 @@ export default function StudentDashboard() {
                         onClick={() => setActiveSgtTimesTab(category.name)}
                         className={`
                           px-4 py-2 rounded-lg text-sm font-medium transition-all
-                          ${activeSgtTimesTab === category.name
+                          ${activeSgtTimesTab ===
+   category.name
                             ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/30 scale-105'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                           }
@@ -4690,7 +5003,8 @@ export default function StudentDashboard() {
                         {category.name}
                         <span className={`
                           ml-2 px-2 py-0.5 rounded-full text-xs font-bold
-                          ${activeSgtTimesTab === category.name
+                          ${activeSgtTimesTab ===
+   category.name
                             ? 'bg-white/20 text-white'
                             : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                           }
@@ -4719,11 +5033,16 @@ export default function StudentDashboard() {
                           <div className="flex-shrink-0 mt-1">
                             <span className={`
                               inline-block px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider
-                              ${article.category === 'Achievement' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' :
-                                article.category === 'Innovation' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
-                                article.category === 'Placements' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' :
-                                article.category === 'Global' ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white' :
-                                article.category === 'Events' ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white' :
+                              ${article.category ===
+   'Achievement' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white' :
+                                article.category ===
+   'Innovation' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
+                                article.category ===
+   'Placements' ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white' :
+                                article.category ===
+   'Global' ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white' :
+                                article.category ===
+   'Events' ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white' :
                                 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white'
                               }
                             `}>

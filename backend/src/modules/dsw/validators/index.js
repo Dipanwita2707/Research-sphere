@@ -3,324 +3,338 @@
  * Input validation for all DSW operations
  */
 
-const { body, param, query, validationResult } = require('express-validator');
+const { z } = require("zod");
 const {
   ClubTargetGroup,
-  ClubVisibility,
   ClubMeetingFrequency,
   ClubActivityTypes,
-  InfrastructureTypes,
   ClubChangeType,
-  ErrorMessages,
-} = require('../constants');
+} = require("../constants");
+const { validateRequest } = require("../../../shared/utils/zodValidation");
+const {
+  sanitizeEmail,
+  sanitizePlainText,
+  sanitizeStringArray,
+  sanitizeUrl,
+} = require("../../../shared/utils/sanitize");
 
-/**
- * Validation error handler
- */
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      message: 'Validation failed',
-      errors: errors.array(),
-    });
+const booleanish = z.preprocess((value) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return value;
+}, z.boolean());
+
+const optionalBooleanish = z.preprocess((value) => {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return value;
+}, z.boolean().optional());
+
+const optionalPlainText = (maxLength, message) =>
+  z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    return sanitizePlainText(value, { maxLength });
+  }, z.string().max(maxLength, message).optional());
+
+const optionalInteger = (min, max, message) =>
+  z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    return Number(value);
+  }, z.number().int().min(min, message).max(max ?? Number.MAX_SAFE_INTEGER, message).optional());
+
+const clubIdParamsSchema = z.object({
+  clubId: z.string().uuid("Invalid club ID"),
+}).strip();
+
+const memberIdParamsSchema = z.object({
+  clubId: z.string().uuid("Invalid club ID"),
+  memberId: z.string().uuid("Invalid member ID"),
+}).strip();
+
+const categoryIdParamsSchema = z.object({
+  categoryId: z.string().uuid("Invalid category ID"),
+}).strip();
+
+const applicationParamsSchema = z.object({
+  clubId: z.string().uuid("Invalid club ID"),
+  applicationId: z.string().uuid("Invalid application ID"),
+}).strip();
+
+const socialMediaSchema = z.preprocess((value) => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "object" || Array.isArray(value)) return value;
+
+  const next = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (!entry) continue;
+    next[key] = sanitizeUrl(entry, { maxLength: 256 });
   }
-  next();
-};
+  return next;
+}, z.record(z.string()).optional());
 
-/**
- * Validate Club Creation Request (Noting Form)
- */
-const validateClubCreation = [
-  // Step 1: Core Club Identity
-  body('name')
-    .trim()
-    .notEmpty()
-    .withMessage('Club name is required')
-    .isLength({ min: 3, max: 256 })
-    .withMessage('Club name must be between 3 and 256 characters'),
+function normalizeAcademicSession(value) {
+  const sanitized = sanitizePlainText(value, { maxLength: 16 });
+  const shortMatch = sanitized.match(/^(\d{4})[-–](\d{2})$/);
 
-  body('categoryId')
-    .notEmpty()
-    .withMessage('Club category is required')
-    .isUUID()
-    .withMessage('Invalid category ID'),
+  if (!shortMatch) {
+    return sanitized;
+  }
 
-  body('purpose')
-    .trim()
-    .notEmpty()
-    .withMessage('Purpose/Objective is required')
-    .isLength({ min: 50 })
-    .withMessage('Purpose must be at least 50 characters'),
+  const [, startYear, endYearShort] = shortMatch;
+  return `${startYear}-${startYear.slice(0, 2)}${endYearShort}`;
+}
 
-  body('academicSession')
-    .trim()
-    .notEmpty()
-    .withMessage('Academic session is required')
-    .matches(/^\d{4}[-–]\d{4}$/)
-    .withMessage('Academic session must be in format YYYY-YYYY (e.g., 2025-2026)'),
+const clubCreationBodySchema = z
+  .object({
+    name: z.preprocess(
+      (value) => sanitizePlainText(value, { maxLength: 256 }),
+      z
+        .string()
+        .min(3, "Club Name validation failed: Club name must be at least 3 characters")
+        .max(100, "Club Name validation failed: Club name must not exceed 100 characters"),
+    ),
+    categoryId: z.string().uuid("Invalid category ID"),
+    purpose: z.preprocess(
+      (value) => sanitizePlainText(value, { maxLength: 4000 }),
+      z
+        .string()
+        .min(50, "Purpose validation failed: Purpose must be at least 50 characters")
+        .max(2000, "Purpose validation failed: Purpose must not exceed 2000 characters"),
+    ),
+    academicSession: z.preprocess(
+      (value) => normalizeAcademicSession(value),
+      z
+        .string()
+        .regex(
+          /^\d{4}[-–]\d{4}$/,
+          "Academic session must be in format YYYY-YYYY (e.g., 2025-2026)",
+        ),
+    ),
+    facultyFacilitatorId: z.preprocess(
+      (value) => sanitizePlainText(value, { maxLength: 64 }),
+      z.string().min(1, "Faculty Facilitator is required"),
+    ),
+    chairpersonId: optionalPlainText(64, "Invalid Chairperson ID"),
+    initialMembers: z
+      .preprocess(
+        (value) => sanitizeStringArray(value, { maxLength: 64 }),
+        z.array(z.string()).optional(),
+      )
+      .optional(),
+    targetStudentGroup: z
+      .array(z.nativeEnum(ClubTargetGroup))
+      .min(1, "At least one target student group is required"),
+    expectedActivityTypes: z
+      .preprocess(
+        (value) => sanitizeStringArray(value, { maxLength: 128 }),
+        z
+          .array(z.enum(ClubActivityTypes))
+          .min(1, "At least one activity type must be selected"),
+      ),
+    codeOfConductAccepted: booleanish.refine(
+      (value) => value === true,
+      "Code of Conduct must be accepted",
+    ),
+    antiDiscriminationAccepted: booleanish.refine(
+      (value) => value === true,
+      "Anti-Discrimination Declaration must be accepted",
+    ),
+    meetingFrequency: z.nativeEnum(ClubMeetingFrequency, {
+      error: "Invalid meeting frequency",
+    }),
+    estimatedAnnualActivityCount: z.preprocess(
+      (value) => Number(value),
+      z
+        .number()
+        .int()
+        .min(1, "Activity Count validation failed: Must be at least 1 activity per year")
+        .max(365, "Activity Count validation failed: Cannot exceed 365 activities per year"),
+    ),
+    proposedEmail: z.preprocess((value) => {
+      if (value === undefined || value === null || value === "") return undefined;
+      return sanitizeEmail(value);
+    }, z.string().email("Email validation failed: Enter a valid email address (e.g. club@sgtuniversity.org)").optional()),
+    socialMediaHandles: socialMediaSchema,
+    expectedStudentStrength: optionalInteger(
+      1,
+      Number.MAX_SAFE_INTEGER,
+      "Expected student strength must be a positive integer",
+    ),
+  })
+  .strip();
 
-  // Step 2: Authority & Membership
-  body('viceChairpersonId')
-    .notEmpty()
-    .withMessage('Vice Chairperson is required')
-    .isUUID()
-    .withMessage('Invalid Vice Chairperson ID'),
+const validateClubCreation = validateRequest({
+  body: clubCreationBodySchema,
+});
 
-  body('initialMembers')
-    .optional()
-    .isArray()
-    .withMessage('Initial members must be an array'),
+const validateAddMember = validateRequest({
+  params: clubIdParamsSchema,
+  body: z
+    .object({
+      studentId: z.preprocess(
+        (value) => sanitizePlainText(value, { maxLength: 256 }),
+        z
+          .string()
+          .min(3, "Student ID or email is required")
+          .max(256, "Student identifier must be between 3 and 256 characters"),
+      ),
+      role: optionalPlainText(64, "Role is invalid"),
+    })
+    .strip(),
+});
 
-  body('initialMembers.*')
-    .optional()
-    .isUUID()
-    .withMessage('Invalid member ID'),
+const validateRemoveMember = validateRequest({
+  params: memberIdParamsSchema,
+  body: z
+    .object({
+      reason: optionalPlainText(500, "Reason must not exceed 500 characters"),
+    })
+    .strip(),
+});
 
-  // Step 3: Governance & Compliance
-  body('targetStudentGroup')
-    .notEmpty()
-    .withMessage('Target student group is required')
-    .isIn(Object.values(ClubTargetGroup))
-    .withMessage('Invalid target student group'),
+const validateClubChangeRequest = validateRequest({
+  params: clubIdParamsSchema,
+  body: z
+    .object({
+      changeType: z.nativeEnum(ClubChangeType, {
+        error: "Invalid change type",
+      }),
+      requestedChanges: z.record(z.any(), {
+        error: "Requested changes must be an object",
+      }),
+      justification: z.preprocess(
+        (value) => sanitizePlainText(value, { maxLength: 4000 }),
+        z.string().min(50, "Justification must be at least 50 characters"),
+      ),
+    })
+    .strip(),
+});
 
-  body('expectedActivityTypes')
-    .isArray({ min: 1 })
-    .withMessage('At least one activity type must be selected'),
+const validateGetClubs = validateRequest({
+  query: z
+    .object({
+      page: optionalInteger(1, Number.MAX_SAFE_INTEGER, "Page must be a positive integer"),
+      limit: optionalInteger(1, 100, "Limit must be between 1 and 100"),
+      status: optionalPlainText(64, "Status must be a string"),
+      categoryId: z.string().uuid("Invalid category ID").optional(),
+      search: optionalPlainText(256, "Search query too long"),
+      academicSession: optionalPlainText(16, "Academic session is invalid"),
+      myClubs: z.enum(["true", "false"]).optional(),
+    })
+    .strip(),
+});
 
-  body('expectedActivityTypes.*')
-    .isIn(ClubActivityTypes)
-    .withMessage('Invalid activity type'),
+const validateClubId = validateRequest({
+  params: clubIdParamsSchema,
+});
 
-  body('codeOfConductAccepted')
-    .equals('true')
-    .withMessage('Code of Conduct must be accepted'),
+const validateClubUpdate = validateRequest({
+  params: clubIdParamsSchema,
+  body: z
+    .object({
+      proposedEmail: z.preprocess((value) => {
+        if (value === undefined || value === null || value === "") return undefined;
+        return sanitizeEmail(value);
+      }, z.string().email("Enter a valid email address (e.g. club@sgtuniversity.org)").optional()),
+      socialMediaHandles: socialMediaSchema,
+      expectedStudentStrength: optionalInteger(
+        2,
+        10000,
+        "Expected student strength must be between 2 and 10000",
+      ),
+      metadata: z.record(z.any()).optional(),
+    })
+    .strict(),
+});
 
-  body('antiDiscriminationAccepted')
-    .equals('true')
-    .withMessage('Anti-Discrimination Declaration must be accepted'),
+const validateProcessApproval = validateRequest({
+  body: z
+    .object({
+      notingId: z.string().uuid("Invalid noting ID"),
+      approvedById: z.string().uuid("Invalid approver ID"),
+    })
+    .strip(),
+});
 
-  // Step 4: Operational Planning
-  body('meetingFrequency')
-    .notEmpty()
-    .withMessage('Meeting frequency is required')
-    .isIn(Object.values(ClubMeetingFrequency))
-    .withMessage('Invalid meeting frequency'),
+const validateCategoryCreation = validateRequest({
+  body: z
+    .object({
+      name: z.preprocess(
+        (value) => sanitizePlainText(value, { maxLength: 128 }),
+        z
+          .string()
+          .min(2, "Category name must be between 2 and 128 characters")
+          .max(128, "Category name must be between 2 and 128 characters"),
+      ),
+      description: optionalPlainText(
+        500,
+        "Description must not exceed 500 characters",
+      ),
+      sortOrder: optionalInteger(
+        0,
+        Number.MAX_SAFE_INTEGER,
+        "Sort order must be a non-negative integer",
+      ),
+    })
+    .strip(),
+});
 
-  body('estimatedAnnualActivityCount')
-    .notEmpty()
-    .withMessage('Estimated annual activity count is required')
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Activity count must be between 1 and 100'),
+const validateCategoryUpdate = validateRequest({
+  params: categoryIdParamsSchema,
+  body: z
+    .object({
+      name: optionalPlainText(
+        128,
+        "Category name must be between 2 and 128 characters",
+      ),
+      description: optionalPlainText(
+        500,
+        "Description must not exceed 500 characters",
+      ),
+      sortOrder: optionalInteger(
+        0,
+        Number.MAX_SAFE_INTEGER,
+        "Sort order must be a non-negative integer",
+      ),
+      isActive: optionalBooleanish,
+    })
+    .strip(),
+});
 
-  body('infrastructureRequirements')
-    .isArray()
-    .withMessage('Infrastructure requirements must be an array'),
+const validateClubApplicationCreate = validateRequest({
+  params: clubIdParamsSchema,
+  body: z
+    .object({
+      clubId: z.string().uuid("Invalid club ID").optional(),
+    })
+    .strip(),
+});
 
-  body('infrastructureRequirements.*')
-    .isIn(InfrastructureTypes)
-    .withMessage('Invalid infrastructure type'),
+const validateClubApplicationReview = validateRequest({
+  params: applicationParamsSchema,
+  body: z
+    .object({
+      decision: z.enum(["approved", "rejected"]),
+      reviewNote: optionalPlainText(
+        500,
+        "Review note must not exceed 500 characters",
+      ),
+    })
+    .strip(),
+});
 
-  body('fundingRequired')
-    .isBoolean()
-    .withMessage('Funding required must be a boolean'),
-
-  body('estimatedFundingAmount')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Funding amount must be a positive number'),
-
-  // Custom validation: if fundingRequired is true, amount is mandatory
-  body('estimatedFundingAmount').custom((value, { req }) => {
-    if (req.body.fundingRequired === true && !value) {
-      throw new Error('Estimated funding amount is required when funding is needed');
-    }
-    return true;
-  }),
-
-  // Step 5: Visibility & Collaboration
-  body('visibility')
-    .notEmpty()
-    .withMessage('Club visibility is required')
-    .isIn(Object.values(ClubVisibility))
-    .withMessage('Invalid visibility option'),
-
-  body('allowInternalCollaboration')
-    .optional()
-    .isBoolean()
-    .withMessage('Allow internal collaboration must be a boolean'),
-
-  body('allowExternalCollaboration')
-    .optional()
-    .isBoolean()
-    .withMessage('Allow external collaboration must be a boolean'),
-
-  // Step 6: Optional Metadata
-  body('proposedEmail')
-    .optional()
-    .isEmail()
-    .withMessage('Invalid email format'),
-
-  body('socialMediaHandles')
-    .optional()
-    .isObject()
-    .withMessage('Social media handles must be an object'),
-
-  body('expectedStudentStrength')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Expected student strength must be a positive integer'),
-
-  handleValidationErrors,
-];
-
-/**
- * Validate Add Member Request
- */
-const validateAddMember = [
-  param('clubId')
-    .notEmpty()
-    .withMessage('Club ID is required')
-    .isUUID()
-    .withMessage('Invalid club ID'),
-
-  body('studentId')
-    .notEmpty()
-    .withMessage('Student ID is required')
-    .isUUID()
-    .withMessage('Invalid student ID'),
-
-  handleValidationErrors,
-];
-
-/**
- * Validate Remove Member Request
- */
-const validateRemoveMember = [
-  param('clubId')
-    .notEmpty()
-    .withMessage('Club ID is required')
-    .isUUID()
-    .withMessage('Invalid club ID'),
-
-  param('memberId')
-    .notEmpty()
-    .withMessage('Member ID is required')
-    .isUUID()
-    .withMessage('Invalid member ID'),
-
-  body('reason')
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Reason must not exceed 500 characters'),
-
-  handleValidationErrors,
-];
-
-/**
- * Validate Club Change Request
- */
-const validateClubChangeRequest = [
-  param('clubId')
-    .notEmpty()
-    .withMessage('Club ID is required')
-    .isUUID()
-    .withMessage('Invalid club ID'),
-
-  body('changeType')
-    .notEmpty()
-    .withMessage('Change type is required')
-    .isIn(Object.values(ClubChangeType))
-    .withMessage('Invalid change type'),
-
-  body('requestedChanges')
-    .notEmpty()
-    .withMessage('Requested changes are required')
-    .isObject()
-    .withMessage('Requested changes must be an object'),
-
-  body('justification')
-    .trim()
-    .notEmpty()
-    .withMessage('Justification is required')
-    .isLength({ min: 50 })
-    .withMessage('Justification must be at least 50 characters'),
-
-  handleValidationErrors,
-];
-
-/**
- * Validate Get Clubs Query
- */
-const validateGetClubs = [
-  query('page')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Page must be a positive integer'),
-
-  query('limit')
-    .optional()
-    .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-
-  query('status')
-    .optional()
-    .isString()
-    .withMessage('Status must be a string'),
-
-  query('categoryId')
-    .optional()
-    .isUUID()
-    .withMessage('Invalid category ID'),
-
-  query('search')
-    .optional()
-    .trim()
-    .isLength({ max: 256 })
-    .withMessage('Search query too long'),
-
-  handleValidationErrors,
-];
-
-/**
- * Validate Club ID Parameter
- */
-const validateClubId = [
-  param('clubId')
-    .notEmpty()
-    .withMessage('Club ID is required')
-    .isUUID()
-    .withMessage('Invalid club ID'),
-
-  handleValidationErrors,
-];
-
-/**
- * Validate Category Creation
- */
-const validateCategoryCreation = [
-  body('name')
-    .trim()
-    .notEmpty()
-    .withMessage('Category name is required')
-    .isLength({ min: 2, max: 128 })
-    .withMessage('Category name must be between 2 and 128 characters'),
-
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Description must not exceed 500 characters'),
-
-  body('sortOrder')
-    .optional()
-    .isInt({ min: 0 })
-    .withMessage('Sort order must be a non-negative integer'),
-
-  handleValidationErrors,
-];
+const validateMemberRoleUpdate = validateRequest({
+  params: memberIdParamsSchema,
+  body: z
+    .object({
+      role: z.preprocess(
+        (value) => sanitizePlainText(value, { maxLength: 64 }),
+        z.string().min(1, "Role is required"),
+      ),
+    })
+    .strip(),
+});
 
 module.exports = {
   validateClubCreation,
@@ -329,6 +343,11 @@ module.exports = {
   validateClubChangeRequest,
   validateGetClubs,
   validateClubId,
+  validateClubUpdate,
+  validateProcessApproval,
   validateCategoryCreation,
-  handleValidationErrors,
+  validateCategoryUpdate,
+  validateClubApplicationCreate,
+  validateClubApplicationReview,
+  validateMemberRoleUpdate,
 };

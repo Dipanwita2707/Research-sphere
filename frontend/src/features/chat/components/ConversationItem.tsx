@@ -50,16 +50,23 @@ export function ConversationItem({ conversation, isActive }: ConversationItemPro
     if (!conversation.lastMessage) return 'No messages yet';
     
     const message = conversation.lastMessage;
-    const prefix = message.senderId === user.id ? '' : 'You: ';
+    const prefix = message.senderId ===
+   user.id ? '' : 'You: ';
     
-    if (message.messageType === 'text') {
+    if (message.messageType ===
+   'text') {
       const content = message.content?.slice(0, 40) + (message.content && message.content.length > 40 ? '...' : '');
       return prefix + content;
     }
-    if (message.messageType === 'image') return prefix + '📷 Photo';
-    if (message.messageType === 'voice') return prefix + '🎤 Voice message';
-    if (message.messageType === 'video') return prefix + '🎬 Video';
-    if (message.messageType === 'file' || message.messageType === 'document') return prefix + '📎 File';
+    if (message.messageType ===
+   'image') return prefix + '📷 Photo';
+    if (message.messageType ===
+   'voice') return prefix + '🎤 Voice message';
+    if (message.messageType ===
+   'video') return prefix + '🎬 Video';
+    if (message.messageType ===
+   'file' || message.messageType ===
+   'document') return prefix + '📎 File';
     return 'Message';
   };
 

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/shared/auth/authStore';
-import { 
+import {
   Users, 
   School,
   Building,
@@ -12,18 +12,21 @@ import {
   DollarSign,
   CheckCircle
 } from 'lucide-react';
-import api from '@/shared/api/api';
-import { logger } from '@/shared/utils/logger';
+import dynamic from 'next/dynamic';
 import HeroSection from './HeroSection';
 import AnimatedStatsGrid from './AnimatedStatsGrid';
 import QuickAccessModules from './QuickAccessModules';
-import UniversityEventsSlideshow from './UniversityEventsSlideshow';
-import PermissionBasedDashboard from './PermissionBasedDashboard';
-import CurrentActionSection from './CurrentActionSection';
-import RecentNotifications from './RecentNotifications';
-import SocialFootprints from './SocialFootprints';
-import Footer from '../layouts/Footer';
 import { FadeInUp } from '../animations/AnimatedComponents';
+import api from '@/shared/api/api';
+import { useStaffDashboardSummary } from '@/shared/hooks/useUserContextQueries';
+
+// Lazy-load below-the-fold heavy components so they don't block initial paint
+const UniversityEventsSlideshow = dynamic(() => import('./UniversityEventsSlideshow'), { ssr: false });
+const PermissionBasedDashboard = dynamic(() => import('./PermissionBasedDashboard'), { ssr: false });
+const CurrentActionSection = dynamic(() => import('./CurrentActionSection'), { ssr: false });
+const RecentNotifications = dynamic(() => import('./RecentNotifications'), { ssr: false });
+const SocialFootprints = dynamic(() => import('./SocialFootprints'), { ssr: false });
+const Footer = dynamic(() => import('../layouts/Footer'), { ssr: false });
 
 interface StaffStats {
   department: string;
@@ -54,42 +57,31 @@ interface AdminOverview {
 
 export default function ModernStaffDashboard() {
   const { user } = useAuthStore();
-  const [stats, setStats] = useState<StaffStats | null>(null);
-  const [adminOverview, setAdminOverview] = useState<AdminOverview | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const isAdmin = user?.userType ===
+   'admin' || user?.role?.name ===
+   'admin';
+  const {
+    data: statsData,
+    isLoading: isStatsLoading,
+  } = useStaffDashboardSummary({ enabled: !!user });
+  const {
+    data: adminOverview,
+    isLoading: isAdminOverviewLoading,
+  } = useQuery({
+    queryKey: ['analytics', 'overview', user?.id ?? 'anonymous'],
+    queryFn: async () => {
+      const response = await api.get('/analytics/overview');
+      return response.data.success ? (response.data.data as AdminOverview) : null;
+    },
+    enabled: !!user && isAdmin,
+    staleTime: 2 * 60 * 1000,
+  });
 
-  const isAdmin = user?.userType === 'admin' || user?.role?.name === 'admin';
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const staffResponse = await api.get('/dashboard/staff');
-      setStats(staffResponse.data.data);
-
-      if (user?.userType === 'admin' || user?.role?.name === 'admin') {
-        try {
-          const overviewResponse = await api.get('/analytics/overview');
-          if (overviewResponse.data.success) {
-            setAdminOverview(overviewResponse.data.data);
-          }
-        } catch (err) {
-          logger.debug('Analytics not available');
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to fetch data:', error);
-      setStats({
-        department: 'N/A',
-        designation: 'N/A',
-        faculty: 'N/A',
-        permissions: [],
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const stats: StaffStats = statsData ?? {
+    department: 'N/A',
+    designation: 'N/A',
+    faculty: 'N/A',
+    permissions: [],
   };
 
   const getUserName = () => {
@@ -102,11 +94,14 @@ export default function ModernStaffDashboard() {
     return user?.username || 'User';
   };
 
-  const isStudent = user?.userType === 'student' || user?.role?.name === 'student';
+  const isStudent = user?.userType ===
+   'student' || user?.role?.name ===
+   'student';
 
   const getUserType = () => {
     if (isAdmin) return 'Administrator';
-    if (user?.userType === 'faculty') return 'Faculty';
+    if (user?.userType ===
+   'faculty') return 'Faculty';
     if (isStudent) return 'Student';
     return 'Staff';
   };
@@ -222,17 +217,9 @@ export default function ModernStaffDashboard() {
     ];
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 px-2 sm:px-0">
         {/* Animated Hero Section */}
         <HeroSection 
           userName={getUserName()} 
@@ -254,20 +241,25 @@ export default function ModernStaffDashboard() {
 
         {/* Permission-Based Dashboard (Existing Widgets) + Current Action Section */}
         <FadeInUp delay={0.7}>
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Your Modules - Left Side */}
             <div>
-              <div className="bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-2xl shadow-md p-6 border border-blue-100 dark:border-gray-700 h-full">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Your Modules</h2>
+              <div className="bg-white/70 backdrop-blur-sm dark:bg-gray-800 rounded-2xl shadow-md p-4 sm:p-6 border border-blue-100 dark:border-gray-700 h-full">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6">Your Modules</h2>
                 <PermissionBasedDashboard 
-                  userPermissions={stats?.permissions || []}
+                  userPermissions={stats.permissions || []}
                   userRole={user?.role?.name || user?.userType || 'staff'}
                 />
+                {(isStatsLoading || (isAdmin && isAdminOverviewLoading)) && (
+                  <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                    Refreshing dashboard data...
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Current Action + Recent Notifications - Right Side */}
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               <CurrentActionSection userName={getUserName()} userId={user?.id} />
               <RecentNotifications />
             </div>

@@ -11,7 +11,8 @@ function formatTime(dateStr: string) {
   const diff = now.getTime() - date.getTime();
   const oneDay = 24 * 60 * 60 * 1000;
 
-  if (diff < oneDay && date.getDate() === now.getDate()) {
+  if (diff < oneDay && date.getDate() ===
+   now.getDate()) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
@@ -38,7 +39,8 @@ export default function DraftList() {
     );
   }
 
-  if (drafts.length === 0) {
+  if (drafts.length ===
+   0) {
     return (
       <div className="flex flex-col items-center justify-center h-32 text-gray-400 dark:text-gray-500">
         <FileText size={32} className="mb-2 opacity-50" />

@@ -7,10 +7,17 @@
  * Check if a value is empty (null, undefined, empty string, empty array)
  */
 export function isEmpty(value: unknown): boolean {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  if (Array.isArray(value)) return value.length === 0;
-  if (typeof value === 'object') return Object.keys(value).length === 0;
+  if (value ===
+   null || value ===
+   undefined) return true;
+  if (typeof value ===
+   'string') return value.trim() ===
+   '';
+  if (Array.isArray(value)) return value.length ===
+   0;
+  if (typeof value ===
+   'object') return Object.keys(value).length ===
+   0;
   return false;
 }
 
@@ -37,7 +44,9 @@ export function isValidPhone(phone: string): boolean {
   if (!phone) return false;
   const cleaned = phone.replace(/\D/g, '');
   // Indian phone: 10 digits or 12 digits starting with 91
-  return cleaned.length === 10 || (cleaned.length === 12 && cleaned.startsWith('91'));
+  return cleaned.length ===
+   10 || (cleaned.length ===
+   12 && cleaned.startsWith('91'));
 }
 
 /**
@@ -81,13 +90,15 @@ export function isValidIsbn(isbn: string): boolean {
   const cleaned = isbn.replace(/[-\s]/g, '');
   
   // ISBN-10
-  if (cleaned.length === 10) {
+  if (cleaned.length ===
+   10) {
     const isbnRegex = /^\d{9}[\dX]$/i;
     return isbnRegex.test(cleaned);
   }
   
   // ISBN-13
-  if (cleaned.length === 13) {
+  if (cleaned.length ===
+   13) {
     const isbnRegex = /^\d{13}$/;
     return isbnRegex.test(cleaned);
   }
@@ -123,16 +134,20 @@ export function isInRange(value: number, min: number, max: number): boolean {
  * Validate positive number
  */
 export function isPositiveNumber(value: unknown): boolean {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  return typeof num === 'number' && !isNaN(num) && num > 0;
+  const num = typeof value ===
+   'string' ? parseFloat(value) : value;
+  return typeof num ===
+   'number' && !isNaN(num) && num > 0;
 }
 
 /**
  * Validate non-negative number
  */
 export function isNonNegativeNumber(value: unknown): boolean {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  return typeof num === 'number' && !isNaN(num) && num >= 0;
+  const num = typeof value ===
+   'string' ? parseFloat(value) : value;
+  return typeof num ===
+   'number' && !isNaN(num) && num >= 0;
 }
 
 /**
@@ -200,7 +215,8 @@ export function createValidationResult(isValid: boolean, errors: string[] = []):
 export function combineValidations(...results: ValidationResult[]): ValidationResult {
   const errors = results.flatMap((r) => r.errors);
   return {
-    isValid: errors.length === 0,
+    isValid: errors.length ===
+   0,
     errors,
   };
 }

@@ -60,7 +60,8 @@ export default function GoogleDocsEditor({
 
   // Detect changes between original and current text
   const detectChanges = (original: string, current: string): Change[] => {
-    if (original === current) return [];
+    if (original ===
+   current) return [];
     
     // Simple change detection - in real implementation, use a diff algorithm
     const newChange: Change = {
@@ -80,12 +81,14 @@ export default function GoogleDocsEditor({
 
   // Render text with change highlights
   const renderTextWithChanges = (text: string, changes: Change[]) => {
-    if (!showChanges || changes.length === 0) {
+    if (!showChanges || changes.length ===
+   0) {
       return text;
     }
 
     return changes.map((change, index) => {
-      if (change.type === 'replace') {
+      if (change.type ===
+   'replace') {
         return (
           <div key={change.id} className="relative inline">
             {/* Original text (struck through) */}
@@ -99,15 +102,20 @@ export default function GoogleDocsEditor({
             {/* Change indicator */}
             <span className="inline-flex items-center ml-2">
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                change.status === SUGGESTION_STATUS.PENDING ? 'bg-yellow-100 text-yellow-800' :
-                change.status === SUGGESTION_STATUS.ACCEPTED ? 'bg-green-100 text-green-800' :
+                change.status ===
+   SUGGESTION_STATUS.PENDING ? 'bg-yellow-100 text-yellow-800' :
+                change.status ===
+   SUGGESTION_STATUS.ACCEPTED ? 'bg-green-100 text-green-800' :
                 'bg-red-100 text-red-800'
               }`}>
                 <User className="w-3 h-3" />
                 {change.reviewer}
-                {change.status === SUGGESTION_STATUS.PENDING && <Clock className="w-3 h-3" />}
-                {change.status === SUGGESTION_STATUS.ACCEPTED && <Check className="w-3 h-3" />}
-                {change.status === SUGGESTION_STATUS.REJECTED && <X className="w-3 h-3" />}
+                {change.status ===
+   SUGGESTION_STATUS.PENDING && <Clock className="w-3 h-3" />}
+                {change.status ===
+   SUGGESTION_STATUS.ACCEPTED && <Check className="w-3 h-3" />}
+                {change.status ===
+   SUGGESTION_STATUS.REJECTED && <X className="w-3 h-3" />}
               </span>
             </span>
           </div>
@@ -136,14 +144,17 @@ export default function GoogleDocsEditor({
   // Accept a change (for applicants)
   const handleAcceptChange = (changeId: string) => {
     setChanges(prev => prev.map(change => 
-      change.id === changeId 
+      change.id ===
+   changeId 
         ? { ...change, status: 'accepted' as const }
         : change
     ));
     
     // Apply the change to original text
-    const change = changes.find(c => c.id === changeId);
-    if (change && change.type === 'replace') {
+    const change = changes.find(c => c.id ===
+   changeId);
+    if (change && change.type ===
+   'replace') {
       setOriginalText(change.newText);
       setCurrentText(change.newText);
     }
@@ -152,23 +163,29 @@ export default function GoogleDocsEditor({
   // Reject a change (for applicants)
   const handleRejectChange = (changeId: string) => {
     setChanges(prev => prev.map(change => 
-      change.id === changeId 
+      change.id ===
+   changeId 
         ? { ...change, status: 'rejected' as const }
         : change
     ));
     
     // Revert to original text
-    const change = changes.find(c => c.id === changeId);
-    if (change && change.type === 'replace') {
+    const change = changes.find(c => c.id ===
+   changeId);
+    if (change && change.type ===
+   'replace') {
       setCurrentText(originalText);
     }
   };
 
   // Check if there are pending changes from reviewer
-  const hasPendingReviewerChanges = changes.some(c => c.status === SUGGESTION_STATUS.PENDING && c.reviewer !== 'Applicant');
+  const hasPendingReviewerChanges = changes.some(c => c.status ===
+   SUGGESTION_STATUS.PENDING && c.reviewer !== 'Applicant');
   
   // Check if there are pending changes from applicant
-  const hasPendingApplicantChanges = changes.some(c => c.status === SUGGESTION_STATUS.PENDING && c.reviewer === 'Applicant');
+  const hasPendingApplicantChanges = changes.some(c => c.status ===
+   SUGGESTION_STATUS.PENDING && c.reviewer ===
+   'Applicant');
 
   return (
     <div className="space-y-3">
@@ -179,7 +196,8 @@ export default function GoogleDocsEditor({
           {hasPendingReviewerChanges && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
               <Clock className="w-3 h-3" />
-              {changes.filter(c => c.status === SUGGESTION_STATUS.PENDING).length} pending
+              {changes.filter(c => c.status ===
+   SUGGESTION_STATUS.PENDING).length} pending
             </span>
           )}
         </label>
@@ -270,7 +288,8 @@ export default function GoogleDocsEditor({
         <div className="space-y-3">
           {/* Display field with changes highlighted */}
           <div className="min-h-[100px] p-3 border border-gray-300 rounded-lg bg-gray-50">
-            {changes.length === 0 ? (
+            {changes.length ===
+   0 ? (
               <div className="text-gray-700 whitespace-pre-wrap">
                 {originalText || `No ${label.toLowerCase()} provided`}
               </div>
@@ -294,7 +313,8 @@ export default function GoogleDocsEditor({
             <div className="space-y-2">
               <h4 className="text-sm font-medium text-gray-900">Pending Changes from Reviewer:</h4>
               {changes
-                .filter(c => c.status === 'pending' && c.reviewer !== 'Applicant')
+                .filter(c => c.status ===
+   'pending' && c.reviewer !== 'Applicant')
                 .map(change => (
                 <div key={change.id} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex items-start justify-between gap-3">
@@ -354,8 +374,10 @@ export default function GoogleDocsEditor({
             {changes.map(change => (
               <div key={change.id} className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${
-                  change.status === 'accepted' ? 'bg-green-500' :
-                  change.status === 'rejected' ? 'bg-red-500' :
+                  change.status ===
+   'accepted' ? 'bg-green-500' :
+                  change.status ===
+   'rejected' ? 'bg-red-500' :
                   'bg-yellow-500'
                 }`} />
                 <span>{change.reviewer}</span>

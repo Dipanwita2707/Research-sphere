@@ -1,0 +1,518 @@
+version: "2"
+type: backend
+tech_stack:
+  - language: TypeScript / JavaScript (Node.js)
+  - framework: Express.js 4.x (backend), Next.js 14 App Router (frontend)
+  - database: PostgreSQL with Prisma ORM
+  - other: Razorpay (payments), SendGrid (email), Puppeteer + AWS S3 (certificates), JWT (auth), React Query, Zustand, Tailwind CSS
+features:
+  - name: Authentication
+    description: JWT-based login and role-based access control for Student, Faculty, Staff, Admin, Volunteer, Club Chairperson roles
+    files:
+      - backend/src/modules/auth/routes/auth.routes.js
+    endpoints:
+      - method: POST
+        path: /api/auth/login
+        description: Authenticate user with username/password, returns JWT token
+        auth_required: false
+        request_schema:
+          body:
+            username: string
+            password: string
+        response_schema:
+          "200": "{ token: string, user: { id, role, name, email } }"
+          "401": Unauthorized
+      - method: POST
+        path: /api/auth/logout
+        description: Logout user and invalidate token
+        auth_required: true
+        response_schema:
+          "200": Success
+    depends_on: []
+
+  - name: Event Discovery & Listing
+    description: Browse, search, and filter published events. Events can be standalone or grouped under a festival.
+    files:
+      - backend/src/modules/event-management/routes/event.routes.js
+      - frontend/src/app/events/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/events
+        description: List all published events with optional filters (search, type, date, status)
+        auth_required: false
+        response_schema:
+          "200": "Event[]"
+      - method: POST
+        path: /api/events
+        description: Create a new event (Faculty/Staff/Admin only, requires noting approval)
+        auth_required: true
+        request_schema:
+          body:
+            title: string
+            description: string
+            startDate: string
+            endDate: string
+            venue: string
+            type: string
+            maxParticipants: number
+        response_schema:
+          "201": Event
+          "400": Validation error
+          "403": Forbidden
+    depends_on:
+      - Authentication
+
+  - name: Event Detail
+    description: View full event details including description, schedule, speakers, prizes, and registration status
+    files:
+      - backend/src/modules/event-management/routes/event.routes.js
+      - frontend/src/app/events/[id]/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/events/:id
+        description: Get full event detail by ID
+        auth_required: false
+        response_schema:
+          "200": Event
+          "404": Not found
+      - method: PUT
+        path: /api/events/:id
+        description: Update event details (event creator or admin only)
+        auth_required: true
+        request_schema:
+          body:
+            title: string
+            description: string
+        response_schema:
+          "200": Event
+          "403": Forbidden
+      - method: DELETE
+        path: /api/events/:id
+        description: Delete an event (admin only)
+        auth_required: true
+        response_schema:
+          "200": Success
+          "403": Forbidden
+    depends_on:
+      - Authentication
+
+  - name: Individual Event Registration
+    description: Student registers for an event, filling custom dynamic fields. Supports coupon validation and free or paid registration.
+    files:
+      - backend/src/modules/event-management/routes/registration.routes.js
+      - frontend/src/app/events/[id]/registration/page.tsx
+    endpoints:
+      - method: POST
+        path: /api/events/:id/register
+        description: Register current user for event
+        auth_required: true
+        request_schema:
+          body:
+            customFields: object
+            couponCode: string
+        response_schema:
+          "201": "{ registration: Registration, qrCode: string }"
+          "400": Validation error / already registered / event full
+          "403": Forbidden
+      - method: GET
+        path: /api/events/:id/registrations
+        description: List all registrations for an event (organizer/admin only)
+        auth_required: true
+        response_schema:
+          "200": "Registration[]"
+    depends_on:
+      - Authentication
+      - Event Detail
+
+  - name: Team Registration
+    description: Students can create or join teams for team-based events
+    files:
+      - backend/src/modules/event-management/routes/team.routes.js
+      - frontend/src/app/events/[id]/registration/team/page.tsx
+    endpoints:
+      - method: POST
+        path: /api/events/:id/teams
+        description: Create a new team for an event
+        auth_required: true
+        request_schema:
+          body:
+            teamName: string
+        response_schema:
+          "201": Team
+          "400": Validation error
+      - method: GET
+        path: /api/events/:id/teams
+        description: List all teams for an event
+        auth_required: true
+        response_schema:
+          "200": "Team[]"
+      - method: POST
+        path: /api/events/:id/teams/:teamId/join
+        description: Join an existing team
+        auth_required: true
+        response_schema:
+          "200": Team
+          "400": Team full / already in team
+    depends_on:
+      - Authentication
+      - Individual Event Registration
+
+  - name: Payment Integration (Razorpay)
+    description: Paid event registration triggers Razorpay order creation. Webhook verifies payment and confirms registration.
+    files:
+      - backend/src/modules/event-management/routes/payment.routes.js
+      - frontend/src/app/events/[id]/registration/payment/page.tsx
+    endpoints:
+      - method: POST
+        path: /api/events/:id/payments
+        description: Initiate Razorpay payment order for registration
+        auth_required: true
+        request_schema:
+          body:
+            registrationId: string
+        response_schema:
+          "200": "{ orderId: string, amount: number, currency: string }"
+          "400": Bad request
+      - method: POST
+        path: /api/events/:id/payments/webhook
+        description: Razorpay webhook to verify and confirm payment
+        auth_required: false
+        request_schema:
+          body:
+            razorpay_order_id: string
+            razorpay_payment_id: string
+            razorpay_signature: string
+        response_schema:
+          "200": Success
+          "400": Signature verification failed
+    depends_on:
+      - Individual Event Registration
+
+  - name: Coupon & Discount System
+    description: Event organizers create coupon codes. Students validate coupons during registration for discounts.
+    files:
+      - backend/src/modules/event-management/routes/coupon.routes.js
+    endpoints:
+      - method: POST
+        path: /api/events/:id/coupons/validate
+        description: Validate a coupon code and return discount amount
+        auth_required: true
+        request_schema:
+          body:
+            couponCode: string
+        response_schema:
+          "200": "{ valid: boolean, discount: number, discountType: string }"
+          "400": Invalid / expired coupon
+      - method: GET
+        path: /api/events/:id/coupons
+        description: List all coupons for an event (organizer/admin)
+        auth_required: true
+        response_schema:
+          "200": "Coupon[]"
+      - method: POST
+        path: /api/events/:id/coupons
+        description: Create a coupon code for an event
+        auth_required: true
+        request_schema:
+          body:
+            code: string
+            discountType: string
+            discountValue: number
+            maxUses: number
+            expiryDate: string
+        response_schema:
+          "201": Coupon
+    depends_on:
+      - Authentication
+      - Event Detail
+
+  - name: QR Code Attendance Scanning
+    description: Volunteers/organizers scan student QR codes to record entry and exit at event venue
+    files:
+      - backend/src/modules/event-management/routes/registration.routes.js
+      - frontend/src/app/events/[id]/scan/page.tsx
+    endpoints:
+      - method: POST
+        path: /api/events/:id/scan
+        description: Scan QR code to record entry or exit
+        auth_required: true
+        request_schema:
+          body:
+            qrCode: string
+            scanType: "ENTRY | EXIT"
+        response_schema:
+          "200": "{ success: boolean, participant: object, scanType: string }"
+          "400": Invalid QR / already scanned
+          "403": Not authorized to scan
+    depends_on:
+      - Authentication
+      - Individual Event Registration
+
+  - name: Event Management Dashboard
+    description: Event organizers manage their events via a tabbed dashboard (Overview, Registrations, Volunteers, Stalls, Feedback, Analytics)
+    files:
+      - backend/src/modules/event-management/routes/event.routes.js
+      - frontend/src/app/events/[id]/management/page.tsx
+      - frontend/src/app/events/[id]/management/tabs/OverviewTab.tsx
+      - frontend/src/app/events/[id]/management/tabs/RegistrationsTab.tsx
+      - frontend/src/app/events/[id]/management/tabs/VolunteersTab.tsx
+      - frontend/src/app/events/[id]/management/tabs/StallsTab.tsx
+      - frontend/src/app/events/[id]/management/tabs/FeedbackTab.tsx
+      - frontend/src/app/events/[id]/management/tabs/AnalyticsTab.tsx
+    endpoints:
+      - method: GET
+        path: /api/events/:id/analytics
+        description: Get event analytics (registrations over time, attendance rate, demographics)
+        auth_required: true
+        response_schema:
+          "200": "{ totalRegistrations: number, attendanceRate: number, registrationsByDate: object[] }"
+    depends_on:
+      - Authentication
+      - Event Detail
+
+  - name: Volunteer Management
+    description: Event creators assign volunteers who can scan QR codes and manage entry
+    files:
+      - backend/src/modules/event-management/routes/event.routes.js
+      - frontend/src/app/events/[id]/volunteers/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/events/:id/volunteers
+        description: List volunteers for an event
+        auth_required: true
+        response_schema:
+          "200": "Volunteer[]"
+      - method: POST
+        path: /api/events/:id/volunteers
+        description: Assign a volunteer to an event
+        auth_required: true
+        request_schema:
+          body:
+            userId: string
+            canScan: boolean
+        response_schema:
+          "201": Volunteer
+    depends_on:
+      - Authentication
+
+  - name: Certificate System
+    description: Generate and distribute PDF certificates to attendees using Puppeteer. Certificates stored in S3 and verifiable via public URL.
+    files:
+      - backend/src/modules/event-management/routes/certificate.routes.js
+      - frontend/src/app/events/my-certificates/page.tsx
+      - frontend/src/app/verify/page.tsx
+    endpoints:
+      - method: POST
+        path: /api/events/:id/certificates/generate
+        description: Generate certificates for all eligible registrations
+        auth_required: true
+        response_schema:
+          "200": "{ generated: number }"
+      - method: GET
+        path: /api/events/:id/certificates
+        description: List all certificates for an event
+        auth_required: true
+        response_schema:
+          "200": "Certificate[]"
+      - method: GET
+        path: /api/certificates/verify/:code
+        description: Public endpoint to verify certificate authenticity
+        auth_required: false
+        response_schema:
+          "200": "{ valid: boolean, certificate: object }"
+          "404": Not found
+    depends_on:
+      - Authentication
+      - Individual Event Registration
+
+  - name: Bulk Email System
+    description: Event organizers send bulk emails to registrants using SendGrid with open tracking
+    files:
+      - backend/src/modules/event-management/routes/bulkEmail.routes.js
+    endpoints:
+      - method: POST
+        path: /api/events/:id/bulk-email
+        description: Send bulk email to event registrants
+        auth_required: true
+        request_schema:
+          body:
+            subject: string
+            body: string
+            recipientFilter: string
+        response_schema:
+          "200": "{ sent: number }"
+          "400": Validation error
+    depends_on:
+      - Authentication
+
+  - name: Stall Management
+    description: Manage stalls at events. Students can apply for stall opportunities.
+    files:
+      - backend/src/modules/event-management/routes/stall.routes.js
+      - frontend/src/app/events/[id]/stalls
+      - frontend/src/app/events/stall-opportunities/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/events/:id/stalls
+        description: List all stalls for an event
+        auth_required: false
+        response_schema:
+          "200": "Stall[]"
+      - method: POST
+        path: /api/events/:id/stalls
+        description: Create a stall for an event (organizer only)
+        auth_required: true
+        request_schema:
+          body:
+            stallName: string
+            description: string
+        response_schema:
+          "201": Stall
+      - method: POST
+        path: /api/events/:id/stalls/:stallId/apply
+        description: Student applies for a stall opportunity
+        auth_required: true
+        response_schema:
+          "200": Application
+    depends_on:
+      - Authentication
+
+  - name: Feedback System
+    description: Students submit feedback for events and stalls after attending
+    files:
+      - backend/src/modules/event-management/routes/event.routes.js
+      - frontend/src/app/events/[id]/feedback/page.tsx
+      - frontend/src/app/events/[id]/stalls/[stallId]/feedback/page.tsx
+    endpoints:
+      - method: POST
+        path: /api/events/:id/feedback
+        description: Submit feedback for an event
+        auth_required: true
+        request_schema:
+          body:
+            rating: number
+            comment: string
+        response_schema:
+          "201": Feedback
+          "400": Already submitted / not attended
+    depends_on:
+      - Authentication
+      - QR Code Attendance Scanning
+
+  - name: Prize Management
+    description: Define and announce prizes for event competitions
+    files:
+      - backend/src/modules/event-management/routes/prize.routes.js
+      - frontend/src/app/events/[id]/components/EventPrizesSection.tsx
+    endpoints:
+      - method: GET
+        path: /api/events/:id/prizes
+        description: List prizes for an event
+        auth_required: false
+        response_schema:
+          "200": "Prize[]"
+      - method: POST
+        path: /api/events/:id/prizes
+        description: Add a prize to an event (organizer only)
+        auth_required: true
+        request_schema:
+          body:
+            position: string
+            title: string
+            amount: number
+            description: string
+        response_schema:
+          "201": Prize
+    depends_on:
+      - Authentication
+
+  - name: Event Settings & Visibility
+    description: Configure event registration settings, custom fields, visibility toggle, and registration open/close
+    files:
+      - backend/src/modules/event-management/routes/settings.routes.js
+      - frontend/src/app/events/[id]/manage/registration-settings/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/events/:id/settings
+        description: Get event settings
+        auth_required: true
+        response_schema:
+          "200": EventSettings
+      - method: PUT
+        path: /api/events/:id/settings
+        description: Update event settings (visibility, registration open/close, team settings)
+        auth_required: true
+        request_schema:
+          body:
+            isPublic: boolean
+            registrationOpen: boolean
+            maxTeamSize: number
+            minTeamSize: number
+        response_schema:
+          "200": EventSettings
+    depends_on:
+      - Authentication
+
+  - name: My Registrations
+    description: Students view their own event registrations and tickets with QR codes
+    files:
+      - frontend/src/app/events/registrations/page.tsx
+    endpoints:
+      - method: GET
+        path: /api/users/me/registrations
+        description: Get all event registrations for the current user
+        auth_required: true
+        response_schema:
+          "200": "Registration[]"
+    depends_on:
+      - Authentication
+      - Individual Event Registration
+
+  - name: Noting / Approval Workflow
+    description: Faculty submit event noting requests that are reviewed and approved by DSW office before event creation
+    files:
+      - backend/src/modules/dsw/routes/notingRoutes.js
+      - frontend/src/app/noting/page.tsx
+      - frontend/src/app/dsw/page.tsx
+    endpoints:
+      - method: POST
+        path: /api/dsw/noting
+        description: Submit an event noting request
+        auth_required: true
+        request_schema:
+          body:
+            eventTitle: string
+            proposedDate: string
+            venue: string
+            expectedAttendees: number
+            description: string
+        response_schema:
+          "201": NotingRequest
+      - method: PUT
+        path: /api/dsw/noting/:id/approve
+        description: DSW approves a noting request and creates draft event
+        auth_required: true
+        response_schema:
+          "200": Event
+      - method: PUT
+        path: /api/dsw/noting/:id/reject
+        description: DSW rejects a noting request
+        auth_required: true
+        request_schema:
+          body:
+            reason: string
+        response_schema:
+          "200": NotingRequest
+    depends_on:
+      - Authentication
+
+known_limitations:
+  - issue: Razorpay webhook endpoint requires raw body for signature verification
+    location: backend/src/modules/event-management/routes/payment.routes.js
+    impact: Must ensure raw body parser is applied before JSON parser for webhook route
+  - issue: Certificate generation is CPU-intensive (Puppeteer)
+    location: backend/src/modules/event-management/routes/certificate.routes.js
+    impact: May timeout under load for large events; consider async job queue
+  - issue: QR scan endpoint does not debounce rapid duplicate scans
+    location: backend/src/modules/event-management/routes/registration.routes.js
+    impact: Potential duplicate scan records if scanner triggers twice quickly

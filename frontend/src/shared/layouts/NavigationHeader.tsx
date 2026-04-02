@@ -2,13 +2,17 @@
 
 import { useAuthStore } from '@/shared/auth/authStore';
 import { useRouter, usePathname } from 'next/navigation';
-import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle } from 'lucide-react';
+import { LogOut, User, Bell, ChevronDown, Search, Sun, Moon, HelpCircle, Menu, X, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { notificationService } from '@/shared/services/notification.service';
 import { useTheme } from '@/shared/providers/ThemeProvider';
-import api from '@/shared/api/api';
-import Link from 'next/link';
-import logger from '@/shared/utils/logger';
+ import Link from 'next/link';
+import { useNotingPermissions } from '@/features/noting-management/hooks/useNoting';
+import { useMyClubs } from '@/features/dsw/hooks';
+import {
+  useHasVolunteerAssignments,
+  useStaffDashboardSummary,
+  useUnreadNotificationCount,
+} from '@/shared/hooks/useUserContextQueries';
 
 interface DepartmentPermission {
   category: string;
@@ -19,6 +23,7 @@ interface SubMenuItem {
   name: string;
   href?: string;
   description?: string;
+  prefetch?: boolean;
   children?: SubMenuItem[];
 }
 
@@ -36,8 +41,9 @@ const hasPermission = (permissions: DepartmentPermission[], permissionName: stri
 };
 
 const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
-  if (!permissions || permissions.length === 0) return false;
-  
+  if (!permissions || permissions.length ===
+   0) return false;
+
   const drdKeys = [
     'ipr_review', 'ipr_approve', 'ipr_assign_school', 'ipr_recommend',
     'research_review', 'research_approve', 'research_assign_school',
@@ -45,7 +51,7 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
     'drd_review', 'drd_approve', 'drd_recommend', 'drd_view_all',
     'view_all_ipr', 'review_ipr', 'approve_ipr', 'ipr'
   ];
-  
+
   for (const dept of permissions) {
     const category = dept.category?.toLowerCase() || '';
     if (category.includes('drd') || category.includes('research') || category.includes('development') || category.includes('book')) {
@@ -78,25 +84,75 @@ export default function NavigationHeader() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
   const [activeSubmenu2, setActiveSubmenu2] = useState<string | null>(null); // Third level submenu
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileExpandedMenu, setMobileExpandedMenu] = useState<string | null>(null);
+  const [mobileExpandedSubmenu, setMobileExpandedSubmenu] = useState<string | null>(null);
   const [activeSubmenu3, setActiveSubmenu3] = useState<string | null>(null); // Fourth level submenu
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [userPermissions, setUserPermissions] = useState<DepartmentPermission[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{name: string, href?: string, description?: string}>>([]);
+  const [searchResults, setSearchResults] = useState<Array<{ name: string, href?: string, description?: string, prefetch?: boolean }>>([]);
+  const [expandedMobileSection, setExpandedMobileSection] = useState<string | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const dropdownRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  const isStudent = user?.role?.name === 'student' || user?.userType === 'student';
-  const isFaculty = user?.role?.name === 'faculty' || user?.userType === 'faculty';
-  const isAdmin = user?.role?.name === 'admin' || user?.userType === 'admin';
+  const roleName = user?.role?.name || user?.userType || '';
+  const isStudent = roleName ===
+   'student';
+  const isFaculty = roleName ===
+   'faculty';
+  const isStaff = roleName ===
+   'staff';
+  const isAdmin = roleName ===
+   'admin' || roleName ===
+   'superadmin';
+
+  // PERF FIX: Use TanStack Query hook instead of raw api.get('/noting/my-permissions').
+  // This shares the same query cache as page-level useNotingPermissions() calls,
+  // so navigating between pages no longer fires a duplicate permissions request.
+  const { data: notingPermsData } = useNotingPermissions({ enabled: !!user });
+  const { data: myClubsData } = useMyClubs({ enabled: isStudent });
+  const { data: unreadCount = 0 } = useUnreadNotificationCount({ enabled: !!user });
+  const { data: staffDashboardData } = useStaffDashboardSummary({ enabled: !!user });
+  const { data: hasVolunteerAssignments = false } = useHasVolunteerAssignments({ enabled: !!user });
+  const userPermissions = staffDashboardData?.permissions || [];
+  const hasNotingAccess = isAdmin || !!(
+    notingPermsData?.noting_create ||
+    notingPermsData?.noting_view_own ||
+    notingPermsData?.noting_view_department ||
+    notingPermsData?.noting_view_all ||
+    notingPermsData?.noting_approve ||
+    notingPermsData?.noting_forward ||
+    notingPermsData?.noting_return ||
+    notingPermsData?.noting_add_comment ||
+    notingPermsData?.noting_reject ||
+    notingPermsData?.noting_not_recommend
+  );
+  const canViewNotingAdminDashboard = isAdmin;
+  const isClubChairpersonFromNoting = !!(notingPermsData?.isClubChairperson);
+  const isClubChairpersonFromClubs = !!(isStudent && user?.id && myClubsData?.data?.some(
+    club => club.chairpersonId ===
+   user.id && club.status ===
+   'active'
+  ));
+  const isClubChairperson = isClubChairpersonFromNoting || isClubChairpersonFromClubs;
+  const canBrowseEvents = true;
+  const canViewEventDashboard =
+    isAdmin ||
+    hasPermission(userPermissions, 'event_view_reports') ||
+    hasPermission(userPermissions, 'event_manage_all');
+
+  // Gate Entry Access Control based on designation
+  const userDesignation = (user?.employee?.designation || user?.employeeDetails?.designation?.name || '').toLowerCase();
+  const isGuard = userDesignation.includes('guard') || userDesignation.includes('security');
+  const hasFullGateEntryAccess = isAdmin || isGuard || isStaff;
+  const showGateEntryModule = true; // All users including students can now create passes
 
   const canFileIpr = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'ipr_file_new');
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
   const hasDrdAccess = hasDrdPermissions(userPermissions) || isAdmin;
   const hasFinanceAccess = hasFinancePermissions(userPermissions);
-  
+
   // Review and Approval permissions
   const canReviewIpr = hasPermission(userPermissions, 'ipr_review') || hasPermission(userPermissions, 'review_ipr');
   const canApproveIpr = hasPermission(userPermissions, 'ipr_approve') || hasPermission(userPermissions, 'approve_ipr');
@@ -109,56 +165,41 @@ export default function NavigationHeader() {
   const canReviewGrant = hasPermission(userPermissions, 'grant_review');
   const canApproveGrant = hasPermission(userPermissions, 'grant_approve');
 
-  useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-      fetchUserPermissions();
-    }
-  }, [user]);
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const count = await notificationService.getUnreadCount();
-      setUnreadCount(count);
-    } catch (error) {
-      logger.error('Failed to fetch notification count:', error);
-    }
-  }, []);
-
-  const fetchUserPermissions = async () => {
-    try {
-      const response = await api.get('/dashboard/staff');
-      if (response.data.success) {
-        setUserPermissions(response.data.data.permissions || []);
-      }
-    } catch (error) {
-      logger.error('Error fetching permissions:', error);
-    }
-  };
+  // fetchNotingAccess removed — now handled by useNotingPermissions hook above
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
-      
+
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSearch(false);
       }
-      
+
       // Check all dropdown refs
       const clickedInsideDropdown = Object.values(dropdownRefs.current).some(
         ref => ref && ref.contains(event.target as Node)
       );
-      
+
       if (!clickedInsideDropdown) {
         setActiveDropdown(null);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
 
   // Search through all menu items
   const searchMenuItems = (query: string) => {
@@ -167,17 +208,18 @@ export default function NavigationHeader() {
       return;
     }
 
-    const results: Array<{name: string, href?: string, description?: string}> = [];
+    const results: Array<{ name: string, href?: string, description?: string, prefetch?: boolean }> = [];
     const searchLower = query.toLowerCase();
 
     const searchInSubmenu = (items: SubMenuItem[]) => {
       items.forEach(item => {
-        if (item.name.toLowerCase().includes(searchLower) || 
-            item.description?.toLowerCase().includes(searchLower)) {
+        if (item.name.toLowerCase().includes(searchLower) ||
+          item.description?.toLowerCase().includes(searchLower)) {
           results.push({
             name: item.name,
             href: item.href,
-            description: item.description
+            description: item.description,
+            prefetch: item.prefetch,
           });
         }
         if (item.children) {
@@ -225,20 +267,23 @@ export default function NavigationHeader() {
     return user?.username || 'User';
   };
 
-    // Build menu items based on permissions
+  const getLinkPrefetch = (href?: string, prefetch?: boolean) =>
+    href?.startsWith('/') ? prefetch : undefined;
+
+  // Build menu items based on permissions
   const menuItems: MenuItem[] = [];
 
-  // ============================================
-  // Build Submit & Track children - SIMPLIFIED 3 OPTIONS
+  // =====================================
+    // Build Submit & Track children - SIMPLIFIED 3 OPTIONS
   // 1. Monthly Progress Tracker
   // 2. My Research (view all submitted work)
   // 3. New Filing (file new work)
-  // ============================================
-  // Build Submit & Track children - 2 OPTIONS
+  // =====================================
+    // Build Submit & Track children - 2 OPTIONS
   // 1. My Research (view all submitted work)
   // 2. New Filing (file new work)
-  // ============================================
-  const submitTrackChildren: SubMenuItem[] = [
+  // =====================================
+    const submitTrackChildren: SubMenuItem[] = [
     // Option 1: My Research - View all submitted work (with sub-options)
     {
       name: 'My Research',
@@ -249,7 +294,7 @@ export default function NavigationHeader() {
         ...(canFileIpr ? [{ name: 'Patents / IPR', href: '/ipr/my-applications', description: 'View patent applications' }] : []),
       ],
     },
-    
+
     // Option 3: New Filing - File new work (with sub-options)
     {
       name: 'New Filing',
@@ -269,9 +314,9 @@ export default function NavigationHeader() {
     submitTrackChildren.push({ name: 'Mentor Approvals', href: '/mentor-approvals', description: 'Review & approve student work' });
   }
 
-  // ============================================
+  // =====================================
   // Build Review & Approval children - ORGANIZED
-  // ============================================
+  // =====================================
   const reviewApprovalChildren: SubMenuItem[] = [];
   
   // Only show DRD Dashboard if user has any actual review/approve permissions
@@ -303,11 +348,11 @@ export default function NavigationHeader() {
   
   const hasReviewAccess = reviewApprovalChildren.length > 0;
 
-  // ============================================
-  // Build Research and Development sub-items
-  // ============================================
-  const rndSubItems: SubMenuItem[] = [];
-  
+  // =====================================
+    // Build Research and Development sub-items
+  // =====================================
+    const rndSubItems: SubMenuItem[] = [];
+
   if (canFileIpr || canFileResearch) {
     rndSubItems.push({
       name: 'Submit & Track',
@@ -315,14 +360,14 @@ export default function NavigationHeader() {
       children: submitTrackChildren,
     });
   }
-  
+
   // Add Monthly Progress Tracker as a separate option
   rndSubItems.push({
     name: 'Monthly Progress Tracker',
     href: '/research/progress-tracker',
     description: 'Track monthly research milestones',
   });
-  
+
   if (hasReviewAccess && reviewApprovalChildren.length > 0) {
     rndSubItems.push({
       name: 'Review & Approve',
@@ -359,19 +404,19 @@ export default function NavigationHeader() {
     });
   }
 
-  // ============================================
-  // NAVIGATION - Main navigation menu
+  // =====================================
+    // NAVIGATION - Main navigation menu
   // Level 1: Academics, Research and Development
   // Level 2 (under R&D): Submit & Track, Review & Approve
-  // ============================================
-  const navigationSubItems: SubMenuItem[] = [
+  // =====================================
+    const navigationSubItems: SubMenuItem[] = [
     // Academics
     {
       name: '📚 Academics',
       description: 'Academic resources and tools',
       children: [
         { name: '🎓 LMS', href: 'http://13.235.188.79', description: 'Learning Management System' },
-       
+
         { name: '�Courses', href: '#', description: 'Course management (Coming Soon)' },
         { name: 'Timetable', href: '#', description: 'Class schedules (Coming Soon)' },
         { name: 'Examinations', href: '#', description: 'Exam management (Coming Soon)' },
@@ -397,24 +442,56 @@ export default function NavigationHeader() {
     description: 'Student admissions portal',
   });
 
-  // Add Noting approval - Only for Faculty, Staff, and Admin (NOT for students)
-  if (!isStudent) {
-    navigationSubItems.push({
-      name: '📋 Noting & Approval',
-      href: '/noting',
-      description: 'Create and track approval notes',
-    });
+  // Add Noting approval - For Faculty, Staff, Admin only (blocked for all students)
+  if (!isStudent && hasNotingAccess) {
+    const notingChildren: SubMenuItem[] = [
+      { name: '📝 Noting Workspace', href: '/noting', description: 'Create and track approval notes', prefetch: false },
+      ...(canViewNotingAdminDashboard ? [{ name: '📊 Noting Dashboard', href: '/noting/admin', description: 'Analytics, activity, and moderation overview', prefetch: false }] : []),
+    ];
+
+    navigationSubItems.push(
+      notingChildren.length ===
+   1
+        ? {
+            name: '📋 Noting & Approval',
+            href: '/noting',
+            description: 'Create and track approval notes',
+            prefetch: false,
+          }
+        : {
+            name: '📋 Noting & Approval',
+            description: 'Create, monitor, and moderate approval notes',
+            children: notingChildren,
+          },
+    );
   }
 
   // Add Event Management
+  const canCreateEvent = isFaculty || isClubChairperson;
+  const eventChildren: SubMenuItem[] = [
+    ...(canBrowseEvents ? [{ name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' }] : []),
+    { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
+    { name: '� My Certificates', href: '/events/my-certificates', description: 'View and download your event certificates' },
+    { name: '�🏪 Stall Application', href: '/events/stall-opportunities', description: 'Apply for stalls at events with stall opportunities' },
+    { name: '📱 Event Feedback Scanner', href: '/event-feedback-scanner', description: 'Scan QR to open event feedback form' },
+  ];
+  if (canCreateEvent) {
+    eventChildren.splice(1, 0, { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' });
+  }
+  if (canViewEventDashboard) {
+    eventChildren.splice(Math.min(eventChildren.length, 2), 0, {
+      name: '📊 Event Dashboard',
+      href: '/events/admin',
+      description: 'Analytics, approval stages, and admin controls',
+    });
+  }
+  if (hasVolunteerAssignments) {
+    eventChildren.push({ name: '🤝 Volunteer', href: '/events/volunteer', description: 'Manage your volunteer duties & scan QR codes' });
+  }
   navigationSubItems.push({
     name: '📅 Event Management',
     description: 'Discover, organize, and attend university events',
-    children: [
-      { name: '🌐 Browse Events', href: '/events', description: 'Discover and join published events' },
-      { name: '📝 My Created Events', href: '/events/my-events', description: 'Manage events you organized' },
-      { name: '🎫 My Registrations', href: '/events/registrations', description: 'View your event tickets and QR codes' },
-    ],
+    children: eventChildren,
   });
 
   // Add RFID
@@ -424,8 +501,40 @@ export default function NavigationHeader() {
     description: 'RFID access system',
   });
 
-  // Add DSW (Division of Student Welfare) for Faculty, Staff, and Admin
-  if (isFaculty || isAdmin) {
+  // TMS navigation
+  {
+    const tmsChildren: SubMenuItem[] = [];
+    if (isStudent) {
+      tmsChildren.push(
+        { name: '🎫 My Tickets', href: '/tms', description: 'View your submitted tickets' },
+        { name: '➕ New Ticket', href: '/tms/new', description: 'Submit a new ticket' },
+      );
+    }
+    if (isFaculty || isStaff || isAdmin) {
+      tmsChildren.push(
+        { name: '📋 Assigned Tickets', href: '/tms', description: 'Tickets assigned to you' },
+        { name: '📜 Request History', href: '/tms/history', description: 'Track your past actions on tickets' },
+      );
+    }
+    if (isAdmin) {
+      tmsChildren.push(
+        { name: '📊 TMS Dashboard', href: '/tms/admin', description: 'Analytics & overview' },
+        { name: '🗂️ Manage Categories', href: '/tms/categories', description: 'Configure ticket categories' },
+      );
+    }
+    // TEMP HIDE: Ticket Management should not appear in UMS Navigation for now.
+    // Keep this block commented so it can be restored quickly later.
+    // if (tmsChildren.length > 0) {
+    //   navigationSubItems.push({
+    //     name: '🎫 Ticket Management',
+    //     description: 'Grievances, Assistance & Enquiries',
+    //     children: tmsChildren,
+    //   });
+    // }
+  }
+
+  // Add DSW (Division of Student Welfare) for Students, Faculty, and Admin
+  if (isStudent || isFaculty || isAdmin) {
     navigationSubItems.push({
       name: '🎓 Division of Student Welfare',
       description: 'Student Clubs & Activities',
@@ -433,7 +542,7 @@ export default function NavigationHeader() {
         { name: '🏠 DSW Dashboard', href: '/dsw', description: 'Division of Student Welfare overview' },
         { name: '🎭 All Clubs', href: '/dsw/clubs', description: 'Browse all student clubs' },
         { name: '⭐ My Clubs', href: '/dsw/my-clubs', description: 'Clubs I am involved in' },
-        ...(isFaculty ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
+        ...((isStudent || isFaculty) ? [{ name: '➕ Create New Club', href: '/dsw/create-club', description: 'Initiate club creation request' }] : []),
         ...(isAdmin ? [
           { name: '📂 Club Categories', href: '/dsw/categories', description: 'Manage club categories' },
           { name: '📊 Club Statistics', href: '/dsw/statistics', description: 'View clubs analytics' },
@@ -442,23 +551,54 @@ export default function NavigationHeader() {
     });
   }
 
-  // Add Navigation menu
-  menuItems.push({
-    name: 'UMS Navigation',
-    subItems: navigationSubItems,
-  });
-
-  // ============================================
-  // ADMINISTRATION - For system admins only
-  // ============================================
-  if (isAdmin) {
+  // UMS Navigation - hidden for staff/guard (they only need Gate Entry)
+  if (!isStaff) {
     menuItems.push({
-      name: 'Administration',
-      subItems: [
-        // Analytics & Reports
+      name: 'UMS Navigation',
+      subItems: navigationSubItems,
+    });
+  }
+
+  // =====================================
+    // ADMINISTRATION - Gate Entry module always inside Administration
+  // Admin & Guard: Full access (Create, All Passes, Verify Pass)
+  // Others (Faculty/Staff/Students): Limited access (Create & All Passes only - shows only their own passes)
+  // =====================================
+    if (showGateEntryModule) {
+    const gateEntryChildren: SubMenuItem[] = [];
+    
+    // Everyone gets Create Pass
+    gateEntryChildren.push(
+      { name: '➕ Create Pass', href: '/admin/gate-entry/create-pass', description: 'Generate visitor pass' }
+    );
+    
+    // Everyone gets All Passes view (backend filters to show only own passes for non-admin/guard)
+    gateEntryChildren.push(
+      { name: '📝 All Passes', href: '/admin/gate-entry', description: 'View all entry passes' }
+    );
+
+    // Admin and Guard get Verify Pass feature
+    if (hasFullGateEntryAccess) {
+      gateEntryChildren.push(
+        { name: '🔍 Verify Pass', href: '/admin/gate-entry/verify', description: 'Guard pass verification' }
+      );
+    }
+
+    // Only Admin gets Analytics Dashboard
+    if (isAdmin) {
+      gateEntryChildren.push(
+        { name: '📊 Analytics', href: '/admin/gate-entry/analytics', description: 'Comprehensive analytics & insights' }
+      );
+    }
+
+    const administrationSubItems: SubMenuItem[] = [];
+
+    // Only Admin gets other Administration features
+    if (isAdmin) {
+      administrationSubItems.push(
         { name: '📊 Analytics Dashboard', href: '/admin/analytics', description: 'System statistics & reports' },
         { name: '📋 Audit Logs', href: '/admin/audit-logs', description: 'Track system activities' },
-        
+
         // Organization Management
         {
           name: '🏛️ Organization Structure',
@@ -470,7 +610,7 @@ export default function NavigationHeader() {
             { name: '🏛️ Central Departments', href: '/admin/central-departments', description: 'Admin & support departments' },
           ],
         },
-        
+
         // User Management
         {
           name: '👥 User Management',
@@ -479,17 +619,30 @@ export default function NavigationHeader() {
             { name: '👨‍🏫 Employees', href: '/admin/employees', description: 'Manage faculty & staff' },
             { name: '👨‍🎓 Students', href: '/admin/students', description: 'Manage student records' },
             { name: '🛡️ User & Role Management', href: '/admin/roles', description: 'Assign permissions & create role templates' },
-            { name: '📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
+            { name: '� Reporting Structure', href: '/admin/reporting-structure', description: 'Manage reporting hierarchy' },
+            { name: '�📤 Bulk Import', href: '/admin/bulk-upload', description: 'Import data in bulk' },
           ],
-        },
-      ],
+        }
+      );
+    }
+
+    // Gate Entry - Always present for everyone (Admin, Guard, Others)
+    administrationSubItems.push({
+      name: '🚪 Gate Entry',
+      description: 'Manage campus gate entries',
+      children: gateEntryChildren,
+    });
+
+    menuItems.push({
+      name: 'Administration',
+      subItems: administrationSubItems,
     });
   }
 
-  // ============================================
-  // MY ACCOUNT - For students only
-  // ============================================
-  if (isStudent) {
+  // =====================================
+    // MY ACCOUNT - For students only
+  // =====================================
+    if (isStudent) {
     menuItems.push({
       name: 'My Account',
       subItems: [
@@ -499,10 +652,10 @@ export default function NavigationHeader() {
     });
   }
 
-  // ============================================
-  // SYSTEM & COMMUNICATION - Chat + Mail grouped
-  // ============================================
-  menuItems.push({
+  // =====================================
+    // SYSTEM & COMMUNICATION - Chat + Mail grouped
+  // =====================================
+    menuItems.push({
     name: 'System & Communication',
     subItems: [
       { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
@@ -511,52 +664,62 @@ export default function NavigationHeader() {
   });
 
   return (
-    <header 
+    <header
       className="fixed top-0 left-0 right-0 z-50"
-      style={{ 
+      style={{
         background: 'linear-gradient(135deg, #005b96 0%, #004a80 50%, #003d6b 100%)',
         boxShadow: '0 4px 20px rgba(0,91,150,0.15)'
       }}
     >
       {/* Single Line Header */}
-      <div className="h-16 px-6 flex items-center justify-between gap-8">
+      <div className="h-14 sm:h-16 px-2 sm:px-6 flex items-center justify-between gap-1 sm:gap-4 min-w-0">
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => { setMobileMenuOpen(!mobileMenuOpen); if (mobileMenuOpen) setExpandedMobileSection(null); }}
+          className="lg:hidden p-2 text-white/90 hover:text-white hover:bg-white/15 rounded-lg transition-colors"
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+
         {/* Logo Section */}
-        <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
-          <img 
-            src="/images/new-header-logo.png" 
-            alt="SGT University" 
-            className="h-12 object-contain brightness-0 invert"
+        <Link href="/dashboard" className="flex items-center gap-2 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0" onClick={() => setMobileMenuOpen(false)}>
+          <img
+            src="/images/new-header-logo.png"
+            alt="SGT University"
+            className="h-8 sm:h-12 object-contain brightness-0 invert"
           />
-          <div className="hidden xl:block">
-            <div className="text-white font-bold text-sm leading-tight">UNIVERSITY</div>
-            <div className="text-white/70 text-xs leading-tight">MANAGEMENT SYSTEM</div>
+          <div className="hidden sm:block">
+            <div className="text-white font-bold text-xs sm:text-sm leading-tight">UNIVERSITY</div>
+            <div className="text-white/70 text-[10px] sm:text-xs leading-tight">MANAGEMENT SYSTEM</div>
           </div>
         </Link>
 
-        {/* Navigation Section - Center */}
-        <nav className="flex items-center gap-2 flex-1 justify-center">
+        {/* Navigation Section - Center (Desktop only) (Hidden on Mobile) */}
+        <nav className="hidden lg:flex items-center gap-2 flex-1 justify-center">
           {/* Dashboard Link */}
           <Link
             href="/dashboard"
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
-              pathname === '/dashboard'
-                ? 'bg-white/20 text-white shadow-lg'
-                : 'text-white/90 hover:bg-white/15 hover:text-white'
-            }`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${pathname ===
+   '/dashboard'
+              ? 'bg-white/20 text-white shadow-lg'
+              : 'text-white/90 hover:bg-white/15 hover:text-white'
+              }`}
           >
             Dashboard
           </Link>
 
           {/* Dynamic Menu Items */}
           {menuItems.map((item) => (
-            <div 
+            <div
               key={item.name}
               className="relative"
               ref={(el) => { dropdownRefs.current[item.name] = el; }}
             >
               <button
                 onClick={() => {
-                  if (activeDropdown === item.name) {
+                  if (activeDropdown ===
+   item.name) {
                     setActiveDropdown(null);
                     setActiveSubmenu(null);
                     setActiveSubmenu2(null);
@@ -571,19 +734,21 @@ export default function NavigationHeader() {
                   setActiveSubmenu(null);
                   setActiveSubmenu2(null);
                 }}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${
-                  activeDropdown === item.name
-                    ? 'bg-white/20 text-white shadow-lg'
-                    : 'text-white/90 hover:bg-white/15 hover:text-white'
-                }`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 flex items-center gap-1.5 ${activeDropdown ===
+   item.name
+                  ? 'bg-white/20 text-white shadow-lg'
+                  : 'text-white/90 hover:bg-white/15 hover:text-white'
+                  }`}
               >
                 {item.name}
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown === item.name ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${activeDropdown ===
+   item.name ? 'rotate-180' : ''}`} />
               </button>
 
               {/* Dropdown - Blue Glassmorphism Effect Full Width */}
-              {activeDropdown === item.name && item.subItems && (
-                <div 
+              {activeDropdown ===
+   item.name && item.subItems && (
+                <div
                   className="fixed left-0 right-0 mt-2 shadow-2xl border-t border-gray-200 z-50 max-h-[80vh] overflow-y-auto"
                   style={{
                     background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.92) 100%)',
@@ -600,13 +765,14 @@ export default function NavigationHeader() {
                   <div className="max-w-7xl mx-auto px-6 py-4 relative">
                     {/* Main Menu */}
                     <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 transition-all duration-300 ${
-                      activeSubmenu ? 'hidden' : 'block'
+                      activeSubmenu ? 'invisible pointer-events-none' : 'visible'
                     }`}>
                       {item.subItems.map((subItem) => (
                         subItem.href ? (
                           <Link
                             key={subItem.href}
                             href={subItem.href}
+                            prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
                             onClick={() => {
                               setActiveDropdown(null);
                               setActiveSubmenu(null);
@@ -622,10 +788,10 @@ export default function NavigationHeader() {
                               )}
                             </div>
                             <div className="ml-3 flex-shrink-0">
-                              <svg 
-                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
+                              <svg
+                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                fill="none"
+                                viewBox="0 0 24 24"
                                 stroke="currentColor"
                               >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -647,10 +813,10 @@ export default function NavigationHeader() {
                               )}
                             </div>
                             <div className="ml-3 flex-shrink-0">
-                              <svg 
-                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                fill="none" 
-                                viewBox="0 0 24 24" 
+                              <svg
+                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                fill="none"
+                                viewBox="0 0 24 24"
                                 stroke="currentColor"
                               >
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -660,10 +826,10 @@ export default function NavigationHeader() {
                         ) : null
                       ))}
                     </div>
-                    
+
                     {/* Nested Submenu Slide - Level 2 */}
                     {activeSubmenu && !activeSubmenu2 && (
-                      <div className="transition-all duration-300">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
                         {/* Back Button */}
                         <div className="mb-3">
                           <button
@@ -676,12 +842,14 @@ export default function NavigationHeader() {
                             Back
                           </button>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                          {item.subItems.find(si => si.name === activeSubmenu)?.children?.map((child) => {
-                            const isComingSoon = child.href === '#' || child.description?.includes('Coming Soon');
+                          {item.subItems.find(si => si.name ===
+   activeSubmenu)?.children?.map((child) => {
+                            const isComingSoon = child.href ===
+   '#' || child.description?.includes('Coming Soon');
                             const hasNestedChildren = child.children && child.children.length > 0;
-                            
+
                             // Coming Soon items
                             if (isComingSoon && !hasNestedChildren) {
                               return (
@@ -703,7 +871,7 @@ export default function NavigationHeader() {
                                 </div>
                               );
                             }
-                            
+
                             // Items with nested children (like Research & IPR, Review & Approval)
                             if (hasNestedChildren) {
                               return (
@@ -721,10 +889,10 @@ export default function NavigationHeader() {
                                     )}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg 
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                      fill="none" 
-                                      viewBox="0 0 24 24" 
+                                    <svg
+                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
                                       stroke="currentColor"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -733,12 +901,13 @@ export default function NavigationHeader() {
                                 </button>
                               );
                             }
-                            
+
                             // Regular link items
                             return (
                               <Link
                                 key={child.href || child.name}
                                 href={child.href!}
+                                prefetch={getLinkPrefetch(child.href, child.prefetch)}
                                 onClick={() => {
                                   setActiveSubmenu(null);
                                   setActiveDropdown(null);
@@ -754,10 +923,10 @@ export default function NavigationHeader() {
                                   )}
                                 </div>
                                 <div className="ml-3 flex-shrink-0">
-                                  <svg 
-                                    className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                    fill="none" 
-                                    viewBox="0 0 24 24" 
+                                  <svg
+                                    className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
                                     stroke="currentColor"
                                   >
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -772,7 +941,7 @@ export default function NavigationHeader() {
 
                     {/* Nested Submenu Slide - Level 3 (Third level) */}
                     {activeSubmenu && activeSubmenu2 && !activeSubmenu3 && (
-                      <div className="transition-all duration-300">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
                         {/* Back Button */}
                         <div className="mb-3">
                           <button
@@ -785,20 +954,23 @@ export default function NavigationHeader() {
                             Back to {activeSubmenu}
                           </button>
                         </div>
-                        
+
                         {/* Submenu title */}
                         <div className="mb-3 pb-2 border-b border-gray-200">
                           <h3 className="text-lg font-bold text-[#005b96]">{activeSubmenu2}</h3>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {item.subItems
-                            .find(si => si.name === activeSubmenu)?.children
-                            ?.find(c => c.name === activeSubmenu2)?.children
+                            .find(si => si.name ===
+   activeSubmenu)?.children
+                            ?.find(c => c.name ===
+   activeSubmenu2)?.children
                             ?.map((grandChild) => {
-                              const isComingSoon = grandChild.href === '#' || grandChild.description?.includes('Coming Soon');
+                              const isComingSoon = grandChild.href ===
+   '#' || grandChild.description?.includes('Coming Soon');
                               const hasNestedChildren = grandChild.children && grandChild.children.length > 0;
-                              
+
                               if (isComingSoon && !hasNestedChildren) {
                                 return (
                                   <div
@@ -819,7 +991,7 @@ export default function NavigationHeader() {
                                   </div>
                                 );
                               }
-                              
+
                               // Items with nested children - go to Level 4
                               if (hasNestedChildren) {
                                 return (
@@ -837,10 +1009,10 @@ export default function NavigationHeader() {
                                       )}
                                     </div>
                                     <div className="ml-3 flex-shrink-0">
-                                      <svg 
-                                        className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                        fill="none" 
-                                        viewBox="0 0 24 24" 
+                                      <svg
+                                        className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
                                         stroke="currentColor"
                                       >
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -849,14 +1021,15 @@ export default function NavigationHeader() {
                                   </button>
                                 );
                               }
-                              
+
                               // Regular link items
                               if (!grandChild.href) return null;
-                              
+
                               return (
                                 <Link
                                   key={grandChild.href || grandChild.name}
                                   href={grandChild.href}
+                                  prefetch={getLinkPrefetch(grandChild.href, grandChild.prefetch)}
                                   onClick={() => {
                                     setActiveSubmenu2(null);
                                     setActiveSubmenu(null);
@@ -873,10 +1046,10 @@ export default function NavigationHeader() {
                                     )}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg 
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                      fill="none" 
-                                      viewBox="0 0 24 24" 
+                                    <svg
+                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
                                       stroke="currentColor"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -888,10 +1061,10 @@ export default function NavigationHeader() {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Nested Submenu Slide - Level 4 (Fourth level) */}
                     {activeSubmenu && activeSubmenu2 && activeSubmenu3 && (
-                      <div className="transition-all duration-300">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
                         {/* Back Button */}
                         <div className="mb-3">
                           <button
@@ -904,20 +1077,24 @@ export default function NavigationHeader() {
                             Back to {activeSubmenu2}
                           </button>
                         </div>
-                        
+
                         {/* Submenu title */}
                         <div className="mb-3 pb-2 border-b border-gray-200">
                           <h3 className="text-lg font-bold text-[#005b96]">{activeSubmenu3}</h3>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                           {item.subItems
-                            .find(si => si.name === activeSubmenu)?.children
-                            ?.find(c => c.name === activeSubmenu2)?.children
-                            ?.find(gc => gc.name === activeSubmenu3)?.children
+                            .find(si => si.name ===
+   activeSubmenu)?.children
+                            ?.find(c => c.name ===
+   activeSubmenu2)?.children
+                            ?.find(gc => gc.name ===
+   activeSubmenu3)?.children
                             ?.map((greatGrandChild) => {
-                              const isComingSoon = greatGrandChild.href === '#' || greatGrandChild.description?.includes('Coming Soon');
-                              
+                              const isComingSoon = greatGrandChild.href ===
+   '#' || greatGrandChild.description?.includes('Coming Soon');
+
                               if (isComingSoon) {
                                 return (
                                   <div
@@ -938,13 +1115,14 @@ export default function NavigationHeader() {
                                   </div>
                                 );
                               }
-                              
+
                               if (!greatGrandChild.href) return null;
-                              
+
                               return (
                                 <Link
                                   key={greatGrandChild.href || greatGrandChild.name}
                                   href={greatGrandChild.href}
+                                  prefetch={getLinkPrefetch(greatGrandChild.href, greatGrandChild.prefetch)}
                                   onClick={() => {
                                     setActiveSubmenu3(null);
                                     setActiveSubmenu2(null);
@@ -962,10 +1140,10 @@ export default function NavigationHeader() {
                                     )}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg 
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all" 
-                                      fill="none" 
-                                      viewBox="0 0 24 24" 
+                                    <svg
+                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
                                       stroke="currentColor"
                                     >
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
@@ -985,18 +1163,18 @@ export default function NavigationHeader() {
         </nav>
 
         {/* Right Section - Actions */}
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0 min-w-0">
           {/* Search */}
           <div className="relative" ref={searchRef}>
-            <button 
+            <button
               onClick={() => setShowSearch(!showSearch)}
-              className="p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+              className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
             >
-              <Search className="w-5 h-5" />
+              <Search className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
             {showSearch && (
-              <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+              <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
                 <div className="p-3 border-b border-gray-200 dark:border-gray-700">
                   <div className="relative">
                     <input
@@ -1011,7 +1189,8 @@ export default function NavigationHeader() {
                   </div>
                 </div>
                 <div className="max-h-96 overflow-y-auto">
-                  {searchQuery && searchResults.length === 0 && (
+                  {searchQuery && searchResults.length ===
+   0 && (
                     <div className="p-6 text-center text-gray-500 text-sm">
                       No results found for &quot;{searchQuery}&quot;
                     </div>
@@ -1045,6 +1224,7 @@ export default function NavigationHeader() {
                       <Link
                         key={index}
                         href={result.href}
+                        prefetch={getLinkPrefetch(result.href, result.prefetch)}
                         onClick={() => {
                           setShowSearch(false);
                           setSearchQuery('');
@@ -1072,10 +1252,11 @@ export default function NavigationHeader() {
             )}
           </div>
 
-          {/* Quick Links Dropdown */}
-          <div className="relative">
+          {/* Quick Links Dropdown - hidden on mobile to prevent header overflow */}
+          <div className="relative hidden sm:block">
             <button
-              onClick={() => setActiveDropdown(activeDropdown === 'quicklinks' ? null : 'quicklinks')}
+              onClick={() => setActiveDropdown(activeDropdown ===
+   'quicklinks' ? null : 'quicklinks')}
               onMouseEnter={() => setActiveDropdown('quicklinks')}
               className="flex items-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 group"
             >
@@ -1083,11 +1264,13 @@ export default function NavigationHeader() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
               </svg>
               <span className="text-sm font-medium hidden lg:block">Quick Links</span>
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeDropdown === 'quicklinks' ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${activeDropdown ===
+   'quicklinks' ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Quick Links Dropdown Menu */}
-            {activeDropdown === 'quicklinks' && (
+            {activeDropdown ===
+   'quicklinks' && (
               <div
                 className="absolute top-full right-0 mt-2 w-64 shadow-2xl border-t border-gray-200 z-50 rounded-lg overflow-hidden"
                 style={{
@@ -1150,24 +1333,26 @@ export default function NavigationHeader() {
           </div>
 
           {/* Dark Mode Toggle */}
-          <button 
+          <button
             onClick={toggleTheme}
-            className="p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+            title={theme ===
+   'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {theme === 'dark' ? (
-              <Sun className="w-5 h-5" />
+            {theme ===
+   'dark' ? (
+              <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
             ) : (
-              <Moon className="w-5 h-5" />
+              <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </button>
 
           {/* Notifications */}
-          <button 
+          <button
             onClick={() => router.push('/notifications')}
-            className="relative p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
+            className="relative p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
             {unreadCount > 0 && (
               <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white px-1 shadow-lg">
                 {unreadCount > 99 ? '99+' : unreadCount}
@@ -1176,16 +1361,16 @@ export default function NavigationHeader() {
           </button>
 
           {/* User Menu */}
-          <div className="relative" ref={userMenuRef}>
+          <div className="relative flex-shrink-0" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 p-1.5 pr-3 hover:bg-white/15 rounded-lg transition-all duration-200"
+              className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3 hover:bg-white/15 rounded-lg transition-all duration-200"
             >
-              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-sm font-semibold shadow-lg border-2 border-white/30">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xs sm:text-sm font-semibold shadow-lg border-2 border-white/30">
                 {getUserInitials()}
               </div>
               <span className="text-white text-sm font-medium hidden lg:block">{getUserDisplayName()}</span>
-              <ChevronDown className={`w-4 h-4 text-white/80 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/80 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>
 
             {showUserMenu && (
@@ -1212,6 +1397,150 @@ export default function NavigationHeader() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/50 z-40 top-14"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Mobile Menu Drawer */}
+      <div 
+        className={`lg:hidden fixed left-0 top-14 bottom-0 w-[280px] z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
+          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+        style={{ 
+          background: 'linear-gradient(180deg, #005b96 0%, #003d6b 100%)',
+        }}
+      >
+        {/* Dashboard Link */}
+        <Link
+          href="/dashboard"
+          onClick={() => setMobileMenuOpen(false)}
+          className={`flex items-center gap-3 px-4 py-3 mx-2 mt-2 rounded-lg transition-all ${
+            pathname ===
+   '/dashboard'
+              ? 'bg-white/20 text-white'
+              : 'text-white/90 hover:bg-white/10'
+          }`}
+        >
+          <span className="font-medium">Dashboard</span>
+        </Link>
+
+        {/* Mobile Menu Items */}
+        {menuItems.map((item) => (
+          <div key={item.name} className="border-t border-white/10">
+            <button
+              onClick={() => setMobileExpandedMenu(mobileExpandedMenu ===
+   item.name ? null : item.name)}
+              className="w-full flex items-center justify-between px-4 py-3 text-white/90 hover:bg-white/10 transition-all"
+            >
+              <span className="font-medium text-sm">{item.name}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${mobileExpandedMenu ===
+   item.name ? 'rotate-180' : ''}`} />
+            </button>
+
+            {mobileExpandedMenu ===
+   item.name && item.subItems && (
+              <div className="bg-black/10 pb-2">
+                {item.subItems.map((subItem) => (
+                  <div key={subItem.name}>
+                    {subItem.href ? (
+                      <Link
+                        href={subItem.href}
+                        prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-2 px-6 py-2.5 text-white/80 hover:text-white hover:bg-white/10 text-sm transition-all"
+                      >
+                        {subItem.name}
+                      </Link>
+                    ) : subItem.children ? (
+                      <>
+                        <button
+                          onClick={() => setMobileExpandedSubmenu(mobileExpandedSubmenu ===
+   subItem.name ? null : subItem.name)}
+                          className="w-full flex items-center justify-between px-6 py-2.5 text-white/80 hover:text-white hover:bg-white/10 text-sm transition-all"
+                        >
+                          <span>{subItem.name}</span>
+                          <ChevronRight className={`w-4 h-4 transition-transform ${mobileExpandedSubmenu ===
+   subItem.name ? 'rotate-90' : ''}`} />
+                        </button>
+                        {mobileExpandedSubmenu ===
+   subItem.name && (
+                          <div className="bg-black/10">
+                            {subItem.children.map((child) => (
+                              child.href ? (
+                                <Link
+                                  key={child.name}
+                                  href={child.href}
+                                  prefetch={getLinkPrefetch(child.href, child.prefetch)}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className="flex items-center gap-2 px-8 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
+                                >
+                                  {child.name}
+                                </Link>
+                              ) : child.children ? (
+                                <div key={child.name}>
+                                  <div className="px-8 py-2 text-white/60 text-xs font-medium">{child.name}</div>
+                                  {child.children.map((grandChild) => (
+                                    grandChild.href && (
+                                      <Link
+                                        key={grandChild.name}
+                                        href={grandChild.href}
+                                        prefetch={getLinkPrefetch(grandChild.href, grandChild.prefetch)}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="flex items-center gap-2 px-10 py-2 text-white/70 hover:text-white hover:bg-white/10 text-xs transition-all"
+                                      >
+                                        {grandChild.name}
+                                      </Link>
+                                    )
+                                  ))}
+                                </div>
+                              ) : null
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {/* Mobile Quick Actions */}
+        <div className="border-t border-white/10 mt-4 pt-4 px-4 space-y-2">
+          <Link
+            href="/notifications"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+          >
+            <Bell className="w-4 h-4" />
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">{unreadCount}</span>
+            )}
+          </Link>
+          <Link
+            href="/settings"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-3 px-3 py-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg text-sm transition-all"
+          >
+            <User className="w-4 h-4" />
+            <span>Profile Settings</span>
+          </Link>
+          <button
+            onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-red-300 hover:text-red-200 hover:bg-red-500/20 rounded-lg text-sm transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
         </div>
       </div>
     </header>

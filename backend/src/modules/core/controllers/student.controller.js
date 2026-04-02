@@ -1,6 +1,7 @@
 const prisma = require('../../../shared/config/database');
 const bcrypt = require('bcryptjs');
 const auditLogger = require('../../../shared/utils/auditLogger');
+const { validateCreateStudent, validateUpdateStudent } = require('../../../shared/validations/student.validation');
 
 /**
  * Validates that mentorId is a faculty member in the same department as the student.
@@ -33,9 +34,19 @@ async function validateMentorForDepartment(mentorId, studentDepartmentId) {
 // Create new student
 const createStudent = async (req, res) => {
   try {
+    // Validate input using Zod schema
+    const validation = validateCreateStudent(req.body);
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validation.errors,
+      });
+    }
+
     const {
-      studentId,
-      registrationNo,
+      studentId: rawStudentId,
+      registrationNo: rawRegistrationNo,
       firstName,
       middleName,
       lastName,
@@ -53,13 +64,17 @@ const createStudent = async (req, res) => {
       parentContact,
       emergencyContact,
       address,
-    } = req.body;
+    } = validation.data;
 
-    // Validate required fields (sectionId and mentorId are optional)
-    if (!studentId || !firstName || !email || !programId || !registrationNo) {
+    // Ensure studentId and registrationNo are always the same
+    const studentId = rawStudentId || rawRegistrationNo;
+    const registrationNo = rawRegistrationNo || rawStudentId;
+
+    // Validate that at least one of studentId or registrationNo is provided
+    if (!studentId) {
       return res.status(400).json({
         success: false,
-        message: 'Required fields: studentId, firstName, email, programId, registrationNo',
+        message: 'Student ID or Registration Number is required',
       });
     }
 
@@ -151,7 +166,7 @@ const createStudent = async (req, res) => {
       // Create StudentDetails (mentorId and section are now optional)
       const student = await tx.studentDetails.create({
         data: {
-          userLoginId: user.id,
+          userLogin: { connect: { id: user.id } },
           studentId,
           registrationNo,
           firstName,
@@ -160,8 +175,8 @@ const createStudent = async (req, res) => {
           displayName,
           email,
           phone: phone || null,
-          programId,
-          mentorId: mentorId || null,
+          ...(programId && { program: { connect: { id: programId } } }),
+          ...(mentorId && { mentor: { connect: { id: mentorId } } }),
           ...(sectionId && { section: { connect: { id: sectionId } } }),
           currentSemester: currentSemester ? parseInt(currentSemester) : 1,
           admissionDate: admissionDate ? new Date(admissionDate) : null,
@@ -425,6 +440,7 @@ const updateStudent = async (req, res) => {
       sectionId,
       mentorId,
       currentSemester,
+      admissionDate,
       dateOfBirth,
       gender,
       bloodGroup,
@@ -447,7 +463,7 @@ const updateStudent = async (req, res) => {
 
     // If mentorId is being set/updated, validate mentor is faculty in same department
     const effectiveProgramId = programId || existingStudent.programId;
-    if (mentorId !== undefined) {
+    if (mentorId) {
       if (!effectiveProgramId) {
         return res.status(400).json({
           success: false,
@@ -490,18 +506,17 @@ const updateStudent = async (req, res) => {
       displayName,
       phone: phone !== undefined ? phone : existingStudent.phone,
       programId: programId || existingStudent.programId,
-      sectionId: sectionId || existingStudent.sectionId,
+      sectionId: sectionId !== undefined ? (sectionId || null) : existingStudent.sectionId,
       currentSemester: currentSemester ? parseInt(currentSemester) : existingStudent.currentSemester,
+      admissionDate: admissionDate ? new Date(admissionDate) : existingStudent.admissionDate,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : existingStudent.dateOfBirth,
       gender: gender !== undefined ? gender : existingStudent.gender,
       bloodGroup: bloodGroup !== undefined ? bloodGroup : existingStudent.bloodGroup,
       parentContact: parentContact !== undefined ? parentContact : existingStudent.parentContact,
       emergencyContact: emergencyContact !== undefined ? emergencyContact : existingStudent.emergencyContact,
       address: address !== undefined ? address : existingStudent.address,
+      mentorId: mentorId !== undefined ? (mentorId || null) : existingStudent.mentorId,
     };
-    if (mentorId !== undefined) {
-      updateData.mentorId = mentorId || null;
-    }
 
     const updatedStudent = await prisma.studentDetails.update({
       where: { id },
@@ -571,7 +586,7 @@ const toggleStudentStatus = async (req, res) => {
       if (student.userLoginId) {
         await tx.userLogin.update({
           where: { id: student.userLoginId },
-          data: { isActive: !student.isActive },
+          data: { status: student.isActive ? 'inactive' : 'active' },
         });
       }
     });

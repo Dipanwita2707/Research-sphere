@@ -71,7 +71,8 @@ export default function MentorCollaborativeReviewModal({
       const result = await collaborativeEditingService.getMentorEditSuggestions(application.id);
       const suggestions = result.data?.data?.suggestions || result.data?.suggestions || [];
       setEditSuggestions(suggestions);
-      setPendingSuggestionsCount(suggestions.filter((s: EditSuggestion) => s.status === 'pending').length);
+      setPendingSuggestionsCount(suggestions.filter((s: EditSuggestion) => s.status ===
+   'pending').length);
     } catch (error: unknown) {
       logger.error('Failed to load mentor edit suggestions:', error);
     }
@@ -84,12 +85,15 @@ export default function MentorCollaborativeReviewModal({
   const handleMentorReview = async () => {
     setSubmitting(true);
     try {
-      if (reviewData.decision === 'approved') {
+      if (reviewData.decision ===
+   'approved') {
         // Approve and send to DRD
         await iprService.approveMentorApplication(application.id, reviewData.comments);
         toast({ type: 'success', message: 'Application approved successfully! It will now be submitted to DRD for review.' });
-      } else if (reviewData.decision === 'changes_required') {
-        if (pendingSuggestionsCount === 0 && !reviewData.comments.trim()) {
+      } else if (reviewData.decision ===
+   'changes_required') {
+        if (pendingSuggestionsCount ===
+   0 && !reviewData.comments.trim()) {
           toast({ type: 'warning', message: 'Please create edit suggestions or provide comments when requesting changes' });
           setSubmitting(false);
           return;
@@ -187,7 +191,8 @@ export default function MentorCollaborativeReviewModal({
               <button
                 onClick={() => setReviewMode('collaborative')}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  reviewMode === 'collaborative'
+                  reviewMode ===
+   'collaborative'
                     ? 'bg-purple-600 text-white'
                     : 'text-gray-600 hover:text-purple-600'
                 }`}
@@ -198,7 +203,8 @@ export default function MentorCollaborativeReviewModal({
               <button
                 onClick={() => setReviewMode('traditional')}
                 className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  reviewMode === 'traditional'
+                  reviewMode ===
+   'traditional'
                     ? 'bg-purple-600 text-white'
                     : 'text-gray-600 hover:text-purple-600'
                 }`}
@@ -214,7 +220,8 @@ export default function MentorCollaborativeReviewModal({
         <div className="flex-1 overflow-hidden">
           <div className="h-full overflow-y-auto p-6 space-y-6" style={{ maxHeight: 'calc(90vh - 280px)' }}>
             
-            {reviewMode === 'collaborative' ? (
+            {reviewMode ===
+   'collaborative' ? (
               // Collaborative Editing Mode
               <div className="space-y-6">
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -328,13 +335,15 @@ export default function MentorCollaborativeReviewModal({
                       </div>
                       <div className="bg-white rounded-lg p-3 border">
                         <div className="text-2xl font-bold text-green-600">
-                          {editSuggestions.filter(s => s.status === 'accepted').length}
+                          {editSuggestions.filter(s => s.status ===
+   'accepted').length}
                         </div>
                         <div className="text-sm text-gray-600">Accepted</div>
                       </div>
                       <div className="bg-white rounded-lg p-3 border">
                         <div className="text-2xl font-bold text-red-600">
-                          {editSuggestions.filter(s => s.status === 'rejected').length}
+                          {editSuggestions.filter(s => s.status ===
+   'rejected').length}
                         </div>
                         <div className="text-sm text-gray-600">Rejected</div>
                       </div>
@@ -388,7 +397,9 @@ export default function MentorCollaborativeReviewModal({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Review Comments
-                    {reviewData.decision === 'changes_required' && pendingSuggestionsCount === 0 && 
+                    {reviewData.decision ===
+   'changes_required' && pendingSuggestionsCount ===
+   0 && 
                       <span className="text-red-500"> *</span>
                     }
                   </label>
@@ -398,14 +409,17 @@ export default function MentorCollaborativeReviewModal({
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     placeholder={
-                      reviewMode === 'collaborative' 
+                      reviewMode ===
+   'collaborative' 
                         ? "Optional: Add additional comments about your review or suggestions..."
                         : "Provide detailed comments about your review decision..."
                     }
                   />
                 </div>
 
-                {reviewMode === 'collaborative' && pendingSuggestionsCount > 0 && reviewData.decision === 'changes_required' && (
+                {reviewMode ===
+   'collaborative' && pendingSuggestionsCount > 0 && reviewData.decision ===
+   'changes_required' && (
                   <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
                     <p className="text-orange-800 text-sm">
                       <strong>Note:</strong> You have {pendingSuggestionsCount} pending suggestions. 
@@ -414,7 +428,8 @@ export default function MentorCollaborativeReviewModal({
                   </div>
                 )}
 
-                {reviewData.decision === 'approved' && (
+                {reviewData.decision ===
+   'approved' && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                     <p className="text-green-800 text-sm">
                       <strong>Note:</strong> Once approved, this application will be forwarded to DRD for further review.
@@ -439,7 +454,8 @@ export default function MentorCollaborativeReviewModal({
             onClick={handleMentorReview}
             disabled={submitting}
             className={`flex-2 px-8 py-3 text-white rounded-lg font-medium disabled:opacity-50 flex items-center justify-center gap-2 ${
-              reviewData.decision === 'approved' 
+              reviewData.decision ===
+   'approved' 
                 ? 'bg-green-600 hover:bg-green-700' 
                 : 'bg-orange-600 hover:bg-orange-700'
             }`}
@@ -449,7 +465,8 @@ export default function MentorCollaborativeReviewModal({
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 Submitting...
               </>
-            ) : reviewData.decision === 'approved' ? (
+            ) : reviewData.decision ===
+   'approved' ? (
               <>
                 <CheckCircle className="w-5 h-5" />
                 Approve & Submit to DRD

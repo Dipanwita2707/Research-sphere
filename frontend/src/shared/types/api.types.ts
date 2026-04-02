@@ -29,20 +29,20 @@ export interface ApiErrorResponse {
   success: false;
   message: string;
   error?: string;
-  errors?: Record<string, string[]>;
+  errors?: Record<string, string | string[]>;
   statusCode?: number;
 }
 
 // Standardized API Error class
 export class ApiError extends Error {
   public statusCode: number;
-  public errors?: Record<string, string[]>;
+  public errors?: Record<string, string | string[]>;
   public originalError?: unknown;
 
   constructor(
     message: string,
     statusCode: number = 500,
-    errors?: Record<string, string[]>,
+    errors?: Record<string, string | string[]>,
     originalError?: unknown
   ) {
     super(message);
@@ -102,11 +102,10 @@ export type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
-// ============================================================================
-// Error Handling Utilities
-// ============================================================================
-
-/**
+// =====================================================================
+  // Error Handling Utilities
+// ==============================================================
+  /**
  * Type for error objects from catch blocks (safer than any)
  */
 export interface UnknownError {
@@ -115,9 +114,45 @@ export interface UnknownError {
     data?: {
       message?: string;
       error?: string;
+      errors?: Record<string, string | string[]>;
     };
     status?: number;
   };
+}
+
+/**
+ * Normalize backend validation errors into a flat map for form rendering.
+ */
+export function extractFieldErrors(error: unknown): Record<string, string> | undefined {
+  if (typeof error !== 'object' || error ===
+   null) {
+    return undefined;
+  }
+
+  const err = error as UnknownError;
+  const rawErrors = err.response?.data?.errors;
+  if (!rawErrors || typeof rawErrors !== 'object') {
+    return undefined;
+  }
+
+  const normalized: Record<string, string> = {};
+  for (const [field, value] of Object.entries(rawErrors)) {
+    if (typeof value ===
+   'string' && value.trim()) {
+      normalized[field] = value;
+      continue;
+    }
+
+    if (Array.isArray(value)) {
+      const first = value.find((item) => typeof item ===
+   'string' && item.trim());
+      if (first) {
+        normalized[field] = first;
+      }
+    }
+  }
+
+  return Object.keys(normalized).length ? normalized : undefined;
 }
 
 /**
@@ -125,7 +160,8 @@ export interface UnknownError {
  */
 export function isAxiosLikeError(error: unknown): error is UnknownError & { isAxiosError: true } {
   return (
-    typeof error === 'object' &&
+    typeof error ===
+   'object' &&
     error !== null &&
     'isAxiosError' in error
   );
@@ -137,23 +173,38 @@ export function isAxiosLikeError(error: unknown): error is UnknownError & { isAx
  * @param fallback - Optional fallback message if no message can be extracted
  */
 export function extractErrorMessage(error: unknown, fallback?: string): string {
-  if (typeof error === 'string') {
+  if (typeof error ===
+   'string') {
     return error;
   }
   
-  if (error instanceof Error) {
-    return error.message;
-  }
-  
-  if (typeof error === 'object' && error !== null) {
+  // Check for axios-style error response FIRST (before generic Error check)
+  // so we get the server's actual message instead of "Request failed with status code 400"
+  if (typeof error ===
+   'object' && error !== null) {
     const err = error as UnknownError;
-    // Check for axios-style error response
+    const fieldErrors = extractFieldErrors(error);
+    if (fieldErrors) {
+      const firstFieldError = Object.values(fieldErrors)[0];
+      if (firstFieldError) {
+        return firstFieldError;
+      }
+    }
     if (err.response?.data?.message) {
       return err.response.data.message;
     }
     if (err.response?.data?.error) {
       return err.response.data.error;
     }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  if (typeof error ===
+   'object' && error !== null) {
+    const err = error as UnknownError;
     if (err.message) {
       return err.message;
     }

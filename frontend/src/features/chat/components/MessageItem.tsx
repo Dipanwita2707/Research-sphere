@@ -39,7 +39,8 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
   // Get current user ID from auth store
   const currentUserId = authUser?.id ?? null;
 
-  const isOwnMessage = message.senderId === currentUserId;
+  const isOwnMessage = message.senderId ===
+   currentUserId;
   const sender = message.sender;
 
   // Determine message status for own messages
@@ -94,7 +95,8 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
     if (!isOwnMessage) return null;
 
     // Sending: Clock icon
-    if (messageStatus === 'sending') {
+    if (messageStatus ===
+   'sending') {
       return (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10" strokeWidth="2" />
@@ -104,7 +106,8 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
     }
 
     // Sent: Single tick
-    if (messageStatus === 'sent') {
+    if (messageStatus ===
+   'sent') {
       return (
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
           <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
@@ -114,7 +117,8 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
 
     // Delivered/Read: Double ticks
     // Blue for group read, green for DM read
-    const isRead = isReadByAll || messageStatus === 'read';
+    const isRead = isReadByAll || messageStatus ===
+   'read';
     const tickColor = isRead 
       ? (isGroupChat ? 'text-blue-400' : 'text-green-500')
       : 'text-gray-400 dark:text-gray-500';
@@ -208,7 +212,8 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
       if (existing.includes(currentUserId)) {
         // Remove reaction
         const updated = existing.filter((id) => id !== currentUserId);
-        if (updated.length === 0) {
+        if (updated.length ===
+   0) {
           const { [emoji]: _, ...rest } = prev;
           return rest;
         }
@@ -326,10 +331,10 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
             <img
               src={getAvatarUrl()!}
               alt={getSenderName()}
-              className="w-10 h-10 rounded-full object-cover cursor-pointer shadow-sm"
+              className="w-10 h-10 rounded-full object-cover cursor-pointer shadow-sm border-2 border-white/40"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-medium cursor-pointer shadow-sm" style={{background:'linear-gradient(135deg,#005b96 0%,#6497b1 100%)'}}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-medium cursor-pointer shadow-sm border-2 border-white/40 bg-[#005b96]/80 backdrop-blur-md">
               {getInitials()}
             </div>
           )}
@@ -346,10 +351,10 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
             <img
               src={getAvatarUrl()!}
               alt={getSenderName()}
-              className="w-10 h-10 rounded-full object-cover cursor-pointer shadow-sm"
+              className="w-10 h-10 rounded-full object-cover cursor-pointer shadow-sm border-2 border-white/40"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white text-xs font-medium cursor-pointer shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-white/60 dark:bg-gray-800/60 backdrop-blur-md border-2 border-white/40 flex items-center justify-center text-gray-800 dark:text-white text-xs font-medium cursor-pointer shadow-sm">
               {getInitials()}
             </div>
           )}
@@ -360,55 +365,60 @@ export function MessageItem({ message, isGroupChat, showAvatar, group }: Message
 
       {/* Message Bubble */}
       <div
-        className={`max-w-[70%] relative ${
-          isOwnMessage
-            ? 'text-white rounded-2xl rounded-tr-sm'
-            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-2xl rounded-tl-sm shadow-sm border border-gray-100 dark:border-gray-700'
-        } px-4 py-2.5 shadow-md`}
-        style={isOwnMessage ? {background:'linear-gradient(135deg,#005b96 0%,#6497b1 100%)'} : undefined}
+        className={`max-w-[70%] relative p-1.5 bg-white/70 dark:bg-gray-800/70 backdrop-blur-2xl border-2 border-white/80 dark:border-gray-700/80 shadow-[10px_10px_20px_rgba(0,0,0,0.05),-10px_-10px_20px_rgba(255,255,255,0.8)] dark:shadow-[10px_10px_20px_rgba(0,0,0,0.4),-5px_-5px_15px_rgba(255,255,255,0.05)] ${
+          isOwnMessage ? 'rounded-[2rem] rounded-tr-md' : 'rounded-[2rem] rounded-tl-md'
+        }`}
       >
-        {/* Sender Name (Group chat, not own message) */}
-        {!isOwnMessage && showAvatar && isGroupChat && (
-          <p className="text-xs font-semibold text-[#005b96] dark:text-[#6497b1] mb-1">
-            {getSenderName()}
-          </p>
-        )}
+        <div
+          className={`${
+            isOwnMessage
+              ? 'bg-gradient-to-br from-[#6497b1] to-[#005b96] text-white shadow-[inset_2px_2px_5px_rgba(255,255,255,0.4),inset_-2px_-2px_5px_rgba(0,0,0,0.2)] rounded-[1.5rem] rounded-tr-sm'
+              : 'bg-white/50 dark:bg-gray-900/50 text-gray-900 dark:text-gray-100 shadow-[inset_2px_2px_5px_rgba(255,255,255,0.8),inset_-2px_-2px_5px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_5px_rgba(255,255,255,0.1),inset_-2px_-2px_5px_rgba(0,0,0,0.2)] rounded-[1.5rem] rounded-tl-sm'
+          } px-4 py-2.5`}
+        >
+          {/* Sender Name (Group chat, not own message) */}
+          {!isOwnMessage && showAvatar && isGroupChat && (
+            <p className="text-xs font-semibold text-[#005b96] dark:text-[#6497b1] mb-1">
+              {getSenderName()}
+            </p>
+          )}
 
-        {/* Message Content */}
-        {renderContent()}
+          {/* Message Content */}
+          {renderContent()}
 
-        {/* Timestamp & Status */}
-        <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
-          isOwnMessage ? 'text-white/70' : 'text-gray-400 dark:text-gray-500'
-        }`}>
-          <span>{format(new Date(message.createdAt), 'h:mm a')}</span>
-          {message.isEdited && <span>(edited)</span>}
-          
-          {/* Status ticks */}
-          <span className="ml-0.5 flex items-center">
-            {renderStatusTicks()}
-          </span>
-        </div>
-
-        {/* Emoji Reactions Display */}
-        {Object.keys(localReactions).length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1 -mb-1">
-            {Object.entries(localReactions).map(([emoji, users]) => (
-              <button
-                key={emoji}
-                onClick={() => handleReaction(emoji)}
-                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
-                  users.includes(currentUserId || '')
-                    ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-600'
-                    : 'bg-gray-100 dark:bg-gray-600 border-gray-200 dark:border-gray-500'
-                }`}
-              >
-                <span>{emoji}</span>
-                {users.length > 1 && <span className="text-[10px] text-gray-600 dark:text-gray-300">{users.length}</span>}
-              </button>
-            ))}
+          {/* Timestamp & Status */}
+          <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
+            isOwnMessage ? 'text-white/70' : 'text-gray-400 dark:text-gray-500'
+          }`}>
+            <span>{format(new Date(message.createdAt), 'h:mm a')}</span>
+            {message.isEdited && <span>(edited)</span>}
+            
+            {/* Status ticks */}
+            <span className="ml-0.5 flex items-center">
+              {renderStatusTicks()}
+            </span>
           </div>
-        )}
+
+          {/* Emoji Reactions Display */}
+          {Object.keys(localReactions).length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1 -mb-1">
+              {Object.entries(localReactions).map(([emoji, users]) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleReaction(emoji)}
+                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+                    users.includes(currentUserId || '')
+                      ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-600'
+                      : 'bg-gray-100 dark:bg-gray-600 border-gray-200 dark:border-gray-500'
+                  }`}
+                >
+                  <span>{emoji}</span>
+                  {users.length > 1 && <span className="text-[10px] text-gray-600 dark:text-gray-300">{users.length}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Quick Action Menu - WhatsApp style with emoji reactions */}

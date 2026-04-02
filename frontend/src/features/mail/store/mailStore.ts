@@ -320,7 +320,8 @@ export const useMailStore = create<MailState>()(
             // Update local state
             set((state) => ({
               inboxThreads: state.inboxThreads.map((t) =>
-                t.id === threadId ? { ...t, unreadCount: 0 } : t
+                t.id ===
+   threadId ? { ...t, unreadCount: 0 } : t
               ),
             }));
             get().fetchCounts();
@@ -332,7 +333,8 @@ export const useMailStore = create<MailState>()(
             await mailService.markUnread(threadId);
             set((state) => ({
               inboxThreads: state.inboxThreads.map((t) =>
-                t.id === threadId ? { ...t, unreadCount: 1 } : t
+                t.id ===
+   threadId ? { ...t, unreadCount: 1 } : t
               ),
             }));
             get().fetchCounts();
@@ -342,16 +344,19 @@ export const useMailStore = create<MailState>()(
         toggleStar: async (threadId: string) => {
           try {
             const res = await mailService.toggleStar(threadId);
-            const newStarred = res?.data?.isStarred ?? !get().inboxThreads.find((t) => t.id === threadId)?.isStarred;
+            const newStarred = res?.data?.isStarred ?? !get().inboxThreads.find((t) => t.id ===
+   threadId)?.isStarred;
             const updateStar = (threads: MailThread[]) =>
-              threads.map((t) => (t.id === threadId ? { ...t, isStarred: newStarred } : t));
+              threads.map((t) => (t.id ===
+   threadId ? { ...t, isStarred: newStarred } : t));
             set((state) => ({
               inboxThreads: updateStar(state.inboxThreads),
               sentThreads: updateStar(state.sentThreads),
               starredThreads: updateStar(state.starredThreads),
               trashThreads: updateStar(state.trashThreads),
               // Also update conversation if it's the same thread
-              conversation: state.conversation?.id === threadId
+              conversation: state.conversation?.id ===
+   threadId
                 ? { ...state.conversation, isStarred: newStarred }
                 : state.conversation,
             }));
@@ -366,8 +371,10 @@ export const useMailStore = create<MailState>()(
               inboxThreads: removeThread(state.inboxThreads),
               sentThreads: removeThread(state.sentThreads),
               starredThreads: removeThread(state.starredThreads),
-              currentThreadId: state.currentThreadId === threadId ? null : state.currentThreadId,
-              conversation: state.currentThreadId === threadId ? null : state.conversation,
+              currentThreadId: state.currentThreadId ===
+   threadId ? null : state.currentThreadId,
+              conversation: state.currentThreadId ===
+   threadId ? null : state.conversation,
             }));
             get().fetchCounts();
           } catch (err) {}
@@ -389,8 +396,10 @@ export const useMailStore = create<MailState>()(
             const removeThread = (threads: MailThread[]) => threads.filter((t) => t.id !== threadId);
             set((state) => ({
               inboxThreads: removeThread(state.inboxThreads),
-              currentThreadId: state.currentThreadId === threadId ? null : state.currentThreadId,
-              conversation: state.currentThreadId === threadId ? null : state.conversation,
+              currentThreadId: state.currentThreadId ===
+   threadId ? null : state.currentThreadId,
+              conversation: state.currentThreadId ===
+   threadId ? null : state.conversation,
             }));
           } catch (err) {}
         },
@@ -444,7 +453,8 @@ export const useMailStore = create<MailState>()(
           try {
             await mailService.applyLabel({ labelId, threadId });
             // Refresh label threads if currently viewing this label
-            if (get().currentLabelId === labelId) {
+            if (get().currentLabelId ===
+   labelId) {
               get().fetchLabelThreads(labelId);
             }
           } catch (err) {}
@@ -454,7 +464,8 @@ export const useMailStore = create<MailState>()(
           try {
             await mailService.removeLabel({ labelId, threadId });
             // Remove thread from label view optimistically
-            if (get().currentLabelId === labelId) {
+            if (get().currentLabelId ===
+   labelId) {
               set((s) => ({ labelThreads: s.labelThreads.filter((t) => t.id !== threadId) }));
             }
           } catch (err) {}
@@ -546,8 +557,11 @@ export const useMailStore = create<MailState>()(
           set({
             showCompose: true,
             composeMode: mode,
-            composeReplyToId: mode === 'reply' || mode === 'replyAll' ? (messageId || null) : null,
-            composeForwardId: mode === 'forward' ? (messageId || null) : null,
+            composeReplyToId: mode ===
+   'reply' || mode ===
+   'replyAll' ? (messageId || null) : null,
+            composeForwardId: mode ===
+   'forward' ? (messageId || null) : null,
           });
         },
 

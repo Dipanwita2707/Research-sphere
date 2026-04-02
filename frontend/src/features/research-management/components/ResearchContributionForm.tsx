@@ -336,8 +336,10 @@ export default function ResearchContributionForm({ publicationType, contribution
     const correspondingAuthorPct = 30;
 
     // Check if applicant (you) is a co-author - if so, count them
-    const applicantIsCoAuthor = userAuthorType === 'co_author';
-    const applicantIsStudent = user?.userType === 'student';
+    const applicantIsCoAuthor = userAuthorType ===
+   'co_author';
+    const applicantIsStudent = user?.userType ===
+   'student';
     if (applicantIsCoAuthor) {
       internalCoAuthorCount++;
       if (!applicantIsStudent) {
@@ -349,12 +351,16 @@ export default function ResearchContributionForm({ publicationType, contribution
     for (const author of coAuthors) {
       if (!author.name) continue;
       
-      const isInternal = author.authorCategory === 'Internal';
-      const isStudent = author.authorType === 'Student';
+      const isInternal = author.authorCategory ===
+   'Internal';
+      const isStudent = author.authorType ===
+   'Student';
       const role = author.authorRole;
       
       if (isInternal) {
-        if (role === 'co_author' || role === 'co') {
+        if (role ===
+   'co_author' || role ===
+   'co') {
           internalCoAuthorCount++;
           // Track employee co-authors separately (exclude students)
           if (!isStudent) {
@@ -362,15 +368,23 @@ export default function ResearchContributionForm({ publicationType, contribution
           }
         }
       } else {
-        if (role === 'co_author' || role === 'co') {
+        if (role ===
+   'co_author' || role ===
+   'co') {
           externalCoAuthorCount++;
         }
         // Check if external author is first/corresponding - their share is LOST
-        if (role === 'first_and_corresponding_author' || role === 'first_and_corresponding') {
+        if (role ===
+   'first_and_corresponding_author' || role ===
+   'first_and_corresponding') {
           externalFirstCorrespondingPct += firstAuthorPct + correspondingAuthorPct;
-        } else if (role === 'first_author' || role === 'first') {
+        } else if (role ===
+   'first_author' || role ===
+   'first') {
           externalFirstCorrespondingPct += firstAuthorPct;
-        } else if (role === 'corresponding_author' || role === 'corresponding') {
+        } else if (role ===
+   'corresponding_author' || role ===
+   'corresponding') {
           externalFirstCorrespondingPct += correspondingAuthorPct;
         }
       }
@@ -390,16 +404,16 @@ export default function ResearchContributionForm({ publicationType, contribution
   // - Students get incentives but ZERO points
   // - External first/corresponding author percentages are LOST (not redistributed)
   // - External co-author percentages are redistributed to internal co-authors
-  // ============================================
-  // SEPARATE CALCULATION FUNCTIONS FOR EACH TYPE
-  // ============================================
-
-  /**
+  // =====================================
+    // SEPARATE CALCULATION FUNCTIONS FOR EACH TYPE
+  // ==============================
+    /**
    * Calculate incentive for CONFERENCE PAPER authors
    */
   const calculateConferenceIncentive = (authorType: string, authorCategory: string, authorRole: string) => {
     // External authors get ZERO
-    if (authorCategory === 'External') {
+    if (authorCategory ===
+   'External') {
       return { incentive: 0, points: 0 };
     }
 
@@ -413,12 +427,14 @@ export default function ResearchContributionForm({ publicationType, contribution
     let totalPoints = 0;
 
     // For Scopus-indexed conferences - use quartile-based calculation
-    if (subType === 'paper_indexed_scopus') {
+    if (subType ===
+   'paper_indexed_scopus') {
       const proceedingsQuartile = formData.proceedingsQuartile?.toUpperCase() || '';
       
       if (proceedingsQuartile && conferencePolicy.quartileIncentives) {
         const quartileMatch = conferencePolicy.quartileIncentives.find(
-          (q: any) => q.quartile.toUpperCase() === proceedingsQuartile
+          (q: any) => q.quartile.toUpperCase() ===
+   proceedingsQuartile
         );
         if (quartileMatch) {
           totalIncentive = Number(quartileMatch.incentiveAmount) || 0;
@@ -427,16 +443,20 @@ export default function ResearchContributionForm({ publicationType, contribution
       }
 
       // Apply bonuses
-      if (formData.conferenceType === 'international' && conferencePolicy.internationalBonus) {
+      if (formData.conferenceType ===
+   'international' && conferencePolicy.internationalBonus) {
         totalIncentive += Number(conferencePolicy.internationalBonus);
       }
-      if (formData.conferenceBestPaperAward === 'yes' && conferencePolicy.bestPaperAwardBonus) {
+      if (formData.conferenceBestPaperAward ===
+   'yes' && conferencePolicy.bestPaperAwardBonus) {
         totalIncentive += Number(conferencePolicy.bestPaperAwardBonus);
       }
 
       // Use role percentages for distribution
-      const firstAuthorPct = conferencePolicy.rolePercentages?.find((r: any) => r.role === 'first_author')?.percentage || 35;
-      const correspondingAuthorPct = conferencePolicy.rolePercentages?.find((r: any) => r.role === 'corresponding_author')?.percentage || 30;
+      const firstAuthorPct = conferencePolicy.rolePercentages?.find((r: any) => r.role ===
+   'first_author')?.percentage || 35;
+      const correspondingAuthorPct = conferencePolicy.rolePercentages?.find((r: any) => r.role ===
+   'corresponding_author')?.percentage || 30;
       const coAuthorTotalPct = 100 - firstAuthorPct - correspondingAuthorPct;
 
       const composition = analyzeAuthorCompositionFrontend();
@@ -444,15 +464,24 @@ export default function ResearchContributionForm({ publicationType, contribution
       const totalAuthorCount = otherAuthorsCount + 1;
 
       let rolePercentage = 0;
-      if (totalAuthorCount === 1) {
+      if (totalAuthorCount ===
+   1) {
         rolePercentage = 100;
-      } else if (authorRole === 'first_and_corresponding_author' || authorRole === 'first_and_corresponding') {
+      } else if (authorRole ===
+   'first_and_corresponding_author' || authorRole ===
+   'first_and_corresponding') {
         rolePercentage = firstAuthorPct + correspondingAuthorPct;
-      } else if (authorRole === 'first_author' || authorRole === 'first') {
+      } else if (authorRole ===
+   'first_author' || authorRole ===
+   'first') {
         rolePercentage = firstAuthorPct;
-      } else if (authorRole === 'corresponding_author' || authorRole === 'corresponding') {
+      } else if (authorRole ===
+   'corresponding_author' || authorRole ===
+   'corresponding') {
         rolePercentage = correspondingAuthorPct;
-      } else if (authorRole === 'co_author' || authorRole === 'co') {
+      } else if (authorRole ===
+   'co_author' || authorRole ===
+   'co') {
         const effectiveInternalCoAuthorCount = Math.max(composition.internalCoAuthorCount, 1);
         rolePercentage = coAuthorTotalPct / effectiveInternalCoAuthorCount;
       }
@@ -460,7 +489,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       const authorIncentive = Math.round((totalIncentive * rolePercentage) / 100);
       const authorPoints = Math.round((totalPoints * rolePercentage) / 100);
 
-      if (authorType === 'Student') {
+      if (authorType ===
+   'Student') {
         return { incentive: authorIncentive, points: 0 };
       }
       return { incentive: authorIncentive, points: authorPoints };
@@ -468,7 +498,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     // For other conference types - use flat incentive
     else {
       // Special handling for paper_not_indexed: If not a presenter, no incentives
-      if (subType === 'paper_not_indexed' && formData.isPresenter === 'no') {
+      if (subType ===
+   'paper_not_indexed' && formData.isPresenter ===
+   'no') {
         return { incentive: 0, points: 0 };
       }
 
@@ -490,8 +522,10 @@ export default function ResearchContributionForm({ publicationType, contribution
 
       // Check if international based on conferenceType or conferenceHeldLocation
       const isInternational = 
-        formData.conferenceType === 'international' ||
-        formData.conferenceHeldLocation === 'abroad';
+        formData.conferenceType ===
+   'international' ||
+        formData.conferenceHeldLocation ===
+   'abroad';
 
       // Use policy if available, otherwise use defaults
       if (conferencePolicy && conferencePolicy.flatIncentiveAmount && conferencePolicy.flatPoints) {
@@ -524,7 +558,9 @@ export default function ResearchContributionForm({ publicationType, contribution
       let authorIncentive = 0;
       let authorPoints = 0;
 
-      if (subType === 'keynote_speaker_invited_talks' || subType === 'organizer_coordinator_member') {
+      if (subType ===
+   'keynote_speaker_invited_talks' || subType ===
+   'organizer_coordinator_member') {
         // Single presenter/organizer gets full amount
         authorIncentive = totalIncentive;
         authorPoints = totalPoints;
@@ -536,7 +572,8 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorPoints = Math.round(totalPoints / totalAuthorCount);
       }
 
-      if (authorType === 'Student') {
+      if (authorType ===
+   'Student') {
         return { incentive: authorIncentive, points: 0 };
       }
       return { incentive: authorIncentive, points: authorPoints };
@@ -548,7 +585,8 @@ export default function ResearchContributionForm({ publicationType, contribution
    */
   const calculateBookIncentive = (authorType: string, authorCategory: string) => {
     // External authors get ZERO
-    if (authorCategory === 'External') {
+    if (authorCategory ===
+   'External') {
       return { incentive: 0, points: 0 };
     }
 
@@ -557,22 +595,27 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
 
     const bookType = formData.bookPublicationType || 'authored';
-    let baseIncentive = bookType === 'authored' 
+    let baseIncentive = bookType ===
+   'authored' 
       ? Number(bookPolicy.authoredIncentiveAmount) || 0
       : Number(bookPolicy.editedIncentiveAmount) || 0;
-    let basePoints = bookType === 'authored'
+    let basePoints = bookType ===
+   'authored'
       ? Number(bookPolicy.authoredPoints) || 0
       : Number(bookPolicy.editedPoints) || 0;
 
     // Apply indexing bonuses
-    if (formData.bookIndexingType === 'scopus_indexed' && bookPolicy.indexingBonuses?.scopus_indexed) {
+    if (formData.bookIndexingType ===
+   'scopus_indexed' && bookPolicy.indexingBonuses?.scopus_indexed) {
       baseIncentive += Number(bookPolicy.indexingBonuses.scopus_indexed);
-    } else if (formData.bookIndexingType === 'sgt_publication_house' && bookPolicy.indexingBonuses?.sgt_publication_house) {
+    } else if (formData.bookIndexingType ===
+   'sgt_publication_house' && bookPolicy.indexingBonuses?.sgt_publication_house) {
       baseIncentive += Number(bookPolicy.indexingBonuses.sgt_publication_house);
     }
 
     // Apply international bonus
-    if (formData.nationalInternational === 'international' && bookPolicy.internationalBonus) {
+    if (formData.nationalInternational ===
+   'international' && bookPolicy.internationalBonus) {
       baseIncentive += Number(bookPolicy.internationalBonus);
     }
 
@@ -582,7 +625,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     const authorIncentive = Math.round(baseIncentive / totalAuthorCount);
     const authorPoints = Math.round(basePoints / totalAuthorCount);
 
-    if (authorType === 'Student') {
+    if (authorType ===
+   'Student') {
       return { incentive: authorIncentive, points: 0 };
     }
     return { incentive: authorIncentive, points: authorPoints };
@@ -593,7 +637,8 @@ export default function ResearchContributionForm({ publicationType, contribution
    */
   const calculateBookChapterIncentive = (authorType: string, authorCategory: string) => {
     // External authors get ZERO
-    if (authorCategory === 'External') {
+    if (authorCategory ===
+   'External') {
       return { incentive: 0, points: 0 };
     }
 
@@ -602,22 +647,27 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
 
     const bookType = formData.bookPublicationType || 'authored';
-    let baseIncentive = bookType === 'authored'
+    let baseIncentive = bookType ===
+   'authored'
       ? Number(bookChapterPolicy.authoredIncentiveAmount) || 0
       : Number(bookChapterPolicy.editedIncentiveAmount) || 0;
-    let basePoints = bookType === 'authored'
+    let basePoints = bookType ===
+   'authored'
       ? Number(bookChapterPolicy.authoredPoints) || 0
       : Number(bookChapterPolicy.editedPoints) || 0;
 
     // Apply indexing bonuses
-    if (formData.bookIndexingType === 'scopus_indexed' && bookChapterPolicy.indexingBonuses?.scopus_indexed) {
+    if (formData.bookIndexingType ===
+   'scopus_indexed' && bookChapterPolicy.indexingBonuses?.scopus_indexed) {
       baseIncentive += Number(bookChapterPolicy.indexingBonuses.scopus_indexed);
-    } else if (formData.bookIndexingType === 'sgt_publication_house' && bookChapterPolicy.indexingBonuses?.sgt_publication_house) {
+    } else if (formData.bookIndexingType ===
+   'sgt_publication_house' && bookChapterPolicy.indexingBonuses?.sgt_publication_house) {
       baseIncentive += Number(bookChapterPolicy.indexingBonuses.sgt_publication_house);
     }
 
     // Apply international bonus
-    if (formData.nationalInternational === 'international' && bookChapterPolicy.internationalBonus) {
+    if (formData.nationalInternational ===
+   'international' && bookChapterPolicy.internationalBonus) {
       baseIncentive += Number(bookChapterPolicy.internationalBonus);
     }
 
@@ -627,7 +677,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     const authorIncentive = Math.round(baseIncentive / totalAuthorCount);
     const authorPoints = Math.round(basePoints / totalAuthorCount);
 
-    if (authorType === 'Student') {
+    if (authorType ===
+   'Student') {
       return { incentive: authorIncentive, points: 0 };
     }
     return { incentive: authorIncentive, points: authorPoints };
@@ -638,7 +689,8 @@ export default function ResearchContributionForm({ publicationType, contribution
    */
   const calculateResearchPaperIncentive = (authorType: string, authorCategory: string, authorRole: string, authorUid?: string) => {
     // External authors get ZERO
-    if (authorCategory === 'External') {
+    if (authorCategory ===
+   'External') {
       return { incentive: 0, points: 0 };
     }
 
@@ -716,8 +768,10 @@ export default function ResearchContributionForm({ publicationType, contribution
     });
     
     // Role percentages for role-based distribution
-    const firstAuthorPct = rolePercentages.find((r: any) => r.role === 'first_author')?.percentage || 35;
-    const correspondingAuthorPct = rolePercentages.find((r: any) => r.role === 'corresponding_author')?.percentage || 30;
+    const firstAuthorPct = rolePercentages.find((r: any) => r.role ===
+   'first_author')?.percentage || 35;
+    const correspondingAuthorPct = rolePercentages.find((r: any) => r.role ===
+   'corresponding_author')?.percentage || 30;
     const coAuthorTotalPct = 100 - firstAuthorPct - correspondingAuthorPct;
     
     // Calculate incentives from selected indexing categories
@@ -730,11 +784,14 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     selectedCategories.forEach(category => {
       // SCOPUS - Uses quartile-based incentives and SJR
-      if (category === 'scopus' && formData.quartile) {
+      if (category ===
+   'scopus' && formData.quartile) {
         const quartileVal = formData.quartile.toLowerCase();
         const quartileMatch = quartileIncentives.find((q: any) => 
-          q.quartile.toLowerCase() === quartileVal ||
-          q.quartile.toLowerCase() === quartileVal.replace('_', ' ')
+          q.quartile.toLowerCase() ===
+   quartileVal ||
+          q.quartile.toLowerCase() ===
+   quartileVal.replace('_', ' ')
         );
         if (quartileMatch) {
           let scopusAmount = Number(quartileMatch.incentiveAmount) || 0;
@@ -761,8 +818,10 @@ export default function ResearchContributionForm({ publicationType, contribution
         }
       }
       // SCIE/WOS - Basic indexing
-      else if (category === 'scie_wos') {
-        const bonus = indexingCategoryBonuses.find((b: any) => b.category === category);
+      else if (category ===
+   'scie_wos') {
+        const bonus = indexingCategoryBonuses.find((b: any) => b.category ===
+   category);
         if (bonus) {
           categoryIncentives.push({ 
             category: 'scie_wos', 
@@ -773,7 +832,8 @@ export default function ResearchContributionForm({ publicationType, contribution
         }
       }
       // NAAS - Uses rating-based incentives
-      else if (category === 'naas_rating_6_plus' && formData.naasRating) {
+      else if (category ===
+   'naas_rating_6_plus' && formData.naasRating) {
         const naasRating = Number(formData.naasRating);
         if (naasRating >= 6) {
           const naasMatch = naasRatingIncentives.find((r: any) => naasRating >= r.minRating && naasRating <= r.maxRating);
@@ -788,10 +848,12 @@ export default function ResearchContributionForm({ publicationType, contribution
         }
       }
       // Subsidiary Journals - requires IF > 20
-      else if (category === 'subsidiary_if_above_20' && formData.impactFactor) {
+      else if (category ===
+   'subsidiary_if_above_20' && formData.impactFactor) {
         const subsidiaryIF = Number(formData.impactFactor);
         if (subsidiaryIF > 20) {
-          const bonus = indexingCategoryBonuses.find((b: any) => b.category === category);
+          const bonus = indexingCategoryBonuses.find((b: any) => b.category ===
+   category);
           if (bonus) {
             categoryIncentives.push({ 
               category: 'subsidiary_if_above_20', 
@@ -804,7 +866,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       }
       // All other flat categories
       else {
-        const bonus = indexingCategoryBonuses.find((b: any) => b.category === category);
+        const bonus = indexingCategoryBonuses.find((b: any) => b.category ===
+   category);
         if (bonus) {
           categoryIncentives.push({ 
             category, 
@@ -836,7 +899,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     logger.debug('[calculateResearchPaperIncentive] Final pool (highest only):', { totalAmount, totalPoints, highestCategory });
     
     // If no categories or no amount, return zero
-    if (totalAmount === 0) {
+    if (totalAmount ===
+   0) {
       logger.debug('[calculateResearchPaperIncentive] No amount calculated, returning 0');
       return { incentive: 0, points: 0 };
     }
@@ -849,7 +913,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     // Calculate percentage based on distribution method
     let rolePercentage = 0;
     
-    if (distributionMethod === 'author_position_based') {
+    if (distributionMethod ===
+   'author_position_based') {
       // POSITION-BASED DISTRIBUTION (SGT authors in first 5 positions only)
       // Rules:
       // 1. Single SGT author in first 5 → 100%
@@ -857,12 +922,14 @@ export default function ResearchContributionForm({ publicationType, contribution
       // 3. More than two SGT authors in first 5 → First&Corresponding same: 80%, Rest: 20% divided | First&Corresponding different: 40% each, Rest: 20% divided
       
       const position = authorRole.startsWith('position_') 
-        ? (authorRole === 'position_6_plus' ? 6 : parseInt(authorRole.replace('position_', ''), 10))
+        ? (authorRole ===
+   'position_6_plus' ? 6 : parseInt(authorRole.replace('position_', ''), 10))
         : null;
       
       logger.debug('[calculateResearchPaperIncentive] Position-based:', { authorRole, position, positionDistribution });
       
-      if (position === null || position >= 6) {
+      if (position ===
+   null || position >= 6) {
         logger.debug('[calculateResearchPaperIncentive] Position 6+ gets nothing');
         return { incentive: 0, points: 0 }; // 6+ gets nothing
       }
@@ -870,7 +937,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       // Count SGT authors in first 5 positions (including this author)
       const sgtAuthorsInFirst5 = 1 + coAuthors.filter(a => 
         a.name && 
-        a.authorCategory === 'Internal' && 
+        a.authorCategory ===
+   'Internal' && 
         a.authorRole?.startsWith('position_') &&
         a.authorRole !== 'position_6_plus'
       ).length;
@@ -878,19 +946,29 @@ export default function ResearchContributionForm({ publicationType, contribution
       logger.debug('[calculateResearchPaperIncentive] SGT authors in first 5:', sgtAuthorsInFirst5);
       
       // Determine role from userAuthorType
-      const isFirstAuthor = position === 1;
-      const isCorrespondingAuthor = userAuthorType === 'first_and_corresponding' || authorRole === 'first_and_corresponding';
-      const isFirstAndCorresponding = position === 1 && isCorrespondingAuthor;
+      const isFirstAuthor = position ===
+   1;
+      const isCorrespondingAuthor = userAuthorType ===
+   'first_and_corresponding' || authorRole ===
+   'first_and_corresponding';
+      const isFirstAndCorresponding = position ===
+   1 && isCorrespondingAuthor;
       
-      if (sgtAuthorsInFirst5 === 1) {
+      if (sgtAuthorsInFirst5 ===
+   1) {
         // Rule 1: Single SGT author gets 100%
         rolePercentage = 100;
         logger.debug('[calculateResearchPaperIncentive] Single SGT author: 100%');
-      } else if (sgtAuthorsInFirst5 === 2) {
+      } else if (sgtAuthorsInFirst5 ===
+   2) {
         // Rule 2: Two SGT authors
         // Check if second author is corresponding
-        const secondAuthor = coAuthors.find(a => a.authorRole === 'position_2' && a.authorCategory === 'Internal');
-        const secondIsCorresponding = secondAuthor && (secondAuthor.authorRole === 'first_and_corresponding' || userAuthorType === 'corresponding');
+        const secondAuthor = coAuthors.find(a => a.authorRole ===
+   'position_2' && a.authorCategory ===
+   'Internal');
+        const secondIsCorresponding = secondAuthor && (secondAuthor.authorRole ===
+   'first_and_corresponding' || userAuthorType ===
+   'corresponding');
         
         if (secondIsCorresponding || isCorrespondingAuthor) {
           // Equal distribution 50-50
@@ -898,17 +976,23 @@ export default function ResearchContributionForm({ publicationType, contribution
           logger.debug('[calculateResearchPaperIncentive] Two SGT authors, second is corresponding: 50-50');
         } else {
           // First: 60%, Second: 40%
-          rolePercentage = position === 1 ? 60 : 40;
+          rolePercentage = position ===
+   1 ? 60 : 40;
           logger.debug('[calculateResearchPaperIncentive] Two SGT authors: First 60%, Second 40%');
         }
       } else {
         // Rule 3: More than two SGT authors
         // Check if first and corresponding are the same person
         const firstAuthorIsCorresponding = coAuthors.some(a => 
-          a.authorRole === 'position_1' && 
-          a.authorCategory === 'Internal' &&
-          (userAuthorType === 'first_and_corresponding' || userAuthorType === 'corresponding')
-        ) || (position === 1 && isCorrespondingAuthor);
+          a.authorRole ===
+   'position_1' && 
+          a.authorCategory ===
+   'Internal' &&
+          (userAuthorType ===
+   'first_and_corresponding' || userAuthorType ===
+   'corresponding')
+        ) || (position ===
+   1 && isCorrespondingAuthor);
         
         if (firstAuthorIsCorresponding || isFirstAndCorresponding) {
           // First & Corresponding same person: 80%, Rest: 20% divided
@@ -923,10 +1007,15 @@ export default function ResearchContributionForm({ publicationType, contribution
           }
         } else {
           // First and Corresponding are different: 40% each, Rest: 20% divided
-          const firstAuthor = coAuthors.find(a => a.authorRole === 'position_1' && a.authorCategory === 'Internal');
+          const firstAuthor = coAuthors.find(a => a.authorRole ===
+   'position_1' && a.authorCategory ===
+   'Internal');
           const correspondingAuthor = coAuthors.find(a => 
-            a.authorCategory === 'Internal' && 
-            (userAuthorType === 'corresponding' || userAuthorType === 'first_and_corresponding')
+            a.authorCategory ===
+   'Internal' && 
+            (userAuthorType ===
+   'corresponding' || userAuthorType ===
+   'first_and_corresponding')
           );
           
           if (isFirstAuthor) {
@@ -951,12 +1040,20 @@ export default function ResearchContributionForm({ publicationType, contribution
       logger.debug('[calculateResearchPaperIncentive] Role-based distribution');
       
       // Calculate user's display order (same logic as table rendering)
-      const isUserFirstAuthor = userAuthorType === 'first_author' || userAuthorType === 'first' || 
-                               userAuthorType === 'first_and_corresponding' || userAuthorType === 'first_and_corresponding_author';
+      const isUserFirstAuthor = userAuthorType ===
+   'first_author' || userAuthorType ===
+   'first' || 
+                               userAuthorType ===
+   'first_and_corresponding' || userAuthorType ===
+   'first_and_corresponding_author';
       const hasFirstAuthorCoAuthor = coAuthors.some(a => 
         a.name && (
-          a.authorRole === 'first_author' || a.authorRole === 'first' ||
-          a.authorRole === 'first_and_corresponding' || a.authorRole === 'first_and_corresponding_author'
+          a.authorRole ===
+   'first_author' || a.authorRole ===
+   'first' ||
+          a.authorRole ===
+   'first_and_corresponding' || a.authorRole ===
+   'first_and_corresponding_author'
         )
       );
       const calculatedUserDisplayOrder = isUserFirstAuthor ? 2 : (hasFirstAuthorCoAuthor ? 3 : 2);
@@ -968,7 +1065,9 @@ export default function ResearchContributionForm({ publicationType, contribution
       
       if (authorUid && authorUid !== user?.uid) {
         // This is a co-author, find their display order
-        const coAuthor = coAuthors.find(a => a.uid === authorUid || a.email === authorUid);
+        const coAuthor = coAuthors.find(a => a.uid ===
+   authorUid || a.email ===
+   authorUid);
         currentAuthorDisplayOrder = coAuthor?.displayOrder || 999;
       }
       
@@ -983,10 +1082,12 @@ export default function ResearchContributionForm({ publicationType, contribution
         }))
       ].sort((a, b) => a.displayOrder - b.displayOrder);
       
-      const paperPosition = allAuthors.findIndex(a => a.displayOrder === currentAuthorDisplayOrder) + 1;
+      const paperPosition = allAuthors.findIndex(a => a.displayOrder ===
+   currentAuthorDisplayOrder) + 1;
       
       // Count INTERNAL authors in first 5 positions (SGTU affiliated authors)
-      const internalAuthorsInFirst5 = allAuthors.slice(0, 5).filter(a => a.category === 'Internal');
+      const internalAuthorsInFirst5 = allAuthors.slice(0, 5).filter(a => a.category ===
+   'Internal');
       const numInternalInFirst5 = internalAuthorsInFirst5.length;
       
       logger.debug('[calculateResearchPaperIncentive] Author PAPER position:', {
@@ -998,7 +1099,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       });
       
       // If this internal author is beyond 5th PAPER POSITION, return 0
-      if (authorCategory === 'Internal' && paperPosition > 5) {
+      if (authorCategory ===
+   'Internal' && paperPosition > 5) {
         logger.debug('[calculateResearchPaperIncentive] ❌ Internal author beyond paper position 5 - returning ₹0');
         return { incentive: 0, points: 0 };
       }
@@ -1006,10 +1108,18 @@ export default function ResearchContributionForm({ publicationType, contribution
       // Check for First/Corresponding roles among ALL authors (including external) in first 5
       const allAuthorsInFirst5 = allAuthors.slice(0, 5);
       const firstAuthor = allAuthorsInFirst5.find(a => 
-        a.role === 'first_author' || a.role === 'first' || a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+        a.role ===
+   'first_author' || a.role ===
+   'first' || a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
       );
       const correspondingAuthor = allAuthorsInFirst5.find(a => 
-        a.role === 'corresponding_author' || a.role === 'corresponding' || a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+        a.role ===
+   'corresponding_author' || a.role ===
+   'corresponding' || a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
       );
       const hasDistinctFirstAndCorresponding = firstAuthor && correspondingAuthor && firstAuthor.uid !== correspondingAuthor.uid;
       
@@ -1023,21 +1133,33 @@ export default function ResearchContributionForm({ publicationType, contribution
       });
       
       // APPLY POLICY RULES
-      if (numInternalInFirst5 === 1) {
+      if (numInternalInFirst5 ===
+   1) {
         // RULE 1: Single author with SGTU affiliation → 100% amount
         rolePercentage = 100;
         logger.debug('[calculateResearchPaperIncentive] RULE 1: Single SGTU author gets 100%');
       } 
-      else if (numInternalInFirst5 === 2 && !hasDistinctFirstAndCorresponding) {
+      else if (numInternalInFirst5 ===
+   2 && !hasDistinctFirstAndCorresponding) {
         // RULE 2: Two SGTU authors AND no distinct First+Corresponding roles exist
         const hasFirstAuthor = internalAuthorsInFirst5.some(a => 
-          a.role === 'first_author' || a.role === 'first' || a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+          a.role ===
+   'first_author' || a.role ===
+   'first' || a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
         );
         const hasCorrespondingAuthor = internalAuthorsInFirst5.some(a => 
-          a.role === 'corresponding_author' || a.role === 'corresponding' || a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+          a.role ===
+   'corresponding_author' || a.role ===
+   'corresponding' || a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
         );
         const firstAndCorrespondingSame = internalAuthorsInFirst5.some(a => 
-          a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+          a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
         );
         
         // If one is First+Corresponding (same person), or if second is corresponding, split equally
@@ -1046,15 +1168,20 @@ export default function ResearchContributionForm({ publicationType, contribution
           logger.debug('[calculateResearchPaperIncentive] RULE 2: Two SGTU authors - equal split 50-50');
         } else {
           // First author 60%, Second author 40%
-          const isFirstAuthor = authorRole === 'first_author' || authorRole === 'first';
+          const isFirstAuthor = authorRole ===
+   'first_author' || authorRole ===
+   'first';
           rolePercentage = isFirstAuthor ? 60 : 40;
           logger.debug('[calculateResearchPaperIncentive] RULE 2: Two SGTU authors - First 60%, Second 40%');
         }
       }
-      else if (numInternalInFirst5 > 2 || (numInternalInFirst5 === 2 && hasDistinctFirstAndCorresponding)) {
+      else if (numInternalInFirst5 > 2 || (numInternalInFirst5 ===
+   2 && hasDistinctFirstAndCorresponding)) {
         // RULE 3: More than 2 SGTU authors OR 2 SGTU authors with distinct First+Corresponding roles (40-40-20)
         const firstAndCorrespondingSame = allAuthorsInFirst5.some(a => 
-          a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+          a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
         );
         
         logger.debug('[calculateResearchPaperIncentive] RULE 3 Detection:', {
@@ -1067,7 +1194,9 @@ export default function ResearchContributionForm({ publicationType, contribution
         
         if (firstAndCorrespondingSame) {
           // If First/Corresponding author is same → 80%
-          if (authorRole === 'first_and_corresponding' || authorRole === 'first_and_corresponding_author') {
+          if (authorRole ===
+   'first_and_corresponding' || authorRole ===
+   'first_and_corresponding_author') {
             rolePercentage = 80;
             logger.debug('[calculateResearchPaperIncentive] RULE 3: First+Corresponding same person gets 80%');
           } else {
@@ -1079,20 +1208,32 @@ export default function ResearchContributionForm({ publicationType, contribution
         } 
         else if (firstAuthor && correspondingAuthor && firstAuthor.uid !== correspondingAuthor.uid) {
           // If First and Corresponding are different → 40% each, Rest share 20%
-          if (authorRole === 'first_author' || authorRole === 'first') {
+          if (authorRole ===
+   'first_author' || authorRole ===
+   'first') {
             rolePercentage = 40;
             logger.debug('[calculateResearchPaperIncentive] RULE 3: First author gets 40%');
-          } else if (authorRole === 'corresponding_author' || authorRole === 'corresponding') {
+          } else if (authorRole ===
+   'corresponding_author' || authorRole ===
+   'corresponding') {
             rolePercentage = 40;
             logger.debug('[calculateResearchPaperIncentive] RULE 3: Corresponding author gets 40%');
           } else {
             // Co-Authors share remaining 20% equally
             // Only subtract INTERNAL First/Corresponding from count
             const internalFirstExists = internalAuthorsInFirst5.some(a => 
-              a.role === 'first_author' || a.role === 'first' || a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+              a.role ===
+   'first_author' || a.role ===
+   'first' || a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
             );
             const internalCorrespondingExists = internalAuthorsInFirst5.some(a => 
-              a.role === 'corresponding_author' || a.role === 'corresponding' || a.role === 'first_and_corresponding' || a.role === 'first_and_corresponding_author'
+              a.role ===
+   'corresponding_author' || a.role ===
+   'corresponding' || a.role ===
+   'first_and_corresponding' || a.role ===
+   'first_and_corresponding_author'
             );
             const numInternalPrimaryRoles = (internalFirstExists ? 1 : 0) + (internalCorrespondingExists ? 1 : 0);
             const numCoAuthors = numInternalInFirst5 - numInternalPrimaryRoles;
@@ -1103,10 +1244,14 @@ export default function ResearchContributionForm({ publicationType, contribution
         else {
           // When First or Corresponding exists (but not both among internal authors)
           // STRICT POLICY: Always apply 40-40-20, forfeited shares are NOT redistributed
-          if (authorRole === 'first_author' || authorRole === 'first') {
+          if (authorRole ===
+   'first_author' || authorRole ===
+   'first') {
             rolePercentage = 40;
             logger.debug('[calculateResearchPaperIncentive] RULE 3: First author gets 40%');
-          } else if (authorRole === 'corresponding_author' || authorRole === 'corresponding') {
+          } else if (authorRole ===
+   'corresponding_author' || authorRole ===
+   'corresponding') {
             rolePercentage = 40;
             logger.debug('[calculateResearchPaperIncentive] RULE 3: Corresponding author gets 40%');
           } else {
@@ -1130,7 +1275,10 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // For points: use employee count (excludes students)
     let pointRolePercentage = rolePercentage;
-    if ((authorRole === 'co_author' || authorRole === 'co') && distributionMethod === 'author_role_based') {
+    if ((authorRole ===
+   'co_author' || authorRole ===
+   'co') && distributionMethod ===
+   'author_role_based') {
       const effectiveEmployeeCoAuthorCount = Math.max(composition.internalEmployeeCoAuthorCount, 1);
       pointRolePercentage = coAuthorTotalPct / effectiveEmployeeCoAuthorCount;
     }
@@ -1139,7 +1287,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     logger.debug('[calculateResearchPaperIncentive] Final result:', { authorIncentive, authorPoints });
     
     // Students get only incentives, no points
-    if (authorType === 'Student') {
+    if (authorType ===
+   'Student') {
       return { incentive: authorIncentive, points: 0 };
     }
     
@@ -1154,13 +1303,17 @@ export default function ResearchContributionForm({ publicationType, contribution
     const pubType = formData.publicationType;
 
     // Route to appropriate calculation function
-    if (pubType === 'conference_paper') {
+    if (pubType ===
+   'conference_paper') {
       return calculateConferenceIncentive(authorType, authorCategory, authorRole);
-    } else if (pubType === 'book') {
+    } else if (pubType ===
+   'book') {
       return calculateBookIncentive(authorType, authorCategory);
-    } else if (pubType === 'book_chapter') {
+    } else if (pubType ===
+   'book_chapter') {
       return calculateBookChapterIncentive(authorType, authorCategory);
-    } else if (pubType === 'research_paper') {
+    } else if (pubType ===
+   'research_paper') {
       return calculateResearchPaperIncentive(authorType, authorCategory, authorRole, authorUid);
     }
 
@@ -1195,7 +1348,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // If only external authors can be added (totalInternalAuthors=1 and totalInternalCoAuthors=0)
     // Default to External category
-    if (totalInternalAuthors === 1 && totalInternalCoAuthors === 0) {
+    if (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   0) {
       setNewAuthor(prev => ({
         ...prev,
         authorCategory: 'External',
@@ -1207,7 +1362,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     // If only internal authors can be added (totalInternalAuthors=1 and totalInternalCoAuthors=1)
     // Default to Internal category
-    else if (totalInternalAuthors === 1 && totalInternalCoAuthors === 1) {
+    else if (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   1) {
       setNewAuthor(prev => ({
         ...prev,
         authorCategory: 'Internal',
@@ -1219,7 +1376,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     // NEW: When Internal Co-Authors = 0 but there are internal authors to add (totalInternalAuthors > 1)
     // Reset authorRole to available role (should be First/Corresponding based on what user selected)
-    else if (totalInternalCoAuthors === 0 && totalInternalAuthors > 1) {
+    else if (totalInternalCoAuthors ===
+   0 && totalInternalAuthors > 1) {
       setNewAuthor(prev => ({
         ...prev,
         authorCategory: 'Internal',
@@ -1239,7 +1397,8 @@ export default function ResearchContributionForm({ publicationType, contribution
   
   // Ensure authorCategory is set to Internal when all authors are internal
   useEffect(() => {
-    if (totalAuthors === totalInternalAuthors && totalAuthors > 1) {
+    if (totalAuthors ===
+   totalInternalAuthors && totalAuthors > 1) {
       setNewAuthor(prev => ({
         ...prev,
         authorCategory: 'Internal',
@@ -1251,7 +1410,8 @@ export default function ResearchContributionForm({ publicationType, contribution
   
   // Fetch my contributions for the "Already in Process" tab
   useEffect(() => {
-    if (activeTab === 'process' && user) {
+    if (activeTab ===
+   'process' && user) {
       fetchMyContributions();
     }
   }, [activeTab, user]);
@@ -1309,26 +1469,35 @@ export default function ResearchContributionForm({ publicationType, contribution
   // Rule 4: Flexible scenarios -> User can choose their role
   const getAllowedUserRoles = () => {
     // Rule 1: Solo author - must be first and corresponding
-    if (totalAuthors === 1 && totalInternalAuthors === 1 && totalInternalCoAuthors === 0) {
+    if (totalAuthors ===
+   1 && totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   0) {
       return ['first_and_corresponding'];
     }
     
     // Rule 2: All internal authors are co-authors (Internal = Co-Authors)
     // User MUST be co-author, external author(s) will have First/Corresponding
-    if (totalInternalAuthors === totalInternalCoAuthors && totalInternalCoAuthors > 0) {
+    if (totalInternalAuthors ===
+   totalInternalCoAuthors && totalInternalCoAuthors > 0) {
       return ['co_author'];
     }
     
     // Rule 3: Two internal authors, zero co-authors - can be first OR corresponding (not both, not co-author)
     // This means both are primary authors, not co-authors
-    if (totalInternalAuthors === 2 && totalInternalCoAuthors === 0) {
+    if (totalInternalAuthors ===
+   2 && totalInternalCoAuthors ===
+   0) {
       return ['first', 'corresponding'];
     }
     
     // Rule 3.5: 1 SGT author, 0 co-authors, and only 1 total author - must be First & Corresponding
     // For multiple authors: allow First, Corresponding, or both
-    if (totalInternalAuthors === 1 && totalInternalCoAuthors === 0) {
-      if (totalAuthors === 1) {
+    if (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   0) {
+      if (totalAuthors ===
+   1) {
         return ['first_and_corresponding'];
       }
       // Multiple authors: user can be First, Corresponding, or Both
@@ -1337,7 +1506,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // Rule 3.6: Only 2 total authors AND both from SGT - one must be First & Corresponding, one must be Co-Author
     // This enforces proper role distribution for 2-author papers with both authors from SGT
-    if (totalAuthors === 2 && totalInternalAuthors === 2) {
+    if (totalAuthors ===
+   2 && totalInternalAuthors ===
+   2) {
       return ['first_and_corresponding', 'co_author'];
     }
     
@@ -1351,20 +1522,25 @@ export default function ResearchContributionForm({ publicationType, contribution
     const used: string[] = [];
     
     // Add user's role
-    if (userAuthorType === 'first_and_corresponding') {
+    if (userAuthorType ===
+   'first_and_corresponding') {
       used.push('first_author', 'corresponding_author');
-    } else if (userAuthorType === 'corresponding') {
+    } else if (userAuthorType ===
+   'corresponding') {
       used.push('corresponding_author');
-    } else if (userAuthorType === 'first') {
+    } else if (userAuthorType ===
+   'first') {
       used.push('first_author');
     }
     
     // Add co-authors' roles (excluding the one being edited)
     coAuthors.forEach((author, idx) => {
       if (author.name && idx !== editingAuthorIndex) {
-        if (author.authorRole === 'first_author') {
+        if (author.authorRole ===
+   'first_author') {
           used.push('first_author');
-        } else if (author.authorRole === 'corresponding_author') {
+        } else if (author.authorRole ===
+   'corresponding_author') {
           used.push('corresponding_author');
         }
       }
@@ -1407,7 +1583,9 @@ export default function ResearchContributionForm({ publicationType, contribution
 
   const getAvailableOtherAuthorRoles = () => {
     // For position-based distribution, use position logic
-    if (publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based') {
+    if (publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based') {
       return getAvailablePositions();
     }
 
@@ -1416,7 +1594,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // Special case: When all internal authors are co-authors (Internal = Co-Authors)
     // ALL internal authors (including others being added) MUST be co-authors
-    if (totalInternalAuthors === totalInternalCoAuthors && totalInternalCoAuthors > 0 && newAuthor.authorCategory === 'Internal') {
+    if (totalInternalAuthors ===
+   totalInternalCoAuthors && totalInternalCoAuthors > 0 && newAuthor.authorCategory ===
+   'Internal') {
       return [
         { value: 'co_author', label: 'Co-Author' },
       ];
@@ -1424,7 +1604,10 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // Special case: User selected Co-Author and there's only 1 internal co-author slot (Total Internal Co-Authors = 1)
     // This means the user IS that co-author, so other internal authors CANNOT be co-authors
-    if (totalInternalCoAuthors === 1 && userAuthorType === 'co_author' && newAuthor.authorCategory === 'Internal') {
+    if (totalInternalCoAuthors ===
+   1 && userAuthorType ===
+   'co_author' && newAuthor.authorCategory ===
+   'Internal') {
       const roles = [
         { value: 'first_and_corresponding', label: 'First and Corresponding Author' },
         { value: 'first_author', label: 'First Author' },
@@ -1432,7 +1615,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       ];
       // Filter out already used roles
       return roles.filter(role => {
-        if (role.value === 'first_and_corresponding') {
+        if (role.value ===
+   'first_and_corresponding') {
           // Can use if neither first nor corresponding is taken
           return !usedRoles.includes('first_author') && !usedRoles.includes('corresponding_author');
         }
@@ -1442,17 +1626,23 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // Special case: Internal Co-Authors = 0, meaning NO co-authors allowed
     // The other internal author must be First or Corresponding (whichever the user didn't take)
-    if (totalInternalCoAuthors === 0 && newAuthor.authorCategory === 'Internal') {
+    if (totalInternalCoAuthors ===
+   0 && newAuthor.authorCategory ===
+   'Internal') {
       const roles = [];
       
       // If user is First Author only, other must be Corresponding
-      if (userAuthorType === 'first' || userAuthorType === 'first_author') {
+      if (userAuthorType ===
+   'first' || userAuthorType ===
+   'first_author') {
         if (!usedRoles.includes('corresponding_author')) {
           roles.push({ value: 'corresponding_author', label: 'Corresponding Author' });
         }
       }
       // If user is Corresponding Author only, other must be First
-      else if (userAuthorType === 'corresponding' || userAuthorType === 'corresponding_author') {
+      else if (userAuthorType ===
+   'corresponding' || userAuthorType ===
+   'corresponding_author') {
         if (!usedRoles.includes('first_author')) {
           roles.push({ value: 'first_author', label: 'First Author' });
         }
@@ -1465,7 +1655,10 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // Special case: User selected First/Corresponding Author, there's only 1 internal co-author slot, AND only 2 total authors
     // The other internal author MUST be a co-author
-    if (totalAuthors === 2 && totalInternalCoAuthors === 1 && userAuthorType !== 'co_author' && newAuthor.authorCategory === 'Internal') {
+    if (totalAuthors ===
+   2 && totalInternalCoAuthors ===
+   1 && userAuthorType !== 'co_author' && newAuthor.authorCategory ===
+   'Internal') {
       return [
         { value: 'co_author', label: 'Co-Author' },
       ];
@@ -1473,7 +1666,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // Special case: User is co-author with only 2 total authors
     // The other author MUST be First & Corresponding Author
-    if (totalAuthors === 2 && userAuthorType === 'co_author') {
+    if (totalAuthors ===
+   2 && userAuthorType ===
+   'co_author') {
       return [
         { value: 'first_and_corresponding', label: 'First and Corresponding Author' },
       ];
@@ -1489,11 +1684,13 @@ export default function ResearchContributionForm({ publicationType, contribution
     // Filter out roles that are already used
     return allRoles.filter(role => {
       // Co-author can be used multiple times
-      if (role.value === 'co_author') {
+      if (role.value ===
+   'co_author') {
         return true;
       }
       // First and Corresponding Author - can use if neither role is taken
-      if (role.value === 'first_and_corresponding') {
+      if (role.value ===
+   'first_and_corresponding') {
         return !usedRoles.includes('first_author') && !usedRoles.includes('corresponding_author');
       }
       // First author and corresponding author can only be used once
@@ -1545,7 +1742,8 @@ export default function ResearchContributionForm({ publicationType, contribution
 
   // Refetch policy when publication date changes (for research papers only)
   useEffect(() => {
-    if (publicationType === 'research_paper' && formData.publicationDate) {
+    if (publicationType ===
+   'research_paper' && formData.publicationDate) {
       fetchPolicy(formData.publicationDate);
     }
   }, [formData.publicationDate, publicationType]);
@@ -1557,26 +1755,37 @@ export default function ResearchContributionForm({ publicationType, contribution
     const distributionMethod = policyData.distributionMethod;
     
     // Convert from role-based to position-based
-    if (distributionMethod === 'author_position_based' && !userAuthorType.startsWith('position_')) {
+    if (distributionMethod ===
+   'author_position_based' && !userAuthorType.startsWith('position_')) {
       logger.debug('[Auto-convert] Converting from role-based to position-based:', userAuthorType);
       // Map role to position
-      if (userAuthorType === 'first_and_corresponding' || userAuthorType === 'first' || userAuthorType === 'first_author') {
+      if (userAuthorType ===
+   'first_and_corresponding' || userAuthorType ===
+   'first' || userAuthorType ===
+   'first_author') {
         setUserAuthorType('position_1');
-      } else if (userAuthorType === 'corresponding' || userAuthorType === 'corresponding_author') {
+      } else if (userAuthorType ===
+   'corresponding' || userAuthorType ===
+   'corresponding_author') {
         setUserAuthorType('position_2'); // Default corresponding to 2nd position
-      } else if (userAuthorType === 'co_author' || userAuthorType === 'co') {
+      } else if (userAuthorType ===
+   'co_author' || userAuthorType ===
+   'co') {
         setUserAuthorType('position_3'); // Default co-author to 3rd position
       } else {
         setUserAuthorType('position_1'); // Fallback to 1st position
       }
     }
     // Convert from position-based to role-based
-    else if (distributionMethod === 'author_role_based' && userAuthorType.startsWith('position_')) {
+    else if (distributionMethod ===
+   'author_role_based' && userAuthorType.startsWith('position_')) {
       logger.debug('[Auto-convert] Converting from position-based to role-based:', userAuthorType);
       // Map position to role - default to first_and_corresponding for position 1
-      if (userAuthorType === 'position_1') {
+      if (userAuthorType ===
+   'position_1') {
         setUserAuthorType('first_and_corresponding');
-      } else if (userAuthorType === 'position_2') {
+      } else if (userAuthorType ===
+   'position_2') {
         setUserAuthorType('corresponding');
       } else {
         setUserAuthorType('co_author');
@@ -1655,7 +1864,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       setPolicyLoading(true);
       
       // Fetch policy based on publication type
-      if (publicationType === 'research_paper') {
+      if (publicationType ===
+   'research_paper') {
         // Use publication date if available, otherwise fetch active policy
         const url = publicationDate 
           ? `/research-policies/applicable?publicationType=research_paper&publicationDate=${publicationDate}`
@@ -1702,19 +1912,22 @@ export default function ResearchContributionForm({ publicationType, contribution
         } else {
           logger.warn('[fetchPolicy] No policy data in response');
         }
-      } else if (publicationType === 'book') {
+      } else if (publicationType ===
+   'book') {
         const response = await api.get('/book-policies/active/book');
         if (response.data.success && response.data.data) {
           setBookPolicy(response.data.data);
           logger.debug('Book policy loaded:', response.data.data);
         }
-      } else if (publicationType === 'book_chapter') {
+      } else if (publicationType ===
+   'book_chapter') {
         const response = await api.get('/book-policies/active/book_chapter');
         if (response.data.success && response.data.data) {
           setBookChapterPolicy(response.data.data);
           logger.debug('Book chapter policy loaded:', response.data.data);
         }
-      } else if (publicationType === 'conference_paper') {
+      } else if (publicationType ===
+   'conference_paper') {
         // Conference policies are loaded when conferenceSubType is selected
         // Set initial null state
         setConferencePolicy(null);
@@ -1759,14 +1972,16 @@ export default function ResearchContributionForm({ publicationType, contribution
 
   // Effect to fetch conference policy when conferenceSubType changes
   useEffect(() => {
-    if (formData.conferenceSubType && publicationType === 'conference_paper') {
+    if (formData.conferenceSubType && publicationType ===
+   'conference_paper') {
       fetchConferencePolicy(formData.conferenceSubType);
     }
   }, [formData.conferenceSubType, publicationType]);
 
   // Auto-set isPresenter to 'yes' when totalPresenters is 1
   useEffect(() => {
-    if (formData.totalPresenters === 1 && formData.isPresenter !== 'yes') {
+    if (formData.totalPresenters ===
+   1 && formData.isPresenter !== 'yes') {
       setFormData(prev => ({ ...prev, isPresenter: 'yes' }));
     }
   }, [formData.totalPresenters]);
@@ -1822,9 +2037,12 @@ export default function ResearchContributionForm({ publicationType, contribution
         // Load co-authors (excluding current user)
         if (contrib.authors && contrib.authors.length > 1) {
           const otherAuthors = contrib.authors.slice(1).map((a: any) => {
-            const isInternal = a.authorCategory === 'faculty' || a.authorCategory === 'student' || a.isInternal;
+            const isInternal = a.authorCategory ===
+   'faculty' || a.authorCategory ===
+   'student' || a.isInternal;
             let authorType = 'Faculty';
-            if (a.authorCategory === 'student') authorType = 'Student';
+            if (a.authorCategory ===
+   'student') authorType = 'Student';
             else if (!isInternal) {
               if (a.affiliation?.toLowerCase().includes('university') || a.affiliation?.toLowerCase().includes('institute')) {
                 authorType = 'Academic';
@@ -1876,8 +2094,10 @@ export default function ResearchContributionForm({ publicationType, contribution
         if (tracker.statusHistory && tracker.statusHistory.length > 0) {
           const sortedHistory = [...tracker.statusHistory].reverse(); // oldest first
           sortedHistory.forEach((entry: any) => {
-            if (entry.statusData && typeof entry.statusData === 'object') {
-              if (entry.statusData.initialData && typeof entry.statusData.initialData === 'object') {
+            if (entry.statusData && typeof entry.statusData ===
+   'object') {
+              if (entry.statusData.initialData && typeof entry.statusData.initialData ===
+   'object') {
                 mergedStatusData = { ...mergedStatusData, ...entry.statusData.initialData };
               } else {
                 mergedStatusData = { ...mergedStatusData, ...entry.statusData };
@@ -1942,9 +2162,13 @@ export default function ResearchContributionForm({ publicationType, contribution
           publicationDate: safeTypeData.publicationDate || (mergedStatusData.publicationDate as string) || (mergedStatusData.communicationDate as string) || '',
           // Common fields
           publicationStatus: 'published', // Tracker is marked published
-          nationalInternational: safeTypeData.nationalInternational || (mergedStatusData.hasInternationalAuthor === 'yes' ? 'international' : 'national') || (safeTypeData.hasInternationalCollaboration ? 'international' : 'national'),
+          nationalInternational: safeTypeData.nationalInternational || (mergedStatusData.hasInternationalAuthor ===
+   'yes' ? 'international' : 'national') || (safeTypeData.hasInternationalCollaboration ? 'international' : 'national'),
           hasLpuStudents: (safeTypeData.hasLpuStudents || (mergedStatusData.hasLpuStudents as string) || (safeTypeData.hasStudentInvolvement ? 'yes' : 'no')) as 'yes' | 'no',
-          isInterdisciplinary: ((mergedStatusData.interdisciplinary as string) === 'yes' || safeTypeData.isInterdisciplinary === true || safeTypeData.isInterdisciplinary === 'yes' ? 'yes' : 'no') as 'yes' | 'no',
+          isInterdisciplinary: ((mergedStatusData.interdisciplinary as string) ===
+   'yes' || safeTypeData.isInterdisciplinary ===
+   true || safeTypeData.isInterdisciplinary ===
+   'yes' ? 'yes' : 'no') as 'yes' | 'no',
           industryCollaboration: (safeTypeData.industryCollaboration || (mergedStatusData.industryCollaboration as string) || 'no') as 'yes' | 'no',
           communicatedWithOfficialId: (safeTypeData.communicatedWithOfficialId || (mergedStatusData.communicatedWithOfficialId as string) || 'yes') as 'yes' | 'no',
           centralFacilityUsed: (safeTypeData.centralFacilityUsed || (mergedStatusData.centralFacilityUsed as string) || 'no') as 'yes' | 'no',
@@ -1993,7 +2217,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           setCoAuthors(mappedAuthors);
           
           // Update counts based on mapped authors
-          const internalCount = mappedAuthors.filter((a: any) => a.authorCategory === 'Internal').length;
+          const internalCount = mappedAuthors.filter((a: any) => a.authorCategory ===
+   'Internal').length;
           setTotalInternalCoAuthors(internalCount);
           setTotalAuthors(mappedAuthors.length + 1); // +1 for current user
           setTotalInternalAuthors(internalCount + 1); // +1 for current user
@@ -2012,7 +2237,8 @@ export default function ResearchContributionForm({ publicationType, contribution
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
-    if (type === 'checkbox') {
+    if (type ===
+   'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
     } else {
@@ -2062,10 +2288,12 @@ export default function ResearchContributionForm({ publicationType, contribution
     try {
       // For books/book chapters with 'Author' type, search both faculty and students
       let role: string;
-      if (newAuthor.authorType === 'Author') {
+      if (newAuthor.authorType ===
+   'Author') {
         // Search all (will return both faculty and students)
         role = 'all';
-      } else if (newAuthor.authorType === 'Student') {
+      } else if (newAuthor.authorType ===
+   'Student') {
         role = 'student';
       } else {
         role = 'faculty';
@@ -2077,7 +2305,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       
       // Handle different response formats
       let userData = [];
-      if (response && typeof response === 'object') {
+      if (response && typeof response ===
+   'object') {
         // Check if response has data property
         if (response.data && Array.isArray(response.data)) {
           userData = response.data;
@@ -2135,7 +2364,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     logger.debug('[selectAuthorFromSuggestion] Selected user:', userData);
     
     // Validate that user is not adding their own account
-    if (userData.uid === user?.uid) {
+    if (userData.uid ===
+   user?.uid) {
       setSearchSuggestions([]);
       setShowSuggestions(false);
       setError('You cannot add yourself as a co-author. You are already the primary author.');
@@ -2155,13 +2385,16 @@ export default function ResearchContributionForm({ publicationType, contribution
     // userData from search has: uid, name, role, department, designation
     // Handle different property names (name vs displayName)
     const userName = userData.name || userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-    const roleName = typeof userData.role === 'object' ? userData.role?.name : userData.role;
-    const authorType = roleName === 'student' ? 'Student' : 'Faculty';
+    const roleName = typeof userData.role ===
+   'object' ? userData.role?.name : userData.role;
+    const authorType = roleName ===
+   'student' ? 'Student' : 'Faculty';
     
     logger.debug('[selectAuthorFromSuggestion] Extracted name:', userName, 'authorType:', authorType);
     
     // Check if interdisciplinary is no and user is from different school
-    if (formData.isInterdisciplinary === 'no' && user?.employeeDetails?.department?.school?.id) {
+    if (formData.isInterdisciplinary ===
+   'no' && user?.employeeDetails?.department?.school?.id) {
       const userSchoolId = user.employeeDetails.department.school.id;
       const userSchoolName = user.employeeDetails.department.school.name;
       
@@ -2231,7 +2464,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     if (!uid) return;
     
     // Validate that user is not adding their own account
-    if (uid === user?.uid) {
+    if (uid ===
+   user?.uid) {
       setNewAuthor({
         uid: '',
         name: '',
@@ -2251,7 +2485,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       if (response.data) {
         const userData = response.data;
         const userType = userData.userType;
-        let authorType = userType === 'student' ? 'Student' : 'Faculty';
+        let authorType = userType ===
+   'student' ? 'Student' : 'Faculty';
         
         // Extract email from the correct location based on user type
         let userEmail = '';
@@ -2293,7 +2528,8 @@ export default function ResearchContributionForm({ publicationType, contribution
         authorRole: newAuthor.authorRole,
         designation: '',
       });
-      setError(`User not found with that ${newAuthor.authorType === 'Student' ? 'Registration Number' : 'UID'}`);
+      setError(`User not found with that ${newAuthor.authorType ===
+   'Student' ? 'Registration Number' : 'UID'}`);
       setSearchSuggestions([]);
       setShowSuggestions(false);
     }
@@ -2306,9 +2542,13 @@ export default function ResearchContributionForm({ publicationType, contribution
       totalInternalAuthors,
       totalInternalCoAuthors,
       coAuthorsTotal: coAuthors.filter(a => a.name).length,
-      internalCoAuthorsAdded: coAuthors.filter(a => a.name && a.authorCategory === 'Internal' && a.authorRole === 'co_author').length,
-      internalTotal: coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length,
-      externalAdded: coAuthors.filter(a => a.name && a.authorCategory === 'External').length
+      internalCoAuthorsAdded: coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal' && a.authorRole ===
+   'co_author').length,
+      internalTotal: coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length,
+      externalAdded: coAuthors.filter(a => a.name && a.authorCategory ===
+   'External').length
     });
     
     if (!newAuthor.name) {
@@ -2316,13 +2556,16 @@ export default function ResearchContributionForm({ publicationType, contribution
       return;
     }
     
-    if (newAuthor.authorCategory === 'Internal' && !newAuthor.uid) {
-      setError(`${newAuthor.authorType === 'Student' ? 'Registration Number' : 'UID'} is required for internal authors`);
+    if (newAuthor.authorCategory ===
+   'Internal' && !newAuthor.uid) {
+      setError(`${newAuthor.authorType ===
+   'Student' ? 'Registration Number' : 'UID'} is required for internal authors`);
       return;
     }
     
     // Validate external author fields
-    if (newAuthor.authorCategory === 'External') {
+    if (newAuthor.authorCategory ===
+   'External') {
       if (!newAuthor.email) {
         setError('Email is required for external authors');
         return;
@@ -2338,7 +2581,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     
     // Validate that user is not adding their own account
-    if (newAuthor.authorCategory === 'Internal' && newAuthor.uid === user?.uid) {
+    if (newAuthor.authorCategory ===
+   'Internal' && newAuthor.uid ===
+   user?.uid) {
       setError('You cannot add yourself as a co-author. You are already the primary author.');
       return;
     }
@@ -2362,8 +2607,11 @@ export default function ResearchContributionForm({ publicationType, contribution
       const maxCoAuthors = totalAuthors - 1;
       
       // Count internal CO-AUTHORS specifically (not all internal authors)
-      const internalCoAuthorsAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal' && a.authorRole === 'co_author').length;
-      const externalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'External').length;
+      const internalCoAuthorsAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal' && a.authorRole ===
+   'co_author').length;
+      const externalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'External').length;
       
       // Check if we've reached overall limit
       if (currentCount >= maxCoAuthors) {
@@ -2372,13 +2620,17 @@ export default function ResearchContributionForm({ publicationType, contribution
       }
       
       // For books and book chapters, skip role-based validation - all authors are equal
-      const isBook = publicationType === 'book' || publicationType === 'book_chapter';
+      const isBook = publicationType ===
+   'book' || publicationType ===
+   'book_chapter';
       
       // Check specific limits based on author category being added
-      if (newAuthor.authorCategory === 'Internal') {
+      if (newAuthor.authorCategory ===
+   'Internal') {
         // For books: simple check - just verify total internal authors don't exceed limit
         if (isBook) {
-          const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
+          const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
           const maxInternalAuthors = totalInternalAuthors - 1; // Minus applicant
           
           if (totalInternalAdded >= maxInternalAuthors) {
@@ -2390,7 +2642,8 @@ export default function ResearchContributionForm({ publicationType, contribution
         // For research/conference papers: role-based validation
         else {
           // If adding a co-author, check against co-author limit
-          if (newAuthor.authorRole === 'co_author') {
+          if (newAuthor.authorRole ===
+   'co_author') {
             // Internal Co-Authors field specifies how many internal co-authors are allowed
             const maxInternalCoAuthors = totalInternalCoAuthors;
             
@@ -2403,7 +2656,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           }
           // For other internal roles (First, Corresponding), just check total SGT authors
           else {
-            const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
+            const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
             // SGT Authors = total internal authors including applicant
             const maxInternalAuthors = totalInternalAuthors - 1; // Minus applicant
             
@@ -2418,7 +2672,8 @@ export default function ResearchContributionForm({ publicationType, contribution
         // External authors calculation:
         // When all internal are co-authors: external = total - internal
         // Otherwise: external = total - 1 (you) - internal co-authors
-        const maxExternalAuthors = (totalInternalAuthors === totalInternalCoAuthors && totalInternalCoAuthors > 0)
+        const maxExternalAuthors = (totalInternalAuthors ===
+   totalInternalCoAuthors && totalInternalCoAuthors > 0)
           ? totalAuthors - totalInternalAuthors
           : maxCoAuthors - totalInternalCoAuthors;
         
@@ -2433,8 +2688,12 @@ export default function ResearchContributionForm({ publicationType, contribution
         const emptyIndex = updated.findIndex(a => !a.name);
         
         // Check if this is First Author - they must be at displayOrder 2 (position #1)
-        const isFirstAuthor = newAuthor.authorRole === 'first_author' || newAuthor.authorRole === 'first' ||
-                             newAuthor.authorRole === 'first_and_corresponding' || newAuthor.authorRole === 'first_and_corresponding_author';
+        const isFirstAuthor = newAuthor.authorRole ===
+   'first_author' || newAuthor.authorRole ===
+   'first' ||
+                             newAuthor.authorRole ===
+   'first_and_corresponding' || newAuthor.authorRole ===
+   'first_and_corresponding_author';
         
         if (emptyIndex !== -1) {
           // Fill empty slot
@@ -2443,7 +2702,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             updated[emptyIndex] = { ...newAuthor, displayOrder: 2 };
             // Shift others if needed
             return updated.map((author, idx) => {
-              if (idx === emptyIndex) return author;
+              if (idx ===
+   emptyIndex) return author;
               if (!author.name) return author;
               return { ...author, displayOrder: (author.displayOrder ?? 0) >= 2 ? (author.displayOrder ?? 0) + 1 : (author.displayOrder ?? 0) };
             });
@@ -2463,7 +2723,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           // If First Author, shift others
           if (isFirstAuthor) {
             return updated.map((author, idx) => {
-              if (idx === updated.length - 1) return author;
+              if (idx ===
+   updated.length - 1) return author;
               if (!author.name) return author;
               return { ...author, displayOrder: (author.displayOrder ?? 0) >= 2 ? (author.displayOrder ?? 0) + 1 : (author.displayOrder ?? 0) };
             });
@@ -2474,14 +2735,20 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     
     // Reset form - set default role and category based on scenario
-    const defaultRole = (totalInternalAuthors === 1 && totalInternalCoAuthors === 1)
+    const defaultRole = (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   1)
       ? 'first_and_corresponding'
       : 'co_author';
     
     // Determine default category: External if only external can be added, otherwise Internal
-    const defaultCategory = (totalInternalAuthors === 1 && totalInternalCoAuthors === 0) ? 'External' : 'Internal';
-    const defaultType = defaultCategory === 'External' ? 'Academic' : 'Faculty';
-    const defaultAffiliation = defaultCategory === 'External' ? '' : 'SGT University';
+    const defaultCategory = (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   0) ? 'External' : 'Internal';
+    const defaultType = defaultCategory ===
+   'External' ? 'Academic' : 'Faculty';
+    const defaultAffiliation = defaultCategory ===
+   'External' ? '' : 'SGT University';
     
     setNewAuthor({
       uid: '',
@@ -2539,10 +2806,17 @@ export default function ResearchContributionForm({ publicationType, contribution
     const author = coAuthors[index];
     
     // LOCK RULE: First Author cannot be moved from position #1
-    if (author.displayOrder === 1 || author.displayOrder === 2) { // displayOrder 2 means position 1 among co-authors
-      const isFirstAuthor = author.authorRole === 'first_author' || author.authorRole === 'first' || 
-                           author.authorRole === 'first_and_corresponding' || author.authorRole === 'first_and_corresponding_author';
-      if (isFirstAuthor && author.displayOrder === 2) {
+    if (author.displayOrder ===
+   1 || author.displayOrder ===
+   2) { // displayOrder 2 means position 1 among co-authors
+      const isFirstAuthor = author.authorRole ===
+   'first_author' || author.authorRole ===
+   'first' || 
+                           author.authorRole ===
+   'first_and_corresponding' || author.authorRole ===
+   'first_and_corresponding_author';
+      if (isFirstAuthor && author.displayOrder ===
+   2) {
         e.preventDefault();
         setError('First Author must remain at position #1 in the paper and cannot be reordered.');
         return;
@@ -2568,25 +2842,37 @@ export default function ResearchContributionForm({ publicationType, contribution
   
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === dropIndex) {
+    if (draggedIndex ===
+   null || draggedIndex ===
+   dropIndex) {
       setDragOverIndex(null);
       return;
     }
     
     // LOCK RULE: Check if we're trying to drop at position of First Author
     const targetAuthor = coAuthors[dropIndex];
-    const isTargetFirstAuthor = targetAuthor.authorRole === 'first_author' || targetAuthor.authorRole === 'first' ||
-                                targetAuthor.authorRole === 'first_and_corresponding' || targetAuthor.authorRole === 'first_and_corresponding_author';
+    const isTargetFirstAuthor = targetAuthor.authorRole ===
+   'first_author' || targetAuthor.authorRole ===
+   'first' ||
+                                targetAuthor.authorRole ===
+   'first_and_corresponding' || targetAuthor.authorRole ===
+   'first_and_corresponding_author';
     
     // Check if First Author exists and is at position 2 (first among co-authors)
     const firstAuthorIndex = coAuthors.findIndex(a => 
-      (a.authorRole === 'first_author' || a.authorRole === 'first' || 
-       a.authorRole === 'first_and_corresponding' || a.authorRole === 'first_and_corresponding_author') &&
-      a.displayOrder === 2
+      (a.authorRole ===
+   'first_author' || a.authorRole ===
+   'first' || 
+       a.authorRole ===
+   'first_and_corresponding' || a.authorRole ===
+   'first_and_corresponding_author') &&
+      a.displayOrder ===
+   2
     );
     
     // Prevent dropping at position 0 (which becomes displayOrder 2) if First Author already exists there
-    if (dropIndex === 0 && firstAuthorIndex !== -1 && draggedIndex !== firstAuthorIndex) {
+    if (dropIndex ===
+   0 && firstAuthorIndex !== -1 && draggedIndex !== firstAuthorIndex) {
       setError('Cannot move to position #1. First Author must remain at position #1.');
       setDraggedIndex(null);
       setDragOverIndex(null);
@@ -2617,12 +2903,16 @@ export default function ResearchContributionForm({ publicationType, contribution
   // Update co-authors list when counts change
   useEffect(() => {
     // Special case: SGT=1 & Internal Co-Authors=1 -> need exactly 1 slot for internal author
-    const newCount = (totalInternalAuthors === 1 && totalInternalCoAuthors === 1) 
+    const newCount = (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   1) 
       ? 1 
       : totalAuthors - 1; // ALL authors except current user (internal + external)
     
     if (newCount !== coAuthors.length) {
-      const defaultRole = (totalInternalAuthors === 1 && totalInternalCoAuthors === 1)
+      const defaultRole = (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   1)
         ? 'first_and_corresponding'
         : 'co_author';
       
@@ -2654,12 +2944,14 @@ export default function ResearchContributionForm({ publicationType, contribution
   
   // Auto-switch to External when internal slots are full
   useEffect(() => {
-    const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
+    const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
     const maxInternalToAdd = totalInternalAuthors - 1; // Minus applicant
     const internalSlotsFull = totalInternalAdded >= maxInternalToAdd;
     
     // If internal slots are full and currently set to Internal, switch to External
-    if (internalSlotsFull && newAuthor.authorCategory === 'Internal' && totalAuthors > totalInternalAuthors) {
+    if (internalSlotsFull && newAuthor.authorCategory ===
+   'Internal' && totalAuthors > totalInternalAuthors) {
       logger.debug('[Auto-switch] Internal slots full, switching to External');
       const availableRoles = getAvailableOtherAuthorRoles();
       setNewAuthor(prev => ({
@@ -2681,14 +2973,17 @@ export default function ResearchContributionForm({ publicationType, contribution
   // Auto-set user author type based on allowed roles
   useEffect(() => {
     const allowedRoles = getAllowedUserRoles();
-    if (allowedRoles.length === 1 && !allowedRoles.includes(userAuthorType)) {
+    if (allowedRoles.length ===
+   1 && !allowedRoles.includes(userAuthorType)) {
       setUserAuthorType(allowedRoles[0]);
     }
   }, [totalAuthors, totalInternalAuthors, totalInternalCoAuthors]);
   
   // Auto-set newAuthor category to Internal when in SGT=1 & Co-Authors=1 scenario
   useEffect(() => {
-    if (totalInternalAuthors === 1 && totalInternalCoAuthors === 1) {
+    if (totalInternalAuthors ===
+   1 && totalInternalCoAuthors ===
+   1) {
       setNewAuthor(prev => ({
         ...prev,
         authorCategory: 'Internal',
@@ -2708,7 +3003,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                            `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
                            user?.email || '';
     
-    const userType = user?.userType === 'student' ? 'internal_student' : 'internal_faculty';
+    const userType = user?.userType ===
+   'student' ? 'internal_student' : 'internal_faculty';
     
     let currentUserRole = 'first_author';
     let isCorresponding = false;
@@ -2716,7 +3012,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     
     // Extract position number from userAuthorType (position_1, position_2, etc.)
     if (userAuthorType.startsWith('position_')) {
-      if (userAuthorType === 'position_6_plus') {
+      if (userAuthorType ===
+   'position_6_plus') {
         authorPosition = 6; // Position 6+ (gets 0% incentive)
       } else {
         const posMatch = userAuthorType.match(/position_(\d+)/);
@@ -2728,13 +3025,16 @@ export default function ResearchContributionForm({ publicationType, contribution
       currentUserRole = 'author';
     } else {
       // Role-based logic
-      if (userAuthorType === 'first_and_corresponding') {
+      if (userAuthorType ===
+   'first_and_corresponding') {
         currentUserRole = 'first_and_corresponding_author'; // Send as combined role
         isCorresponding = true;
-      } else if (userAuthorType === 'corresponding') {
+      } else if (userAuthorType ===
+   'corresponding') {
         currentUserRole = 'corresponding_author';
         isCorresponding = true;
-      } else if (userAuthorType === 'first') {
+      } else if (userAuthorType ===
+   'first') {
         currentUserRole = 'first_author';
       } else {
         currentUserRole = 'co_author';
@@ -2742,7 +3042,8 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     
     // If there are no co-authors, automatically set as first_and_corresponding_author
-    if (coAuthors.length === 0 && currentUserRole !== 'first_and_corresponding_author') {
+    if (coAuthors.length ===
+   0 && currentUserRole !== 'first_and_corresponding_author') {
       currentUserRole = 'first_and_corresponding_author';
       isCorresponding = true;
     }
@@ -2763,13 +3064,18 @@ export default function ResearchContributionForm({ publicationType, contribution
     coAuthors.forEach((coAuthor, index) => {
       if (coAuthor.name) {
         let authorType = '';
-        if (coAuthor.authorCategory === 'Internal') {
-          authorType = coAuthor.authorType === 'Student' ? 'internal_student' : 'internal_faculty';
+        if (coAuthor.authorCategory ===
+   'Internal') {
+          authorType = coAuthor.authorType ===
+   'Student' ? 'internal_student' : 'internal_faculty';
         } else {
           // External authors - Academic, Industry, or International Author
-          if (coAuthor.authorType === 'Academic') authorType = 'external_academic';
-          else if (coAuthor.authorType === 'Industry') authorType = 'external_industry';
-          else if (coAuthor.authorType === 'International Author') authorType = 'external_international';
+          if (coAuthor.authorType ===
+   'Academic') authorType = 'external_academic';
+          else if (coAuthor.authorType ===
+   'Industry') authorType = 'external_industry';
+          else if (coAuthor.authorType ===
+   'International Author') authorType = 'external_international';
           else authorType = 'external_other'; // Fallback
         }
         
@@ -2779,7 +3085,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           name: coAuthor.name,
           registrationNumber: coAuthor.uid || null,
           email: coAuthor.email || null,
-          affiliation: coAuthor.affiliation || (coAuthor.authorCategory === 'Internal' ? 'SGT University' : null),
+          affiliation: coAuthor.affiliation || (coAuthor.authorCategory ===
+   'Internal' ? 'SGT University' : null),
           isCorresponding: false,
           orderNumber: index + 2,
           designation: coAuthor.designation || null,
@@ -2825,14 +3132,17 @@ export default function ResearchContributionForm({ publicationType, contribution
       journalName: formData.journalName,
       targetedResearchType: formData.targetedResearchType,
       indexingCategories: formData.indexingCategories, // Multi-select indexing categories
-      internationalAuthor: formData.hasInternationalAuthor === 'yes',
+      internationalAuthor: formData.hasInternationalAuthor ===
+   'yes',
       foreignCollaborationsCount: formData.numForeignUniversities ? Number(formData.numForeignUniversities) : 0,
       impactFactor: formData.impactFactor ? Number(formData.impactFactor) : null,
       sjr: formData.sjr ? Number(formData.sjr) : null,
       quartile: formData.quartile || null,
       naasRating: formData.naasRating ? Number(formData.naasRating) : null,
-      interdisciplinaryFromSgt: formData.isInterdisciplinary === 'yes',
-      studentsFromSgt: formData.hasLpuStudents === 'yes',
+      interdisciplinaryFromSgt: formData.isInterdisciplinary ===
+   'yes',
+      studentsFromSgt: formData.hasLpuStudents ===
+   'yes',
       // Publication details
       volume: formData.volume || null,
       issue: formData.issue || null,
@@ -2973,11 +3283,13 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     
     // Research paper specific validations
-    if (publicationType === 'research_paper') {
+    if (publicationType ===
+   'research_paper') {
       // Validate foreign universities vs external authors
       const numForeignUnis = Number(formData.numForeignUniversities) || 0;
       if (numForeignUnis > 0) {
-        const externalAuthorsAdded = coAuthors.filter(a => a.name && a.authorCategory === 'External').length;
+        const externalAuthorsAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'External').length;
         if (externalAuthorsAdded < numForeignUnis) {
           setError(`You specified ${numForeignUnis} foreign universit${numForeignUnis > 1 ? 'ies' : 'y'} but only added ${externalAuthorsAdded} external author(s). Please add at least ${numForeignUnis} external author(s).`);
           return;
@@ -2997,7 +3309,9 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
     
     // Book/Book Chapter specific validations
-    if (publicationType === 'book' || publicationType === 'book_chapter') {
+    if (publicationType ===
+   'book' || publicationType ===
+   'book_chapter') {
       if (!formData.isbn) {
         setError('ISBN is required for books');
         return;
@@ -3014,7 +3328,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       }
       
       // Book chapter specific: require bookTitle
-      if (publicationType === 'book_chapter' && !formData.bookTitle) {
+      if (publicationType ===
+   'book_chapter' && !formData.bookTitle) {
         setError('Book title is required for book chapters');
         return;
       }
@@ -3027,9 +3342,12 @@ export default function ResearchContributionForm({ publicationType, contribution
     }
 
     // Validate presenter certificate for paper_not_indexed when isPresenter = yes
-    if (publicationType === 'conference_paper' && 
-        formData.conferenceSubType === 'paper_not_indexed' && 
-        formData.isPresenter === 'yes' && 
+    if (publicationType ===
+   'conference_paper' && 
+        formData.conferenceSubType ===
+   'paper_not_indexed' && 
+        formData.isPresenter ===
+   'yes' && 
         !presenterCertificate) {
       setError('Please upload presenter certificate before submitting');
       return;
@@ -3122,7 +3440,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
         <nav className="flex border-b border-gray-200">
           <button
-            className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab === 'entry'
+            className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
+   'entry'
                 ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
@@ -3131,7 +3450,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             Contribution Entry
           </button>
           <button
-            className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab === 'process'
+            className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
+   'process'
                 ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
@@ -3160,7 +3480,8 @@ export default function ResearchContributionForm({ publicationType, contribution
         </div>
       )}
 
-      {activeTab === 'entry' && (
+      {activeTab ===
+   'entry' && (
         <>
           {/* Publication Form - Professional */}
           <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
@@ -3171,8 +3492,10 @@ export default function ResearchContributionForm({ publicationType, contribution
               {/* Title - Changes based on publication type */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {publicationType === 'book' ? 'Title of Book' : 
-                   publicationType === 'book_chapter' ? 'Title of Chapter' : 'Title of Paper'} <span className="text-red-500">*</span>
+                  {publicationType ===
+   'book' ? 'Title of Book' : 
+                   publicationType ===
+   'book_chapter' ? 'Title of Chapter' : 'Title of Paper'} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -3181,14 +3504,17 @@ export default function ResearchContributionForm({ publicationType, contribution
                   onChange={handleInputChange}
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 hover:bg-white transition-colors"
-                  placeholder={publicationType === 'book' ? 'Enter the complete title of your book' : 
-                               publicationType === 'book_chapter' ? 'Enter the complete title of your chapter' : 
+                  placeholder={publicationType ===
+   'book' ? 'Enter the complete title of your book' : 
+                               publicationType ===
+   'book_chapter' ? 'Enter the complete title of your chapter' : 
                                'Enter the complete title of your research paper'}
                 />
               </div>
 
           {/* Research Paper Specific Fields */}
-          {publicationType === 'research_paper' && (
+          {publicationType ===
+   'research_paper' && (
           <>
           {/* Research Details - All in One Box */}
           <div className="p-5 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200 space-y-5">
@@ -3229,7 +3555,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   </label>
                 ))}
               </div>
-              {formData.indexingCategories.length === 0 && (
+              {formData.indexingCategories.length ===
+   0 && (
                 <p className="text-xs text-amber-600 mt-1">Please select at least one indexing category</p>
               )}
             </div>
@@ -3244,7 +3571,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="isInterdisciplinary" value={v}
-                        checked={formData.isInterdisciplinary === v}
+                        checked={formData.isInterdisciplinary ===
+   v}
                         onChange={handleInputChange}
                         className="w-4 h-4 text-blue-600"
                       />
@@ -3305,7 +3633,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                         ].map(q => (
                           <label key={q.value} className="inline-flex items-center text-sm cursor-pointer">
                             <input type="radio" name="quartile" value={q.value}
-                              checked={formData.quartile === q.value}
+                              checked={formData.quartile ===
+   q.value}
                               onChange={handleInputChange}
                               className="w-4 h-4 text-blue-600"
                             />
@@ -3439,19 +3768,25 @@ export default function ResearchContributionForm({ publicationType, contribution
           )}
 
           {/* Book / Book Chapter Specific Fields */}
-          {(publicationType === 'book' || publicationType === 'book_chapter') && (
+          {(publicationType ===
+   'book' || publicationType ===
+   'book_chapter') && (
           <>
           {/* Policy Information Display */}
-          {(publicationType === 'book' && bookPolicy) || (publicationType === 'book_chapter' && bookChapterPolicy) ? (
+          {(publicationType ===
+   'book' && bookPolicy) || (publicationType ===
+   'book_chapter' && bookChapterPolicy) ? (
             <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 space-y-4">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-5 h-5 text-blue-600" />
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Current {publicationType === 'book' ? 'Book' : 'Book Chapter'} Policy
+                  Current {publicationType ===
+   'book' ? 'Book' : 'Book Chapter'} Policy
                 </h3>
               </div>
               
-              {publicationType === 'book' && bookPolicy && (
+              {publicationType ===
+   'book' && bookPolicy && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white p-4 rounded-lg border border-gray-200">
                     <h4 className="font-medium text-gray-700 mb-2">Authored Book</h4>
@@ -3499,7 +3834,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 </div>
               )}
               
-              {publicationType === 'book_chapter' && bookChapterPolicy && (
+              {publicationType ===
+   'book_chapter' && bookChapterPolicy && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-white p-4 rounded-lg border border-gray-200">
                     <h4 className="font-medium text-gray-700 mb-2">Authored Chapter</h4>
@@ -3563,7 +3899,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 <div>
                   <p className="text-sm text-yellow-800 font-medium">No active policy found</p>
                   <p className="text-xs text-yellow-700 mt-1">
-                    Please contact the administrator to set up a {publicationType === 'book' ? 'book' : 'book chapter'} policy before submitting.
+                    Please contact the administrator to set up a {publicationType ===
+   'book' ? 'book' : 'book chapter'} policy before submitting.
                   </p>
                 </div>
               </div>
@@ -3592,7 +3929,8 @@ export default function ResearchContributionForm({ publicationType, contribution
               </div>
 
               {/* Show Our Authorized Publications only for non_indexed */}
-              {formData.bookIndexingType === 'non_indexed' && (
+              {formData.bookIndexingType ===
+   'non_indexed' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Our Authorized Publications <span className="text-red-500">*</span>
@@ -3600,7 +3938,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 <div className="flex gap-4">
                   <label className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="bookLetter" value="yes"
-                      checked={formData.bookLetter === 'yes'}
+                      checked={formData.bookLetter ===
+   'yes'}
                       onChange={handleInputChange}
                       className="w-4 h-4 text-green-600"
                       readOnly
@@ -3619,7 +3958,8 @@ export default function ResearchContributionForm({ publicationType, contribution
               )}
 
               {/* Author Type - Not Applicable for book_chapter */}
-              {publicationType === 'book' && (
+              {publicationType ===
+   'book' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Author Type <span className="text-red-500">*</span>
@@ -3648,7 +3988,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="isInterdisciplinary" value={v}
-                        checked={formData.isInterdisciplinary === v}
+                        checked={formData.isInterdisciplinary ===
+   v}
                         onChange={handleInputChange}
                         className="w-4 h-4 text-green-600"
                       />
@@ -3666,7 +4007,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="communicatedWithOfficialId" value={v}
-                        checked={formData.communicatedWithOfficialId === v}
+                        checked={formData.communicatedWithOfficialId ===
+   v}
                         onChange={handleInputChange}
                         className="w-4 h-4 text-green-600"
                       />
@@ -3678,7 +4020,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             </div>
 
             {/* Personal Email - Show only if not communicated with official ID */}
-            {formData.communicatedWithOfficialId === 'no' && (
+            {formData.communicatedWithOfficialId ===
+   'no' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Your Personal Email ID <span className="text-red-500">*</span>
@@ -3693,7 +4036,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
 
             {/* Book Chapter Specific: Book Title and Chapter Details */}
-            {publicationType === 'book_chapter' && (
+            {publicationType ===
+   'book_chapter' && (
               <div className="pt-3 border-t border-slate-200 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3804,7 +4148,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           )}
 
           {/* Conference Paper Specific Fields */}
-          {publicationType === 'conference_paper' && (
+          {publicationType ===
+   'conference_paper' && (
           <>
           {/* Conference Type Selection */}
           <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 rounded-xl border border-slate-200 space-y-5">
@@ -3835,7 +4180,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <h4 className="font-semibold text-gray-900">Current Incentive Policy</h4>
                 </div>
                 
-                {formData.conferenceSubType === 'paper_indexed_scopus' && conferencePolicy.quartileIncentives ? (
+                {formData.conferenceSubType ===
+   'paper_indexed_scopus' && conferencePolicy.quartileIncentives ? (
                   <div className="space-y-3">
                     <p className="text-sm text-gray-600 mb-2">Quartile-based incentives (based on proceedings quartile):</p>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
@@ -3900,7 +4246,9 @@ export default function ResearchContributionForm({ publicationType, contribution
           </div>
 
           {/* Type 1 & 2: Paper in Conference (Not Indexed or Indexed in Scopus) */}
-          {(formData.conferenceSubType === 'paper_not_indexed' || formData.conferenceSubType === 'paper_indexed_scopus') && (
+          {(formData.conferenceSubType ===
+   'paper_not_indexed' || formData.conferenceSubType ===
+   'paper_indexed_scopus') && (
           <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 rounded-xl border border-slate-200 space-y-5">
             {/* Title of Paper - Already covered by main title field */}
             
@@ -3936,7 +4284,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   placeholder="Enter priority funding area"
                 />
               </div>
-              {formData.conferenceSubType === 'paper_indexed_scopus' && (
+              {formData.conferenceSubType ===
+   'paper_indexed_scopus' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Please Mention the Proceedings Quartile <span className="text-red-500">*</span>
@@ -3971,7 +4320,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                     }
                     setError(null);
                     // If presenters = 1, auto-set isPresenter to 'yes'
-                    if (value === 1) {
+                    if (value ===
+   1) {
                       setFormData(prev => ({ ...prev, totalPresenters: value, isPresenter: 'yes' }));
                     } else {
                       handleInputChange(e);
@@ -3985,18 +4335,22 @@ export default function ResearchContributionForm({ publicationType, contribution
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Whether you are a Presenter?
-                  {formData.totalPresenters === 1 && <span className="text-xs text-green-600 ml-1">(Auto-set to Yes)</span>}
+                  {formData.totalPresenters ===
+   1 && <span className="text-xs text-green-600 ml-1">(Auto-set to Yes)</span>}
                 </label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
-                    <label key={v} className={`inline-flex items-center text-sm ${formData.totalPresenters === 1 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                    <label key={v} className={`inline-flex items-center text-sm ${formData.totalPresenters ===
+   1 ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                       <input 
                         type="radio" 
                         name="isPresenter" 
                         value={v}
-                        checked={formData.isPresenter === v} 
+                        checked={formData.isPresenter ===
+   v} 
                         onChange={handleInputChange}
-                        disabled={formData.totalPresenters === 1}
+                        disabled={formData.totalPresenters ===
+   1}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4005,7 +4359,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                 </div>
 
                 {/* Warning message when not a presenter */}
-                {formData.conferenceSubType === 'paper_not_indexed' && formData.isPresenter === 'no' && (
+                {formData.conferenceSubType ===
+   'paper_not_indexed' && formData.isPresenter ===
+   'no' && (
                   <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -4020,7 +4376,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                 )}
 
                 {/* Presenter certificate upload when presenter = yes */}
-                {formData.conferenceSubType === 'paper_not_indexed' && formData.isPresenter === 'yes' && (
+                {formData.conferenceSubType ===
+   'paper_not_indexed' && formData.isPresenter ===
+   'yes' && (
                   <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Upload Presenter Certificate <span className="text-red-500">*</span>
@@ -4058,7 +4416,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="virtualConference" value={v}
-                        checked={formData.virtualConference === v} onChange={handleInputChange}
+                        checked={formData.virtualConference ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4075,7 +4434,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 <div className="flex gap-4 mt-1">
                   <label className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="fullPaper" value="yes"
-                      checked={formData.fullPaper === 'yes'} onChange={handleInputChange}
+                      checked={formData.fullPaper ===
+   'yes'} onChange={handleInputChange}
                       className="w-4 h-4 text-purple-600"
                     />
                     <span className="ml-1.5 text-gray-700">Full Paper</span>
@@ -4088,7 +4448,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['national','international'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="conferenceType" value={v}
-                        checked={formData.conferenceType === v} onChange={handleInputChange}
+                        checked={formData.conferenceType ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4106,7 +4467,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="conferenceHeldAtSgt" value={v}
-                        checked={formData.conferenceHeldAtSgt === v} onChange={handleInputChange}
+                        checked={formData.conferenceHeldAtSgt ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4120,7 +4482,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="conferenceBestPaperAward" value={v}
-                        checked={formData.conferenceBestPaperAward === v} onChange={handleInputChange}
+                        checked={formData.conferenceBestPaperAward ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4138,7 +4501,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="isInterdisciplinary" value={v}
-                        checked={formData.isInterdisciplinary === v} onChange={handleInputChange}
+                        checked={formData.isInterdisciplinary ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4152,7 +4516,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="industryCollaboration" value={v}
-                        checked={formData.industryCollaboration === v} onChange={handleInputChange}
+                        checked={formData.industryCollaboration ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4174,7 +4539,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="communicatedWithOfficialId" value={v}
-                        checked={formData.communicatedWithOfficialId === v} onChange={handleInputChange}
+                        checked={formData.communicatedWithOfficialId ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4188,7 +4554,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="centralFacilityUsed" value={v}
-                        checked={formData.centralFacilityUsed === v} onChange={handleInputChange}
+                        checked={formData.centralFacilityUsed ===
+   v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
                       <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4199,7 +4566,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             </div>
 
             {/* Personal Email - Show only if not communicated with official ID */}
-            {formData.communicatedWithOfficialId === 'no' && (
+            {formData.communicatedWithOfficialId ===
+   'no' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Your Personal Email ID <span className="text-red-500">*</span>
@@ -4290,7 +4658,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           )}
 
           {/* Type 3: Keynote Speaker / Session Chair / Invited Talks */}
-          {formData.conferenceSubType === 'keynote_speaker_invited_talks' && (
+          {formData.conferenceSubType ===
+   'keynote_speaker_invited_talks' && (
           <div className="p-5 bg-gradient-to-r from-slate-50 to-orange-50 rounded-xl border border-slate-200 space-y-5">
             {/* Role Selection */}
             <div>
@@ -4306,7 +4675,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 ].map(role => (
                   <label key={role.value} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="conferenceRole" value={role.value}
-                      checked={formData.conferenceRole === role.value} onChange={handleInputChange}
+                      checked={formData.conferenceRole ===
+   role.value} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
                     <span className="ml-1.5 text-gray-700">{role.label}</span>
@@ -4329,7 +4699,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 ].map(opt => (
                   <label key={opt.value} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="indexedIn" value={opt.value}
-                      checked={formData.indexedIn === opt.value} onChange={handleInputChange}
+                      checked={formData.indexedIn ===
+   opt.value} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
                     <span className="ml-1.5 text-gray-700">{opt.label}</span>
@@ -4350,7 +4721,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 ].map(opt => (
                   <label key={opt.value} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="conferenceHeldLocation" value={opt.value}
-                      checked={formData.conferenceHeldLocation === opt.value} onChange={handleInputChange}
+                      checked={formData.conferenceHeldLocation ===
+   opt.value} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
                     <span className="ml-1.5 text-gray-700">{opt.label}</span>
@@ -4414,7 +4786,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {['yes','no'].map(v => (
                   <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="attendedVirtual" value={v}
-                      checked={formData.attendedVirtual === v} onChange={handleInputChange}
+                      checked={formData.attendedVirtual ===
+   v} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
                     <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4426,7 +4799,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           )}
 
           {/* Type 4: Organizer/Coordinator/Member of Conference held at SGT */}
-          {formData.conferenceSubType === 'organizer_coordinator_member' && (
+          {formData.conferenceSubType ===
+   'organizer_coordinator_member' && (
           <div className="p-5 bg-gradient-to-r from-slate-50 to-cyan-50 rounded-xl border border-slate-200 space-y-5">
             {/* Category Selection */}
             <div>
@@ -4440,7 +4814,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 ].map(cat => (
                   <label key={cat.value} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="eventCategory" value={cat.value}
-                      checked={formData.eventCategory === cat.value} onChange={handleInputChange}
+                      checked={formData.eventCategory ===
+   cat.value} onChange={handleInputChange}
                       className="w-4 h-4 text-cyan-600"
                     />
                     <span className="ml-1.5 text-gray-700">{cat.label}</span>
@@ -4452,10 +4827,12 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Role Selection based on Category */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">
-                {formData.eventCategory === 'seminar_symposia' ? 'Seminar/Symposia Role' : 'Role'} <span className="text-red-500">*</span>
+                {formData.eventCategory ===
+   'seminar_symposia' ? 'Seminar/Symposia Role' : 'Role'} <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-4">
-                {formData.eventCategory === 'conference' ? (
+                {formData.eventCategory ===
+   'conference' ? (
                   // Conference roles
                   [
                     { value: 'chairman_chairperson', label: 'Chairman/Chairperson/Convener/Organizing Secretary' },
@@ -4466,7 +4843,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   ].map(role => (
                     <label key={role.value} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="organizerRole" value={role.value}
-                        checked={formData.organizerRole === role.value} onChange={handleInputChange}
+                        checked={formData.organizerRole ===
+   role.value} onChange={handleInputChange}
                         className="w-4 h-4 text-cyan-600"
                       />
                       <span className="ml-1.5 text-gray-700">{role.label}</span>
@@ -4482,7 +4860,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   ].map(role => (
                     <label key={role.value} className="inline-flex items-center text-sm cursor-pointer">
                       <input type="radio" name="organizerRole" value={role.value}
-                        checked={formData.organizerRole === role.value} onChange={handleInputChange}
+                        checked={formData.organizerRole ===
+   role.value} onChange={handleInputChange}
                         className="w-4 h-4 text-cyan-600"
                       />
                       <span className="ml-1.5 text-gray-700">{role.label}</span>
@@ -4504,7 +4883,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 ].map(opt => (
                   <label key={opt.value} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="conferenceType" value={opt.value}
-                      checked={formData.conferenceType === opt.value} onChange={handleInputChange}
+                      checked={formData.conferenceType ===
+   opt.value} onChange={handleInputChange}
                       className="w-4 h-4 text-cyan-600"
                     />
                     <span className="ml-1.5 text-gray-700">{opt.label}</span>
@@ -4567,7 +4947,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {['yes','no'].map(v => (
                   <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="attendedVirtual" value={v}
-                      checked={formData.attendedVirtual === v} onChange={handleInputChange}
+                      checked={formData.attendedVirtual ===
+   v} onChange={handleInputChange}
                       className="w-4 h-4 text-cyan-600"
                     />
                     <span className="ml-1.5 capitalize text-gray-700">{v}</span>
@@ -4623,7 +5004,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             {formData.sdgGoals.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {formData.sdgGoals.map(sdgValue => {
-                  const sdg = SDG_GOALS.find(s => s.value === sdgValue);
+                  const sdg = SDG_GOALS.find(s => s.value ===
+   sdgValue);
                   return sdg ? (
                     <span key={sdgValue} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
                       {sdg.label.replace('SDG ', '')}
@@ -4645,7 +5027,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           </div>
 
           {/* Publication Details Grid - Only for Research Papers */}
-          {publicationType === 'research_paper' && (
+          {publicationType ===
+   'research_paper' && (
           <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
             <h4 className="text-sm font-semibold text-gray-700 mb-4">Publication Information</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -4691,7 +5074,8 @@ export default function ResearchContributionForm({ publicationType, contribution
               <input type="url" name="weblink" value={formData.publisherName} onChange={(e) => {
                   const url = e.target.value;
                   // Allow empty or valid https URLs
-                  if (url === '' || url.startsWith('https://') || url.startsWith('http://')) {
+                  if (url ===
+   '' || url.startsWith('https://') || url.startsWith('http://')) {
                     setFormData(prev => ({ ...prev, publisherName: url }));
                   }
                 }}
@@ -4709,13 +5093,19 @@ export default function ResearchContributionForm({ publicationType, contribution
       </div>
 
       {/* Author Information Section - For Research Papers, Conference Papers (Scopus), Books, and Book Chapters */}
-      {(formData.publicationType === 'research_paper' || 
-        (formData.publicationType === 'conference_paper' && formData.conferenceSubType === 'paper_indexed_scopus') ||
-        formData.publicationType === 'book' ||
-        formData.publicationType === 'book_chapter') && (
+      {(formData.publicationType ===
+   'research_paper' || 
+        (formData.publicationType ===
+   'conference_paper' && formData.conferenceSubType ===
+   'paper_indexed_scopus') ||
+        formData.publicationType ===
+   'book' ||
+        formData.publicationType ===
+   'book_chapter') && (
       <div>
       {/* Mentor Selection (Only for Students) - Compact */}
-      {user?.userType === 'student' && (
+      {user?.userType ===
+   'student' && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
           <h2 className="text-sm font-semibold text-gray-900 mb-2">Mentor Details (Optional)</h2>
           
@@ -4770,13 +5160,19 @@ export default function ResearchContributionForm({ publicationType, contribution
 
       {/* Authors Section - Professional */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-        <div className={`bg-gradient-to-r ${formData.publicationType === 'conference_paper' ? 'from-purple-600 to-purple-700' : (formData.publicationType === 'book' || formData.publicationType === 'book_chapter') ? 'from-teal-600 to-teal-700' : 'from-emerald-600 to-emerald-700'} px-4 py-2.5`}>
+        <div className={`bg-gradient-to-r ${formData.publicationType ===
+   'conference_paper' ? 'from-purple-600 to-purple-700' : (formData.publicationType ===
+   'book' || formData.publicationType ===
+   'book_chapter') ? 'from-teal-600 to-teal-700' : 'from-emerald-600 to-emerald-700'} px-4 py-2.5`}>
           <h2 className="text-lg font-semibold text-white">Author Information</h2>
         </div>
         <div className="p-4">
         
         {/* Author Counts and Additional Info - All in One Box */}
-        <div className={`p-4 bg-gradient-to-r ${formData.publicationType === 'conference_paper' ? 'from-gray-50 to-purple-50' : (formData.publicationType === 'book' || formData.publicationType === 'book_chapter') ? 'from-gray-50 to-teal-50' : 'from-gray-50 to-emerald-50'} rounded-xl border border-gray-100 space-y-4`}>
+        <div className={`p-4 bg-gradient-to-r ${formData.publicationType ===
+   'conference_paper' ? 'from-gray-50 to-purple-50' : (formData.publicationType ===
+   'book' || formData.publicationType ===
+   'book_chapter') ? 'from-gray-50 to-teal-50' : 'from-gray-50 to-emerald-50'} rounded-xl border border-gray-100 space-y-4`}>
           {/* Row 1: Basic Author Counts */}
           <div className="flex flex-wrap items-end gap-4">
             <div>
@@ -4790,7 +5186,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                   if (totalInternalAuthors > value) { setTotalInternalAuthors(value); }
                 }}
                 disabled={hasAuthorsAdded}
-                className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType === 'book' || publicationType === 'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="1"
+                className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
+   'book' || publicationType ===
+   'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="1"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
@@ -4803,32 +5201,41 @@ export default function ResearchContributionForm({ publicationType, contribution
                   if (value < 1) { setError('SGT affiliated authors must be at least 1 (you)'); return; }
                   if (value > totalAuthors) { setError('SGT affiliated authors cannot exceed total authors'); return; }
                   setTotalInternalAuthors(value);
-                  const maxCoAuthors = totalAuthors === value ? value - 1 : value;
+                  const maxCoAuthors = totalAuthors ===
+   value ? value - 1 : value;
                   if (totalInternalCoAuthors > maxCoAuthors) { setTotalInternalCoAuthors(maxCoAuthors); }
                   setError(null);
                 }}
                 disabled={hasAuthorsAdded}
-                className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType === 'book' || publicationType === 'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="1"
+                className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
+   'book' || publicationType ===
+   'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="1"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
             
             {/* Internal Co-Authors and Your Role - For Research Papers and Scopus Conference Papers */}
-            {(publicationType === 'research_paper' || 
-              (publicationType === 'conference_paper' && formData.conferenceSubType === 'paper_indexed_scopus')) && (
+            {(publicationType ===
+   'research_paper' || 
+              (publicationType ===
+   'conference_paper' && formData.conferenceSubType ===
+   'paper_indexed_scopus')) && (
             <>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">
                 Internal Co-Authors <span className="text-red-500">*</span>
-                <span className="text-gray-400 ml-1 font-normal">(Max: {totalAuthors === totalInternalAuthors ? totalInternalAuthors - 1 : totalInternalAuthors})</span>
+                <span className="text-gray-400 ml-1 font-normal">(Max: {totalAuthors ===
+   totalInternalAuthors ? totalInternalAuthors - 1 : totalInternalAuthors})</span>
               </label>
               <input type="number" min="0"
-                max={totalAuthors === totalInternalAuthors ? totalInternalAuthors - 1 : totalInternalAuthors}
+                max={totalAuthors ===
+   totalInternalAuthors ? totalInternalAuthors - 1 : totalInternalAuthors}
                 value={totalInternalCoAuthors}
                 onChange={(e) => {
                   if (hasAuthorsAdded) return;
                   const value = Number(e.target.value);
-                  const maxCoAuthors = totalAuthors === totalInternalAuthors ? totalInternalAuthors - 1 : totalInternalAuthors;
+                  const maxCoAuthors = totalAuthors ===
+   totalInternalAuthors ? totalInternalAuthors - 1 : totalInternalAuthors;
                   if (value < 0) { setError('Internal co-authors cannot be negative'); return; }
                   if (value > maxCoAuthors) { setError(`Internal co-authors cannot exceed ${maxCoAuthors}.`); return; }
                   
@@ -4838,33 +5245,49 @@ export default function ResearchContributionForm({ publicationType, contribution
                   setError(null);
                 }}
                 disabled={hasAuthorsAdded}
-                className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType === 'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="0"
+                className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
+   'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="0"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">
-                {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based' ? 'Your Position' : 'Your Role'} <span className="text-red-500">*</span>
+                {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based' ? 'Your Position' : 'Your Role'} <span className="text-red-500">*</span>
               </label>
-              {getAllowedUserRoles().length === 1 || hasAuthorsAdded ? (
+              {getAllowedUserRoles().length ===
+   1 || hasAuthorsAdded ? (
                 <div className={`px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700 ${hasAuthorsAdded ? 'cursor-not-allowed' : ''}`}
                   title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
                 >
-                  {(publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based') ? (
+                  {(publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based') ? (
                     <>
-                      {userAuthorType === 'position_1' && '1st Author'}
-                      {userAuthorType === 'position_2' && '2nd Author'}
-                      {userAuthorType === 'position_3' && '3rd Author'}
-                      {userAuthorType === 'position_4' && '4th Author'}
-                      {userAuthorType === 'position_5' && '5th Author'}
-                      {userAuthorType === 'position_6_plus' && 'More than 5th'}
+                      {userAuthorType ===
+   'position_1' && '1st Author'}
+                      {userAuthorType ===
+   'position_2' && '2nd Author'}
+                      {userAuthorType ===
+   'position_3' && '3rd Author'}
+                      {userAuthorType ===
+   'position_4' && '4th Author'}
+                      {userAuthorType ===
+   'position_5' && '5th Author'}
+                      {userAuthorType ===
+   'position_6_plus' && 'More than 5th'}
                     </>
                   ) : (
                     <>
-                      {userAuthorType === 'first_and_corresponding' && 'First & Corresponding'}
-                      {userAuthorType === 'corresponding' && 'Corresponding'}
-                      {userAuthorType === 'first' && 'First Author'}
-                      {userAuthorType === 'co_author' && 'Co-Author'}
+                      {userAuthorType ===
+   'first_and_corresponding' && 'First & Corresponding'}
+                      {userAuthorType ===
+   'corresponding' && 'Corresponding'}
+                      {userAuthorType ===
+   'first' && 'First Author'}
+                      {userAuthorType ===
+   'co_author' && 'Co-Author'}
                     </>
                   )}
                 </div>
@@ -4874,18 +5297,25 @@ export default function ResearchContributionForm({ publicationType, contribution
                   setUserAuthorType(newRole);
                   
                   // Auto-adjust Internal Co-Authors based on role selection (only for role-based)
-                  if (!(publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based')) {
+                  if (!(publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based')) {
                     const remainingInternalAuthors = totalInternalAuthors - 1;
-                    if (newRole === 'first_and_corresponding' || newRole === 'first_and_corresponding_author') {
+                    if (newRole ===
+   'first_and_corresponding' || newRole ===
+   'first_and_corresponding_author') {
                       // All remaining internal authors must be co-authors
                       setTotalInternalCoAuthors(remainingInternalAuthors);
                       setError(null);
                     }
                   }
                 }}
-                  className={`px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 ${publicationType === 'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'}`}
+                  className={`px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 ${publicationType ===
+   'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'}`}
                 >
-                  {(publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based') ? (
+                  {(publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based') ? (
                     <>
                       <option value="position_1">1st Author</option>
                       <option value="position_2">2nd Author</option>
@@ -4909,7 +5339,9 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             
             {/* For Books - Show equal distribution note */}
-            {(publicationType === 'book' || publicationType === 'book_chapter') && (
+            {(publicationType ===
+   'book' || publicationType ===
+   'book_chapter') && (
               <div className="flex items-center text-xs text-teal-700 bg-teal-50 px-3 py-2 rounded-lg border border-teal-200">
                 <Coins className="w-4 h-4 mr-2" />
                 Incentive will be distributed equally among all SGT authors
@@ -4925,7 +5357,9 @@ export default function ResearchContributionForm({ publicationType, contribution
           </div>
           
           {/* Divider - Only for Research Papers and Conference Papers */}
-          {(formData.publicationType === 'research_paper' || formData.publicationType === 'conference_paper') && (
+          {(formData.publicationType ===
+   'research_paper' || formData.publicationType ===
+   'conference_paper') && (
           <>
           <div className="border-t border-gray-200"></div>
           
@@ -4941,12 +5375,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {['yes','no'].map(v => (
                   <label key={v} className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="hasInternationalAuthor" value={v}
-                      checked={formData.hasInternationalAuthor === v}
+                      checked={formData.hasInternationalAuthor ===
+   v}
                       onChange={(e) => { 
                         handleInputChange(e); 
                         setError(null);
                         // Reset foreign universities if selecting No
-                        if (v === 'no') {
+                        if (v ===
+   'no') {
                           setFormData(prev => ({ ...prev, numForeignUniversities: 0 }));
                         }
                       }}
@@ -4969,7 +5405,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                       type="radio" 
                       name="hasLpuStudents" 
                       value={v}
-                      checked={formData.hasLpuStudents === v}
+                      checked={formData.hasLpuStudents ===
+   v}
                       onChange={handleInputChange}
                       className="w-4 h-4 text-emerald-600"
                     />
@@ -4979,7 +5416,8 @@ export default function ResearchContributionForm({ publicationType, contribution
               </div>
             </div>
             {/* Foreign Universities - Only show when International Author is Yes */}
-            {formData.hasInternationalAuthor === 'yes' && (
+            {formData.hasInternationalAuthor ===
+   'yes' && (
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-2">
                   Foreign Universities Collaborated:
@@ -5021,7 +5459,9 @@ export default function ResearchContributionForm({ publicationType, contribution
         
         {/* Add Other Author's Detail - Compact */}
         {(totalAuthors > 1) && (
-          <div className={`border ${publicationType === 'book' || publicationType === 'book_chapter' ? 'border-teal-300 bg-teal-50' : 'border-orange-300 bg-orange-50'} rounded p-3 mb-4`}>
+          <div className={`border ${publicationType ===
+   'book' || publicationType ===
+   'book_chapter' ? 'border-teal-300 bg-teal-50' : 'border-orange-300 bg-orange-50'} rounded p-3 mb-4`}>
             <h3 className="text-sm font-semibold text-gray-900 mb-2">
               Add Other Authors {editingAuthorIndex !== null && <span className="text-xs text-blue-600">(Editing)</span>}
             </h3>
@@ -5029,8 +5469,10 @@ export default function ResearchContributionForm({ publicationType, contribution
               {(() => {
                 const maxCoAuthors = totalAuthors - 1;
                 const currentAdded = coAuthors.filter(a => a.name).length;
-                const internalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
-                const externalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'External').length;
+                const internalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
+                const externalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'External').length;
                 
                 // Calculate how many internal authors to add (excluding yourself)
                 // Total SGT people = totalInternalAuthors (user) + totalInternalCoAuthors (additional SGT co-authors)
@@ -5046,7 +5488,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   parts.push(`${maxExternalToAdd} external author(s) [${externalAdded} added]`);
                 }
                 
-                if (parts.length === 0) {
+                if (parts.length ===
+   0) {
                   return `You are the only author.`;
                 }
                 
@@ -5058,12 +5501,15 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Author Category - Internal/External */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {publicationType === 'book' || publicationType === 'book_chapter' ? 'Author From:' : 'Author Type:'} <span className="text-red-500">*</span>
+                {publicationType ===
+   'book' || publicationType ===
+   'book_chapter' ? 'Author From:' : 'Author Type:'} <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-6">
                 {(() => {
                   // Check if internal slots are full
-                  const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
+                  const totalInternalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
                   // Total SGT people = totalInternalAuthors (user) + totalInternalCoAuthors (additional SGT co-authors)
                   const totalSGTPeople = totalInternalAuthors + totalInternalCoAuthors;
                   // Max internal to add = total SGT people - 1 (excluding the user)
@@ -5071,7 +5517,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                   const internalSlotsFull = totalInternalAdded >= maxInternalToAdd;
                   
                   // For books, simplified logic - just show Internal/External based on counts
-                  const isBook = publicationType === 'book' || publicationType === 'book_chapter';
+                  const isBook = publicationType ===
+   'book' || publicationType ===
+   'book_chapter';
                   
                   return (
                     <>
@@ -5081,7 +5529,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <input
                             type="radio"
                             value="Internal"
-                            checked={newAuthor.authorCategory === 'Internal' && !internalSlotsFull}
+                            checked={newAuthor.authorCategory ===
+   'Internal' && !internalSlotsFull}
                             onChange={(e) => {
                               const availableRoles = getAvailableOtherAuthorRoles();
                               setNewAuthor(prev => ({ 
@@ -5112,7 +5561,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                           <input
                             type="radio"
                             value="External"
-                            checked={newAuthor.authorCategory === 'External' || internalSlotsFull}
+                            checked={newAuthor.authorCategory ===
+   'External' || internalSlotsFull}
                             onChange={(e) => {
                               const availableRoles = getAvailableOtherAuthorRoles();
                               setNewAuthor(prev => ({ 
@@ -5140,7 +5590,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   );
                 })()}
               </div>
-              {totalAuthors === (totalInternalAuthors + totalInternalCoAuthors) && totalAuthors > 1 && (
+              {totalAuthors ===
+   (totalInternalAuthors + totalInternalCoAuthors) && totalAuthors > 1 && (
                 <p className="text-xs text-blue-600 mt-1">
                   All authors are from SGT. External option is hidden.
                 </p>
@@ -5149,18 +5600,23 @@ export default function ResearchContributionForm({ publicationType, contribution
             
             {/* Author Category Type - Different options for Internal vs External */}
             {/* Show for research papers and conference papers, not for books */}
-            {(formData.publicationType === 'research_paper' || formData.publicationType === 'conference_paper') && (
+            {(formData.publicationType ===
+   'research_paper' || formData.publicationType ===
+   'conference_paper') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {newAuthor.authorCategory === 'Internal' ? 'Select Type:' : 'Author category:'} <span className="text-red-500">*</span>
+                {newAuthor.authorCategory ===
+   'Internal' ? 'Select Type:' : 'Author category:'} <span className="text-red-500">*</span>
               </label>
-              {newAuthor.authorCategory === 'Internal' ? (
+              {newAuthor.authorCategory ===
+   'Internal' ? (
                 <div className="flex gap-6">
                   <label className="inline-flex items-center">
                     <input
                       type="radio"
                       value="Faculty"
-                      checked={newAuthor.authorType === 'Faculty'}
+                      checked={newAuthor.authorType ===
+   'Faculty'}
                       onChange={(e) => {
                         setNewAuthor(prev => ({ 
                           ...prev, 
@@ -5172,17 +5628,20 @@ export default function ResearchContributionForm({ publicationType, contribution
                         setSearchSuggestions([]);
                         setShowSuggestions(false);
                       }}
-                      className={`w-4 h-4 ${formData.publicationType === 'conference_paper' ? 'text-purple-600' : 'text-blue-600'}`}
+                      className={`w-4 h-4 ${formData.publicationType ===
+   'conference_paper' ? 'text-purple-600' : 'text-blue-600'}`}
                     />
                     <span className="ml-2">Teacher</span>
                   </label>
                   {/* Only show Student option if hasLpuStudents is 'yes' */}
-                  {formData.hasLpuStudents === 'yes' && (
+                  {formData.hasLpuStudents ===
+   'yes' && (
                     <label className="inline-flex items-center">
                       <input
                         type="radio"
                         value="Student"
-                        checked={newAuthor.authorType === 'Student'}
+                        checked={newAuthor.authorType ===
+   'Student'}
                         onChange={(e) => {
                           setNewAuthor(prev => ({ 
                             ...prev, 
@@ -5194,7 +5653,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                           setSearchSuggestions([]);
                           setShowSuggestions(false);
                         }}
-                        className={`w-4 h-4 ${formData.publicationType === 'conference_paper' ? 'text-purple-600' : 'text-blue-600'}`}
+                        className={`w-4 h-4 ${formData.publicationType ===
+   'conference_paper' ? 'text-purple-600' : 'text-blue-600'}`}
                       />
                       <span className="ml-2">Student</span>
                     </label>
@@ -5206,7 +5666,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <input
                       type="radio"
                       value="Academic"
-                      checked={newAuthor.authorType === 'Academic'}
+                      checked={newAuthor.authorType ===
+   'Academic'}
                       onChange={(e) => {
                         setNewAuthor(prev => ({ 
                           ...prev, 
@@ -5221,7 +5682,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <input
                       type="radio"
                       value="Industry"
-                      checked={newAuthor.authorType === 'Industry'}
+                      checked={newAuthor.authorType ===
+   'Industry'}
                       onChange={(e) => {
                         setNewAuthor(prev => ({ 
                           ...prev, 
@@ -5232,12 +5694,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                     />
                     <span className="ml-2">Industry</span>
                   </label>
-                  {formData.hasInternationalAuthor === 'yes' && (
+                  {formData.hasInternationalAuthor ===
+   'yes' && (
                     <label className="inline-flex items-center">
                       <input
                         type="radio"
                         value="International Author"
-                        checked={newAuthor.authorType === 'International Author'}
+                        checked={newAuthor.authorType ===
+   'International Author'}
                         onChange={(e) => {
                           setNewAuthor(prev => ({ 
                             ...prev, 
@@ -5255,10 +5719,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             
             {/* Author Role/Position - Only for Research Papers and Conference Papers */}
-            {(formData.publicationType === 'research_paper' || formData.publicationType === 'conference_paper') && (
+            {(formData.publicationType ===
+   'research_paper' || formData.publicationType ===
+   'conference_paper') && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {formData.publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based' ? 'Author Position:' : 'Author Role:'} <span className="text-red-500">*</span>
+                {formData.publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based' ? 'Author Position:' : 'Author Role:'} <span className="text-red-500">*</span>
               </label>
               <select
                 value={newAuthor.authorRole}
@@ -5269,19 +5737,25 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <option key={role.value} value={role.value}>{role.label}</option>
                 ))}
               </select>
-              {getAvailableOtherAuthorRoles().length < (policyData?.distributionMethod === 'author_position_based' ? 6 : 4) && (
+              {getAvailableOtherAuthorRoles().length < (policyData?.distributionMethod ===
+   'author_position_based' ? 6 : 4) && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Some {formData.publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based' ? 'positions' : 'roles'} are already assigned
+                  Some {formData.publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based' ? 'positions' : 'roles'} are already assigned
                 </p>
               )}
             </div>
             )}
             
             {/* Registration Number / UID - Only show for Internal authors */}
-            {newAuthor.authorCategory === 'Internal' && (
+            {newAuthor.authorCategory ===
+   'Internal' && (
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {newAuthor.authorType === 'Student' ? 'Reg No:' : (newAuthor.authorType === 'Author' ? 'UID/Reg No:' : 'UID:')} <span className="text-red-500">*</span>
+                  {newAuthor.authorType ===
+   'Student' ? 'Reg No:' : (newAuthor.authorType ===
+   'Author' ? 'UID/Reg No:' : 'UID:')} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -5328,7 +5802,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                       setShowSuggestions(true);
                     }
                   }}
-                  placeholder={newAuthor.authorType === 'Student' ? 'e.g., 12345678' : (newAuthor.authorType === 'Author' ? 'e.g., STF12345 or 12345678' : 'e.g., STF12345')}
+                  placeholder={newAuthor.authorType ===
+   'Student' ? 'e.g., 12345678' : (newAuthor.authorType ===
+   'Author' ? 'e.g., STF12345 or 12345678' : 'e.g., STF12345')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 
@@ -5362,7 +5838,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             
             {/* Name - auto-filled for Internal, manual entry for External */}
-            <div className={newAuthor.authorCategory === 'External' ? '' : 'md:col-span-2'}>
+            <div className={newAuthor.authorCategory ===
+   'External' ? '' : 'md:col-span-2'}>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Name: <span className="text-red-500">*</span>
               </label>
@@ -5370,9 +5847,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                 type="text"
                 value={newAuthor.name}
                 onChange={(e) => setNewAuthor(prev => ({ ...prev, name: e.target.value }))}
-                placeholder={newAuthor.authorCategory === 'Internal' ? 'Auto-filled after entering UID' : 'Enter full name'}
-                readOnly={newAuthor.authorCategory === 'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory === 'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
+                placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'Auto-filled after entering UID' : 'Enter full name'}
+                readOnly={newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
               />
             </div>
             
@@ -5385,29 +5865,37 @@ export default function ResearchContributionForm({ publicationType, contribution
                 type="email"
                 value={newAuthor.email}
                 onChange={(e) => setNewAuthor(prev => ({ ...prev, email: e.target.value }))}
-                placeholder={newAuthor.authorCategory === 'Internal' ? 'Auto-filled after entering UID' : 'email@example.com'}
-                readOnly={newAuthor.authorCategory === 'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory === 'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
+                placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'Auto-filled after entering UID' : 'email@example.com'}
+                readOnly={newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
               />
             </div>
             
             {/* Affiliation/Organization */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                {newAuthor.authorCategory === 'Internal' ? 'Institute:' : 'Organization/Institute:'} <span className="text-red-500">*</span>
+                {newAuthor.authorCategory ===
+   'Internal' ? 'Institute:' : 'Organization/Institute:'} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={newAuthor.affiliation}
                 onChange={(e) => setNewAuthor(prev => ({ ...prev, affiliation: e.target.value }))}
-                placeholder={newAuthor.authorCategory === 'Internal' ? 'SGT University' : 'Enter organization/institute name'}
-                readOnly={newAuthor.authorCategory === 'Internal'}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory === 'Internal' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'SGT University' : 'Enter organization/institute name'}
+                readOnly={newAuthor.authorCategory ===
+   'Internal'}
+                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory ===
+   'Internal' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
             </div>
             
             {/* Designation - Only for External Authors */}
-            {newAuthor.authorCategory === 'External' && (
+            {newAuthor.authorCategory ===
+   'External' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Designation: <span className="text-red-500">*</span>
@@ -5433,11 +5921,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                   // Reset to appropriate defaults based on what authors can be added
                   const totalSGTPeople = totalInternalAuthors + totalInternalCoAuthors;
                   const maxInternalToAdd = totalSGTPeople - 1;
-                  const internalAdded = coAuthors.filter(a => a.name && a.authorCategory === 'Internal').length;
+                  const internalAdded = coAuthors.filter(a => a.name && a.authorCategory ===
+   'Internal').length;
                   const hasInternalSlots = internalAdded < maxInternalToAdd;
                   const defaultCategory = hasInternalSlots ? 'Internal' : 'External';
-                  const defaultType = defaultCategory === 'External' ? 'Academic' : 'Faculty';
-                  const defaultAffiliation = defaultCategory === 'External' ? '' : 'SGT University';
+                  const defaultType = defaultCategory ===
+   'External' ? 'Academic' : 'Faculty';
+                  const defaultAffiliation = defaultCategory ===
+   'External' ? '' : 'SGT University';
                   const availableRoles = getAvailableOtherAuthorRoles();
                   setNewAuthor({
                     uid: '',
@@ -5469,29 +5960,41 @@ export default function ResearchContributionForm({ publicationType, contribution
         )}
         
         {/* Incentive Preview Table - Show for Research Papers with any indexing category OR Conference Papers with proceedings quartile OR Books/Book Chapters */}
-        {((formData.publicationType === 'research_paper' && formData.indexingCategories && formData.indexingCategories.length > 0) || 
-          (formData.publicationType === 'conference_paper' && formData.conferenceSubType === 'paper_indexed_scopus' && formData.proceedingsQuartile) ||
-          formData.publicationType === 'book' ||
-          formData.publicationType === 'book_chapter') && (
+        {((formData.publicationType ===
+   'research_paper' && formData.indexingCategories && formData.indexingCategories.length > 0) || 
+          (formData.publicationType ===
+   'conference_paper' && formData.conferenceSubType ===
+   'paper_indexed_scopus' && formData.proceedingsQuartile) ||
+          formData.publicationType ===
+   'book' ||
+          formData.publicationType ===
+   'book_chapter') && (
           <div className="mt-6">
             <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Award className={`w-5 h-5 ${
-                formData.publicationType === 'conference_paper' ? 'text-purple-600' : 
-                formData.publicationType === 'book' || formData.publicationType === 'book_chapter' ? 'text-teal-600' :
+                formData.publicationType ===
+   'conference_paper' ? 'text-purple-600' : 
+                formData.publicationType ===
+   'book' || formData.publicationType ===
+   'book_chapter' ? 'text-teal-600' :
                 'text-blue-600'
               }`} />
               Incentive & Points Preview
             </h3>
             {/* Show loading message if policy not yet loaded */}
-            {((formData.publicationType === 'book' && !bookPolicy) || 
-              (formData.publicationType === 'book_chapter' && !bookChapterPolicy)) && (
+            {((formData.publicationType ===
+   'book' && !bookPolicy) || 
+              (formData.publicationType ===
+   'book_chapter' && !bookChapterPolicy)) && (
               <div className="text-sm text-gray-500 italic mb-3">
                 Loading incentive policy...
               </div>
             )}
             
             {/* Drag-and-drop instruction banner - only for role-based */}
-            {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && (
+            {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && (
               <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm">
                 <div className="flex items-start gap-3">
                   <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -5514,13 +6017,17 @@ export default function ResearchContributionForm({ publicationType, contribution
                 <thead className="bg-gray-50">
                   <tr>
                     {/* Up Arrow Column - only for role-based */}
-                    {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && (
+                    {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && (
                       <th className="px-2 py-2 w-16 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
                         ↑
                       </th>
                     )}
                     {/* Drag Handle Header - only for role-based */}
-                    {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && (
+                    {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && (
                       <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
                         Order
                       </th>
@@ -5559,7 +6066,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                       Action
                     </th>
                     {/* Down Arrow Column - only for role-based */}
-                    {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && (
+                    {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && (
                       <th className="px-2 py-2 w-16 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                         ↓
                       </th>
@@ -5571,12 +6080,20 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {(() => {
                     // Determine user's displayOrder
                     // CRITICAL: First Author or First & Corresponding MUST ALWAYS be at position #1 (displayOrder=2)
-                    const isUserFirstAuthor = userAuthorType === 'first_author' || userAuthorType === 'first' || 
-                                             userAuthorType === 'first_and_corresponding' || userAuthorType === 'first_and_corresponding_author';
+                    const isUserFirstAuthor = userAuthorType ===
+   'first_author' || userAuthorType ===
+   'first' || 
+                                             userAuthorType ===
+   'first_and_corresponding' || userAuthorType ===
+   'first_and_corresponding_author';
                     const hasFirstAuthorCoAuthor = coAuthors.some(a => 
                       a.name && (
-                        a.authorRole === 'first_author' || a.authorRole === 'first' ||
-                        a.authorRole === 'first_and_corresponding' || a.authorRole === 'first_and_corresponding_author'
+                        a.authorRole ===
+   'first_author' || a.authorRole ===
+   'first' ||
+                        a.authorRole ===
+   'first_and_corresponding' || a.authorRole ===
+   'first_and_corresponding_author'
                       )
                     );
                     
@@ -5594,7 +6111,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                               (user as any)?.employee?.displayName ||
                               `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
                               user?.email || 'You',
-                        authorType: user?.userType === 'student' ? 'Student' : 'Faculty',
+                        authorType: user?.userType ===
+   'student' ? 'Student' : 'Faculty',
                         authorCategory: 'Internal',
                         authorRole: userAuthorType,
                         email: user?.employeeDetails?.email || user?.email || '-',
@@ -5612,7 +6130,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                         email: a.email,
                         affiliation: a.affiliation,
                         designation: a.designation,
-                        actualIndex: coAuthors.findIndex(ca => ca === a)
+                        actualIndex: coAuthors.findIndex(ca => ca ===
+   a)
                       }))
                     ].sort((a, b) => a.displayOrder - b.displayOrder);
                     
@@ -5626,38 +6145,65 @@ export default function ResearchContributionForm({ publicationType, contribution
                       
                       // Calculate role label
                       let roleLabel = 'Author';
-                      if (formData.publicationType === 'book' || formData.publicationType === 'book_chapter') {
+                      if (formData.publicationType ===
+   'book' || formData.publicationType ===
+   'book_chapter') {
                         roleLabel = 'Author';
-                      } else if (publicationType === 'research_paper' && policyData?.distributionMethod === 'author_position_based') {
-                        roleLabel = author.authorRole === 'position_1' ? '1st Author'
-                          : author.authorRole === 'position_2' ? '2nd Author'
-                          : author.authorRole === 'position_3' ? '3rd Author'
-                          : author.authorRole === 'position_4' ? '4th Author'
-                          : author.authorRole === 'position_5' ? '5th Author'
-                          : author.authorRole === 'position_6_plus' ? 'More than 5th'
+                      } else if (publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_position_based') {
+                        roleLabel = author.authorRole ===
+   'position_1' ? '1st Author'
+                          : author.authorRole ===
+   'position_2' ? '2nd Author'
+                          : author.authorRole ===
+   'position_3' ? '3rd Author'
+                          : author.authorRole ===
+   'position_4' ? '4th Author'
+                          : author.authorRole ===
+   'position_5' ? '5th Author'
+                          : author.authorRole ===
+   'position_6_plus' ? 'More than 5th'
                           : 'Author';
                       } else {
-                        roleLabel = (author.authorRole === 'first_and_corresponding' || author.authorRole === 'first_and_corresponding_author') ? 'First & Corresponding'
-                          : (author.authorRole === 'corresponding' || author.authorRole === 'corresponding_author') ? 'Corresponding'
-                          : (author.authorRole === 'first' || author.authorRole === 'first_author') ? 'First Author'
+                        roleLabel = (author.authorRole ===
+   'first_and_corresponding' || author.authorRole ===
+   'first_and_corresponding_author') ? 'First & Corresponding'
+                          : (author.authorRole ===
+   'corresponding' || author.authorRole ===
+   'corresponding_author') ? 'Corresponding'
+                          : (author.authorRole ===
+   'first' || author.authorRole ===
+   'first_author') ? 'First Author'
                           : 'Co-Author';
                       }
                       
                       // Calculate paper position
                       const paperPosition = tableIndex + 1;
-                      const isBeyondFifth = author.authorCategory === 'Internal' && paperPosition > 5;
-                      const isDragging = author.isUser ? draggedIndex === -999 : draggedIndex === author.actualIndex;
-                      const isDragOver = author.isUser ? (dragOverIndex === -999 && draggedIndex !== -999) : (dragOverIndex === author.actualIndex && draggedIndex !== author.actualIndex);
+                      const isBeyondFifth = author.authorCategory ===
+   'Internal' && paperPosition > 5;
+                      const isDragging = author.isUser ? draggedIndex ===
+   -999 : draggedIndex ===
+   author.actualIndex;
+                      const isDragOver = author.isUser ? (dragOverIndex ===
+   -999 && draggedIndex !== -999) : (dragOverIndex ===
+   author.actualIndex && draggedIndex !== author.actualIndex);
                       
                       // Lock First Author or First & Corresponding at position #1
-                      const isFirstAuthor = author.authorRole === 'first_author' || author.authorRole === 'first' ||
-                                           author.authorRole === 'first_and_corresponding' || author.authorRole === 'first_and_corresponding_author';
+                      const isFirstAuthor = author.authorRole ===
+   'first_author' || author.authorRole ===
+   'first' ||
+                                           author.authorRole ===
+   'first_and_corresponding' || author.authorRole ===
+   'first_and_corresponding_author';
                       const isLockedPosition = isFirstAuthor; // First Author MUST stay at position #1
                       
                       return (
                         <tr 
                           key={author.isUser ? 'user' : author.actualIndex}
-                          draggable={publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && !isLockedPosition}
+                          draggable={publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && !isLockedPosition}
                           onDragStart={(e) => {
                             if (author.isUser) {
                               e.dataTransfer.effectAllowed = 'move';
@@ -5678,7 +6224,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                           onDragEnd={handleDragEnd}
                           onDrop={(e) => {
                             e.preventDefault();
-                            if (draggedIndex === -999) {
+                            if (draggedIndex ===
+   -999) {
                               // User is being dropped on a co-author position
                               if (!author.isUser) {
                                 // Set user's displayOrder to match target position
@@ -5720,12 +6267,16 @@ export default function ResearchContributionForm({ publicationType, contribution
                             ${isDragOver ? 'border-blue-600 bg-gradient-to-b from-blue-100 to-blue-50 scale-[1.02]' : ''} 
                             ${isBeyondFifth && !isDragging && !author.isUser ? 'bg-gradient-to-r from-red-50 via-red-100/70 to-red-50 border-red-400' : ''} 
                             ${isLockedPosition ? 'opacity-80 bg-gradient-to-r from-gray-50 to-gray-100 border-gray-300' : ''}
-                            ${(publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && !isLockedPosition) ? 'hover:bg-gradient-to-r hover:from-blue-100 hover:via-blue-50 hover:to-blue-100 hover:scale-[1.02] hover:shadow-2xl hover:border-blue-400 cursor-move' : 'cursor-default'}
+                            ${(publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && !isLockedPosition) ? 'hover:bg-gradient-to-r hover:from-blue-100 hover:via-blue-50 hover:to-blue-100 hover:scale-[1.02] hover:shadow-2xl hover:border-blue-400 cursor-move' : 'cursor-default'}
                             transition-all duration-300 ease-out
                           `}
                         >
                           {/* Up Arrow Cell - Left side */}
-                          {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && (
+                          {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && (
                             <td className="px-2 py-3 text-center border-r bg-gray-50/50">
                               {isLockedPosition ? (
                                 <div className="text-gray-300 cursor-not-allowed" title="First Author is locked at position #1">
@@ -5737,7 +6288,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (tableIndex === 0) return; // Already at top
+                                    if (tableIndex ===
+   0) return; // Already at top
                                     const targetAuthor = allAuthorsForTable[tableIndex - 1];
                                     
                                     if (author.isUser) {
@@ -5771,9 +6323,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                                       setCoAuthors(newCoAuthors);
                                     }
                                   }}
-                                  disabled={tableIndex === 0}
+                                  disabled={tableIndex ===
+   0}
                                   className={`w-full py-2 px-3 rounded-lg font-bold text-lg transition-all ${
-                                    tableIndex === 0 
+                                    tableIndex ===
+   0 
                                       ? 'text-gray-300 cursor-not-allowed bg-gray-100' 
                                       : 'text-blue-600 hover:text-white hover:bg-blue-600 hover:scale-110 active:scale-95 bg-blue-50'
                                   }`}
@@ -5785,7 +6339,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                             </td>
                           )}
                           {/* Position Column - only for role-based */}
-                          {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && (
+                          {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && (
                             <td className="px-2 py-3 text-center border-r">
                               <div className="flex flex-col items-center gap-1.5">
                                 {/* Drag handle icon - disabled for First Author */}
@@ -5847,16 +6403,20 @@ export default function ResearchContributionForm({ publicationType, contribution
                             {author.affiliation}
                           </td>
                           <td className="px-1 py-2 text-xs border-r text-center">
-                            {author.authorCategory === 'Internal' ? (
+                            {author.authorCategory ===
+   'Internal' ? (
                               <span className="text-green-600 font-medium">₹{incentive.toLocaleString()}</span>
                             ) : (
                               <span className="text-gray-400">₹0</span>
                             )}
                           </td>
                           <td className="px-1 py-2 text-xs border-r text-center">
-                            {author.authorCategory === 'Internal' && author.authorType !== 'Student' ? (
+                            {author.authorCategory ===
+   'Internal' && author.authorType !== 'Student' ? (
                               <span className="text-blue-600 font-medium">{points}</span>
-                            ) : author.authorCategory === 'Internal' && author.authorType === 'Student' ? (
+                            ) : author.authorCategory ===
+   'Internal' && author.authorType ===
+   'Student' ? (
                               <span className="text-gray-400 text-xs">No Points</span>
                             ) : (
                               <span className="text-gray-400">0</span>
@@ -5886,7 +6446,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                             )}
                           </td>
                           {/* Down Arrow Cell - Right side */}
-                          {publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' && (
+                          {publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' && (
                             <td className="px-2 py-3 text-center bg-gray-50/50">
                               {isLockedPosition ? (
                                 <div className="text-gray-300 cursor-not-allowed" title="First Author is locked at position #1">
@@ -5898,7 +6460,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (tableIndex === allAuthorsForTable.length - 1) return; // Already at bottom
+                                    if (tableIndex ===
+   allAuthorsForTable.length - 1) return; // Already at bottom
                                     const targetAuthor = allAuthorsForTable[tableIndex + 1];
                                     
                                     if (author.isUser) {
@@ -5932,9 +6495,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                                       setCoAuthors(newCoAuthors);
                                     }
                                   }}
-                                  disabled={tableIndex === allAuthorsForTable.length - 1}
+                                  disabled={tableIndex ===
+   allAuthorsForTable.length - 1}
                                   className={`w-full py-2 px-3 rounded-lg font-bold text-lg transition-all ${
-                                    tableIndex === allAuthorsForTable.length - 1
+                                    tableIndex ===
+   allAuthorsForTable.length - 1
                                       ? 'text-gray-300 cursor-not-allowed bg-gray-100' 
                                       : 'text-blue-600 hover:text-white hover:bg-blue-600 hover:scale-110 active:scale-95 bg-blue-50'
                                   }`}
@@ -5952,7 +6517,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   
                   {/* Total Row */}
                   {(() => {
-                    const applicantType = user?.userType === 'student' ? 'Student' : 'Faculty';
+                    const applicantType = user?.userType ===
+   'student' ? 'Student' : 'Faculty';
                     const applicantCalc = calculateAuthorIncentivePoints(applicantType, 'Internal', userAuthorType, user?.uid);
                     
                     let totalIncentive = applicantCalc.incentive;
@@ -5971,7 +6537,9 @@ export default function ResearchContributionForm({ publicationType, contribution
                     
                     return (
                       <tr className="bg-gray-100 font-bold">
-                        <td colSpan={publicationType === 'research_paper' && policyData?.distributionMethod === 'author_role_based' ? 9 : 6} className="px-4 py-3 text-sm text-right border-r">
+                        <td colSpan={publicationType ===
+   'research_paper' && policyData?.distributionMethod ===
+   'author_role_based' ? 9 : 6} className="px-4 py-3 text-sm text-right border-r">
                           TOTAL
                         </td>
                         <td className="px-4 py-3 text-sm border-r">
@@ -5989,7 +6557,9 @@ export default function ResearchContributionForm({ publicationType, contribution
             </div>
             <p className="mt-2 text-xs text-gray-500">
               <span className="font-medium">Incentive Distribution Rules:</span><br/>
-              {(formData.publicationType === 'book' || formData.publicationType === 'book_chapter') ? (
+              {(formData.publicationType ===
+   'book' || formData.publicationType ===
+   'book_chapter') ? (
                 <>
                   • <strong>Books & Book Chapters:</strong> Total incentive and points are divided equally among all authors<br/>
                   • <strong>Internal Faculty/Employees:</strong> Receive both Incentives (₹) and Points<br/>
@@ -6032,7 +6602,9 @@ export default function ResearchContributionForm({ publicationType, contribution
           </div>
 
           {/* Document Requirements Checklist for Scopus Conference Papers */}
-          {publicationType === 'conference_paper' && formData.conferenceSubType === 'paper_indexed_scopus' && (
+          {publicationType ===
+   'conference_paper' && formData.conferenceSubType ===
+   'paper_indexed_scopus' && (
             <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
               <h4 className="text-sm font-semibold text-purple-900 mb-3">Document Submission Checklist (Mark before submit)</h4>
               <div className="space-y-2">
@@ -6040,7 +6612,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <input
                     type="checkbox"
                     name="takeholderContents"
-                    checked={formData.takeholderContents === 'yes'}
+                    checked={formData.takeholderContents ===
+   'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, takeholderContents: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
@@ -6050,7 +6623,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <input
                     type="checkbox"
                     name="frontPageWithAuthorAffiliation"
-                    checked={formData.frontPageWithAuthorAffiliation === 'yes'}
+                    checked={formData.frontPageWithAuthorAffiliation ===
+   'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, frontPageWithAuthorAffiliation: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
@@ -6060,7 +6634,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <input
                     type="checkbox"
                     name="nameContainsSpecialCharacters"
-                    checked={formData.nameContainsSpecialCharacters === 'yes'}
+                    checked={formData.nameContainsSpecialCharacters ===
+   'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, nameContainsSpecialCharacters: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
@@ -6070,7 +6645,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <input
                     type="checkbox"
                     name="confDatesVenue"
-                    checked={formData.confDatesVenue === 'yes'}
+                    checked={formData.confDatesVenue ===
+   'yes'}
                     onChange={(e) => setFormData(prev => ({ ...prev, confDatesVenue: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
@@ -6168,14 +6744,16 @@ export default function ResearchContributionForm({ publicationType, contribution
       )}
 
       {/* Already in Process Tab */}
-      {activeTab === 'process' && (
+      {activeTab ===
+   'process' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-xl font-semibold mb-4">My Research Contributions</h2>
           {loadingContributions ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
-          ) : myContributions.length === 0 ? (
+          ) : myContributions.length ===
+   0 ? (
             <div className="text-center py-12">
               <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
               <p className="text-gray-500">No contributions found</p>
@@ -6197,7 +6775,8 @@ export default function ResearchContributionForm({ publicationType, contribution
                 </thead>
                 <tbody>
                   {myContributions.map((contrib: any, index: number) => {
-                    const isApplicant = contrib.applicantUserId === user?.id;
+                    const isApplicant = contrib.applicantUserId ===
+   user?.id;
                     return (
                       <tr key={contrib.id} className="hover:bg-gray-50">
                         <td className="px-4 py-2 border text-sm text-center">{index + 1}</td>
@@ -6217,11 +6796,16 @@ export default function ResearchContributionForm({ publicationType, contribution
                         </td>
                         <td className="px-4 py-2 border text-sm">
                           <span className={`inline-flex items-center px-2 py-1 text-xs rounded-full font-medium ${
-                            contrib.status === 'draft' ? 'bg-gray-100 text-gray-800' :
-                            contrib.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
-                            contrib.status === 'under_review' ? 'bg-yellow-100 text-yellow-800' :
-                            contrib.status === 'approved' ? 'bg-green-100 text-green-800' :
-                            contrib.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            contrib.status ===
+   'draft' ? 'bg-gray-100 text-gray-800' :
+                            contrib.status ===
+   'submitted' ? 'bg-blue-100 text-blue-800' :
+                            contrib.status ===
+   'under_review' ? 'bg-yellow-100 text-yellow-800' :
+                            contrib.status ===
+   'approved' ? 'bg-green-100 text-green-800' :
+                            contrib.status ===
+   'rejected' ? 'bg-red-100 text-red-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {contrib.status.replace('_', ' ').toUpperCase()}
@@ -6235,12 +6819,18 @@ export default function ResearchContributionForm({ publicationType, contribution
                           ) : (
                             <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-medium">
                               {(() => {
-                                const userAuthor = contrib.authors?.find((a: any) => a.userId === user?.id);
-                                if (userAuthor?.authorType === 'first_and_corresponding_author') return 'First & Corresponding';
-                                if (userAuthor?.authorType === 'first_author') return 'First Author';
-                                if (userAuthor?.authorType === 'corresponding_author') return 'Corresponding Author';
-                                if (userAuthor?.authorType === 'co_author') return 'Co-Author';
-                                if (userAuthor?.authorType === 'senior_author') return 'Senior Author';
+                                const userAuthor = contrib.authors?.find((a: any) => a.userId ===
+   user?.id);
+                                if (userAuthor?.authorType ===
+   'first_and_corresponding_author') return 'First & Corresponding';
+                                if (userAuthor?.authorType ===
+   'first_author') return 'First Author';
+                                if (userAuthor?.authorType ===
+   'corresponding_author') return 'Corresponding Author';
+                                if (userAuthor?.authorType ===
+   'co_author') return 'Co-Author';
+                                if (userAuthor?.authorType ===
+   'senior_author') return 'Senior Author';
                                 return 'Co-Author';
                               })()}
                             </span>

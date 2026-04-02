@@ -104,7 +104,8 @@ export default function NewTrackerPage() {
 
   // Helper to get rejection data from status history
   const getRejectionData = (tracker: ResearchProgressTracker) => {
-    const rejectedEntry = tracker.statusHistory?.find(h => h.toStatus === 'rejected');
+    const rejectedEntry = tracker.statusHistory?.find(h => h.toStatus ===
+   'rejected');
     if (!rejectedEntry?.statusData) return null;
     const data = rejectedEntry.statusData as Record<string, unknown>;
     return {
@@ -125,7 +126,9 @@ export default function NewTrackerPage() {
         // Filter to only those with planToResubmit = same_journal or different_journal
         const trackersToResubmit = response.data.filter((t) => {
           const rejectionData = getRejectionData(t);
-          return rejectionData?.planToResubmit === 'same_journal' || rejectionData?.planToResubmit === 'different_journal';
+          return rejectionData?.planToResubmit ===
+   'same_journal' || rejectionData?.planToResubmit ===
+   'different_journal';
         });
         setRejectedTrackers(trackersToResubmit);
       } catch (err) {
@@ -191,7 +194,8 @@ export default function NewTrackerPage() {
       return;
     }
     
-    const tracker = rejectedTrackers.find(t => t.id === trackerId);
+    const tracker = rejectedTrackers.find(t => t.id ===
+   trackerId);
     if (!tracker) return;
     
     // Set the publication type
@@ -202,13 +206,17 @@ export default function NewTrackerPage() {
     
     // Get the type-specific data
     let typeData: Record<string, unknown> = {};
-    if (tracker.publicationType === 'research_paper' && tracker.researchPaperData) {
+    if (tracker.publicationType ===
+   'research_paper' && tracker.researchPaperData) {
       typeData = { ...tracker.researchPaperData };
-    } else if (tracker.publicationType === 'book' && tracker.bookData) {
+    } else if (tracker.publicationType ===
+   'book' && tracker.bookData) {
       typeData = { ...tracker.bookData };
-    } else if (tracker.publicationType === 'book_chapter' && tracker.bookChapterData) {
+    } else if (tracker.publicationType ===
+   'book_chapter' && tracker.bookChapterData) {
       typeData = { ...tracker.bookChapterData };
-    } else if (tracker.publicationType === 'conference_paper' && tracker.conferencePaperData) {
+    } else if (tracker.publicationType ===
+   'conference_paper' && tracker.conferencePaperData) {
       typeData = { ...tracker.conferencePaperData };
     }
     
@@ -225,11 +233,14 @@ export default function NewTrackerPage() {
     } else if (typeData.targetedResearch) {
       // Convert old format to new format for backwards compatibility
       const tr = typeData.targetedResearch as string;
-      if (tr === 'scopus') {
+      if (tr ===
+   'scopus') {
         setIndexingCategories(['scopus']);
-      } else if (tr === 'sci_scie') {
+      } else if (tr ===
+   'sci_scie') {
         setIndexingCategories(['scie_wos']);
-      } else if (tr === 'both') {
+      } else if (tr ===
+   'both') {
         setIndexingCategories(['scopus', 'scie_wos']);
       }
     }
@@ -258,11 +269,13 @@ export default function NewTrackerPage() {
   };
 
   const handleContinue = () => {
-    if (startMode === 'scratch') {
+    if (startMode ===
+   'scratch') {
       // Clear any prefilled data and go to step 2
       setSelectedRejectedTracker('');
       setStep(2);
-    } else if (startMode === 'reapply' && selectedRejectedTracker) {
+    } else if (startMode ===
+   'reapply' && selectedRejectedTracker) {
       // Prefill data already handled by handlePrefillFromRejected
       setStep(2);
     }
@@ -278,16 +291,20 @@ export default function NewTrackerPage() {
     }
 
     // Validate indexing categories for research papers
-    if (selectedType === 'research_paper' && indexingCategories.length === 0) {
+    if (selectedType ===
+   'research_paper' && indexingCategories.length ===
+   0) {
       setError('Please select at least one indexing category');
       return;
     }
 
     // Validate conditional sub-fields based on selected indexing categories
-    if (selectedType === 'research_paper') {
+    if (selectedType ===
+   'research_paper') {
       const requiredFields = new Set<string>();
       indexingCategories.forEach(cat => {
-        const category = INDEXING_CATEGORIES.find(c => c.value === cat);
+        const category = INDEXING_CATEGORIES.find(c => c.value ===
+   cat);
         if (category) {
           category.requiredFields.forEach(f => requiredFields.add(f));
         }
@@ -342,17 +359,22 @@ export default function NewTrackerPage() {
         ...(sjr ? { sjr: Number(sjr) } : {}),
         ...(quartile ? { quartile } : {}),
         ...(naasRating ? { naasRating: Number(naasRating) } : {}),
-        ...(selectedType === 'conference_paper' ? { conferenceSubType } : {}),
+        ...(selectedType ===
+   'conference_paper' ? { conferenceSubType } : {}),
       };
 
       // Add type-specific data
-      if (selectedType === 'research_paper') {
+      if (selectedType ===
+   'research_paper') {
         requestData.researchPaperData = combinedData as any;
-      } else if (selectedType === 'book') {
+      } else if (selectedType ===
+   'book') {
         requestData.bookData = combinedData as any;
-      } else if (selectedType === 'book_chapter') {
+      } else if (selectedType ===
+   'book_chapter') {
         requestData.bookChapterData = combinedData as any;
-      } else if (selectedType === 'conference_paper') {
+      } else if (selectedType ===
+   'conference_paper') {
         // Validate conference sub-type is selected
         if (!conferenceSubType) {
           setError('Please select a conference sub-type');
@@ -403,7 +425,8 @@ export default function NewTrackerPage() {
       </div>
 
       {/* Step 1: Select Type */}
-      {step === 1 && (
+      {step ===
+   1 && (
         <div className="space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">What are you working on?</h2>
@@ -413,17 +436,22 @@ export default function NewTrackerPage() {
                   key={type}
                   onClick={() => handleTypeSelect(type)}
                   className={`flex items-center gap-4 p-6 bg-white rounded-lg shadow hover:shadow-md transition-all text-left ${
-                    selectedType === type ? 'border-2 border-indigo-500 ring-2 ring-indigo-200' : 'border-2 border-transparent hover:border-indigo-500'
+                    selectedType ===
+   type ? 'border-2 border-indigo-500 ring-2 ring-indigo-200' : 'border-2 border-transparent hover:border-indigo-500'
                   }`}
                 >
                   <span className="text-4xl">{publicationTypeIcons[type]}</span>
                   <div>
                     <h3 className="font-semibold text-gray-900">{label}</h3>
                     <p className="text-sm text-gray-500">
-                      {type === 'research_paper' && 'Journal articles, research papers'}
-                      {type === 'book' && 'Textbooks, reference books, edited volumes'}
-                      {type === 'book_chapter' && 'Chapters in edited books'}
-                      {type === 'conference_paper' && 'Conference papers, presentations, keynotes'}
+                      {type ===
+   'research_paper' && 'Journal articles, research papers'}
+                      {type ===
+   'book' && 'Textbooks, reference books, edited volumes'}
+                      {type ===
+   'book_chapter' && 'Chapters in edited books'}
+                      {type ===
+   'conference_paper' && 'Conference papers, presentations, keynotes'}
                     </p>
                   </div>
                 </button>
@@ -441,7 +469,8 @@ export default function NewTrackerPage() {
                     type="radio"
                     name="startMode"
                     value="scratch"
-                    checked={startMode === 'scratch'}
+                    checked={startMode ===
+   'scratch'}
                     onChange={(e) => {
                       setStartMode('scratch');
                       setSelectedRejectedTracker('');
@@ -459,7 +488,8 @@ export default function NewTrackerPage() {
                     type="radio"
                     name="startMode"
                     value="reapply"
-                    checked={startMode === 'reapply'}
+                    checked={startMode ===
+   'reapply'}
                     onChange={(e) => setStartMode('reapply')}
                     className="mt-1"
                   />
@@ -468,14 +498,16 @@ export default function NewTrackerPage() {
                     <div className="text-sm text-gray-600 mb-2">Auto-fill from a previously rejected paper marked for resubmission</div>
                     
                     {/* Dropdown appears only when reapply is selected */}
-                    {startMode === 'reapply' && (
+                    {startMode ===
+   'reapply' && (
                       <div className="mt-3">
                         {loadingRejected ? (
                           <div className="text-sm text-gray-500">
                             <RefreshCw className="w-4 h-4 animate-spin inline mr-2" />
                             Loading rejected papers...
                           </div>
-                        ) : rejectedTrackers.filter(t => t.publicationType === selectedType).length > 0 ? (
+                        ) : rejectedTrackers.filter(t => t.publicationType ===
+   selectedType).length > 0 ? (
                           <select
                             value={selectedRejectedTracker}
                             onChange={(e) => handlePrefillFromRejected(e.target.value)}
@@ -483,12 +515,14 @@ export default function NewTrackerPage() {
                           >
                             <option value="">-- Select a rejected paper to resubmit --</option>
                             {rejectedTrackers
-                              .filter(t => t.publicationType === selectedType)
+                              .filter(t => t.publicationType ===
+   selectedType)
                               .map((tracker) => {
                                 const rejData = getRejectionData(tracker);
                                 return (
                                   <option key={tracker.id} value={tracker.id}>
-                                    {tracker.title} ({tracker.trackingNumber}) - {rejData?.planToResubmit === 'same_journal' ? 'Same Journal' : 'Different Journal'}
+                                    {tracker.title} ({tracker.trackingNumber}) - {rejData?.planToResubmit ===
+   'same_journal' ? 'Same Journal' : 'Different Journal'}
                                   </option>
                                 );
                               })}
@@ -510,7 +544,8 @@ export default function NewTrackerPage() {
                 <button
                   type="button"
                   onClick={handleContinue}
-                  disabled={startMode === 'reapply' && !selectedRejectedTracker}
+                  disabled={startMode ===
+   'reapply' && !selectedRejectedTracker}
                   className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
                   Continue
@@ -522,7 +557,8 @@ export default function NewTrackerPage() {
       )}
 
       {/* Step 2: Fill Details - Redesigned with 4 Categories */}
-      {step === 2 && selectedType && (
+      {step ===
+   2 && selectedType && (
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Selected Type Header */}
           <div className="bg-white rounded-lg shadow-sm p-4 flex items-center gap-3 border-2 border-indigo-100">
@@ -547,7 +583,8 @@ export default function NewTrackerPage() {
 
           {/* Prefilled from Rejected Paper Notice */}
           {selectedRejectedTracker && (() => {
-            const prefillTracker = rejectedTrackers.find(t => t.id === selectedRejectedTracker);
+            const prefillTracker = rejectedTrackers.find(t => t.id ===
+   selectedRejectedTracker);
             if (!prefillTracker) return null;
             const rejData = getRejectionData(prefillTracker);
             return (
@@ -618,9 +655,12 @@ export default function NewTrackerPage() {
                     onChange={(e) => setTitle(e.target.value)}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                     placeholder={
-                      selectedType === 'research_paper' ? 'e.g., Impact of AI on Healthcare Diagnostics' :
-                      selectedType === 'book' ? 'e.g., Advanced Machine Learning Techniques' :
-                      selectedType === 'book_chapter' ? 'e.g., Deep Learning in Medical Imaging' :
+                      selectedType ===
+   'research_paper' ? 'e.g., Impact of AI on Healthcare Diagnostics' :
+                      selectedType ===
+   'book' ? 'e.g., Advanced Machine Learning Techniques' :
+                      selectedType ===
+   'book_chapter' ? 'e.g., Deep Learning in Medical Imaging' :
                       'e.g., Novel Approach to Data Security'
                     }
                     required
@@ -718,7 +758,8 @@ export default function NewTrackerPage() {
                           type="radio"
                           name="interdisciplinary"
                           value={v}
-                          checked={interdisciplinary === v}
+                          checked={interdisciplinary ===
+   v}
                           onChange={(e) => setInterdisciplinary(e.target.value as 'yes' | 'no')}
                           className="w-4 h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
                         />
@@ -774,7 +815,8 @@ export default function NewTrackerPage() {
                 </div>
 
                 {/* Indexing Categories - Only for Research Papers (Multi-select) */}
-                {selectedType === 'research_paper' && (
+                {selectedType ===
+   'research_paper' && (
                 <>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -802,16 +844,20 @@ export default function NewTrackerPage() {
                               // Clear conditional fields if category is deselected
                               const remainingCategories = indexingCategories.filter(c => c !== cat.value);
                               const stillNeedsQuartile = remainingCategories.some(c => 
-                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('quartile')
+                                INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('quartile')
                               );
                               const stillNeedsIF = remainingCategories.some(c => 
-                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('impactFactor')
+                                INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('impactFactor')
                               );
                               const stillNeedsSJR = remainingCategories.some(c => 
-                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('sjr')
+                                INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('sjr')
                               );
                               const stillNeedsNAAS = remainingCategories.some(c => 
-                                INDEXING_CATEGORIES.find(ic => ic.value === c)?.requiredFields.includes('naasRating')
+                                INDEXING_CATEGORIES.find(ic => ic.value ===
+   c)?.requiredFields.includes('naasRating')
                               );
                               if (!stillNeedsQuartile) setQuartile('');
                               if (!stillNeedsIF) setImpactFactor('');
@@ -835,13 +881,15 @@ export default function NewTrackerPage() {
                 {indexingCategories.length > 0 && (() => {
                   const requiredFields = new Set<string>();
                   indexingCategories.forEach(cat => {
-                    const category = INDEXING_CATEGORIES.find(c => c.value === cat);
+                    const category = INDEXING_CATEGORIES.find(c => c.value ===
+   cat);
                     if (category) {
                       category.requiredFields.forEach(f => requiredFields.add(f));
                     }
                   });
 
-                  if (requiredFields.size === 0) return null;
+                  if (requiredFields.size ===
+   0) return null;
 
                   return (
                     <div className="border-t border-gray-200 pt-4 mt-4">
@@ -987,7 +1035,8 @@ export default function NewTrackerPage() {
                 </div>
 
                 {/* Conference Sub-Type Selection - For Conference Papers */}
-                {selectedType === 'conference_paper' && (
+                {selectedType ===
+   'conference_paper' && (
                   <div className="pt-4 border-t border-gray-200">
                     <h4 className="text-sm font-medium text-gray-700 mb-4">
                       🎤 Conference Type
@@ -1023,28 +1072,32 @@ export default function NewTrackerPage() {
                       📋 Additional Details for "{statusLabels[currentStatus]}" Stage
                     </h4>
                     
-                    {selectedType === 'research_paper' && (
+                    {selectedType ===
+   'research_paper' && (
                       <ResearchPaperStatusForm 
                         status={currentStatus} 
                         data={{ ...statusData, indexingCategories }} 
                         onChange={handleStatusDataChange} 
                       />
                     )}
-                    {selectedType === 'book' && (
+                    {selectedType ===
+   'book' && (
                       <BookStatusForm 
                         status={currentStatus} 
                         data={statusData} 
                         onChange={handleStatusDataChange} 
                       />
                     )}
-                    {selectedType === 'book_chapter' && (
+                    {selectedType ===
+   'book_chapter' && (
                       <BookChapterStatusForm 
                         status={currentStatus} 
                         data={statusData} 
                         onChange={handleStatusDataChange} 
                       />
                     )}
-                    {selectedType === 'conference_paper' && (
+                    {selectedType ===
+   'conference_paper' && (
                       <ConferencePaperStatusForm 
                         status={currentStatus} 
                         data={statusData} 

@@ -17,7 +17,8 @@ export default function MailLayout() {
   }, [fetchCounts]);
 
   const renderMiddlePanel = () => {
-    if (currentView === 'drafts') {
+    if (currentView ===
+   'drafts') {
       return <DraftList />;
     }
     return <ThreadList />;

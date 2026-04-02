@@ -300,4 +300,4 @@ const searchMail = async (userId, {
 module.exports = {
   searchMail,
   parseSearchQuery,
-};
+}

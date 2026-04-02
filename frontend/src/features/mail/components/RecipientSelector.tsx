@@ -114,7 +114,8 @@ export default function RecipientSelector({
       email: option.uid,
       type: option.type,
     };
-    if (!recipients.find((r) => r.id === rec.id)) onChange([...recipients, rec]);
+    if (!recipients.find((r) => r.id ===
+   rec.id)) onChange([...recipients, rec]);
     setQuery('');
     setSuggestions([]);
     setShowDropdown(false);
@@ -124,14 +125,21 @@ export default function RecipientSelector({
   const removeRecipient = (id: string) => onChange(recipients.filter((r) => r.id !== id));
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && query === '' && recipients.length > 0) {
+    if (e.key ===
+   'Backspace' && query ===
+   '' && recipients.length > 0) {
       removeRecipient(recipients[recipients.length - 1].id); return;
     }
-    if (!showDropdown || suggestions.length === 0) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlightIndex((i) => (i + 1) % suggestions.length); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlightIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1)); }
-    else if (e.key === 'Enter' && highlightIndex >= 0) { e.preventDefault(); addRecipient(suggestions[highlightIndex]); }
-    else if (e.key === 'Escape') { setShowDropdown(false); setShowGroupPanel(false); }
+    if (!showDropdown || suggestions.length ===
+   0) return;
+    if (e.key ===
+   'ArrowDown') { e.preventDefault(); setHighlightIndex((i) => (i + 1) % suggestions.length); }
+    else if (e.key ===
+   'ArrowUp') { e.preventDefault(); setHighlightIndex((i) => (i <= 0 ? suggestions.length - 1 : i - 1)); }
+    else if (e.key ===
+   'Enter' && highlightIndex >= 0) { e.preventDefault(); addRecipient(suggestions[highlightIndex]); }
+    else if (e.key ===
+   'Escape') { setShowDropdown(false); setShowGroupPanel(false); }
   };
 
   const getTypeIcon = (type: RecipientSearchType, size = 14) => {
@@ -218,7 +226,8 @@ export default function RecipientSelector({
           onChange={(e) => handleSearch(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
-          placeholder={recipients.length === 0 ? placeholder : ''}
+          placeholder={recipients.length ===
+   0 ? placeholder : ''}
           disabled={disabled}
           className="flex-1 min-w-[120px] bg-transparent outline-none text-sm"
           style={{ color: '#011f4b' }}
@@ -242,7 +251,8 @@ export default function RecipientSelector({
               type="button"
               onClick={() => addRecipient(option)}
               className="w-full flex items-center gap-3 px-3 py-2 text-left transition-colors"
-              style={{ background: i === highlightIndex ? '#e8f0fe' : 'transparent' }}
+              style={{ background: i ===
+   highlightIndex ? '#e8f0fe' : 'transparent' }}
               onMouseEnter={(e) => { if (i !== highlightIndex) (e.currentTarget as HTMLButtonElement).style.background = '#f0f4f8'; }}
               onMouseLeave={(e) => { if (i !== highlightIndex) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             >
@@ -290,8 +300,10 @@ export default function RecipientSelector({
                 onClick={() => setGroupTab(tab.key as typeof groupTab)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors"
                 style={{
-                  color: groupTab === tab.key ? '#005b96' : '#6497b1',
-                  borderBottom: groupTab === tab.key ? '2px solid #005b96' : '2px solid transparent',
+                  color: groupTab ===
+   tab.key ? '#005b96' : '#6497b1',
+                  borderBottom: groupTab ===
+   tab.key ? '2px solid #005b96' : '2px solid transparent',
                 }}
               >
                 {tab.icon}{tab.label}
@@ -309,16 +321,20 @@ export default function RecipientSelector({
               </div>
             )}
 
-            {!loadingGroups && groupTab === 'central' && (
-              (allGroups?.centralDepts || []).length === 0
+            {!loadingGroups && groupTab ===
+   'central' && (
+              (allGroups?.centralDepts || []).length ===
+   0
                 ? <p className="px-4 py-3 text-xs text-center" style={{ color: '#6497b1' }}>No central departments found</p>
                 : (allGroups?.centralDepts || []).map((g) => (
                     <GroupRow key={g.id} group={g} icon={getTypeIcon('central_department')} onAdd={addRecipient} recipients={recipients} />
                   ))
             )}
 
-            {!loadingGroups && groupTab === 'schools' && (
-              (allGroups?.schools || []).length === 0
+            {!loadingGroups && groupTab ===
+   'schools' && (
+              (allGroups?.schools || []).length ===
+   0
                 ? <p className="px-4 py-3 text-xs text-center" style={{ color: '#6497b1' }}>No schools found</p>
                 : (allGroups?.schools || []).map((school) => (
                     <GroupRow
@@ -332,17 +348,21 @@ export default function RecipientSelector({
                   ))
             )}
 
-            {!loadingGroups && groupTab === 'departments' && (() => {
+            {!loadingGroups && groupTab ===
+   'departments' && (() => {
               const allDepts = allGroups?.departments || [];
-              if (allDepts.length === 0) return (
+              if (allDepts.length ===
+   0) return (
                 <p className="px-4 py-3 text-xs text-center" style={{ color: '#6497b1' }}>No departments found</p>
               );
               // Schools that actually have departments
               const schoolsWithDepts = (allGroups?.schools || []).filter(
-                (s) => allDepts.some((d) => d.schoolId === s.id)
+                (s) => allDepts.some((d) => d.schoolId ===
+   s.id)
               );
               const filteredDepts = selectedDeptSchoolId
-                ? allDepts.filter((d) => d.schoolId === selectedDeptSchoolId)
+                ? allDepts.filter((d) => d.schoolId ===
+   selectedDeptSchoolId)
                 : [];
               return (
                 <>
@@ -355,10 +375,12 @@ export default function RecipientSelector({
                           key={s.id}
                           type="button"
                           onClick={() => setSelectedDeptSchoolId(
-                            selectedDeptSchoolId === s.id ? null : s.id
+                            selectedDeptSchoolId ===
+   s.id ? null : s.id
                           )}
                           className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                          style={selectedDeptSchoolId === s.id
+                          style={selectedDeptSchoolId ===
+   s.id
                             ? { background: '#005b96', color: '#fff', border: '1px solid #005b96' }
                             : { background: '#f0f4f8', color: '#011f4b', border: '1px solid #b3cde0' }
                           }
@@ -376,7 +398,8 @@ export default function RecipientSelector({
                         ☝️ Select a school above to see its departments
                       </p>
                     )}
-                    {selectedDeptSchoolId && filteredDepts.length === 0 && (
+                    {selectedDeptSchoolId && filteredDepts.length ===
+   0 && (
                       <p className="px-4 py-3 text-xs text-center" style={{ color: '#6497b1' }}>
                         No departments found in this school
                       </p>
@@ -423,7 +446,8 @@ function GroupRow({
   indent?: boolean;
   subtitle?: string;
 }) {
-  const isAdded = recipients.some((r) => r.id === group.id);
+  const isAdded = recipients.some((r) => r.id ===
+   group.id);
   return (
     <button
       type="button"

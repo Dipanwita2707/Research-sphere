@@ -210,12 +210,14 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
 
   const getDrdReview = () => {
     if (!application?.reviews) return null;
-    return application.reviews.find((r: any) => r.reviewerRole === 'drd_member');
+    return application.reviews.find((r: any) => r.reviewerRole ===
+   'drd_member');
   };
 
   const getDeanReview = () => {
     if (!application?.reviews) return null;
-    return application.reviews.find((r: any) => r.reviewerRole === 'drd_dean');
+    return application.reviews.find((r: any) => r.reviewerRole ===
+   'drd_dean');
   };
 
   const getFinanceReview = () => {
@@ -231,7 +233,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
     const policy = INCENTIVE_POLICY[iprType as keyof typeof INCENTIVE_POLICY] || INCENTIVE_POLICY.patent;
     
     // Count inventors (from contributors or default to 1)
-    const inventorCount = application.contributors?.filter((c: any) => c.contributorType === 'inventor')?.length || 1;
+    const inventorCount = application.contributors?.filter((c: any) => c.contributorType ===
+   'inventor')?.length || 1;
     
     // Calculate per-person share (equal split)
     const pointsPerPerson = Math.floor(policy.basePoints / inventorCount);
@@ -544,9 +547,11 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                   <label className="block text-sm font-medium text-gray-700">Decision</label>
                   <p className="mt-1">
                     <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      drdReview.decision === 'approved' 
+                      drdReview.decision ===
+   'approved' 
                         ? 'bg-green-100 text-green-800'
-                        : drdReview.decision === 'rejected'
+                        : drdReview.decision ===
+   'rejected'
                         ? 'bg-red-100 text-red-800'
                         : 'bg-orange-100 text-orange-800'
                     }`}>
@@ -591,7 +596,9 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
               </div>
 
               {/* Action Buttons for Changes Required */}
-              {application.status === 'changes_required' && drdReview.decision === 'changes_required' && (
+              {application.status ===
+   'changes_required' && drdReview.decision ===
+   'changes_required' && (
                 <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-md">
                   <h3 className="text-lg font-semibold text-orange-900 mb-2">Action Required</h3>
                   <p className="text-orange-800 mb-4">
@@ -623,7 +630,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                   <label className="block text-sm font-medium text-gray-700">Decision</label>
                   <p className="mt-1">
                     <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      deanReview.decision === 'approved' 
+                      deanReview.decision ===
+   'approved' 
                         ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
@@ -671,7 +679,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                   <label className="block text-sm font-medium text-gray-700">Audit Status</label>
                   <p className="mt-1">
                     <span className={`px-2 py-1 rounded text-sm font-medium ${
-                      financeReview.auditStatus === 'approved' 
+                      financeReview.auditStatus ===
+   'approved' 
                         ? 'bg-green-100 text-green-800'
                         : 'bg-red-100 text-red-800'
                     }`}>
@@ -680,7 +689,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                   </p>
                 </div>
 
-                {financeReview.auditStatus === 'approved' && (
+                {financeReview.auditStatus ===
+   'approved' && (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Incentive Amount</label>
@@ -744,13 +754,17 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
             
             {/* Merged Timeline: Status Changes + DRD Updates - Scrollable */}
             <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-              {(!application?.statusHistory || application.statusHistory.length === 0) && (statusUpdates.length === 0) && (
+              {(!application?.statusHistory || application.statusHistory.length ===
+   0) && (statusUpdates.length ===
+   0) && (
                 <p className="text-gray-500 text-sm">No status history available</p>
               )}
 
               {buildTimeline().map((item: any, idx: number, arr: any[]) => {
-                const isLast = idx === arr.length - 1;
-                if (item.kind === 'status') {
+                const isLast = idx ===
+   arr.length - 1;
+                if (item.kind ===
+   'status') {
                   return (
                     <div key={item.id} className="relative">
                       {!isLast && <div className="absolute left-4 top-10 bottom-0 w-0.5 bg-blue-200"></div>}
@@ -796,7 +810,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                       <div className="flex-1 min-w-0 pb-4">
                         <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
                           {cfg.label}
-                          {item.priority === 'urgent' && (
+                          {item.priority ===
+   'urgent' && (
                             <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 border border-red-300 rounded-full">Urgent</span>
                           )}
                         </p>
@@ -844,7 +859,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
             <div className="space-y-3">
-              {application.status === 'draft' && (
+              {application.status ===
+   'draft' && (
                 <button
                   onClick={() => router.push(`/ipr/applications/${application.id}/edit`)}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
@@ -853,7 +869,8 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 </button>
               )}
               
-              {application.status === 'changes_required' && (
+              {application.status ===
+   'changes_required' && (
                 <button
                   onClick={() => router.push(`/ipr/applications/${application.id}/edit`)}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
@@ -862,7 +879,9 @@ export default function IprApplicationDetails({ applicationId }: IprApplicationD
                 </button>
               )}
 
-              {(application.status === 'completed' || application.status === 'finance_approved') && application.incentiveAmount && (
+              {(application.status ===
+   'completed' || application.status ===
+   'finance_approved') && application.incentiveAmount && (
                 <div className="text-center p-4 bg-green-50 rounded-md">
                   <CreditCard className="w-8 h-8 text-green-600 mx-auto mb-2" />
                   <p className="text-sm font-medium text-green-900">Incentive Credited</p>

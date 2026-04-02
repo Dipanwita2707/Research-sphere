@@ -130,7 +130,8 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
   if (!filePath) return null;
   
   // If it's already an object with s3Key
-  if (typeof filePath === 'object' && filePath !== null && 's3Key' in filePath) {
+  if (typeof filePath ===
+   'object' && filePath !== null && 's3Key' in filePath) {
     const obj = filePath as ManuscriptFileInfo;
     return {
       s3Key: obj.s3Key,
@@ -141,10 +142,12 @@ const parseManuscriptFilePath = (filePath: unknown): ManuscriptFileInfo | null =
   }
   
   // If it's a string, try to parse as JSON first
-  if (typeof filePath === 'string') {
+  if (typeof filePath ===
+   'string') {
     try {
       const parsed = JSON.parse(filePath);
-      if (parsed && typeof parsed === 'object' && 's3Key' in parsed) {
+      if (parsed && typeof parsed ===
+   'object' && 's3Key' in parsed) {
         return {
           s3Key: parsed.s3Key,
           name: parsed.name || parsed.s3Key.split('/').pop() || 'document',
@@ -312,9 +315,11 @@ export default function ContributionDetailPage() {
   const StatusIcon = statusConfig.icon;
   const pubTypeConfig = PUBLICATION_TYPE_CONFIG[contribution.publicationType];
   const PubTypeIcon = pubTypeConfig?.icon || FileText;
-  const isOwner = contribution.applicantUserId === user?.id;
+  const isOwner = contribution.applicantUserId ===
+   user?.id;
   const canEdit = isOwner && ['draft', 'changes_required'].includes(contribution.status);
-  const pendingSuggestions = editSuggestions.filter(s => s.status === 'pending');
+  const pendingSuggestions = editSuggestions.filter(s => s.status ===
+   'pending');
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
@@ -369,7 +374,8 @@ export default function ContributionDetailPage() {
       </div>
 
       {/* Changes Required Alert */}
-      {contribution.status === 'changes_required' && pendingSuggestions.length > 0 && (
+      {contribution.status ===
+   'changes_required' && pendingSuggestions.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
           <div className="flex items-start space-x-3">
             <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -402,7 +408,8 @@ export default function ContributionDetailPage() {
           </div>
           {(() => {
             // Find current user's author record
-            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId === user?.id);
+            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId ===
+   user?.id);
             const myIncentive = currentUserAuthor?.incentiveShare || 0;
             const isApprovedOrCompleted = ['approved', 'completed'].includes(contribution.status);
             
@@ -439,7 +446,8 @@ export default function ContributionDetailPage() {
           </div>
           {(() => {
             // Find current user's author record
-            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId === user?.id);
+            const currentUserAuthor = contribution.authors?.find((a: any) => a.userId ===
+   user?.id);
             const myPoints = currentUserAuthor?.pointsShare || 0;
             const isApprovedOrCompleted = ['approved', 'completed'].includes(contribution.status);
             
@@ -506,8 +514,10 @@ export default function ContributionDetailPage() {
       </div>
 
       {/* Warning for Missing Indexing Categories */}
-      {contribution.publicationType === 'research_paper' && 
-       (!(contribution as any).indexingCategories || (contribution as any).indexingCategories.length === 0) && (
+      {contribution.publicationType ===
+   'research_paper' && 
+       (!(contribution as any).indexingCategories || (contribution as any).indexingCategories.length ===
+   0) && (
         <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
@@ -527,7 +537,8 @@ export default function ContributionDetailPage() {
       )}
 
       {/* Incentive Calculation Breakdown - Only for Research Papers */}
-      {contribution.publicationType === 'research_paper' && 
+      {contribution.publicationType ===
+   'research_paper' && 
        (contribution as any).indexingCategories && 
        (contribution as any).indexingCategories.length > 0 && (
         <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6 mb-6">
@@ -634,7 +645,8 @@ export default function ContributionDetailPage() {
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key as any)}
                 className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === tab.key
+                  activeTab ===
+   tab.key
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -643,7 +655,8 @@ export default function ContributionDetailPage() {
                 {tab.label}
                 {tab.count !== undefined && tab.count > 0 && (
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
-                    activeTab === tab.key ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                    activeTab ===
+   tab.key ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                   }`}>
                     {tab.count}
                   </span>
@@ -655,7 +668,8 @@ export default function ContributionDetailPage() {
 
         <div className="p-6">
           {/* Details Tab */}
-          {activeTab === 'details' && (
+          {activeTab ===
+   'details' && (
             <div className="space-y-6">
               {/* Applicant Information */}
               <div>
@@ -686,14 +700,17 @@ export default function ContributionDetailPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <FileText className="w-5 h-5 mr-2 text-blue-500" />
-                  {contribution.publicationType === 'book' ? 'Book Information' :
-                   contribution.publicationType === 'book_chapter' ? 'Book Chapter Information' :
+                  {contribution.publicationType ===
+   'book' ? 'Book Information' :
+                   contribution.publicationType ===
+   'book_chapter' ? 'Book Chapter Information' :
                    'Research Information'}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <DetailItem label="Publication Type" value={pubTypeConfig?.label} />
                   {/* Research Paper Specific Fields */}
-                  {contribution.publicationType === 'research_paper' && (
+                  {contribution.publicationType ===
+   'research_paper' && (
                     <>
                       {(contribution as any).indexingCategories && (contribution as any).indexingCategories.length > 0 && (
                         <div className="col-span-full">
@@ -761,13 +778,17 @@ export default function ContributionDetailPage() {
                   )}
                   
                   {/* Book/Book Chapter Fields */}
-                  {(contribution.publicationType === 'book' || contribution.publicationType === 'book_chapter') && (
+                  {(contribution.publicationType ===
+   'book' || contribution.publicationType ===
+   'book_chapter') && (
                     <>
                       {(contribution as any).bookIndexingType && (
                         <DetailItem label="Publication Type" value={(contribution as any).bookIndexingType?.replace(/_/g, ' ')?.replace(/\b\w/g, (l: string) => l.toUpperCase())} />
                       )}
-                      {(contribution as any).bookPublicationType && contribution.publicationType === 'book' && (
-                        <DetailItem label="Book Type" value={(contribution as any).bookPublicationType === 'authored' ? 'Authored' : 'Edited'} />
+                      {(contribution as any).bookPublicationType && contribution.publicationType ===
+   'book' && (
+                        <DetailItem label="Book Type" value={(contribution as any).bookPublicationType ===
+   'authored' ? 'Authored' : 'Edited'} />
                       )}
                       {(contribution as any).communicatedWithOfficialId !== undefined && (
                         <DetailItem label="Communicated with Official ID" value={(contribution as any).communicatedWithOfficialId ? 'Yes' : 'No'} />
@@ -775,7 +796,8 @@ export default function ContributionDetailPage() {
                       {(contribution as any).personalEmail && (
                         <DetailItem label="Personal Email" value={(contribution as any).personalEmail} />
                       )}
-                      {contribution.publicationType === 'book_chapter' && (
+                      {contribution.publicationType ===
+   'book_chapter' && (
                         <>
                           {(contribution as any).bookTitle && (
                             <DetailItem label="Book Title" value={(contribution as any).bookTitle} />
@@ -810,7 +832,8 @@ export default function ContributionDetailPage() {
                         <DetailItem label="SGT Authors" value={(contribution as any).sgtAffiliatedAuthors?.toString()} />
                       )}
                       {(contribution as any).bookLetter && (
-                        <DetailItem label="Our Authorized Publications" value={(contribution as any).bookLetter === 'yes' ? 'Yes' : 'No'} />
+                        <DetailItem label="Our Authorized Publications" value={(contribution as any).bookLetter ===
+   'yes' ? 'Yes' : 'No'} />
                       )}
                     </>
                   )}
@@ -848,7 +871,8 @@ export default function ContributionDetailPage() {
               )}
 
               {/* Conference Specific Details */}
-              {contribution.publicationType === 'conference_paper' && (
+              {contribution.publicationType ===
+   'conference_paper' && (
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <Presentation className="w-5 h-5 mr-2 text-purple-500" />
@@ -1094,7 +1118,8 @@ export default function ContributionDetailPage() {
           )}
 
           {/* Authors Tab */}
-          {activeTab === 'authors' && (
+          {activeTab ===
+   'authors' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1152,7 +1177,9 @@ export default function ContributionDetailPage() {
                     <div 
                       key={author.id || index}
                       className={`p-4 rounded-xl border ${
-                        author.authorType === 'first_author' || author.authorType === 'first_and_corresponding_author'
+                        author.authorType ===
+   'first_author' || author.authorType ===
+   'first_and_corresponding_author'
                           ? 'bg-blue-50 border-blue-200'
                           : author.isCorresponding
                           ? 'bg-purple-50 border-purple-200'
@@ -1172,11 +1199,14 @@ export default function ContributionDetailPage() {
                               {/* Author Role Badge - Show combined role properly */}
                               {author.authorRole && AUTHOR_ROLE_LABELS[author.authorRole] && (
                                 <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
-                                  author.authorRole === 'first_and_corresponding_author' 
+                                  author.authorRole ===
+   'first_and_corresponding_author' 
                                     ? 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-                                    : author.authorRole === 'first_author'
+                                    : author.authorRole ===
+   'first_author'
                                     ? 'bg-blue-100 text-blue-700'
-                                    : author.authorRole === 'corresponding_author'
+                                    : author.authorRole ===
+   'corresponding_author'
                                     ? 'bg-purple-100 text-purple-700'
                                     : 'bg-gray-100 text-gray-700'
                                 }`}>
@@ -1184,7 +1214,8 @@ export default function ContributionDetailPage() {
                                 </span>
                               )}
                               {/* Fallback to old fields for backward compatibility - Check if single author */}
-                              {!author.authorRole && contribution.authors && contribution.authors.length === 1 && (
+                              {!author.authorRole && contribution.authors && contribution.authors.length ===
+   1 && (
                                 <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 border border-indigo-300 text-xs rounded-full font-medium">
                                   First & Corresponding Author
                                 </span>
@@ -1192,7 +1223,8 @@ export default function ContributionDetailPage() {
                               {/* Show separate badges for legacy data with multiple authors */}
                               {!author.authorRole && contribution.authors && contribution.authors.length > 1 && (
                                 <>
-                                  {author.orderNumber === 1 && (
+                                  {author.orderNumber ===
+   1 && (
                                     <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
                                       First Author
                                     </span>
@@ -1204,14 +1236,17 @@ export default function ContributionDetailPage() {
                                   )}
                                 </>
                               )}
-                              {author.userId === user?.id && (
+                              {author.userId ===
+   user?.id && (
                                 <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">
                                   You
                                 </span>
                               )}
                             </div>
                             <p className="text-sm text-gray-500 mt-0.5">
-                              {author.authorCategory === 'faculty' ? 'Faculty' : author.authorCategory === 'student' ? 'Student' : 'External'}
+                              {author.authorCategory ===
+   'faculty' ? 'Faculty' : author.authorCategory ===
+   'student' ? 'Student' : 'External'}
                               {author.affiliation && ` • ${author.affiliation}`}
                             </p>
                             <div className="flex items-center flex-wrap gap-4 mt-2 text-sm text-gray-500">
@@ -1282,7 +1317,8 @@ export default function ContributionDetailPage() {
           )}
 
           {/* Edit Suggestions Tab */}
-          {activeTab === 'suggestions' && (
+          {activeTab ===
+   'suggestions' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1301,9 +1337,11 @@ export default function ContributionDetailPage() {
                     <div 
                       key={suggestion.id}
                       className={`p-4 rounded-xl border ${
-                        suggestion.status === 'pending' 
+                        suggestion.status ===
+   'pending' 
                           ? 'bg-yellow-50 border-yellow-200' 
-                          : suggestion.status === 'accepted'
+                          : suggestion.status ===
+   'accepted'
                           ? 'bg-green-50 border-green-200'
                           : 'bg-gray-50 border-gray-200'
                       }`}
@@ -1315,9 +1353,11 @@ export default function ContributionDetailPage() {
                               {suggestion.fieldName.replace(/([A-Z])/g, ' $1').trim()}
                             </span>
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                              suggestion.status === 'pending' 
+                              suggestion.status ===
+   'pending' 
                                 ? 'bg-yellow-100 text-yellow-700'
-                                : suggestion.status === 'accepted'
+                                : suggestion.status ===
+   'accepted'
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-100 text-gray-600'
                             }`}>
@@ -1347,15 +1387,18 @@ export default function ContributionDetailPage() {
                             </div>
                           )}
                         </div>
-                        {suggestion.status === 'pending' && canEdit && (
+                        {suggestion.status ===
+   'pending' && canEdit && (
                           <div className="flex items-center space-x-2 ml-4">
                             <button
                               onClick={() => handleAcceptSuggestion(suggestion.id)}
-                              disabled={suggestionLoading === suggestion.id}
+                              disabled={suggestionLoading ===
+   suggestion.id}
                               className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                               title="Accept suggestion"
                             >
-                              {suggestionLoading === suggestion.id ? (
+                              {suggestionLoading ===
+   suggestion.id ? (
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               ) : (
                                 <Check className="w-4 h-4" />
@@ -1363,7 +1406,8 @@ export default function ContributionDetailPage() {
                             </button>
                             <button
                               onClick={() => handleRejectSuggestion(suggestion.id)}
-                              disabled={suggestionLoading === suggestion.id}
+                              disabled={suggestionLoading ===
+   suggestion.id}
                               className="p-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors"
                               title="Reject suggestion"
                             >
@@ -1388,7 +1432,8 @@ export default function ContributionDetailPage() {
           )}
 
           {/* History Tab */}
-          {activeTab === 'history' && (
+          {activeTab ===
+   'history' && (
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Status History</h3>
               {contribution.statusHistory && contribution.statusHistory.length > 0 ? (
@@ -1415,7 +1460,8 @@ export default function ContributionDetailPage() {
                           case 'approved':
                             return `Approved${userInfo}`;
                           case 'under_review':
-                            if (history.fromStatus === 'submitted') {
+                            if (history.fromStatus ===
+   'submitted') {
                               return `Review started${userInfo}`;
                             }
                             return `Recommended for final approval${userInfo}`;
@@ -1476,7 +1522,8 @@ export default function ContributionDetailPage() {
       {isOwner && (
         <div className="mt-6 bg-white rounded-xl border border-gray-200 p-6">
           <div className="flex flex-wrap gap-3">
-            {contribution.status === 'draft' && (
+            {contribution.status ===
+   'draft' && (
               <>
                 <button
                   onClick={handleSubmit}
@@ -1497,7 +1544,8 @@ export default function ContributionDetailPage() {
               </>
             )}
             
-            {contribution.status === 'changes_required' && (
+            {contribution.status ===
+   'changes_required' && (
               <>
                 {pendingSuggestions.length > 0 ? (
                   <>
@@ -1531,7 +1579,8 @@ export default function ContributionDetailPage() {
               </>
             )}
           </div>
-          {contribution.status === 'changes_required' && pendingSuggestions.length > 0 && (
+          {contribution.status ===
+   'changes_required' && pendingSuggestions.length > 0 && (
             <p className="text-sm text-orange-600 mt-3">
               <AlertCircle className="w-4 h-4 inline mr-1" />
               Accept or reject the {pendingSuggestions.length} suggestion{pendingSuggestions.length > 1 ? 's' : ''} first. Accepting a suggestion will automatically update your contribution with the suggested value.

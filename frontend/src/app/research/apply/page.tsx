@@ -31,10 +31,13 @@ export default function ResearchApplyPage() {
     }
 
     // Get role name
-    const roleName = typeof user.role === 'object' ? user.role?.name : user.userType;
+    const roleName = typeof user.role ===
+   'object' ? user.role?.name : user.userType;
     
     // Faculty and Student have inherent research filing rights
-    if (roleName === 'faculty' || roleName === 'student') {
+    if (roleName ===
+   'faculty' || roleName ===
+   'student') {
       setCanFileResearch(true);
       setLoading(false);
       return;
@@ -47,7 +50,8 @@ export default function ResearchApplyPage() {
         const hasPermission = response.data.data.permissions.some((dept: any) => {
           return dept.permissions?.some((p: string) => {
             const pLower = p.toLowerCase();
-            return pLower === 'research_file_new';
+            return pLower ===
+   'research_file_new';
           });
         });
         setCanFileResearch(hasPermission);
@@ -69,7 +73,8 @@ export default function ResearchApplyPage() {
     );
   }
 
-  if (canFileResearch === false) {
+  if (canFileResearch ===
+   false) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 text-center border dark:border-gray-700">
@@ -97,7 +102,8 @@ export default function ResearchApplyPage() {
   }
 
   // Redirect grant_proposal to the dedicated grant application page
-  if (type === 'grant_proposal') {
+  if (type ===
+   'grant_proposal') {
     router.replace(editId ? `/research/apply-grant?edit=${editId}` : '/research/apply-grant');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">

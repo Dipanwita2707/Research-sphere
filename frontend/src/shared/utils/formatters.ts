@@ -17,7 +17,8 @@ export function formatDate(
   if (!dateString) return '-';
   
   try {
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    const date = typeof dateString ===
+   'string' ? new Date(dateString) : dateString;
     if (isNaN(date.getTime())) return '-';
     return date.toLocaleDateString('en-IN', options);
   } catch {
@@ -32,7 +33,8 @@ export function formatDateISO(dateString: string | Date | null | undefined): str
   if (!dateString) return '';
   
   try {
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    const date = typeof dateString ===
+   'string' ? new Date(dateString) : dateString;
     if (isNaN(date.getTime())) return '';
     return date.toISOString().split('T')[0];
   } catch {
@@ -47,7 +49,8 @@ export function formatRelativeTime(dateString: string | Date | null | undefined)
   if (!dateString) return '-';
   
   try {
-    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+    const date = typeof dateString ===
+   'string' ? new Date(dateString) : dateString;
     if (isNaN(date.getTime())) return '-';
     
     const now = new Date();
@@ -74,9 +77,13 @@ export function formatCurrency(
 ): string {
   const { showSymbol = true, decimals = 0 } = options;
   
-  if (amount === null || amount === undefined || amount === '') return showSymbol ? '₹0' : '0';
+  if (amount ===
+   null || amount ===
+   undefined || amount ===
+   '') return showSymbol ? '₹0' : '0';
   
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  const numAmount = typeof amount ===
+   'string' ? parseFloat(amount) : amount;
   if (isNaN(numAmount)) return showSymbol ? '₹0' : '0';
   
   const formatted = numAmount.toLocaleString('en-IN', {
@@ -94,9 +101,13 @@ export function formatNumber(
   value: number | string | null | undefined,
   decimals: number = 0
 ): string {
-  if (value === null || value === undefined || value === '') return '0';
+  if (value ===
+   null || value ===
+   undefined || value ===
+   '') return '0';
   
-  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  const numValue = typeof value ===
+   'string' ? parseFloat(value) : value;
   if (isNaN(numValue)) return '0';
   
   return numValue.toLocaleString('en-IN', {
@@ -109,7 +120,8 @@ export function formatNumber(
  * Format file size in human readable format
  */
 export function formatFileSize(bytes: number | null | undefined): string {
-  if (!bytes || bytes === 0) return '0 Bytes';
+  if (!bytes || bytes ===
+   0) return '0 Bytes';
   
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -125,9 +137,13 @@ export function formatPercentage(
   value: number | string | null | undefined,
   decimals: number = 1
 ): string {
-  if (value === null || value === undefined || value === '') return '0%';
+  if (value ===
+   null || value ===
+   undefined || value ===
+   '') return '0%';
   
-  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  const numValue = typeof value ===
+   'string' ? parseFloat(value) : value;
   if (isNaN(numValue)) return '0%';
   
   return `${numValue.toFixed(decimals)}%`;
@@ -185,10 +201,12 @@ export function formatPhoneNumber(phone: string | null | undefined): string {
   const cleaned = phone.replace(/\D/g, '');
   
   // Format as Indian phone number
-  if (cleaned.length === 10) {
+  if (cleaned.length ===
+   10) {
     return `+91 ${cleaned.substring(0, 5)} ${cleaned.substring(5)}`;
   }
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
+  if (cleaned.length ===
+   12 && cleaned.startsWith('91')) {
     return `+91 ${cleaned.substring(2, 7)} ${cleaned.substring(7)}`;
   }
   

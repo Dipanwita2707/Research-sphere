@@ -137,12 +137,15 @@ export default function MyIprApplications() {
     const validOwnApps = ownApps.filter((app: any) => app && app.id);
     // Filter contributed apps to exclude own applications (prevent double counting)
     const validContribApps = contribApps.filter((app: any) => 
-      app && app.id && !validOwnApps.some(own => own.id === app.id)
+      app && app.id && !validOwnApps.some(own => own.id ===
+   app.id)
     );
     
     // Calculate action required count (own apps only)
     const actionRequired = validOwnApps.filter((app: any) => 
-      app.status === 'changes_required' || app.status === 'draft'
+      app.status ===
+   'changes_required' || app.status ===
+   'draft'
     ).length;
     
     // Calculate total incentives and points earned (from published/completed applications)
@@ -255,7 +258,8 @@ export default function MyIprApplications() {
   };
 
   const handleExpandApp = async (appId: string) => {
-    if (expandedApp === appId) {
+    if (expandedApp ===
+   appId) {
       setExpandedApp(null);
       setSelectedResponses({});
       setResponseNotes({});
@@ -271,7 +275,8 @@ export default function MyIprApplications() {
   const handleSelectResponse = (suggestionId: string, action: 'accept' | 'reject') => {
     setSelectedResponses(prev => {
       const current = prev[suggestionId];
-      if (current?.action === action) {
+      if (current?.action ===
+   action) {
         const { [suggestionId]: _, ...rest } = prev;
         return rest;
       }
@@ -299,7 +304,8 @@ export default function MyIprApplications() {
       const isInvalid = isEnumField && !isValidEnumValue(s.fieldName, s.suggestedValue);
       
       // If trying to accept an invalid enum value, skip it or mark as reject
-      if (action === 'accept' && isInvalid) {
+      if (action ===
+   'accept' && isInvalid) {
         skippedCount++;
         // Don't include in accept selection - leave it for user to reject manually
         return;
@@ -324,7 +330,8 @@ export default function MyIprApplications() {
     const pendingSuggestions = getPendingSuggestions(appId);
     const selectedCount = Object.keys(selectedResponses).length;
     
-    if (selectedCount === 0) {
+    if (selectedCount ===
+   0) {
       toast({ type: 'warning', message: 'Please select at least one suggestion to respond to.' });
       return;
     }
@@ -496,16 +503,21 @@ export default function MyIprApplications() {
   const getApplicationCardStyle = (app: any, pendingSuggestions: EditSuggestion[]) => {
     const hasPending = pendingSuggestions.length > 0;
     
-    if (app.status === 'changes_required' && hasPending) {
+    if (app.status ===
+   'changes_required' && hasPending) {
       return 'border-orange-400 ring-2 ring-orange-200 bg-gradient-to-r from-orange-50 to-white';
     }
-    if (app.status === IPR_STATUS.DRAFT) {
+    if (app.status ===
+   IPR_STATUS.DRAFT) {
       return 'border-slate-300 bg-gradient-to-r from-slate-50 to-white';
     }
-    if (app.status === IPR_STATUS.COMPLETED || app.status === 'published') {
+    if (app.status ===
+   IPR_STATUS.COMPLETED || app.status ===
+   'published') {
       return 'border-green-300 bg-gradient-to-r from-green-50 to-white';
     }
-    if (app.status === IPR_STATUS.DRD_REJECTED) {
+    if (app.status ===
+   IPR_STATUS.DRD_REJECTED) {
       return 'border-red-200 bg-gradient-to-r from-red-50 to-white';
     }
     return 'border-gray-200 hover:border-gray-300';
@@ -514,7 +526,9 @@ export default function MyIprApplications() {
   const getApplicationsToDisplay = () => {
     switch (activeTab) {
       case 'action_required':
-        return applications.filter(app => app.status === IPR_STATUS.CHANGES_REQUIRED || app.status === IPR_STATUS.DRAFT);
+        return applications.filter(app => app.status ===
+   IPR_STATUS.CHANGES_REQUIRED || app.status ===
+   IPR_STATUS.DRAFT);
       case 'in_progress':
         return applications.filter(app => 
           [IPR_STATUS.SUBMITTED, IPR_STATUS.UNDER_DRD_REVIEW, 'recommended_to_head', IPR_STATUS.RESUBMITTED, 'drd_head_approved', 'submitted_to_govt', 'govt_application_filed'].includes(app.status)
@@ -524,7 +538,8 @@ export default function MyIprApplications() {
           [IPR_STATUS.COMPLETED, 'published', IPR_STATUS.DRD_REJECTED, 'cancelled'].includes(app.status)
         );
       case 'draft':
-        return applications.filter(app => app.status === IPR_STATUS.DRAFT);
+        return applications.filter(app => app.status ===
+   IPR_STATUS.DRAFT);
       case 'contributed':
         return contributedApplications;
       default:
@@ -533,7 +548,8 @@ export default function MyIprApplications() {
   };
 
   const getPendingSuggestions = (appId: string) => {
-    return (suggestions[appId] || []).filter(s => s.status === SUGGESTION_STATUS.PENDING);
+    return (suggestions[appId] || []).filter(s => s.status ===
+   SUGGESTION_STATUS.PENDING);
   };
 
   const getRespondedSuggestions = (appId: string) => {
@@ -718,13 +734,15 @@ export default function MyIprApplications() {
                       ...applications.filter((app: any) => publishedStatuses.includes(app.status)),
                       ...contributedApplications
                         .filter((app: any) => publishedStatuses.includes(app.status))
-                        .filter((app: any) => !applications.some(own => own.id === app.id))
+                        .filter((app: any) => !applications.some(own => own.id ===
+   app.id))
                     ];
                     
                     return allPublishedApps
                       .reduce((acc: any[], app: any) => {
                         const type = app.iprType?.toLowerCase() || 'other';
-                        const existing = acc.find(item => item.type === type);
+                        const existing = acc.find(item => item.type ===
+   type);
                         const incentive = Number(app.incentiveAmount) || 0;
                         const points = Number(app.pointsAwarded) || 0;
                         
@@ -792,7 +810,8 @@ export default function MyIprApplications() {
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key as any)}
-                  className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-xl whitespace-nowrap transition-all ${activeTab === tab.key
+                  className={`flex items-center gap-2 px-5 py-3 text-sm font-medium rounded-xl whitespace-nowrap transition-all ${activeTab ===
+   tab.key
                       ? tab.special
                         ? 'bg-[#27ae60] text-white shadow-sm'
                         : tab.highlight 
@@ -807,7 +826,8 @@ export default function MyIprApplications() {
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${activeTab === tab.key 
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${activeTab ===
+   tab.key 
                       ? 'bg-white/25' 
                       : tab.highlight && tab.count > 0
                       ? 'bg-[#fef5e7] text-[#f39c12]'
@@ -826,14 +846,16 @@ export default function MyIprApplications() {
 
       {/* Applications List */}
       <div className="space-y-4">
-        {getApplicationsToDisplay().length === 0 ? (
+        {getApplicationsToDisplay().length ===
+   0 ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-16 text-center">
             <div className="w-24 h-24 bg-[#e6f2fa] rounded-full flex items-center justify-center mx-auto mb-6">
               <FileText className="w-12 h-12 text-[#005b96]" />
             </div>
             <h3 className="text-2xl font-semibold text-gray-900 mb-2">No Applications Found</h3>
             <p className="text-gray-500 mb-8 max-w-md mx-auto">
-              {activeTab === 'action_required' 
+              {activeTab ===
+   'action_required' 
                 ? "Great news! You have no pending actions. All your applications are up to date." 
                 : "Get started by submitting your first IPR application to protect your intellectual property."}
             </p>
@@ -847,10 +869,13 @@ export default function MyIprApplications() {
           </div>
         ) : (
           getApplicationsToDisplay().map((app: any) => {
-            const isExpanded = expandedApp === app.id;
+            const isExpanded = expandedApp ===
+   app.id;
             const pendingSuggestions = getPendingSuggestions(app.id);
             const respondedSuggestions = getRespondedSuggestions(app.id);
-            const hasActions = app.status === 'changes_required' || app.status === 'draft';
+            const hasActions = app.status ===
+   'changes_required' || app.status ===
+   'draft';
             const selectedCount = Object.keys(selectedResponses).length;
             const cardStyle = getApplicationCardStyle(app, pendingSuggestions);
             
@@ -875,7 +900,8 @@ export default function MyIprApplications() {
                         {getStatusBadge(app.status, pendingSuggestions.length > 0)}
                         
                         {/* Fresh indicator for pending suggestions */}
-                        {app.status === 'changes_required' && pendingSuggestions.length > 0 && (
+                        {app.status ===
+   'changes_required' && pendingSuggestions.length > 0 && (
                           <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full text-xs font-bold shadow-md animate-pulse">
                             <Sparkles className="w-3.5 h-3.5" />
                             {pendingSuggestions.length} New Change{pendingSuggestions.length > 1 ? 's' : ''}
@@ -936,7 +962,8 @@ export default function MyIprApplications() {
                 {/* Expanded Content */}
                 {isExpanded && (
                   <div className="p-6 bg-gradient-to-b from-gray-50/50 to-white">
-                    {loadingSuggestions === app.id ? (
+                    {loadingSuggestions ===
+   app.id ? (
                       <div className="flex items-center justify-center py-12">
                         <div className="text-center">
                           <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
@@ -985,16 +1012,19 @@ export default function MyIprApplications() {
                             </div>
                             
                             {/* Split Info for multiple inventors */}
-                            {app.contributors && app.contributors.filter((c: any) => c.contributorType === 'inventor').length > 1 && (
+                            {app.contributors && app.contributors.filter((c: any) => c.contributorType ===
+   'inventor').length > 1 && (
                               <div className="mt-3 pt-3 border-t border-green-200/50 text-xs text-gray-600">
-                                <span className="font-medium">Note:</span> Incentives equally split among {app.contributors.filter((c: any) => c.contributorType === 'inventor').length} inventors (this is your share)
+                                <span className="font-medium">Note:</span> Incentives equally split among {app.contributors.filter((c: any) => c.contributorType ===
+   'inventor').length} inventors (this is your share)
                               </div>
                             )}
                           </div>
                         )}
 
                         {/* Quick Actions for Draft */}
-                        {app.status === 'draft' && (
+                        {app.status ===
+   'draft' && (
                           <div className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-5 border border-slate-200 mb-5">
                             <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                               <Edit3 className="w-5 h-5 text-slate-600" />
@@ -1014,7 +1044,8 @@ export default function MyIprApplications() {
                         )}
 
                         {/* Quick Actions for Pending Mentor Approval - Waiting only, no edit */}
-                        {app.status === 'pending_mentor_approval' && (
+                        {app.status ===
+   'pending_mentor_approval' && (
                           <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-5 border border-orange-200 mb-5">
                             <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                               <Clock className="w-5 h-5 text-orange-600" />
@@ -1037,7 +1068,8 @@ export default function MyIprApplications() {
                                 </div>
                                 <div>
                                   <h4 className="font-bold text-lg">New Changes Requested</h4>
-                                  <p className="text-orange-100 text-sm">{pendingSuggestions.length} change{pendingSuggestions.length > 1 ? 's' : ''} need{pendingSuggestions.length === 1 ? 's' : ''} your response</p>
+                                  <p className="text-orange-100 text-sm">{pendingSuggestions.length} change{pendingSuggestions.length > 1 ? 's' : ''} need{pendingSuggestions.length ===
+   1 ? 's' : ''} your response</p>
                                 </div>
                               </div>
                               
@@ -1080,9 +1112,11 @@ export default function MyIprApplications() {
                                     className={`bg-white rounded-xl p-5 border-2 transition-all duration-200 ${
                                       isInvalidEnumValue
                                         ? 'border-yellow-400 bg-yellow-50/50 shadow-yellow-100 shadow-md'
-                                        : selectedAction === 'accept' 
+                                        : selectedAction ===
+   'accept' 
                                         ? 'border-green-400 bg-green-50/50 shadow-green-100 shadow-md' 
-                                        : selectedAction === 'reject'
+                                        : selectedAction ===
+   'reject'
                                         ? 'border-red-400 bg-red-50/50 shadow-red-100 shadow-md'
                                         : 'border-orange-200 hover:border-orange-300 hover:shadow-md'
                                     }`}
@@ -1099,7 +1133,8 @@ export default function MyIprApplications() {
                                           }}
                                           className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${
                                             isSelected 
-                                              ? selectedAction === 'accept'
+                                              ? selectedAction ===
+   'accept'
                                                 ? 'bg-green-500 text-white'
                                                 : 'bg-red-500 text-white'
                                               : 'bg-gray-100 hover:bg-gray-200'
@@ -1126,11 +1161,13 @@ export default function MyIprApplications() {
                                           </div>
                                           {isSelected && (
                                             <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                              selectedAction === 'accept'
+                                              selectedAction ===
+   'accept'
                                                 ? 'bg-green-100 text-green-700 ring-1 ring-green-300'
                                                 : 'bg-red-100 text-red-700 ring-1 ring-red-300'
                                             }`}>
-                                              {selectedAction === 'accept' ? '✓ Will Accept' : '✕ Will Reject'}
+                                              {selectedAction ===
+   'accept' ? '✓ Will Accept' : '✕ Will Reject'}
                                             </span>
                                           )}
                                         </div>
@@ -1201,7 +1238,8 @@ export default function MyIprApplications() {
                                             className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
                                               isInvalidEnumValue
                                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : selectedAction === 'accept'
+                                                : selectedAction ===
+   'accept'
                                                 ? 'bg-green-500 text-white ring-4 ring-green-200 shadow-lg'
                                                 : 'bg-green-100 text-green-700 hover:bg-green-200'
                                             }`}
@@ -1215,7 +1253,8 @@ export default function MyIprApplications() {
                                               handleSelectResponse(suggestion.id, 'reject');
                                             }}
                                             className={`flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold transition-all ${
-                                              selectedAction === 'reject'
+                                              selectedAction ===
+   'reject'
                                                 ? 'bg-red-500 text-white ring-4 ring-red-200 shadow-lg'
                                                 : 'bg-red-100 text-red-700 hover:bg-red-200'
                                             }`}
@@ -1282,7 +1321,8 @@ export default function MyIprApplications() {
                                 const displayValue = isEnumField 
                                   ? getEnumLabel(suggestion.fieldName, suggestion.suggestedValue)
                                   : suggestion.suggestedValue;
-                                const isAccepted = suggestion.status === 'accepted';
+                                const isAccepted = suggestion.status ===
+   'accepted';
                                 
                                 return (
                                   <div 
@@ -1331,13 +1371,16 @@ export default function MyIprApplications() {
                         )}
 
                         {/* No Actions State */}
-                        {!hasActions && pendingSuggestions.length === 0 && (
+                        {!hasActions && pendingSuggestions.length ===
+   0 && (
                           <div className="text-center py-8">
                             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                               <CheckCircle className="w-8 h-8 text-green-500" />
                             </div>
                             <p className="text-gray-600 font-medium">
-                              {app.status === 'completed' || app.status === 'published'
+                              {app.status ===
+   'completed' || app.status ===
+   'published'
                                 ? 'Application completed successfully! Incentives have been credited.'
                                 : 'No pending actions. Your application is being processed.'}
                             </p>

@@ -115,7 +115,8 @@ const ToastItem = ({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
 
 // Toast Container Component
 const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast: (id: string) => void }) => {
-  if (toasts.length === 0) return null;
+  if (toasts.length ===
+   0) return null;
 
   return (
     <div
@@ -203,7 +204,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 // useToast hook
 export function useToast(): ToastContextValue {
   const context = useContext(ToastContext);
-  if (context === undefined) {
+  if (context ===
+   undefined) {
     throw new Error('useToast must be used within a ToastProvider');
   }
   return context;

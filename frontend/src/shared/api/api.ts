@@ -2,14 +2,22 @@ import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse, In
 import { logger } from '@/shared/utils/logger';
 
 // Configuration
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api/v1';
-const TIMEOUT = 30000; // 30 seconds
-const MAX_RETRIES = 3;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+const isDev = process.env.NODE_ENV ===
+   'development';
+const TIMEOUT = isDev ? 30000 : 30000; // 30s - noting/copies can be slow with heavy includes
+const MAX_RETRIES = isDev ? 0 : 1; // 0 retries in dev, 1 in prod (fail fast)
 const RETRY_DELAY = 1000; // 1 second
 
 // Helper to get host URL (without /api/v1)
 export const getHostUrl = (): string => {
-  return API_URL.replace(/\/api\/v1$/, '');
+  if (/^https?:\/\//i.test(API_URL)) {
+    return API_URL.replace(/\/api\/v1$/, '');
+  }
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
 };
 
 // Helper to get file URL
@@ -46,14 +54,25 @@ interface RetryConfig {
   retryCondition?: (error: AxiosError) => boolean;
 }
 
-// Default retry condition - retry on network errors and 5xx server errors
+// Default retry condition - retry on 5xx server errors (not on timeout/network)
 const defaultRetryCondition = (error: AxiosError): boolean => {
+  // Don't retry on timeout - server overloaded, retries make it worse
+  if (error.code ===
+   'ECONNABORTED' || error.message?.includes('timeout')) {
+    return false;
+  }
   // Don't retry on client errors (4xx) except 429 (rate limit)
   if (error.response?.status && error.response.status >= 400 && error.response.status < 500) {
-    return error.response.status === 429;
+    return error.response.status ===
+   429;
   }
-  // Retry on network errors and server errors (5xx)
-  return !error.response || (error.response.status >= 500 && error.response.status < 600);
+  // In dev: don't retry network errors (CORS, connection refused) - fail fast
+  if (isDev && !error.response) {
+    logger.debug('[API] Network error (no response) - skipping retry in dev', error.code || error.message);
+    return false;
+  }
+  // Retry on server errors (5xx) only
+  return !!(error.response && error.response.status >= 500 && error.response.status < 600);
 };
 
 // Sleep helper for retry delay
@@ -100,7 +119,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     // Log request duration in development
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV ===
+   'development') {
       const duration = Date.now() - ((response.config as any)._startTime || 0);
       logger.debug(`[API] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status} (${duration}ms)`);
     }
@@ -114,7 +134,9 @@ api.interceptors.response.use(
     }
 
     // Log 401/403 errors prominently in development
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    if (error.response?.status ===
+   401 || error.response?.status ===
+   403) {
       logger.error(`[API] ${error.response.status} - ${config.url}`, {
         status: error.response.status,
         statusText: error.response.statusText,
@@ -135,7 +157,8 @@ api.interceptors.response.use(
       // Calculate delay with exponential backoff
       const delay = RETRY_DELAY * Math.pow(2, config._retryCount - 1);
       
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV ===
+   'development') {
         logger.debug(`[API] Retrying request (${config._retryCount}/${MAX_RETRIES}) after ${delay}ms...`);
       }
       
@@ -143,9 +166,12 @@ api.interceptors.response.use(
       return api(config);
     }
 
-    // Log error in development
-    if (process.env.NODE_ENV === 'development') {
-      logger.debug(`[API] Error: ${error.response?.status || 'Network Error'}`, error.config?.url);
+    // Log error in development - help debug dashboard/API issues
+    if (process.env.NODE_ENV ===
+   'development') {
+      const status = error.response?.status || 'Network';
+      const msg = (error.response?.data as any)?.message || error.message;
+      logger.error(`[API] Request failed: ${config.method?.toUpperCase()} ${config.url} - ${status}`, { message: msg, code: (error as any).code });
     }
     
     return Promise.reject(error);
@@ -158,7 +184,8 @@ export const unwrapResponse = <T>(response: AxiosResponse): T => {
   const data = response.data;
   
   // If data has a nested data property, unwrap it
-  if (data && typeof data === 'object' && 'data' in data && data.success !== undefined) {
+  if (data && typeof data ===
+   'object' && 'data' in data && data.success !== undefined) {
     return data.data as T;
   }
   

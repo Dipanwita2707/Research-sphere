@@ -21,7 +21,8 @@ interface User {
 // Helper to get role name from string or object
 const getRoleName = (role: string | { id: string; name: string; displayName?: string } | undefined): string => {
   if (!role) return '';
-  return typeof role === 'object' ? role.name : role;
+  return typeof role ===
+   'object' ? role.name : role;
 };
 
 export default function PermissionManagementPage() {
@@ -64,7 +65,9 @@ export default function PermissionManagementPage() {
       user.employeeDetails?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.employeeDetails?.lastName?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesRole = roleFilter ===
+   'all' || user.role ===
+   roleFilter;
     
     return matchesSearch && matchesRole;
   });
@@ -177,7 +180,8 @@ export default function PermissionManagementPage() {
                     </div>
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : filteredUsers.length ===
+   0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
                     No users found
@@ -233,13 +237,15 @@ export default function PermissionManagementPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm text-gray-600">Faculty</div>
           <div className="text-2xl font-bold text-gray-900 mt-1">
-            {users.filter(u => getRoleName(u.role) === 'faculty').length}
+            {users.filter(u => getRoleName(u.role) ===
+   'faculty').length}
           </div>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm text-gray-600">Staff</div>
           <div className="text-2xl font-bold text-gray-900 mt-1">
-            {users.filter(u => getRoleName(u.role) === 'staff').length}
+            {users.filter(u => getRoleName(u.role) ===
+   'staff').length}
           </div>
         </div>
       </div>

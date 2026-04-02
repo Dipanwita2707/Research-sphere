@@ -117,7 +117,7 @@ export default function MyWorkDashboard() {
       logger.debug('Contributed Response:', contributedRes);
       
       // Handle API response format: { success: true, data: { contributions: [...] } }
-      const myContributions = myContribRes?.data?.contributions || myContribRes?.data?.myContributions || [];
+      const myContributions = myContribRes?.data?.contributions || myContribRes?.data?.myContributions || myContribRes?.data || [];
       const contributed = contributedRes?.data?.contributions || contributedRes?.data || [];
       
       logger.debug('Processed myContributions:', myContributions);
@@ -149,7 +149,8 @@ export default function MyWorkDashboard() {
       
       // Calculate Research stats
       const allContribs = [...myContributions, ...contributed.filter(
-        (c: ResearchContribution) => !myContributions.some((m: ResearchContribution) => m.id === c.id)
+        (c: ResearchContribution) => !myContributions.some((m: ResearchContribution) => m.id ===
+   c.id)
       )];
       
       const researchCompletedStatuses = ['approved', 'completed'];
@@ -217,7 +218,8 @@ export default function MyWorkDashboard() {
               <p className="mt-2 opacity-90">Manage your intellectual property and research contributions</p>
             </div>
             <div className="flex items-center gap-3">
-              {user?.userType === 'faculty' && pendingMentorCount > 0 && (
+              {user?.userType ===
+   'faculty' && pendingMentorCount > 0 && (
                 <Link
                   href="/mentor-approvals"
                   className="relative bg-white bg-opacity-20 hover:bg-opacity-30 backdrop-blur-sm text-white px-5 py-3 rounded-xl font-medium transition-all flex items-center border border-white border-opacity-30"
@@ -307,7 +309,8 @@ export default function MyWorkDashboard() {
               <button
                 onClick={() => setActiveTab('ipr')}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
-                  activeTab === 'ipr'
+                  activeTab ===
+   'ipr'
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
@@ -316,12 +319,14 @@ export default function MyWorkDashboard() {
                   <Lightbulb className="w-5 h-5" />
                   IPR Applications
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === 'ipr' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    activeTab ===
+   'ipr' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                   }`}>
                     {iprStats.total}
                   </span>
                 </div>
-                {activeTab === 'ipr' && (
+                {activeTab ===
+   'ipr' && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>
                 )}
               </button>
@@ -329,7 +334,8 @@ export default function MyWorkDashboard() {
               <button
                 onClick={() => setActiveTab('research')}
                 className={`px-8 py-4 font-semibold transition-colors relative ${
-                  activeTab === 'research'
+                  activeTab ===
+   'research'
                     ? 'text-blue-600 dark:text-blue-400'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                 }`}
@@ -338,12 +344,14 @@ export default function MyWorkDashboard() {
                   <FileText className="w-5 h-5" />
                   Research Contributions
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === 'research' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    activeTab ===
+   'research' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                   }`}>
                     {researchStats.total}
                   </span>
                 </div>
-                {activeTab === 'research' && (
+                {activeTab ===
+   'research' && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"></div>
                 )}
               </button>
@@ -356,7 +364,8 @@ export default function MyWorkDashboard() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
-                placeholder={activeTab === 'ipr' ? 'Search IPR applications...' : 'Search research contributions...'}
+                placeholder={activeTab ===
+   'ipr' ? 'Search IPR applications...' : 'Search research contributions...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-colors"
@@ -366,7 +375,8 @@ export default function MyWorkDashboard() {
 
           {/* Tab Content */}
           <div className="p-6">
-            {activeTab === 'ipr' && (
+            {activeTab ===
+   'ipr' && (
               <div>
                 {/* Quick Create Cards */}
                 <div className="mb-8">
@@ -405,7 +415,8 @@ export default function MyWorkDashboard() {
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                       <p className="text-gray-500 mt-4">Loading applications...</p>
                     </div>
-                  ) : filteredIprApplications.length === 0 ? (
+                  ) : filteredIprApplications.length ===
+   0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
                       <Lightbulb className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">No IPR Applications Yet</h3>
@@ -423,7 +434,8 @@ export default function MyWorkDashboard() {
                       {filteredIprApplications.slice(0, 5).map((app: any) => {
                         const statusInfo = getIprStatusInfo(app.status);
                         const StatusIcon = statusInfo.icon;
-                        const typeInfo = IPR_TYPES.find(t => t.type === app.iprType);
+                        const typeInfo = IPR_TYPES.find(t => t.type ===
+   app.iprType);
                         const TypeIcon = typeInfo?.icon || Lightbulb;
                         
                         return (
@@ -467,7 +479,8 @@ export default function MyWorkDashboard() {
               </div>
             )}
 
-            {activeTab === 'research' && (
+            {activeTab ===
+   'research' && (
               <div>
                 {/* Quick Create Cards */}
                 <div className="mb-8">
@@ -506,7 +519,8 @@ export default function MyWorkDashboard() {
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
                       <p className="text-gray-500 mt-4">Loading contributions...</p>
                     </div>
-                  ) : filteredResearchContributions.length === 0 ? (
+                  ) : filteredResearchContributions.length ===
+   0 ? (
                     <div className="text-center py-12 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
                       <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">No Research Contributions Yet</h3>
@@ -524,7 +538,8 @@ export default function MyWorkDashboard() {
                       {filteredResearchContributions.slice(0, 5).map((contrib: ResearchContribution) => {
                         const statusInfo = getResearchStatusInfo(contrib.status);
                         const StatusIcon = statusInfo.icon;
-                        const typeInfo = RESEARCH_TYPES.find(t => t.type === contrib.publicationType);
+                        const typeInfo = RESEARCH_TYPES.find(t => t.type ===
+   contrib.publicationType);
                         const TypeIcon = typeInfo?.icon || FileText;
                         
                         return (
@@ -556,7 +571,8 @@ export default function MyWorkDashboard() {
                                   {contrib.applicationNumber && (
                                     <span className="font-mono">{contrib.applicationNumber}</span>
                                   )}
-                                  {contrib.status === 'completed' && (
+                                  {contrib.status ===
+   'completed' && (
                                     <span className="flex items-center gap-1 text-green-600">
                                       <Coins className="w-3.5 h-3.5" />
                                       ₹{Number(contrib.incentiveAmount || 0).toLocaleString()}

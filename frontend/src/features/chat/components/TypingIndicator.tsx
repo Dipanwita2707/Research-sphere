@@ -11,14 +11,17 @@ interface TypingIndicatorProps {
 }
 
 export function TypingIndicator({ users }: TypingIndicatorProps) {
-  if (users.length === 0) return null;
+  if (users.length ===
+   0) return null;
 
   const getTypingText = () => {
-    if (users.length === 1) {
+    if (users.length ===
+   1) {
       const name = users[0].user?.firstName || 'Someone';
       return `${name} is typing`;
     }
-    if (users.length === 2) {
+    if (users.length ===
+   2) {
       const names = users.map(u => u.user?.firstName || 'Someone');
       return `${names[0]} and ${names[1]} are typing`;
     }

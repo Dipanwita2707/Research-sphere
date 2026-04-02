@@ -188,11 +188,14 @@ export function UserProfileModal({ isOpen, user, onClose }: UserProfileModalProp
             {user.userType && (
               <div className="flex justify-center pt-2">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  user.userType === 'admin' 
+                  user.userType ===
+   'admin' 
                     ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                    : user.userType === 'faculty'
+                    : user.userType ===
+   'faculty'
                     ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                    : user.userType === 'staff'
+                    : user.userType ===
+   'staff'
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                     : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                 }`}>

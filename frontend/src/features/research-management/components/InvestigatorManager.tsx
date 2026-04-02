@@ -90,7 +90,8 @@ export default function InvestigatorManager({
   // Auto-switch to External category when internal limit is reached
   // And set role to PI if external investigator must be PI
   useEffect(() => {
-    if (isInternalLimitReached() && newInvestigator.investigatorCategory === 'Internal') {
+    if (isInternalLimitReached() && newInvestigator.investigatorCategory ===
+   'Internal') {
       const mustBePI = mustExternalBePI();
       setNewInvestigator(prev => ({
         ...prev,
@@ -104,12 +105,14 @@ export default function InvestigatorManager({
 
   // Calculate how many members have been added to each consortium org
   const getConsortiumMemberCount = (orgId: string) => {
-    return investigators.filter(inv => inv.consortiumOrgId === orgId).length;
+    return investigators.filter(inv => inv.consortiumOrgId ===
+   orgId).length;
   };
 
   // Calculate how many internal investigators have been added (including the user)
   const getInternalInvestigatorCount = () => {
-    const teamInternalCount = investigators.filter(inv => inv.investigatorCategory === 'Internal').length;
+    const teamInternalCount = investigators.filter(inv => inv.investigatorCategory ===
+   'Internal').length;
     return teamInternalCount + 1; // +1 for the user (applicant)
   };
 
@@ -122,9 +125,12 @@ export default function InvestigatorManager({
   const mustExternalBePI = () => {
     if (!isPIExternal) return false;
     const totalExternal = totalInvestigators - numberOfInternalPIs;
-    const addedExternal = investigators.filter(inv => inv.investigatorCategory === 'External').length;
+    const addedExternal = investigators.filter(inv => inv.investigatorCategory ===
+   'External').length;
     // If there's only 1 external slot total and no external PI has been added yet
-    return totalExternal === 1 && addedExternal === 0;
+    return totalExternal ===
+   1 && addedExternal ===
+   0;
   };
 
   // Get available roles based on current configuration
@@ -132,17 +138,21 @@ export default function InvestigatorManager({
     const roles: InvestigatorRole[] = [];
     
     // Check if PI slot is available
-    const hasPIAdded = investigators.some(inv => inv.roleType === 'pi');
-    const userIsPI = currentUserRole === 'pi';
+    const hasPIAdded = investigators.some(inv => inv.roleType ===
+   'pi');
+    const userIsPI = currentUserRole ===
+   'pi';
     
     // PI role availability:
     // 1. If PI is external: Only external members can be PI
     // 2. If PI is not external: Only internal members can be PI (unless user is already PI)
     // 3. Only ONE PI allowed total
     if (!hasPIAdded && !userIsPI) {
-      if (isPIExternal && category === 'External') {
+      if (isPIExternal && category ===
+   'External') {
         roles.push('pi');
-      } else if (!isPIExternal && category === 'Internal (SGT)') {
+      } else if (!isPIExternal && category ===
+   'Internal (SGT)') {
         roles.push('pi');
       }
     }
@@ -169,7 +179,8 @@ export default function InvestigatorManager({
       
       // Use searchUsers API for both numeric and text searches
       // It handles both UID and name searches
-      const role = newInvestigator.investigatorType === 'Student' ? 'student' : 'faculty';
+      const role = newInvestigator.investigatorType ===
+   'Student' ? 'student' : 'faculty';
       logger.debug('Searching with role:', role);
       
       const response = await researchService.searchUsers(term, role);
@@ -199,14 +210,17 @@ export default function InvestigatorManager({
   };
 
   const selectInvestigatorFromSuggestion = async (userData: any) => {
-    if (userData.uid === user?.uid) {
+    if (userData.uid ===
+   user?.uid) {
       setError('Cannot add yourself as a team member');
       return;
     }
 
     const userName = userData.name || userData.displayName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
-    const roleName = typeof userData.role === 'object' ? userData.role?.name : userData.role;
-    const investigatorType = roleName === 'student' ? 'Student' : 'Faculty';
+    const roleName = typeof userData.role ===
+   'object' ? userData.role?.name : userData.role;
+    const investigatorType = roleName ===
+   'student' ? 'Student' : 'Faculty';
 
     try {
       const fullData = await researchService.lookupByRegistration(userData.uid);
@@ -242,12 +256,14 @@ export default function InvestigatorManager({
       return;
     }
 
-    if (newInvestigator.investigatorCategory === 'Internal' && !newInvestigator.uid) {
+    if (newInvestigator.investigatorCategory ===
+   'Internal' && !newInvestigator.uid) {
       setError('Please select an internal member from search results');
       return;
     }
 
-    if (newInvestigator.investigatorCategory === 'External') {
+    if (newInvestigator.investigatorCategory ===
+   'External') {
       if (!newInvestigator.affiliation.trim()) {
         setError('Affiliation is required for external members');
         return;
@@ -261,7 +277,8 @@ export default function InvestigatorManager({
       
       // Check member limit for consortium org
       if (newInvestigator.consortiumOrgId) {
-        const org = consortiumOrganizations.find(o => o.id === newInvestigator.consortiumOrgId);
+        const org = consortiumOrganizations.find(o => o.id ===
+   newInvestigator.consortiumOrgId);
         if (org) {
           const currentCount = getConsortiumMemberCount(org.id);
           if (currentCount >= org.numberOfMembers) {
@@ -273,16 +290,20 @@ export default function InvestigatorManager({
     }
 
     // Check for duplicates
-    if (investigators.some(inv => inv.uid && inv.uid === newInvestigator.uid)) {
+    if (investigators.some(inv => inv.uid && inv.uid ===
+   newInvestigator.uid)) {
       setError('This member has already been added');
       return;
     }
 
     // Validate PI uniqueness (check both team members and current user)
-    const userIsPI = currentUserRole === 'pi';
-    const teamHasPI = investigators.some(inv => inv.roleType === 'pi');
+    const userIsPI = currentUserRole ===
+   'pi';
+    const teamHasPI = investigators.some(inv => inv.roleType ===
+   'pi');
     
-    if (newInvestigator.roleType === 'pi') {
+    if (newInvestigator.roleType ===
+   'pi') {
       if (userIsPI) {
         setError('Only one Principal Investigator is allowed. You are already the PI.');
         return;
@@ -295,7 +316,8 @@ export default function InvestigatorManager({
 
     // Add consortium org name for display
     if (newInvestigator.consortiumOrgId) {
-      const org = consortiumOrganizations.find(o => o.id === newInvestigator.consortiumOrgId);
+      const org = consortiumOrganizations.find(o => o.id ===
+   newInvestigator.consortiumOrgId);
       newInvestigator.consortiumOrgName = org?.organizationName;
     }
 
@@ -326,8 +348,10 @@ export default function InvestigatorManager({
     // Only one coordinator per organization
     if (!inv.isTeamCoordinator && inv.consortiumOrgId) {
       updated.forEach((i, idx) => {
-        if (i.consortiumOrgId === inv.consortiumOrgId) {
-          updated[idx] = { ...i, isTeamCoordinator: idx === index };
+        if (i.consortiumOrgId ===
+   inv.consortiumOrgId) {
+          updated[idx] = { ...i, isTeamCoordinator: idx ===
+   index };
         }
       });
     } else {
@@ -339,7 +363,8 @@ export default function InvestigatorManager({
 
   // Get available roles based on currently selected category
   const availableRoles = getAvailableRoles(
-    newInvestigator.investigatorCategory === 'Internal' ? 'Internal (SGT)' : 'External'
+    newInvestigator.investigatorCategory ===
+   'Internal' ? 'Internal (SGT)' : 'External'
   );
 
   return (
@@ -365,9 +390,11 @@ export default function InvestigatorManager({
             <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  investigator.investigatorCategory === 'Internal' ? 'bg-green-100' : 'bg-blue-100'
+                  investigator.investigatorCategory ===
+   'Internal' ? 'bg-green-100' : 'bg-blue-100'
                 }`}>
-                  {investigator.investigatorCategory === 'Internal' ? (
+                  {investigator.investigatorCategory ===
+   'Internal' ? (
                     <User className="w-5 h-5 text-green-600" />
                   ) : (
                     <Building2 className="w-5 h-5 text-blue-600" />
@@ -380,8 +407,10 @@ export default function InvestigatorManager({
                       <span className="text-xs text-gray-500">({investigator.uid})</span>
                     )}
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                      investigator.roleType === 'pi' ? 'bg-purple-100 text-purple-700' :
-                      investigator.roleType === 'co_pi' ? 'bg-orange-100 text-orange-700' :
+                      investigator.roleType ===
+   'pi' ? 'bg-purple-100 text-purple-700' :
+                      investigator.roleType ===
+   'co_pi' ? 'bg-orange-100 text-orange-700' :
                       'bg-gray-100 text-gray-700'
                     }`}>
                       {ROLE_LABELS[investigator.roleType]}
@@ -394,7 +423,8 @@ export default function InvestigatorManager({
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <span className={`px-2 py-0.5 rounded text-xs ${
-                      investigator.investigatorCategory === 'Internal' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                      investigator.investigatorCategory ===
+   'Internal' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                     }`}>
                       {investigator.investigatorCategory}
                     </span>
@@ -417,7 +447,8 @@ export default function InvestigatorManager({
               </div>
               {isEditing && (
                 <div className="flex items-center gap-2">
-                  {investigator.investigatorCategory === 'External' && investigator.consortiumOrgId && (
+                  {investigator.investigatorCategory ===
+   'External' && investigator.consortiumOrgId && (
                     <button
                       type="button"
                       onClick={() => toggleTeamCoordinator(index)}
@@ -444,7 +475,8 @@ export default function InvestigatorManager({
         </div>
       )}
 
-      {investigators.length === 0 && !isEditing && (
+      {investigators.length ===
+   0 && !isEditing && (
         <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
           <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
           <p className="text-sm text-gray-500">No team members added yet</p>
@@ -468,13 +500,15 @@ export default function InvestigatorManager({
                 value={newInvestigator.roleType}
                 onChange={(e) => setNewInvestigator({ ...newInvestigator, roleType: e.target.value as InvestigatorRole })}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                disabled={newInvestigator.investigatorCategory === 'External' && mustExternalBePI()}
+                disabled={newInvestigator.investigatorCategory ===
+   'External' && mustExternalBePI()}
               >
                 {availableRoles.map(role => (
                   <option key={role} value={role}>{ROLE_LABELS[role]}</option>
                 ))}
               </select>
-              {newInvestigator.investigatorCategory === 'External' && mustExternalBePI() && (
+              {newInvestigator.investigatorCategory ===
+   'External' && mustExternalBePI() && (
                 <p className="mt-1 text-xs text-blue-600">
                   Only 1 external investigator - must be PI
                 </p>
@@ -488,12 +522,14 @@ export default function InvestigatorManager({
                 value={newInvestigator.investigatorCategory}
                 onChange={(e) => {
                   const category = e.target.value as 'Internal' | 'External';
-                  const categoryForRoles = category === 'Internal' ? 'Internal (SGT)' : 'External';
+                  const categoryForRoles = category ===
+   'Internal' ? 'Internal (SGT)' : 'External';
                   const rolesForCategory = getAvailableRoles(categoryForRoles);
                   
                   // If external and must be PI, set to PI; otherwise preserve or pick first available
                   let newRoleType: InvestigatorRole;
-                  if (category === 'External' && mustExternalBePI()) {
+                  if (category ===
+   'External' && mustExternalBePI()) {
                     newRoleType = 'pi';
                   } else if (rolesForCategory.includes(newInvestigator.roleType)) {
                     newRoleType = newInvestigator.roleType;
@@ -504,8 +540,10 @@ export default function InvestigatorManager({
                   setNewInvestigator({
                     ...newInvestigator,
                     investigatorCategory: category,
-                    affiliation: category === 'Internal' ? 'SGT University' : '',
-                    uid: category === 'External' ? undefined : newInvestigator.uid,
+                    affiliation: category ===
+   'Internal' ? 'SGT University' : '',
+                    uid: category ===
+   'External' ? undefined : newInvestigator.uid,
                     consortiumOrgId: undefined,
                     consortiumOrgName: undefined,
                     roleType: newRoleType
@@ -541,7 +579,8 @@ export default function InvestigatorManager({
             </div>
           </div>
 
-          {newInvestigator.investigatorCategory === 'Internal' ? (
+          {newInvestigator.investigatorCategory ===
+   'Internal' ? (
             <div ref={searchRef} className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Search by UID/Name *</label>
               <div className="relative">
@@ -591,7 +630,8 @@ export default function InvestigatorManager({
                     value={newInvestigator.consortiumOrgId || ''}
                     onChange={(e) => {
                       const orgId = e.target.value;
-                      const org = consortiumOrganizations.find(o => o.id === orgId);
+                      const org = consortiumOrganizations.find(o => o.id ===
+   orgId);
                       setNewInvestigator({
                         ...newInvestigator,
                         consortiumOrgId: orgId,

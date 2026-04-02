@@ -63,7 +63,8 @@ export default function BookWritingForm({ data, onChange }: BookWritingFormProps
             </select>
           </div>
 
-          {data.bookIndexingType === 'non_indexed' && (
+          {data.bookIndexingType ===
+   'non_indexed' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Our Authorized Publications <span className="text-red-500">*</span>
@@ -73,7 +74,8 @@ export default function BookWritingForm({ data, onChange }: BookWritingFormProps
                   <input
                     type="radio"
                     value="yes"
-                    checked={(data.bookLetter as string) === 'yes'}
+                    checked={(data.bookLetter as string) ===
+   'yes'}
                     onChange={(e) => handleChange('bookLetter', e.target.value)}
                     className="w-4 h-4 text-green-600"
                   />
@@ -112,7 +114,8 @@ export default function BookWritingForm({ data, onChange }: BookWritingFormProps
                   <input
                     type="radio"
                     value={v}
-                    checked={(data.isInterdisciplinary as string) === v}
+                    checked={(data.isInterdisciplinary as string) ===
+   v}
                     onChange={(e) => handleChange('isInterdisciplinary', e.target.value)}
                     className="w-4 h-4 text-green-600"
                   />
@@ -138,7 +141,8 @@ export default function BookWritingForm({ data, onChange }: BookWritingFormProps
                   <input
                     type="radio"
                     value={v}
-                    checked={(data.communicatedWithOfficialId as string) === v}
+                    checked={(data.communicatedWithOfficialId as string) ===
+   v}
                     onChange={(e) => handleChange('communicatedWithOfficialId', e.target.value)}
                     className="w-4 h-4 text-green-600"
                   />
@@ -148,7 +152,8 @@ export default function BookWritingForm({ data, onChange }: BookWritingFormProps
             </div>
           </div>
 
-          {data.communicatedWithOfficialId === 'no' && (
+          {data.communicatedWithOfficialId ===
+   'no' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Your Personal Email ID <span className="text-red-500">*</span>
@@ -251,7 +256,8 @@ export default function BookWritingForm({ data, onChange }: BookWritingFormProps
         {sdgGoals.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {sdgGoals.map(goal => {
-              const sdg = SDG_GOALS.find(s => s.value === goal);
+              const sdg = SDG_GOALS.find(s => s.value ===
+   goal);
               return sdg ? (
                 <span key={goal} className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                   {sdg.value}. {sdg.label}

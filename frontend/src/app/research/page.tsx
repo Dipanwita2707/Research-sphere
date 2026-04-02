@@ -96,15 +96,16 @@ export default function ResearchDashboard() {
         researchService.getContributedResearch().catch(() => ({ data: [] }))
       ]);
 
-      const myContributions = myContribRes?.data || [];
-      const contributed = contributedRes?.data || [];
+      const myContributions = myContribRes?.data?.contributions || myContribRes?.data || [];
+      const contributed = contributedRes?.data?.contributions || contributedRes?.data || [];
       
       setContributions(myContributions);
       setContributedResearch(contributed);
       
       // Calculate stats
       const allContribs = [...myContributions, ...contributed.filter(
-        (c: ResearchContribution) => !myContributions.some((m: ResearchContribution) => m.id === c.id)
+        (c: ResearchContribution) => !myContributions.some((m: ResearchContribution) => m.id ===
+   c.id)
       )];
       
       const completedStatuses = ['approved', 'completed'];
@@ -122,14 +123,16 @@ export default function ResearchDashboard() {
       
       setStats({
         total: myContributions.length,
-        drafts: myContributions.filter((c: ResearchContribution) => c.status === 'draft').length,
+        drafts: myContributions.filter((c: ResearchContribution) => c.status ===
+   'draft').length,
         pending: myContributions.filter((c: ResearchContribution) => 
           ['submitted', 'under_review', 'resubmitted', 'changes_required'].includes(c.status)
         ).length,
         approved: myContributions.filter((c: ResearchContribution) => 
           ['approved', 'completed'].includes(c.status)
         ).length,
-        rejected: myContributions.filter((c: ResearchContribution) => c.status === 'rejected').length,
+        rejected: myContributions.filter((c: ResearchContribution) => c.status ===
+   'rejected').length,
         totalIncentives,
         totalPoints,
       });
@@ -225,7 +228,8 @@ export default function ResearchDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {PUBLICATION_TYPES.map((pubType) => {
               const Icon = pubType.icon;
-              const count = Array.isArray(contributions) ? contributions.filter(c => c.publicationType === pubType.type).length : 0;
+              const count = Array.isArray(contributions) ? contributions.filter(c => c.publicationType ===
+   pubType.type).length : 0;
               return (
                 <Link
                   key={pubType.type}
@@ -268,7 +272,8 @@ export default function ResearchDashboard() {
               {recentContributions.map((contribution) => {
                 const statusInfo = getStatusInfo(contribution.status);
                 const StatusIcon = statusInfo.icon;
-                const pubType = PUBLICATION_TYPES.find(p => p.type === contribution.publicationType);
+                const pubType = PUBLICATION_TYPES.find(p => p.type ===
+   contribution.publicationType);
                 const PubIcon = pubType?.icon || FileText;
                 
                 return (
@@ -302,7 +307,8 @@ export default function ResearchDashboard() {
         )}
 
         {/* Empty State */}
-        {!loading && contributions.length === 0 && (
+        {!loading && contributions.length ===
+   0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <FileText className="w-8 h-8 text-gray-400" />

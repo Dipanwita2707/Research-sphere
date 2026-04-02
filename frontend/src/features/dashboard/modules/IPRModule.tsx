@@ -191,8 +191,12 @@ export default function IPRModule({ permissions }: IPRModuleProps) {
     const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.applicant.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === 'all' || item.type === selectedType;
-    const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
+    const matchesType = selectedType ===
+   'all' || item.type ===
+   selectedType;
+    const matchesStatus = selectedStatus ===
+   'all' || item.status ===
+   selectedStatus;
     return matchesSearch && matchesType && matchesStatus;
   });
 
@@ -351,7 +355,8 @@ export default function IPRModule({ permissions }: IPRModuleProps) {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key ===
+   'Enter' && handleSearch()}
               />
             </div>
           </div>
@@ -401,7 +406,8 @@ export default function IPRModule({ permissions }: IPRModuleProps) {
 
       {/* IPR List */}
       <div className="p-6">
-        {filteredItems.length === 0 ? (
+        {filteredItems.length ===
+   0 ? (
           <div className="text-center py-12">
             <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No IPR Items Found</h3>
@@ -475,7 +481,8 @@ export default function IPRModule({ permissions }: IPRModuleProps) {
                         <Edit className="w-4 h-4" />
                       </button>
                     )}
-                    {item.status === 'draft' && canFile && (
+                    {item.status ===
+   'draft' && canFile && (
                       <button 
                         className="text-purple-600 hover:text-purple-800 p-2 rounded-lg hover:bg-purple-50 transition-colors"
                         title="Submit for Review"

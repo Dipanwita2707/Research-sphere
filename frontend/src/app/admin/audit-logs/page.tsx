@@ -97,11 +97,14 @@ export default function AuditLogsPage() {
 
   // Load data when tab or filters change
   useEffect(() => {
-    if (activeTab === 'logs') {
+    if (activeTab ===
+   'logs') {
       loadLogs();
-    } else if (activeTab === 'statistics') {
+    } else if (activeTab ===
+   'statistics') {
       loadStatistics();
-    } else if (activeTab === 'recipients') {
+    } else if (activeTab ===
+   'recipients') {
       loadRecipients();
     }
   }, [activeTab, page, filters]);
@@ -215,7 +218,8 @@ export default function AuditLogsPage() {
       const recipientsData = await auditService.getRecipients();
       const activeRecipients = recipientsData.data?.filter((r: any) => r.isActive) || [];
       
-      if (activeRecipients.length === 0) {
+      if (activeRecipients.length ===
+   0) {
         addToast({ type: 'warning', message: 'No active recipients configured. Please add recipients in the Recipients tab first.' });
         return;
       }
@@ -489,7 +493,8 @@ export default function AuditLogsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
+              disabled={page ===
+   1}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -499,7 +504,8 @@ export default function AuditLogsPage() {
             </span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
+              disabled={page ===
+   totalPages}
               className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <ChevronRight className="w-4 h-4" />
@@ -897,7 +903,8 @@ export default function AuditLogsPage() {
           </tbody>
         </table>
 
-        {recipients.length === 0 && (
+        {recipients.length ===
+   0 && (
           <div className="text-center py-12">
             <Mail className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
             <p className="text-gray-600 dark:text-gray-400">No recipients configured</p>
@@ -959,14 +966,16 @@ export default function AuditLogsPage() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
                   className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors relative ${
-                    activeTab === tab.id
+                    activeTab ===
+   tab.id
                       ? 'text-blue-600 dark:text-blue-400'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                   }`}
                 >
                   <tab.icon className="w-5 h-5" />
                   {tab.label}
-                  {activeTab === tab.id && (
+                  {activeTab ===
+   tab.id && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 dark:bg-blue-400" />
                   )}
                 </button>
@@ -986,9 +995,12 @@ export default function AuditLogsPage() {
           </div>
         ) : (
           <>
-            {activeTab === 'logs' && renderLogs()}
-            {activeTab === 'statistics' && renderStatistics()}
-            {activeTab === 'recipients' && renderRecipients()}
+            {activeTab ===
+   'logs' && renderLogs()}
+            {activeTab ===
+   'statistics' && renderStatistics()}
+            {activeTab ===
+   'recipients' && renderRecipients()}
           </>
         )}
       </div>

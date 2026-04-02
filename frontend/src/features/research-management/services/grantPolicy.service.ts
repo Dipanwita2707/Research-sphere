@@ -89,7 +89,8 @@ class GrantPolicyService {
       }
     } catch (error: unknown) {
       logger.error('getActivePolicy error:', error);
-      if (isAxiosError(error) && error.response?.status === 404) {
+      if (isAxiosError(error) && error.response?.status ===
+   404) {
         throw new Error('No active policy found for this category and type');
       }
       throw error;

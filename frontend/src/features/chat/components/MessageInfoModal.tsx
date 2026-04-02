@@ -26,7 +26,8 @@ export function MessageInfoModal({ isOpen, onClose, message, group }: MessageInf
   const pendingCount = deliveredCount - readCount;
 
   const getMemberName = (userId: string) => {
-    const member = group?.members?.find(m => m.userId === userId);
+    const member = group?.members?.find(m => m.userId ===
+   userId);
     if (!member?.user) return 'Unknown User';
     
     if (member.user.employeeDetails) {
@@ -40,7 +41,8 @@ export function MessageInfoModal({ isOpen, onClose, message, group }: MessageInf
   };
 
   const getMemberAvatar = (userId: string) => {
-    const member = group?.members?.find(m => m.userId === userId);
+    const member = group?.members?.find(m => m.userId ===
+   userId);
     return member?.user?.profileImage ? getProfileImageUrl(member.user.profileImage) : null;
   };
 
@@ -56,7 +58,8 @@ export function MessageInfoModal({ isOpen, onClose, message, group }: MessageInf
 
   // Get members who haven't read the message
   const unreadMembers = group?.members?.filter(
-    m => m.userId !== message.senderId && !readBy.find(r => r.userId === m.userId)
+    m => m.userId !== message.senderId && !readBy.find(r => r.userId ===
+   m.userId)
   ) || [];
 
   return (

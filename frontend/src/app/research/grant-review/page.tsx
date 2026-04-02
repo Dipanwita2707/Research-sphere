@@ -163,10 +163,14 @@ export default function GrantReviewDashboard() {
   // Calculate stats
   const stats = {
     total: grants.length,
-    submitted: grants.filter(g => g.status === 'submitted').length,
-    underReview: grants.filter(g => g.status === 'under_review').length,
-    changesRequired: grants.filter(g => g.status === 'changes_required').length,
-    approved: grants.filter(g => g.status === 'approved').length,
+    submitted: grants.filter(g => g.status ===
+   'submitted').length,
+    underReview: grants.filter(g => g.status ===
+   'under_review').length,
+    changesRequired: grants.filter(g => g.status ===
+   'changes_required').length,
+    approved: grants.filter(g => g.status ===
+   'approved').length,
   };
 
   const formatCurrency = (amount?: number) => {
@@ -324,7 +328,8 @@ export default function GrantReviewDashboard() {
 
         {/* Grants List */}
         <div className="space-y-4">
-          {filteredGrants.length === 0 ? (
+          {filteredGrants.length ===
+   0 ? (
             <div className="bg-white rounded-xl p-12 text-center shadow-sm">
               <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">No grant applications found</h3>
@@ -349,7 +354,8 @@ export default function GrantReviewDashboard() {
                           <StatusIcon className="h-3.5 w-3.5" />
                           {statusConfig?.label}
                         </span>
-                        {grant.projectType === 'international' && (
+                        {grant.projectType ===
+   'international' && (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
                             <Globe className="h-3.5 w-3.5" />
                             International
@@ -387,7 +393,8 @@ export default function GrantReviewDashboard() {
                     </div>
                   </div>
 
-                  {grant.projectType === 'international' && grant.consortiumOrganizations && grant.consortiumOrganizations.length > 0 && (
+                  {grant.projectType ===
+   'international' && grant.consortiumOrganizations && grant.consortiumOrganizations.length > 0 && (
                     <div className="mb-4 p-3 bg-purple-50 rounded-lg">
                       <p className="text-xs font-medium text-purple-900 mb-2">Consortium Organizations:</p>
                       <div className="flex flex-wrap gap-2">
@@ -411,7 +418,9 @@ export default function GrantReviewDashboard() {
                       View Details
                     </Link>
 
-                    {grant.status === 'submitted' || grant.status === 'resubmitted' ? (
+                    {grant.status ===
+   'submitted' || grant.status ===
+   'resubmitted' ? (
                       <button
                         onClick={() => handleStartReview(grant.id)}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
@@ -421,7 +430,8 @@ export default function GrantReviewDashboard() {
                       </button>
                     ) : null}
 
-                    {grant.status === 'under_review' ? (
+                    {grant.status ===
+   'under_review' ? (
                       <>
                         <button
                           onClick={() => handleRecommend(grant.id)}
@@ -454,7 +464,8 @@ export default function GrantReviewDashboard() {
                       </>
                     ) : null}
 
-                    {grant.status === 'approved' ? (
+                    {grant.status ===
+   'approved' ? (
                       <button
                         onClick={() => handleMarkCompleted(grant.id)}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"

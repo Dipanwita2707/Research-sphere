@@ -27,7 +27,9 @@ export function ChatLayout() {
   const searchParams = useSearchParams();
   const actionParam = searchParams.get('action');
   
-  const [showCreateGroup, setShowCreateGroup] = useState(actionParam === 'create' || actionParam === 'bulk-upload');
+  const [showCreateGroup, setShowCreateGroup] = useState(actionParam ===
+   'create' || actionParam ===
+   'bulk-upload');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [showUserManagement, setShowUserManagement] = useState(false);
@@ -38,7 +40,9 @@ export function ChatLayout() {
 
   // Handle URL parameter changes
   useEffect(() => {
-    if (actionParam === 'create' || actionParam === 'bulk-upload') {
+    if (actionParam ===
+   'create' || actionParam ===
+   'bulk-upload') {
       setShowCreateGroup(true);
     }
   }, [actionParam]);
@@ -70,9 +74,13 @@ export function ChatLayout() {
   // Check user's chat access permissions
   const userPermissions = chatAccess?.permissions;
   const authUser = useAuthStore((s) => s.user);
-  const isAdmin = authUser?.userType === 'admin' || authUser?.role?.name === 'superadmin';
+  const isAdmin = authUser?.userType ===
+   'admin' || authUser?.role?.name ===
+   'superadmin';
   const canCreateGroup = userPermissions?.canCreateGroup !== false && (
-    isAdmin || groups.some(g => g.myRole === 'owner' || g.myRole === 'admin')
+    isAdmin || groups.some(g => g.myRole ===
+   'owner' || g.myRole ===
+   'admin')
   );
   const canPrivateMessage = userPermissions?.canPrivateMessage !== false;
 
@@ -101,7 +109,8 @@ export function ChatLayout() {
         setChatAccess(access);
       } catch (err: any) {
         // If 403 with CHAT_ACCESS_DENIED, user doesn't have access
-        if (err.response?.data?.code === 'CHAT_ACCESS_DENIED') {
+        if (err.response?.data?.code ===
+   'CHAT_ACCESS_DENIED') {
           setChatAccess({ hasAccess: false, permissions: null });
         } else {
           // Other errors - assume access allowed (backwards compatible)
@@ -116,7 +125,8 @@ export function ChatLayout() {
 
   // Load initial data (only if access granted)
   useEffect(() => {
-    if (checkingAccess || chatAccess?.hasAccess === false) return;
+    if (checkingAccess || chatAccess?.hasAccess ===
+   false) return;
 
     const loadData = async () => {
       setLoading(true);
@@ -132,7 +142,8 @@ export function ChatLayout() {
         const { currentGroupId, currentGroup } = useChatStore.getState();
         if (currentGroupId && !currentGroup) {
           // Set a quick placeholder from the list for responsiveness
-          const matchedGroup = groupsRes.groups.find((g: any) => g.id === currentGroupId);
+          const matchedGroup = groupsRes.groups.find((g: any) => g.id ===
+   currentGroupId);
           if (matchedGroup) {
             useChatStore.getState().setCurrentGroup(currentGroupId, matchedGroup);
           }
@@ -177,7 +188,8 @@ export function ChatLayout() {
   }
 
   // Access denied state
-  if (chatAccess?.hasAccess === false) {
+  if (chatAccess?.hasAccess ===
+   false) {
     return (
       <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center max-w-md mx-auto p-8">
@@ -194,43 +206,48 @@ export function ChatLayout() {
   }
 
   return (
-    <div className="flex h-full bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
+    <div className="flex h-full bg-[#e8eef5] dark:bg-gray-900 text-gray-900 relative overflow-hidden">
+      {/* 3D Environment Lighting / Orbs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/20 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-400/20 rounded-full blur-[120px] pointer-events-none"></div>
+      <div className="absolute top-[30%] left-[40%] w-[30%] h-[30%] bg-pink-400/10 rounded-full blur-[100px] pointer-events-none"></div>
+      
+      {/* Sidebar - 3D Floating Panel */}
       <div 
         className={`${
-          sidebarOpen ? 'w-80' : 'w-0'
-        } flex-shrink-0 flex flex-col bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 overflow-hidden`}
+          sidebarOpen ? 'w-80 ml-4 my-4' : 'w-0 m-0'
+        } flex-shrink-0 flex flex-col bg-white/70 dark:bg-gray-800/70 backdrop-blur-2xl border-2 border-white/80 dark:border-gray-700/80 rounded-[2.5rem] shadow-[20px_20px_40px_rgba(0,0,0,0.08),-20px_-20px_40px_rgba(255,255,255,0.8)] dark:shadow-[20px_20px_40px_rgba(0,0,0,0.4),-10px_-10px_20px_rgba(255,255,255,0.05)] transition-all duration-300 overflow-hidden z-10`}
       >
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/20" style={{background:'linear-gradient(90deg,#005b96 0%,#6497b1 100%)'}}>
+        <div className="relative z-30 flex items-center justify-between px-5 py-4 bg-white/40 dark:bg-black/20 backdrop-blur-md border-b border-white/50 dark:border-gray-700/50 shadow-[inset_0_-2px_10px_rgba(255,255,255,0.5)]">
           {/* User Profile Photo */}
           <button
             onClick={() => setShowMyProfile(true)}
-            className="flex items-center gap-3 hover:bg-white/20 rounded-lg p-1 transition-colors"
+            className="flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg p-1 transition-colors"
             title="View my profile"
           >
             {authUser?.profileImageUrl ? (
               <img
                 src={getProfileImageUrl(authUser.profileImageUrl) || authUser.profileImageUrl}
                 alt={authUser.username}
-                className="w-9 h-9 rounded-full object-cover border-2 border-white/40"
+                className="w-9 h-9 rounded-full object-cover border-2 border-white/40 shadow-sm"
               />
             ) : (
-              <div className="w-9 h-9 rounded-full bg-white/30 border-2 border-white/40 flex items-center justify-center text-white font-semibold text-sm">
+              <div className="w-9 h-9 rounded-full bg-white/50 dark:bg-gray-800/50 border-2 border-white/40 flex items-center justify-center text-gray-800 dark:text-white font-semibold text-sm shadow-sm">
                 {authUser?.username?.slice(0, 2).toUpperCase() || 'ME'}
               </div>
             )}
-            <h1 className="text-lg font-bold text-white">Chats</h1>
+            <h1 className="text-lg font-bold text-gray-800 dark:text-white">Chats</h1>
           </button>
           
           <div className="flex items-center gap-1">
             {/* Search icon */}
             <button
               onClick={() => {}}
-              className="p-2 rounded-full hover:bg-white/20 transition-colors"
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
               title="Search"
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-700 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
@@ -239,24 +256,24 @@ export function ChatLayout() {
             <div className="relative" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-2 rounded-full hover:bg-white/20 transition-colors"
+                className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                 title="More options"
               >
-                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-700 dark:text-gray-200" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
                 </svg>
               </button>
 
               {/* Dropdown Menu */}
               {showMenu && (
-                <div className="absolute right-0 mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-50">
+                <div className="absolute right-0 mt-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 z-[80]">
                   {canCreateGroup && (
                     <button
                       onClick={() => {
                         setShowCreateGroup(true);
                         setShowMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 "
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />

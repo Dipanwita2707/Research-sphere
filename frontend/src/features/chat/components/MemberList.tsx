@@ -21,13 +21,17 @@ export function MemberList() {
   const currentGroup = useCurrentGroup();
   const { onlineUsers } = useChatStore();
   const authUser = useAuthStore((s) => s.user);
-  const isSystemAdmin = authUser?.userType === 'admin' || authUser?.role?.name === 'superadmin';
+  const isSystemAdmin = authUser?.userType ===
+   'admin' || authUser?.role?.name ===
+   'superadmin';
 
   if (!currentGroup) return null;
 
   const members = currentGroup.members || [];
   const myRole = currentGroup.myRole;
-  const canAddMembers = isSystemAdmin || myRole === 'owner' || myRole === 'admin' || currentGroup.myPermissions?.canAddMembers;
+  const canAddMembers = isSystemAdmin || myRole ===
+   'owner' || myRole ===
+   'admin' || currentGroup.myPermissions?.canAddMembers;
 
   // Filter members by search
   const filteredMembers = members.filter((member) => {
@@ -106,7 +110,8 @@ export function MemberList() {
 
       {/* Member List */}
       <div className="flex-1 overflow-y-auto">
-        {sortedMembers.length === 0 ? (
+        {sortedMembers.length ===
+   0 ? (
           <p className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
             No members found
           </p>

@@ -43,13 +43,19 @@ export function GroupListItem({ group, isActive }: GroupListItemProps) {
     if (!group.lastMessage) return 'No messages yet';
     
     const message = group.lastMessage;
-    if (message.messageType === 'text') {
+    if (message.messageType ===
+   'text') {
       return message.content?.slice(0, 50) + (message.content && message.content.length > 50 ? '...' : '');
     }
-    if (message.messageType === 'image') return '📷 Photo';
-    if (message.messageType === 'voice') return '🎤 Voice message';
-    if (message.messageType === 'video') return '🎬 Video';
-    if (message.messageType === 'file' || message.messageType === 'document') return '📎 File';
+    if (message.messageType ===
+   'image') return '📷 Photo';
+    if (message.messageType ===
+   'voice') return '🎤 Voice message';
+    if (message.messageType ===
+   'video') return '🎬 Video';
+    if (message.messageType ===
+   'file' || message.messageType ===
+   'document') return '📎 File';
     return 'Message';
   };
 

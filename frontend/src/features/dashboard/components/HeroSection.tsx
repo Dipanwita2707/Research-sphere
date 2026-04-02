@@ -77,7 +77,7 @@ export default function HeroSection({ userName, userType, userImage }: HeroSecti
         />
       </div>
 
-      <div className="relative px-8 py-12 lg:px-16 lg:py-16">
+      <div className="relative px-4 py-8 sm:px-8 sm:py-12 lg:px-16 lg:py-16">
         <div className="grid lg:grid-cols-2 gap-8 items-center">
           {/* Left Content */}
           <div className="space-y-6">
@@ -98,7 +98,7 @@ export default function HeroSection({ userName, userType, userImage }: HeroSecti
             </SlideIn>
 
             <SlideIn direction="left" delay={0.2}>
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 dark:text-white leading-tight">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-gray-800 dark:text-white leading-tight">
                 {getGreeting()},<br />
                 <span className="bg-gradient-to-r from-blue-600 to-blue-500 bg-clip-text text-transparent">
                   {userName}
@@ -133,7 +133,7 @@ export default function HeroSection({ userName, userType, userImage }: HeroSecti
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8, duration: 0.5 }}
-              className="grid grid-cols-3 gap-4 pt-4"
+              className="grid grid-cols-3 gap-2 sm:gap-4 pt-4"
             >
               {[
                 { label: 'Tasks', value: '12', color: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-300' },

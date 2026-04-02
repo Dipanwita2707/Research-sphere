@@ -23,7 +23,8 @@ import {
   BookOpen,
   FileText,
   Presentation,
-  MessageCircle
+  MessageCircle,
+  Shield
 } from 'lucide-react';
 import { useAuthStore } from '@/shared/auth/authStore';
 import api from '@/shared/api/api';
@@ -52,7 +53,8 @@ const hasPermission = (permissions: DepartmentPermission[], permissionName: stri
 
 const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
   // If no permissions, return false
-  if (!permissions || permissions.length === 0) return false;
+  if (!permissions || permissions.length ===
+   0) return false;
   
   // Check for any DRD-related permission
   const drdKeys = [
@@ -92,10 +94,18 @@ const hasFinancePermissions = (permissions: DepartmentPermission[]): boolean => 
 };
 
 const getNavItems = (userRole: string | undefined, userType: string | undefined, permissions: DepartmentPermission[]): NavItem[] => {
-  const isStudent = userRole === 'student' || userType === 'student';
-  const isFaculty = userRole === 'faculty' || userType === 'faculty';
-  const isStaff = userRole === 'staff' || userType === 'staff';
-  const isAdmin = userRole === 'admin' || userType === 'admin';
+  const isStudent = userRole ===
+   'student' || userType ===
+   'student';
+  const isFaculty = userRole ===
+   'faculty' || userType ===
+   'faculty';
+  const isStaff = userRole ===
+   'staff' || userType ===
+   'staff';
+  const isAdmin = userRole ===
+   'admin' || userType ===
+   'admin';
   
   logger.debug('getNavItems - role:', userRole, 'type:', userType, 'isAdmin:', isAdmin);
   logger.debug('getNavItems - permissions:', permissions);
@@ -184,6 +194,7 @@ const getNavItems = (userRole: string | undefined, userType: string | undefined,
         { name: 'Employees', href: '/admin/employees', icon: Users },
         { name: 'Students', href: '/admin/students', icon: GraduationCap },
         { name: 'Permissions', href: '/admin/permissions', icon: Settings },
+        { name: 'Reporting Structure', href: '/admin/reporting-structure', icon: Shield },
         { name: 'IPR School Assignment', href: '/admin/drd-school-assignment', icon: MapPin },
         { name: 'Research School Assignment', href: '/admin/research-school-assignment', icon: BookOpen },
         { name: 'Book School Assignment', href: '/admin/book-school-assignment', icon: BookOpen },
@@ -215,7 +226,8 @@ const getUserDisplayName = (user: any): string => {
 
 const getUserRoleLabel = (user: any): string => {
   const type = user?.userType?.toUpperCase() || user?.role?.name?.toUpperCase() || 'USER';
-  if (type === 'ADMIN') return 'ADMINISTRATOR';
+  if (type ===
+   'ADMIN') return 'ADMINISTRATOR';
   return type;
 };
 
@@ -290,7 +302,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
       <nav className="flex-1 py-4 overflow-y-auto">
         {filteredNavItems.map((item: NavItem) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+          const isActive = pathname ===
+   item.href || pathname.startsWith(item.href + '/');
           const isExpanded = expandedItems.includes(item.name);
           const hasSubItems = item.subItems && item.subItems.length > 0;
           
@@ -318,7 +331,8 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, o
                     <div className="mt-1 space-y-0.5 pl-4 pr-2">
                       {item.subItems!.map((subItem: NavItem) => {
                         const SubIcon = subItem.icon;
-                        const isSubActive = pathname === subItem.href;
+                        const isSubActive = pathname ===
+   subItem.href;
                         return (
                           <Link
                             key={subItem.name}

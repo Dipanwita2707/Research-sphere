@@ -85,7 +85,8 @@ const Modal = ({ state, onClose }: { state: ModalState; onClose: (confirmed: boo
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && state.isOpen && !isLoading) {
+      if (e.key ===
+   'Escape' && state.isOpen && !isLoading) {
         handleClose(false);
       }
     };
@@ -136,7 +137,8 @@ const Modal = ({ state, onClose }: { state: ModalState; onClose: (confirmed: boo
 
   // Handle backdrop click
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget && !isLoading) {
+    if (e.target ===
+   e.currentTarget && !isLoading) {
       handleCancel();
     }
   };
@@ -189,7 +191,8 @@ const Modal = ({ state, onClose }: { state: ModalState; onClose: (confirmed: boo
           </h2>
           
           <div className="mt-2 text-gray-600">
-            {typeof state.message === 'string' ? (
+            {typeof state.message ===
+   'string' ? (
               <p>{state.message}</p>
             ) : (
               state.message
@@ -341,7 +344,8 @@ export function ConfirmModalProvider({ children }: { children: ReactNode }) {
 // useConfirm hook
 export function useConfirm(): ConfirmModalContextValue {
   const context = useContext(ConfirmModalContext);
-  if (context === undefined) {
+  if (context ===
+   undefined) {
     throw new Error('useConfirm must be used within a ConfirmModalProvider');
   }
   return context;

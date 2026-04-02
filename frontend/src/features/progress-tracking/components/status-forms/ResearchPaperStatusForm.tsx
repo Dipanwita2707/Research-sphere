@@ -60,9 +60,13 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     }
     // Backwards compatibility: convert old targetedResearchType to indexingCategories
     const tr = data.targetedResearchType as string;
-    if (tr === 'scopus') return ['scopus'];
-    if (tr === 'sci_scie' || tr === 'wos') return ['scie_wos'];
-    if (tr === 'both') return ['scopus', 'scie_wos'];
+    if (tr ===
+   'scopus') return ['scopus'];
+    if (tr ===
+   'sci_scie' || tr ===
+   'wos') return ['scie_wos'];
+    if (tr ===
+   'both') return ['scopus', 'scie_wos'];
     return [];
   };
 
@@ -73,7 +77,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     setSearchTerm(query);
     setNewAuthor(prev => ({ ...prev, name: query }));
     
-    if (query.length < 2 || newAuthor.authorCategory === 'External') {
+    if (query.length < 2 || newAuthor.authorCategory ===
+   'External') {
       setSearchSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -90,7 +95,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
 
   const selectUser = async (userData: any) => {
     try {
-      const authorType = userData.type === 'employee' ? 'Faculty' : 'Student';
+      const authorType = userData.type ===
+   'employee' ? 'Faculty' : 'Student';
       const userName = userData.displayName || userData.name;
       
       const fullData = await researchService.lookupByRegistration(userData.uid);
@@ -120,7 +126,9 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     }
 
     // Check for duplicate
-    if (editingIndex === null && coAuthors.some(a => a.name.toLowerCase() === newAuthor.name.toLowerCase())) {
+    if (editingIndex ===
+   null && coAuthors.some(a => a.name.toLowerCase() ===
+   newAuthor.name.toLowerCase())) {
       return 'This author has already been added';
     }
 
@@ -128,35 +136,46 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     const sgtAuthors = (data.sgtAuthors as number) || 1;
     const internalCoAuthors = (data.internalCoAuthors as number) || 0;
 
-    if (newAuthor.authorCategory === 'Internal') {
-      const internalAdded = coAuthors.filter(a => a.authorCategory === 'Internal').length;
+    if (newAuthor.authorCategory ===
+   'Internal') {
+      const internalAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal').length;
       const maxInternal = sgtAuthors - 1; // Exclude current user
       
-      if (editingIndex === null && internalAdded >= maxInternal) {
+      if (editingIndex ===
+   null && internalAdded >= maxInternal) {
         return `You can only add ${maxInternal} internal author(s). You've already added ${internalAdded}.`;
       }
 
       // Check internal co-author limit
-      if (newAuthor.authorRole === 'co_author') {
-        const internalCoAuthorsAdded = coAuthors.filter(a => a.authorCategory === 'Internal' && a.authorRole === 'co_author').length;
-        if (editingIndex === null && internalCoAuthorsAdded >= internalCoAuthors) {
+      if (newAuthor.authorRole ===
+   'co_author') {
+        const internalCoAuthorsAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal' && a.authorRole ===
+   'co_author').length;
+        if (editingIndex ===
+   null && internalCoAuthorsAdded >= internalCoAuthors) {
           return `You can only add ${internalCoAuthors} internal co-author(s). You've already added ${internalCoAuthorsAdded}.`;
         }
       }
     } else {
-      const externalAdded = coAuthors.filter(a => a.authorCategory === 'External').length;
+      const externalAdded = coAuthors.filter(a => a.authorCategory ===
+   'External').length;
       const maxExternal = totalAuthors - sgtAuthors;
       
-      if (editingIndex === null && externalAdded >= maxExternal) {
+      if (editingIndex ===
+   null && externalAdded >= maxExternal) {
         return `You can only add ${maxExternal} external author(s). You've already added ${externalAdded}.`;
       }
     }
 
-    if (newAuthor.authorCategory === 'Internal' && !newAuthor.uid) {
+    if (newAuthor.authorCategory ===
+   'Internal' && !newAuthor.uid) {
       return 'Please select an internal author from the search results';
     }
 
-    if (newAuthor.authorCategory === 'External' && !newAuthor.email) {
+    if (newAuthor.authorCategory ===
+   'External' && !newAuthor.email) {
       return 'Email is required for external authors';
     }
 
@@ -219,11 +238,17 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     const usedRoles: string[] = [];
     coAuthors.forEach((author, idx) => {
       if (author.name && idx !== editingIndex) {
-        if (author.authorRole === 'first_author' || author.authorRole === 'first') {
+        if (author.authorRole ===
+   'first_author' || author.authorRole ===
+   'first') {
           usedRoles.push('first_author');
-        } else if (author.authorRole === 'corresponding_author' || author.authorRole === 'corresponding') {
+        } else if (author.authorRole ===
+   'corresponding_author' || author.authorRole ===
+   'corresponding') {
           usedRoles.push('corresponding_author');
-        } else if (author.authorRole === 'first_and_corresponding' || author.authorRole === 'first_and_corresponding_author') {
+        } else if (author.authorRole ===
+   'first_and_corresponding' || author.authorRole ===
+   'first_and_corresponding_author') {
           usedRoles.push('first_author');
           usedRoles.push('corresponding_author');
         }
@@ -232,24 +257,35 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
 
     // Check user's role from userRole field in data
     const userRole = (data.userRole as string) || '';
-    if (userRole === 'first_and_corresponding' || userRole === 'first_and_corresponding_author') {
+    if (userRole ===
+   'first_and_corresponding' || userRole ===
+   'first_and_corresponding_author') {
       usedRoles.push('first_author');
       usedRoles.push('corresponding_author');
-    } else if (userRole === 'first' || userRole === 'first_author') {
+    } else if (userRole ===
+   'first' || userRole ===
+   'first_author') {
       usedRoles.push('first_author');
-    } else if (userRole === 'corresponding' || userRole === 'corresponding_author') {
+    } else if (userRole ===
+   'corresponding' || userRole ===
+   'corresponding_author') {
       usedRoles.push('corresponding_author');
     }
 
     // RULE 1: Solo author (Total=1, Internal=1, Co-Authors=0) -> No other authors to add
     // This shouldn't show the add form at all, but if it does, return empty
-    if (totalAuthors === 1 && sgtAuthors === 1 && internalCoAuthors === 0) {
+    if (totalAuthors ===
+   1 && sgtAuthors ===
+   1 && internalCoAuthors ===
+   0) {
       return [];
     }
 
     // RULE 2: All internal authors are co-authors (sgtAuthors = internalCoAuthors + 1)
     // This means the user is NOT a co-author, so all OTHER internal authors MUST be co-authors
-    if (newAuthor.authorCategory === 'Internal' && sgtAuthors === internalCoAuthors + 1) {
+    if (newAuthor.authorCategory ===
+   'Internal' && sgtAuthors ===
+   internalCoAuthors + 1) {
       return [
         { value: 'co_author', label: 'Co-Author' },
       ];
@@ -257,7 +293,9 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
 
     // RULE 3: Internal Co-Authors = 0, meaning NO co-authors allowed among internal authors
     // The other internal author must be First or Corresponding (whichever isn't taken)
-    if (newAuthor.authorCategory === 'Internal' && internalCoAuthors === 0 && sgtAuthors > 1) {
+    if (newAuthor.authorCategory ===
+   'Internal' && internalCoAuthors ===
+   0 && sgtAuthors > 1) {
       const roles = [];
       
       // Check if First & Corresponding combined is available
@@ -277,9 +315,12 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     }
 
     // RULE 4: Two total authors - special handling
-    if (totalAuthors === 2) {
+    if (totalAuthors ===
+   2) {
       // If user is co-author, other must be First & Corresponding
-      if (userRole === 'co_author' || userRole === 'co') {
+      if (userRole ===
+   'co_author' || userRole ===
+   'co') {
         return [
           { value: 'first_and_corresponding', label: 'First and Corresponding Author' },
         ];
@@ -303,15 +344,18 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
     // Filter out roles that are already used
     return allRoles.filter(role => {
       // Co-author can be used multiple times
-      if (role.value === 'co_author') {
+      if (role.value ===
+   'co_author') {
         return true;
       }
       // First and Corresponding Author - can use if neither role is taken
-      if (role.value === 'first_and_corresponding') {
+      if (role.value ===
+   'first_and_corresponding') {
         return !usedRoles.includes('first_author') && !usedRoles.includes('corresponding_author');
       }
       // First author and corresponding author can only be used once
-      return !usedRoles.includes(role.value === 'first' ? 'first_author' : 'corresponding_author');
+      return !usedRoles.includes(role.value ===
+   'first' ? 'first_author' : 'corresponding_author');
     });
   };
 
@@ -341,8 +385,10 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
           {(() => {
             const totalAuthors = (data.totalAuthors as number) || 1;
             const sgtAuthors = (data.sgtAuthors as number) || 1;
-            const internalAdded = coAuthors.filter(a => a.authorCategory === 'Internal').length;
-            const externalAdded = coAuthors.filter(a => a.authorCategory === 'External').length;
+            const internalAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal').length;
+            const externalAdded = coAuthors.filter(a => a.authorCategory ===
+   'External').length;
             const maxInternal = sgtAuthors - 1;
             const maxExternal = totalAuthors - sgtAuthors;
 
@@ -354,7 +400,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               parts.push(`${maxExternal} external author(s) [${externalAdded} added]`);
             }
 
-            if (parts.length === 0) {
+            if (parts.length ===
+   0) {
               return 'You are the only author.';
             }
 
@@ -380,13 +427,16 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   {(() => {
                     const totalAuthors = (data.totalAuthors as number) || 1;
                     const sgtAuthors = (data.sgtAuthors as number) || 1;
-                    const internalAdded = coAuthors.filter(a => a.authorCategory === 'Internal').length;
-                    const externalAdded = coAuthors.filter(a => a.authorCategory === 'External').length;
+                    const internalAdded = coAuthors.filter(a => a.authorCategory ===
+   'Internal').length;
+                    const externalAdded = coAuthors.filter(a => a.authorCategory ===
+   'External').length;
                     const maxInternal = sgtAuthors - 1;
                     const maxExternal = totalAuthors - sgtAuthors;
                     const internalSlotsFull = internalAdded >= maxInternal;
                     const externalSlotsFull = externalAdded >= maxExternal;
-                    const allInternal = totalAuthors === sgtAuthors;
+                    const allInternal = totalAuthors ===
+   sgtAuthors;
 
                     return (
                       <>
@@ -395,7 +445,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                             <input
                               type="radio"
                               value="Internal"
-                              checked={newAuthor.authorCategory === 'Internal'}
+                              checked={newAuthor.authorCategory ===
+   'Internal'}
                               onChange={(e) => {
                                 setNewAuthor({
                                   ...newAuthor,
@@ -416,7 +467,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                             <input
                               type="radio"
                               value="External"
-                              checked={newAuthor.authorCategory === 'External'}
+                              checked={newAuthor.authorCategory ===
+   'External'}
                               onChange={(e) => {
                                 setNewAuthor({
                                   ...newAuthor,
@@ -447,7 +499,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   onChange={(e) => setNewAuthor(prev => ({ ...prev, authorType: e.target.value as any }))}
                   className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-emerald-500"
                 >
-                  {newAuthor.authorCategory === 'Internal' ? (
+                  {newAuthor.authorCategory ===
+   'Internal' ? (
                     <>
                       <option value="Faculty">Faculty</option>
                       <option value="Student">Student</option>
@@ -467,7 +520,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
             <div className="relative">
               <label className="block text-xs font-medium text-gray-700 mb-1">
                 Name <span className="text-red-500">*</span>
-                {newAuthor.authorCategory === 'Internal' && <span className="text-xs text-gray-500 ml-1">(Search by name or UID)</span>}
+                {newAuthor.authorCategory ===
+   'Internal' && <span className="text-xs text-gray-500 ml-1">(Search by name or UID)</span>}
               </label>
               <div className="relative">
                 <input
@@ -475,9 +529,11 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   value={searchTerm}
                   onChange={(e) => handleSearch(e.target.value)}
                   className="w-full px-2 py-1.5 pr-8 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-emerald-500"
-                  placeholder={newAuthor.authorCategory === 'Internal' ? 'Type to search SGT users...' : 'Enter full name'}
+                  placeholder={newAuthor.authorCategory ===
+   'Internal' ? 'Type to search SGT users...' : 'Enter full name'}
                 />
-                {newAuthor.authorCategory === 'Internal' && <Search className="absolute right-2 top-2 w-4 h-4 text-gray-400" />}
+                {newAuthor.authorCategory ===
+   'Internal' && <Search className="absolute right-2 top-2 w-4 h-4 text-gray-400" />}
               </div>
               
               {/* Search Suggestions */}
@@ -492,7 +548,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     >
                       <div className="font-medium text-gray-900">{user.displayName || user.name}</div>
                       <div className="text-gray-500">
-                        {user.uid} • {user.type === 'employee' ? 'Faculty' : 'Student'}
+                        {user.uid} • {user.type ===
+   'employee' ? 'Faculty' : 'Student'}
                         {user.department && ` • ${user.department}`}
                       </div>
                     </button>
@@ -505,7 +562,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               {/* Email */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Email {newAuthor.authorCategory === 'External' && <span className="text-red-500">*</span>}
+                  Email {newAuthor.authorCategory ===
+   'External' && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="email"
@@ -513,7 +571,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   onChange={(e) => setNewAuthor(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-emerald-500"
                   placeholder="email@example.com"
-                  readOnly={newAuthor.authorCategory === 'Internal' && !!newAuthor.uid}
+                  readOnly={newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid}
                 />
               </div>
 
@@ -526,7 +585,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   onChange={(e) => setNewAuthor(prev => ({ ...prev, affiliation: e.target.value }))}
                   className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-2 focus:ring-emerald-500"
                   placeholder="University/Organization"
-                  readOnly={newAuthor.authorCategory === 'Internal'}
+                  readOnly={newAuthor.authorCategory ===
+   'Internal'}
                 />
               </div>
             </div>
@@ -553,14 +613,19 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                   const availableRoles = getAvailableRoles();
                   
                   // Show rule explanations
-                  if (newAuthor.authorCategory === 'Internal') {
-                    if (sgtAuthors === internalCoAuthors + 1) {
+                  if (newAuthor.authorCategory ===
+   'Internal') {
+                    if (sgtAuthors ===
+   internalCoAuthors + 1) {
                       return <p className="text-xs text-blue-600 mt-1">Rule: All other SGT authors must be Co-Authors</p>;
                     }
-                    if (internalCoAuthors === 0 && sgtAuthors > 1) {
+                    if (internalCoAuthors ===
+   0 && sgtAuthors > 1) {
                       return <p className="text-xs text-blue-600 mt-1">Rule: No Co-Authors allowed - must be First or Corresponding</p>;
                     }
-                    if (totalAuthors === 2 && userRole === 'co_author') {
+                    if (totalAuthors ===
+   2 && userRole ===
+   'co_author') {
                       return <p className="text-xs text-blue-600 mt-1">Rule: Must be First & Corresponding (2 authors total)</p>;
                     }
                   }
@@ -573,7 +638,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
               </div>
 
               {/* Designation (Internal only) */}
-              {newAuthor.authorCategory === 'Internal' && (
+              {newAuthor.authorCategory ===
+   'Internal' && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Designation</label>
                   <input
@@ -804,7 +870,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                               type="radio"
                               name="hasInternationalAuthor"
                               value={v}
-                              checked={(data.hasInternationalAuthor as string) === v}
+                              checked={(data.hasInternationalAuthor as string) ===
+   v}
                               onChange={(e) => handleChange('hasInternationalAuthor', e.target.value)}
                               className="w-4 h-4 text-emerald-600"
                             />
@@ -825,7 +892,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                             type="radio"
                             name="hasLpuStudents"
                             value={v}
-                            checked={(data.hasLpuStudents as string) === v}
+                            checked={(data.hasLpuStudents as string) ===
+   v}
                             onChange={(e) => handleChange('hasLpuStudents', e.target.value)}
                             className="w-4 h-4 text-emerald-600"
                           />
@@ -834,7 +902,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       ))}
                     </div>
                   </div>
-                  {(data.hasInternationalAuthor as string) === 'yes' && (
+                  {(data.hasInternationalAuthor as string) ===
+   'yes' && (
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-2">
                         Foreign Universities Collaborated:
@@ -913,7 +982,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       type="radio"
                       name="communicatedWithOfficialId"
                       value={v}
-                      checked={(data.communicatedWithOfficialId as string) === v}
+                      checked={(data.communicatedWithOfficialId as string) ===
+   v}
                       onChange={(e) => handleChange('communicatedWithOfficialId', e.target.value)}
                       className="w-4 h-4 text-indigo-600 focus:ring-2 focus:ring-indigo-500"
                     />
@@ -924,7 +994,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
             </div>
             
             {/* Show email field if not communicated with official ID */}
-            {(data.communicatedWithOfficialId as string) === 'no' && (
+            {(data.communicatedWithOfficialId as string) ===
+   'no' && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Personal Email Used <span className="text-red-500">*</span>
@@ -1067,7 +1138,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                               type="radio"
                               name="hasInternationalAuthor"
                               value={v}
-                              checked={(data.hasInternationalAuthor as string) === v}
+                              checked={(data.hasInternationalAuthor as string) ===
+   v}
                               onChange={(e) => handleChange('hasInternationalAuthor', e.target.value)}
                               className="w-4 h-4 text-emerald-600"
                             />
@@ -1088,7 +1160,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                             type="radio"
                             name="hasLpuStudents"
                             value={v}
-                            checked={(data.hasLpuStudents as string) === v}
+                            checked={(data.hasLpuStudents as string) ===
+   v}
                             onChange={(e) => handleChange('hasLpuStudents', e.target.value)}
                             className="w-4 h-4 text-emerald-600"
                           />
@@ -1097,7 +1170,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       ))}
                     </div>
                   </div>
-                  {(data.hasInternationalAuthor as string) === 'yes' && (
+                  {(data.hasInternationalAuthor as string) ===
+   'yes' && (
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-2">
                         Foreign Universities Collaborated:
@@ -1283,7 +1357,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                               type="radio"
                               name="hasInternationalAuthor"
                               value={v}
-                              checked={(data.hasInternationalAuthor as string) === v}
+                              checked={(data.hasInternationalAuthor as string) ===
+   v}
                               onChange={(e) => handleChange('hasInternationalAuthor', e.target.value)}
                               className="w-4 h-4 text-emerald-600"
                             />
@@ -1304,7 +1379,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                             type="radio"
                             name="hasLpuStudents"
                             value={v}
-                            checked={(data.hasLpuStudents as string) === v}
+                            checked={(data.hasLpuStudents as string) ===
+   v}
                             onChange={(e) => handleChange('hasLpuStudents', e.target.value)}
                             className="w-4 h-4 text-emerald-600"
                           />
@@ -1313,7 +1389,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                       ))}
                     </div>
                   </div>
-                  {(data.hasInternationalAuthor as string) === 'yes' && (
+                  {(data.hasInternationalAuthor as string) ===
+   'yes' && (
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-2">
                         Foreign Universities Collaborated:
@@ -1555,7 +1632,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                               type="radio"
                               name="hasInternationalAuthor"
                               value={v}
-                              checked={(data.hasInternationalAuthor as string) === v}
+                              checked={(data.hasInternationalAuthor as string) ===
+   v}
                               onChange={(e) => handleChange('hasInternationalAuthor', e.target.value)}
                               className="w-4 h-4 text-emerald-600"
                             />
@@ -1576,7 +1654,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                             type="radio"
                             name="hasLpuStudents"
                             value={v}
-                            checked={(data.hasLpuStudents as string) === v}
+                            checked={(data.hasLpuStudents as string) ===
+   v}
                             onChange={(e) => handleChange('hasLpuStudents', e.target.value)}
                             className="w-4 h-4 text-emerald-600"
                           />
@@ -1586,7 +1665,8 @@ export default function ResearchPaperStatusForm({ status, data, onChange }: Rese
                     </div>
                   </div>
                   {/* Foreign Universities - Only show when International Author is Yes */}
-                  {(data.hasInternationalAuthor as string) === 'yes' && (
+                  {(data.hasInternationalAuthor as string) ===
+   'yes' && (
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 mb-2">
                         Foreign Universities Collaborated:

@@ -160,7 +160,8 @@ export function MessageList() {
 
   const messageGroups = groupMessagesByDate(messages);
 
-  if (isLoadingInitial && messages.length === 0) {
+  if (isLoadingInitial && messages.length ===
+   0) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
@@ -171,7 +172,7 @@ export function MessageList() {
   return (
     <div 
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-3 space-y-1 bg-gray-50 dark:bg-gray-900"
+      className="flex-1 overflow-y-auto px-4 py-3 space-y-1 bg-transparent"
     >
       {/* Load More Trigger */}
       {hasMore && (
@@ -187,7 +188,7 @@ export function MessageList() {
         <div key={`${dateGroup.date}-${groupIndex}`}>
           {/* Date Divider */}
           <div className="flex items-center justify-center my-4">
-            <div className="bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs px-4 py-1.5 rounded-full shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-2xl border-2 border-white/80 dark:border-gray-700/80 shadow-[5px_5px_10px_rgba(0,0,0,0.05),-5px_-5px_10px_rgba(255,255,255,0.8)] dark:shadow-[5px_5px_10px_rgba(0,0,0,0.4),-5px_-5px_10px_rgba(255,255,255,0.05)] text-gray-600 dark:text-gray-300 text-xs font-bold px-4 py-1.5 rounded-full">
               {formatDateDivider(dateGroup.date)}
             </div>
           </div>
@@ -206,7 +207,8 @@ export function MessageList() {
       ))}
 
       {/* Empty State */}
-      {messages.length === 0 && !isLoadingInitial && (
+      {messages.length ===
+   0 && !isLoadingInitial && (
         <div className="flex-1 flex items-center justify-center h-full">
           <div className="text-center text-gray-500 dark:text-gray-400">
             <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,10 +240,12 @@ function formatDateDivider(dateString: string): string {
   yesterday.setDate(yesterday.getDate() - 1);
 
   // Compare using toDateString() for consistency
-  if (date.toDateString() === today.toDateString()) {
+  if (date.toDateString() ===
+   today.toDateString()) {
     return 'Today';
   }
-  if (date.toDateString() === yesterday.toDateString()) {
+  if (date.toDateString() ===
+   yesterday.toDateString()) {
     return 'Yesterday';
   }
   return date.toLocaleDateString('en-US', { 
@@ -254,7 +258,8 @@ function formatDateDivider(dateString: string): string {
 
 // Helper to determine if avatar should be shown
 function shouldShowAvatar(messages: (ChatMessage | DirectMessage)[], index: number): boolean {
-  if (index === 0) return true;
+  if (index ===
+   0) return true;
   const current = messages[index];
   const previous = messages[index - 1];
   return current.senderId !== previous.senderId;

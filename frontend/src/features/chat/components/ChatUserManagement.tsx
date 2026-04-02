@@ -207,7 +207,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
 
   // Bulk add
   const handleBulkAdd = async () => {
-    if (bulkUids.length === 0 && !csvFile) return;
+    if (bulkUids.length ===
+   0 && !csvFile) return;
 
     setIsAdding(true);
     setError(null);
@@ -250,7 +251,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
       const uids: string[] = [];
       for (let i = 0; i < lines.length; i++) {
-        if (i === 0 && /uid|username|user|email|employee|student/i.test(lines[i])) continue;
+        if (i ===
+   0 && /uid|username|user|email|employee|student/i.test(lines[i])) continue;
         const uid = lines[i].split(',')[0].trim().replace(/"/g, '');
         if (uid) uids.push(uid);
       }
@@ -268,7 +270,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
     try {
       await chatService.toggleChatUser(userId, enabled);
       setUsers(prev => prev.map(u => 
-        u.userId === userId ? { ...u, chatEnabled: enabled } : u
+        u.userId ===
+   userId ? { ...u, chatEnabled: enabled } : u
       ));
       setSuccess(`Chat ${enabled ? 'enabled' : 'disabled'} for user`);
     } catch (err: any) {
@@ -429,7 +432,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
                     Loading...
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : users.length ===
+   0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                     {search ? 'No users found matching your search' : 'No users added yet. Click "Add Users" to get started.'}
@@ -527,7 +531,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
+              disabled={page ===
+   1}
               className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50"
             >
               Previous
@@ -535,7 +540,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
             <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
             <button
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
+              disabled={page ===
+   totalPages}
               className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded disabled:opacity-50"
             >
               Next
@@ -561,20 +567,23 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
             <div className="flex border-b border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setAddMode('manual')}
-                className={`flex-1 px-4 py-2 text-sm font-medium ${addMode === 'manual' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500'}`}
+                className={`flex-1 px-4 py-2 text-sm font-medium ${addMode ===
+   'manual' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500'}`}
               >
                 Manual Add
               </button>
               <button
                 onClick={() => setAddMode('bulk')}
-                className={`flex-1 px-4 py-2 text-sm font-medium ${addMode === 'bulk' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500'}`}
+                className={`flex-1 px-4 py-2 text-sm font-medium ${addMode ===
+   'bulk' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-gray-500'}`}
               >
                 Bulk Upload (CSV)
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {addMode === 'manual' ? (
+              {addMode ===
+   'manual' ? (
                 <>
                   {/* Search for users */}
                   <div>
@@ -625,7 +634,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
                         onChange={(e) => setManualUid(e.target.value)}
                         placeholder="Enter UID"
                         className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700"
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddUser()}
+                        onKeyDown={(e) => e.key ===
+   'Enter' && handleAddUser()}
                       />
                       <button
                         onClick={() => handleAddUser()}
@@ -745,7 +755,8 @@ export function ChatUserManagement({ onClose }: ChatUserManagementProps) {
               <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
                 Close
               </button>
-              {addMode === 'bulk' && bulkUids.length > 0 && (
+              {addMode ===
+   'bulk' && bulkUids.length > 0 && (
                 <button
                   onClick={handleBulkAdd}
                   disabled={isAdding}

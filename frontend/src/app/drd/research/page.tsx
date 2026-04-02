@@ -159,15 +159,20 @@ export default function DrdResearchDashboard() {
   }).filter(c => {
     // Filter by "My Reviews" if enabled
     if (showOnlyMyReviews && user?.id) {
-      const userHasReviewed = (c as any).reviews?.some((review: any) => review.reviewerId === user.id);
+      const userHasReviewed = (c as any).reviews?.some((review: any) => review.reviewerId ===
+   user.id);
       if (!userHasReviewed) return false;
       
       // Apply my review decision filter
       if (myReviewFilter !== 'all') {
-        const userReview = (c as any).reviews?.find((review: any) => review.reviewerId === user.id);
-        if (myReviewFilter === 'approved' && userReview?.decision !== 'approved') return false;
-        if (myReviewFilter === 'rejected' && userReview?.decision !== 'rejected') return false;
-        if (myReviewFilter === 'recommended' && userReview?.decision !== 'recommended') return false;
+        const userReview = (c as any).reviews?.find((review: any) => review.reviewerId ===
+   user.id);
+        if (myReviewFilter ===
+   'approved' && userReview?.decision !== 'approved') return false;
+        if (myReviewFilter ===
+   'rejected' && userReview?.decision !== 'rejected') return false;
+        if (myReviewFilter ===
+   'recommended' && userReview?.decision !== 'recommended') return false;
       }
       
       return true;
@@ -176,7 +181,7 @@ export default function DrdResearchDashboard() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Hero Header with Gradient */}
       <div className="relative overflow-hidden bg-sgt-gradient rounded-3xl p-8 text-white shadow-sgt-xl">
         {/* Background decorations */}
@@ -267,7 +272,8 @@ export default function DrdResearchDashboard() {
               <div className="text-center">
                 <div className="text-xl font-bold text-blue-600">
                   {contributions.filter((c: any) => 
-                    c.reviews?.some((r: any) => r.reviewerId === user.id)
+                    c.reviews?.some((r: any) => r.reviewerId ===
+   user.id)
                   ).length}
                 </div>
                 <div className="text-xs text-gray-600">You Reviewed</div>
@@ -276,7 +282,9 @@ export default function DrdResearchDashboard() {
               <div className="text-center">
                 <div className="text-xl font-bold text-purple-600">
                   {contributions.filter((c: any) => 
-                    c.reviews?.some((r: any) => r.reviewerId === user.id && r.decision === 'recommended')
+                    c.reviews?.some((r: any) => r.reviewerId ===
+   user.id && r.decision ===
+   'recommended')
                   ).length}
                 </div>
                 <div className="text-xs text-gray-600">Recommended</div>
@@ -285,7 +293,9 @@ export default function DrdResearchDashboard() {
               <div className="text-center">
                 <div className="text-xl font-bold text-green-600">
                   {contributions.filter((c: any) => 
-                    c.reviews?.some((r: any) => r.reviewerId === user.id && r.decision === 'approved')
+                    c.reviews?.some((r: any) => r.reviewerId ===
+   user.id && r.decision ===
+   'approved')
                   ).length}
                 </div>
                 <div className="text-xs text-gray-600">Approved</div>
@@ -434,7 +444,8 @@ export default function DrdResearchDashboard() {
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sgt-600 mb-4"></div>
               <p className="text-gray-500">Loading contributions...</p>
             </div>
-          ) : filteredContributions.length === 0 ? (
+          ) : filteredContributions.length ===
+   0 ? (
             <div className="text-center py-16">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-10 h-10 text-gray-400" />
@@ -456,16 +467,19 @@ export default function DrdResearchDashboard() {
               
               // Check if current user has reviewed this
               const userHasReviewed = user?.id && (contribution as any).reviews?.some(
-                (review: any) => review.reviewerId === user.id
+                (review: any) => review.reviewerId ===
+   user.id
               );
               
               // Get user's review decision if exists
               const userReview = user?.id && (contribution as any).reviews?.find(
-                (review: any) => review.reviewerId === user.id
+                (review: any) => review.reviewerId ===
+   user.id
               );
               
               // Determine review page URL based on publication type
-              const isGrant = contribution.publicationType === 'grant_proposal';
+              const isGrant = contribution.publicationType ===
+   'grant_proposal';
               const reviewUrl = isGrant 
                 ? `/drd/research/grant-review/${contribution.id}`
                 : `/drd/research/review/${contribution.id}`;
@@ -556,14 +570,17 @@ export default function DrdResearchDashboard() {
                           <div className="flex items-center gap-1">
                             <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg font-medium">
                               <CheckCircle className="w-3 h-3 inline mr-1" />
-                              {userReview?.decision === 'approved' ? 'You approved' : 'You reviewed'}
+                              {userReview?.decision ===
+   'approved' ? 'You approved' : 'You reviewed'}
                             </span>
-                            {userReview?.decision === 'recommended' && (
+                            {userReview?.decision ===
+   'recommended' && (
                               <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-lg font-medium">
                                 Recommended
                               </span>
                             )}
-                            {userReview?.decision === 'approved' && (
+                            {userReview?.decision ===
+   'approved' && (
                               <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-lg font-medium">
                                 Approved
                               </span>
@@ -580,7 +597,8 @@ export default function DrdResearchDashboard() {
                       </div>
                       
                       {/* Quick Actions */}
-                      {contribution.status === 'submitted' && userPermissions?.canReview && (
+                      {contribution.status ===
+   'submitted' && userPermissions?.canReview && (
                         <button
                           onClick={(e) => handleStartReview(contribution.id, e)}
                           className="px-4 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 transition-all shadow-sm"

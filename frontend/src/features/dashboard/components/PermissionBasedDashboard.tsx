@@ -224,7 +224,8 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
       if (user?.id) {
         try {
           // Convert user.id to number, handle both numeric IDs and string UIDs
-          const numericId = typeof user.id === 'number' ? user.id : parseInt(String(user.id), 10);
+          const numericId = typeof user.id ===
+   'number' ? user.id : parseInt(String(user.id), 10);
           
           // Only fetch if we have a valid numeric ID
           if (!isNaN(numericId) && numericId > 0) {
@@ -270,11 +271,13 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
     const margin = 5;
     
     // First term - position to the right
-    if (termIndex === 0) {
+    if (termIndex ===
+   0) {
       return Math.max(margin, baseX - 20);
     }
     // Last term - position to the left
-    if (termIndex === performanceData.length - 1) {
+    if (termIndex ===
+   performanceData.length - 1) {
       return Math.min(chartWidth - tooltipWidth - margin, baseX - tooltipWidth + 20);
     }
     // Middle terms - center the tooltip
@@ -286,13 +289,10 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
   // Generate SVG path for a line
   const generatePath = (metricKey: string) => {
     return performanceData
-      .map((d, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY((d as any)[metricKey])}`)
+      .map((d, i) => `${i ===
+   0 ? 'M' : 'L'} ${getX(i)} ${getY((d as any)[metricKey])}`)
       .join(' ');
   };
-
-  // Debug logging
-  logger.debug('PermissionBasedDashboard - userPermissions:', userPermissions);
-  logger.debug('PermissionBasedDashboard - userRole:', userRole);
 
   // Get unique categories from permissions
   const permissionCategories = userPermissions.map(p => p.category);
@@ -307,7 +307,8 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
     .map(category => {
       const widgetConfig = CATEGORY_WIDGETS[category];
       if (widgetConfig) {
-        const permissions = userPermissions.find(p => p.category === category)?.permissions || [];
+        const permissions = userPermissions.find(p => p.category ===
+   category)?.permissions || [];
         return {
           category,
           config: widgetConfig,
@@ -320,7 +321,9 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
 
   // Remove duplicates based on title
   const uniqueWidgets = widgetsToDisplay.filter((widget, index, self) => 
-    index === self.findIndex(w => w?.config.title === widget?.config.title)
+    index ===
+   self.findIndex(w => w?.config.title ===
+   widget?.config.title)
   );
 
   return (
@@ -484,7 +487,8 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
                   />
                   
                   {/* Tooltip showing all metrics for this term */}
-                  {hoveredTermIndex === termIndex && (
+                  {hoveredTermIndex ===
+   termIndex && (
                     <g>
                       {/* Outer glow for glass effect */}
                       <defs>
@@ -582,7 +586,8 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
                               textAnchor="end"
                               className="text-[10px] font-bold"
                             >
-                              {typeof value === 'number' ? value.toFixed(1) : value}%
+                              {typeof value ===
+   'number' ? value.toFixed(1) : value}%
                             </text>
                           </g>
                         );
@@ -658,7 +663,8 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
                   {/* Animated Background */}
                   <motion.div
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: selectedModule === category ? 0.1 : 0 }}
+                    animate={{ opacity: selectedModule ===
+   category ? 0.1 : 0 }}
                     className={`absolute inset-0 bg-gradient-to-br ${config.color}`}
                   />
 
@@ -672,7 +678,8 @@ export default function PermissionBasedDashboard({ userPermissions, userRole }: 
                       <IconComponent className="w-7 h-7 text-white" />
                     </motion.div>
                     <motion.div
-                      animate={{ x: selectedModule === category ? 5 : 0 }}
+                      animate={{ x: selectedModule ===
+   category ? 5 : 0 }}
                       transition={{ duration: 0.3 }}
                     >
                       <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-blue-600 transition-all" />

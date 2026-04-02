@@ -176,7 +176,8 @@ export default function StudentsModule({ permissions }: StudentsModuleProps) {
                     <td className="py-3 px-4 text-gray-600">{student.semester}</td>
                     <td className="py-3 px-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        student.status === 'Active' 
+                        student.status ===
+   'Active' 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>

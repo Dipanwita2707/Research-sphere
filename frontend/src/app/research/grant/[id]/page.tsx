@@ -143,7 +143,8 @@ export default function GrantDetailPage() {
     const totalPoints = Number(activePolicy.basePoints);
 
     // Add international bonus
-    if (grant.projectType === 'international' && activePolicy.internationalBonus) {
+    if (grant.projectType ===
+   'international' && activePolicy.internationalBonus) {
       totalIncentive += Number(activePolicy.internationalBonus);
     }
 
@@ -154,21 +155,26 @@ export default function GrantDetailPage() {
 
     // Count internal investigators (applicant + team)
     // The applicant is always internal unless they are external AND the PI
-    const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+    const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
     const internalTeamMembers = grant.investigators?.filter(
       (inv: any) => inv.isInternal !== false && 
-                    (inv.investigatorCategory === 'Internal' || inv.isInternal === true)
+                    (inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true)
     ) || [];
     
     // Count total internal investigators (including applicant if internal)
     const totalInternalCount = (applicantIsInternal ? 1 : 0) + internalTeamMembers.length;
     
-    if (totalInternalCount === 0) {
+    if (totalInternalCount ===
+   0) {
       return { incentive: 0, points: 0 };
     }
 
     // Calculate based on split policy
-    if (activePolicy.splitPolicy === 'equal') {
+    if (activePolicy.splitPolicy ===
+   'equal') {
       // Equal split among all internal investigators (use floor to prevent exceeding total)
       const perPersonIncentive = Math.floor(totalIncentive / totalInternalCount);
       const perPersonPoints = Math.floor(totalPoints / totalInternalCount);
@@ -180,8 +186,10 @@ export default function GrantDetailPage() {
         { role: 'co_pi', percentage: 55 }
       ];
 
-      const piPercentage = rolePercentages.find(r => r.role === 'pi')?.percentage || 45;
-      const coPiTotalPercentage = rolePercentages.find(r => r.role === 'co_pi')?.percentage || 55;
+      const piPercentage = rolePercentages.find(r => r.role ===
+   'pi')?.percentage || 45;
+      const coPiTotalPercentage = rolePercentages.find(r => r.role ===
+   'co_pi')?.percentage || 55;
 
       // Count PIs and Co-PIs among ALL internal investigators (including applicant if internal)
       const allInternalInvestigators = [
@@ -189,17 +197,22 @@ export default function GrantDetailPage() {
         ...internalTeamMembers.map((inv: any) => ({ roleType: inv.roleType }))
       ];
       
-      const piCount = allInternalInvestigators.filter(inv => inv.roleType === 'pi').length;
-      const coPiCount = allInternalInvestigators.filter(inv => inv.roleType === 'co_pi').length;
+      const piCount = allInternalInvestigators.filter(inv => inv.roleType ===
+   'pi').length;
+      const coPiCount = allInternalInvestigators.filter(inv => inv.roleType ===
+   'co_pi').length;
 
-      if (roleType === 'pi') {
-        if (piCount === 0) return { incentive: 0, points: 0 };
+      if (roleType ===
+   'pi') {
+        if (piCount ===
+   0) return { incentive: 0, points: 0 };
         // PIs share the PI percentage equally (use floor to prevent exceeding total)
         const piIncentive = Math.floor((totalIncentive * piPercentage) / 100 / piCount);
         const piPoints = Math.floor((totalPoints * piPercentage) / 100 / piCount);
         return { incentive: piIncentive, points: piPoints };
       } else {
-        if (coPiCount === 0) return { incentive: 0, points: 0 };
+        if (coPiCount ===
+   0) return { incentive: 0, points: 0 };
         // Co-PIs share the Co-PI percentage equally (use floor to prevent exceeding total)
         const coPiIncentive = Math.floor((totalIncentive * coPiTotalPercentage) / 100 / coPiCount);
         const coPiPoints = Math.floor((totalPoints * coPiTotalPercentage) / 100 / coPiCount);
@@ -235,7 +248,8 @@ export default function GrantDetailPage() {
     }
   };
 
-  const pendingSuggestions = editSuggestions.filter(s => s.status === 'pending');
+  const pendingSuggestions = editSuggestions.filter(s => s.status ===
+   'pending');
 
   if (loading) {
     return (
@@ -282,19 +296,23 @@ export default function GrantDetailPage() {
           Back to My Contributions
         </Link>
         
-        {(grant.status === 'draft' || grant.status === 'changes_required') && (
+        {(grant.status ===
+   'draft' || grant.status ===
+   'changes_required') && (
           <Link
             href={`/research/apply-grant?edit=${grant.id}`}
             className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
           >
             <Edit className="w-4 h-4 mr-2" />
-            {grant.status === 'changes_required' ? 'Edit & Resubmit' : 'Edit Draft'}
+            {grant.status ===
+   'changes_required' ? 'Edit & Resubmit' : 'Edit Draft'}
           </Link>
         )}
       </div>
 
       {/* Suggestions Summary */}
-      {grant.status === 'changes_required' && pendingSuggestions.length > 0 && (
+      {grant.status ===
+   'changes_required' && pendingSuggestions.length > 0 && (
         <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
           <div className="flex items-start space-x-3">
             <AlertCircle className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
@@ -346,11 +364,13 @@ export default function GrantDetailPage() {
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleAcceptSuggestion(suggestion)}
-                          disabled={suggestionLoading === suggestion.id}
+                          disabled={suggestionLoading ===
+   suggestion.id}
                           className="flex items-center px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
                           title="Accept and apply this suggestion"
                         >
-                          {suggestionLoading === suggestion.id ? (
+                          {suggestionLoading ===
+   suggestion.id ? (
                             <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
                             <>
@@ -361,7 +381,8 @@ export default function GrantDetailPage() {
                         </button>
                         <button
                           onClick={() => handleRejectSuggestion(suggestion)}
-                          disabled={suggestionLoading === suggestion.id}
+                          disabled={suggestionLoading ===
+   suggestion.id}
                           className="flex items-center px-3 py-1.5 bg-gray-500 text-white text-sm rounded-lg hover:bg-gray-600 disabled:opacity-50 transition-colors"
                           title="Reject this suggestion"
                         >
@@ -378,7 +399,9 @@ export default function GrantDetailPage() {
         </div>
       )}
 
-      {grant.status === 'changes_required' && editSuggestions.length > 0 && pendingSuggestions.length === 0 && (
+      {grant.status ===
+   'changes_required' && editSuggestions.length > 0 && pendingSuggestions.length ===
+   0 && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4">
           <div className="flex items-start space-x-3">
             <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
@@ -441,13 +464,16 @@ export default function GrantDetailPage() {
                   <p className="text-2xl font-bold text-green-600 flex items-center">
                     <Coins className="w-6 h-6 mr-2" />
                     ₹{(() => {
-                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                       const applicantCalc = calculateInvestigatorIncentive(
                         grant.myRole,
                         applicantIsInternal ? 'Internal' : 'External'
                       );
                       const teamTotal = grant.investigators?.filter(
-                        (inv: any) => inv.investigatorCategory === 'Internal' || inv.isInternal === true
+                        (inv: any) => inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true
                       ).reduce((sum: number, inv: any) => {
                         const calc = calculateInvestigatorIncentive(inv.roleType, inv.investigatorCategory || (inv.isInternal ? 'Internal' : 'External'));
                         return sum + calc.incentive;
@@ -462,13 +488,16 @@ export default function GrantDetailPage() {
                   <p className="text-2xl font-bold text-blue-600 flex items-center">
                     <Award className="w-6 h-6 mr-2" />
                     {(() => {
-                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                      const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                       const applicantCalc = calculateInvestigatorIncentive(
                         grant.myRole,
                         applicantIsInternal ? 'Internal' : 'External'
                       );
                       const teamTotal = grant.investigators?.filter(
-                        (inv: any) => inv.investigatorCategory === 'Internal' || inv.isInternal === true
+                        (inv: any) => inv.investigatorCategory ===
+   'Internal' || inv.isInternal ===
+   true
                       ).reduce((sum: number, inv: any) => {
                         const calc = calculateInvestigatorIncentive(inv.roleType, inv.investigatorCategory || (inv.isInternal ? 'Internal' : 'External'));
                         return sum + calc.points;
@@ -500,7 +529,8 @@ export default function GrantDetailPage() {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <label className="text-sm text-gray-600 block mb-1">Project Type</label>
                   <p className="font-semibold text-gray-900">
-                    {grant.projectType === 'indian' ? 'Indian Project' : 'International Project'}
+                    {grant.projectType ===
+   'indian' ? 'Indian Project' : 'International Project'}
                   </p>
                 </div>
               )}
@@ -537,7 +567,8 @@ export default function GrantDetailPage() {
                 <div className="bg-gray-50 rounded-lg p-4">
                   <label className="text-sm text-gray-600 block mb-1">My Role in Project</label>
                   <p className="font-semibold text-gray-900 capitalize">
-                    {grant.myRole === 'pi' ? 'Principal Investigator (PI)' : 'Co-Principal Investigator (Co-PI)'}
+                    {grant.myRole ===
+   'pi' ? 'Principal Investigator (PI)' : 'Co-Principal Investigator (Co-PI)'}
                   </p>
                 </div>
               )}
@@ -609,7 +640,8 @@ export default function GrantDetailPage() {
                     <div>
                       <label className="text-xs text-gray-500 block mb-1">Role</label>
                       <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
-                        grant.myRole === 'pi' 
+                        grant.myRole ===
+   'pi' 
                           ? 'bg-blue-100 text-blue-800' 
                           : 'bg-purple-100 text-purple-800'
                       }`}>
@@ -623,7 +655,8 @@ export default function GrantDetailPage() {
                           <p className="font-semibold text-green-600 flex items-center">
                             <Coins className="w-4 h-4 mr-1" />
                             ₹{(() => {
-                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                               const calc = calculateInvestigatorIncentive(
                                 grant.myRole,
                                 applicantIsInternal ? 'Internal' : 'External'
@@ -637,7 +670,8 @@ export default function GrantDetailPage() {
                           <p className="font-semibold text-blue-600 flex items-center">
                             <Award className="w-4 h-4 mr-1" />
                             {(() => {
-                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole === 'pi');
+                              const applicantIsInternal = !(grant.isPIExternal && grant.myRole ===
+   'pi');
                               const calc = calculateInvestigatorIncentive(
                                 grant.myRole,
                                 applicantIsInternal ? 'Internal' : 'External'
@@ -653,7 +687,9 @@ export default function GrantDetailPage() {
                 
                 {/* Team Members */}
                 {grant.investigators.map((inv, index) => {
-                  const isInternal = inv.investigatorType === 'Internal' || inv.isInternal === true;
+                  const isInternal = inv.investigatorType ===
+   'Internal' || inv.isInternal ===
+   true;
                   const calc = activePolicy ? calculateInvestigatorIncentive(
                     inv.roleType,
                     isInternal ? 'Internal' : 'External'
@@ -670,7 +706,8 @@ export default function GrantDetailPage() {
                           <label className="text-xs text-gray-500 block mb-1">Role</label>
                           <div className="flex items-center gap-2">
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded ${
-                              inv.roleType === 'pi' 
+                              inv.roleType ===
+   'pi' 
                                 ? 'bg-blue-100 text-blue-800' 
                                 : 'bg-purple-100 text-purple-800'
                             }`}>

@@ -146,9 +146,12 @@ export default function BulkUploadManagement() {
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+    if (e.type ===
+   'dragenter' || e.type ===
+   'dragover') {
       setDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type ===
+   'dragleave') {
       setDragActive(false);
     }
   };
@@ -243,7 +246,8 @@ export default function BulkUploadManagement() {
     }
   };
 
-  const activeTabConfig = tabs.find(t => t.id === activeTab)!;
+  const activeTabConfig = tabs.find(t => t.id ===
+   activeTab)!;
   const TabIcon = activeTabConfig.icon;
 
   return (
@@ -284,7 +288,8 @@ export default function BulkUploadManagement() {
                   clearFile();
                 }}
                 className={`flex items-center gap-2 px-5 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === tab.id
+                  activeTab ===
+   tab.id
                     ? 'border-blue-600 text-blue-600 bg-blue-50/50'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
@@ -443,7 +448,8 @@ export default function BulkUploadManagement() {
           {/* Upload Result */}
           {result && (
             <div className={`mt-6 rounded-xl border ${
-              result.success && result.failedCount === 0
+              result.success && result.failedCount ===
+   0
                 ? 'bg-green-50 border-green-200'
                 : result.failedCount > 0
                 ? 'bg-yellow-50 border-yellow-200'
@@ -451,7 +457,8 @@ export default function BulkUploadManagement() {
             }`}>
               <div className="p-4">
                 <div className="flex items-start gap-3">
-                  {result.success && result.failedCount === 0 ? (
+                  {result.success && result.failedCount ===
+   0 ? (
                     <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
                   ) : result.failedCount > 0 ? (
                     <AlertCircle className="w-6 h-6 text-yellow-500 flex-shrink-0" />

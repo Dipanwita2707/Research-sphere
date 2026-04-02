@@ -57,7 +57,8 @@ export function ProfilePhotoUpload({
       const access = await chatService.getMyPermissions();
       
       // If access is denied completely, no upload
-      if (access.hasAccess === false) {
+      if (access.hasAccess ===
+   false) {
         setHasPermission(false);
         return;
       }
@@ -259,7 +260,8 @@ export function ProfilePhotoUpload({
     );
   }
 
-  if (hasPermission === false) {
+  if (hasPermission ===
+   false) {
     return (
       <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
         <div className="flex items-start gap-3">
