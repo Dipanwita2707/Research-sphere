@@ -56,6 +56,11 @@ export default function ExtendPassModal({
     return selectedHostel?.hostelRooms || [];
   }, [selectedHostel]);
 
+  const formatPrice = (value?: number) => {
+    const amount = typeof value === 'number' ? value : Number(value || 0);
+    return Number.isFinite(amount) ? amount.toLocaleString('en-IN') : '0';
+  };
+
   useEffect(() => {
     const hostels = extensionOptions?.alternativeHostels || [];
     if (!hostels.length) {
@@ -354,40 +359,79 @@ export default function ExtendPassModal({
                     <div className="space-y-3">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">{t('extend.selectGuestHouse')}</label>
-                        <select
-                          value={selectedHostelId}
-                          onChange={(e) => setSelectedHostelId(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                          disabled={isLoading}
-                        >
-                          {!extensionOptions.alternativeHostels?.length && (
-                            <option value="">{t('extend.noGuestHouseAvailable')}</option>
-                          )}
-                          {(extensionOptions.alternativeHostels || []).map((hostel) => (
-                            <option key={hostel.id} value={hostel.id}>
-                              {displayText(hostel.name)} ({hostel.availableRoomsCount || hostel.hostelRooms?.length || 0} rooms)
-                            </option>
-                          ))}
-                        </select>
+                        {!extensionOptions.alternativeHostels?.length ? (
+                          <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-600">
+                            {t('extend.noGuestHouseAvailable')}
+                          </div>
+                        ) : (
+                          <div className="max-h-44 overflow-y-auto rounded-lg border border-gray-300 bg-white divide-y divide-gray-100">
+                            {(extensionOptions.alternativeHostels || []).map((hostel) => {
+                              const isSelected = selectedHostelId === hostel.id;
+                              const availableRooms = hostel.availableRoomsCount || hostel.hostelRooms?.length || 0;
+
+                              return (
+                                <button
+                                  key={hostel.id}
+                                  type="button"
+                                  onClick={() => setSelectedHostelId(hostel.id)}
+                                  disabled={isLoading}
+                                  className={`w-full text-left px-3 py-2.5 transition-colors ${
+                                    isSelected
+                                      ? 'bg-blue-50 border-l-4 border-blue-600'
+                                      : 'hover:bg-gray-50 border-l-4 border-transparent'
+                                  } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                >
+                                  <p className={`text-sm font-medium ${isSelected ? 'text-blue-900' : 'text-gray-800'}`}>
+                                    {displayText(hostel.name)}
+                                  </p>
+                                  <p className={`text-xs ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                                    {availableRooms} rooms available
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">{t('extend.selectRoomLabel')}</label>
-                        <select
-                          value={selectedRoomId}
-                          onChange={(e) => setSelectedRoomId(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                          disabled={isLoading}
-                        >
-                          <option value="">{t('extend.chooseRoom')}</option>
-                          {selectedHostelRooms.map((room) => (
-                            <option key={room.id} value={room.id}>
-                              {room.roomNumber} - {room.roomType} - INR {room.pricePerNight}/day
-                            </option>
-                          ))}
-                        </select>
+                        <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-300 bg-white divide-y divide-gray-100">
+                          {selectedHostelRooms.length === 0 && (
+                            <div className="px-3 py-2 text-sm text-gray-600">{t('extend.chooseRoom')}</div>
+                          )}
+                          {selectedHostelRooms.map((room) => {
+                            const isSelected = selectedRoomId === room.id;
+
+                            return (
+                              <button
+                                key={room.id}
+                                type="button"
+                                onClick={() => setSelectedRoomId(room.id)}
+                                disabled={isLoading}
+                                className={`w-full text-left px-3 py-2.5 transition-colors ${
+                                  isSelected
+                                    ? 'bg-blue-50 border-l-4 border-blue-600'
+                                    : 'hover:bg-gray-50 border-l-4 border-transparent'
+                                } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              >
+                                <p className={`text-sm font-medium ${isSelected ? 'text-blue-900' : 'text-gray-800'}`}>
+                                  {room.roomNumber}
+                                </p>
+                                <p className={`text-xs ${isSelected ? 'text-blue-700' : 'text-gray-600'}`}>
+                                  {room.roomType} - INR {formatPrice(room.pricePerNight)}/day
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
                         {selectedHostelId && selectedHostelRooms.length === 0 && (
                           <p className="mt-1 text-xs text-red-600">{t('extend.noRoomsForGuestHouse')}</p>
+                        )}
+                        {selectedRoomId && selectedHostelRooms.length > 0 && (
+                          <p className="mt-1 text-xs text-gray-600">
+                            Selected room: <span className="font-medium">{selectedHostelRooms.find((room) => room.id === selectedRoomId)?.roomNumber || '-'}</span>
+                          </p>
                         )}
                       </div>
                     </div>

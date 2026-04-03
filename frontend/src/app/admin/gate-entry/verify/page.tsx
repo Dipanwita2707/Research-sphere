@@ -13,6 +13,71 @@ import { VerifyPassShimmer } from '../components/ShimmerUI';
 import './qr-scanner.css';
 import '../styles/animations.css';
 
+function CheckoutCountdown({
+  checkoutExpiresAt,
+  t
+}: {
+  checkoutExpiresAt: string | null;
+  t: (key: string) => string;
+}) {
+  const [nowMs, setNowMs] = useState(Date.now());
+
+  useEffect(() => {
+    if (!checkoutExpiresAt) return;
+    const interval = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [checkoutExpiresAt]);
+
+  const getCheckoutTimeRemaining = () => {
+    if (!checkoutExpiresAt) return { minutes: 0, seconds: 0, total: 0 };
+
+    const expiryTime = new Date(checkoutExpiresAt).getTime();
+    const remainingMs = expiryTime - nowMs;
+
+    if (remainingMs <= 0) {
+      return { minutes: 0, seconds: 0, total: 0 };
+    }
+
+    const totalSeconds = Math.floor(remainingMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return { minutes, seconds, total: minutes + seconds / 60 };
+  };
+
+  const remaining = getCheckoutTimeRemaining();
+
+  return (
+    <div className="bg-white rounded-lg border-2 border-red-300 p-3 md:p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs md:text-sm text-gray-600 mb-1">{t('verifyPass.warnings.qrValidity')}</p>
+          <div className="flex items-center gap-2">
+            <Clock className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
+            <span className={`text-xl md:text-3xl font-bold ${remaining.total <= 5 ? 'text-red-600' : 'text-orange-600'}`}>
+              {remaining.minutes} min {remaining.seconds} sec
+            </span>
+          </div>
+        </div>
+        <div className="text-right">
+          {remaining.total <= 5 ? (
+            <p className="text-xs md:text-sm font-bold text-red-600">{t('verifyPass.warnings.expiringSoon')}</p>
+          ) : remaining.total <= 15 ? (
+            <p className="text-xs md:text-sm font-semibold text-orange-600">{t('verifyPass.warnings.lessThan15')}</p>
+          ) : (
+            <p className="text-xs md:text-sm text-green-600">{t('verifyPass.warnings.valid')}</p>
+          )}
+          <p className="text-xs text-gray-500 mt-1">
+            {remaining.total <= 0 ? t('verifyPass.warnings.expired') : t('verifyPass.warnings.remaining')}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VerifyPassPageContent() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -34,7 +99,6 @@ function VerifyPassPageContent() {
   const [isCancelledPass, setIsCancelledPass] = useState(false);
   const [checkoutQRRemaining, setCheckoutQRRemaining] = useState<number>(0);
   const [checkoutExpiresAt, setCheckoutExpiresAt] = useState<string | null>(null);
-  const [currentTime, setCurrentTime] = useState(Date.now());
   
   // Verification modal states
   const [showVerificationModal, setShowVerificationModal] = useState(false);
@@ -159,36 +223,6 @@ function VerifyPassPageContent() {
       setScannerInitialized(false);
     }
   }, [activeTab]);
-
-  // Countdown timer for cancelled pass checkout QR - updates every second
-  useEffect(() => {
-    if (isCancelledPass && checkoutExpiresAt) {
-      const interval = setInterval(() => {
-        setCurrentTime(Date.now());
-      }, 1000);
-      
-      return () => clearInterval(interval);
-    }
-  }, [isCancelledPass, checkoutExpiresAt]);
-
-  // Calculate remaining time dynamically
-  const getCheckoutTimeRemaining = () => {
-    if (!checkoutExpiresAt) return { minutes: 0, seconds: 0, total: 0 };
-    
-    const expiryTime = new Date(checkoutExpiresAt).getTime();
-    const now = currentTime;
-    const remainingMs = expiryTime - now;
-    
-    if (remainingMs <= 0) {
-      return { minutes: 0, seconds: 0, total: 0 };
-    }
-    
-    const totalSeconds = Math.floor(remainingMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    
-    return { minutes, seconds, total: minutes + seconds / 60 };
-  };
 
   const handleQRScan = async (scannedData: string) => {
     try {
@@ -577,10 +611,6 @@ function VerifyPassPageContent() {
       setShowVerificationModal(false);
       setVerificationMethod(null);
       try { if (verifyScannerRef.current) { await verifyScannerRef.current.stop(); } } catch {} finally { verifyScannerRef.current = null; }
-      try {
-        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
-        if (response.pass) setPass(response.pass);
-      } catch {}
     }
   };
   
@@ -613,14 +643,6 @@ function VerifyPassPageContent() {
       toast.info(t('verifyPass.toast.entryDenied'), t('verifyPass.toast.entryDeniedTitle'));
       
       // Refresh pass data (best-effort)
-      try {
-        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
-        if (response.pass) {
-          setPass(response.pass);
-        }
-      } catch (refreshErr) {
-        console.warn('[DENY_ENTRY] Deny succeeded but refresh failed:', refreshErr);
-      }
     } catch (err: any) {
       toast.error(err.response?.data?.message || t('verifyPass.toast.denyFailed'), t('common.error'));
     } finally {
@@ -707,10 +729,6 @@ function VerifyPassPageContent() {
       setShowExitVerificationModal(false);
       setExitVerificationMethod(null);
       try { if (exitVerifyScannerRef.current) { await exitVerifyScannerRef.current.stop(); } } catch {} finally { exitVerifyScannerRef.current = null; }
-      try {
-        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
-        if (response.pass) setPass(response.pass);
-      } catch {}
     }
   };
 
@@ -848,10 +866,6 @@ function VerifyPassPageContent() {
       setIsCancelledPass(false);
       setCheckoutQRRemaining(0);
       setCheckoutExpiresAt(null);
-      try {
-        const response = await gateEntryService.verifyPass(currentPassId, 'passId');
-        if (response.pass) setPass(response.pass);
-      } catch {}
     }
   };
   
@@ -950,6 +964,9 @@ function VerifyPassPageContent() {
   const canAllowEntry = pass && pass.qrStatus === 'active' && (pass.passStatus === 'created' || pass.passStatus === 'checked_out');
   const canRecordExit = pass && ((pass.passStatus === 'checked_in' || pass.status === 'checked_in'));
   const canDenyEntry = pass && ['active'].includes(pass.status);
+  const isCheckoutQrExpired = checkoutExpiresAt
+    ? new Date(checkoutExpiresAt).getTime() <= Date.now()
+    : true;
 
   const getQRStatusBadge = (qrStatus?: string) => {
     if (!qrStatus) return null;
@@ -1259,31 +1276,7 @@ function VerifyPassPageContent() {
                   </div>
                   
                   {/* QR Validity Countdown */}
-                  <div className="bg-white rounded-lg border-2 border-red-300 p-3 md:p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs md:text-sm text-gray-600 mb-1">{t('verifyPass.warnings.qrValidity')}</p>
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-5 h-5 md:w-6 md:h-6 text-red-600" />
-                          <span className={`text-xl md:text-3xl font-bold ${getCheckoutTimeRemaining().total <= 5 ? 'text-red-600' : 'text-orange-600'}`}>
-                            {getCheckoutTimeRemaining().minutes} min {getCheckoutTimeRemaining().seconds} sec
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        {getCheckoutTimeRemaining().total <= 5 ? (
-                          <p className="text-xs md:text-sm font-bold text-red-600">{t('verifyPass.warnings.expiringSoon')}</p>
-                        ) : getCheckoutTimeRemaining().total <= 15 ? (
-                          <p className="text-xs md:text-sm font-semibold text-orange-600">{t('verifyPass.warnings.lessThan15')}</p>
-                        ) : (
-                          <p className="text-xs md:text-sm text-green-600">{t('verifyPass.warnings.valid')}</p>
-                        )}
-                        <p className="text-xs text-gray-500 mt-1">
-                          {getCheckoutTimeRemaining().total <= 0 ? t('verifyPass.warnings.expired') : t('verifyPass.warnings.remaining')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                  <CheckoutCountdown checkoutExpiresAt={checkoutExpiresAt} t={t} />
 
                   {/* Cancellation Details if available */}
                   {pass.cancellationTime && (
@@ -1571,7 +1564,7 @@ function VerifyPassPageContent() {
 
                 <div className="flex flex-col md:flex-row gap-2 md:gap-3">
                   {/* Checkout for Cancelled Pass - After Check-In Only */}
-                  {isCancelledPass && pass.passStatus === 'cancelled' && pass.cancellationType === 'after_check_in' && getCheckoutTimeRemaining().total > 0 && (
+                  {isCancelledPass && pass.passStatus === 'cancelled' && pass.cancellationType === 'after_check_in' && !isCheckoutQrExpired && (
                     <button
                       onClick={handleRecordExit}
                       disabled={actionLoading}
@@ -1583,7 +1576,7 @@ function VerifyPassPageContent() {
                   )}
 
                   {/* Expired QR Warning - After Check-In Only */}
-                  {isCancelledPass && pass.cancellationType === 'after_check_in' && getCheckoutTimeRemaining().total <= 0 && (
+                  {isCancelledPass && pass.cancellationType === 'after_check_in' && isCheckoutQrExpired && (
                     <div className="flex-1 px-4 md:px-8 py-3 md:py-4 bg-red-100 border-2 border-red-500 text-red-800 rounded-lg text-center font-semibold text-sm md:text-base">
                       {t('verifyPass.actions.qrExpired')}
                     </div>

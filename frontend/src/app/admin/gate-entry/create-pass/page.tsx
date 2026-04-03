@@ -1,15 +1,21 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { User, Phone, Clock, Car, FileText, CheckCircle, Loader2, AlertCircle, Hotel, Mail, Users, Calendar, Hash } from 'lucide-react';
 import { gateEntryService } from '@/shared/services/gateEntry.service';
 import { useToast } from '@/shared/ui-components/Toast';
 import { useAuthStore } from '@/shared/auth/authStore';
-import HostelBookingFlow from '../components/HostelBookingFlow';
-import { LanguageProvider, useLanguage } from '../context/LanguageContext';
-import { LanguageSelector } from '../components/LanguageSelector';
-import '../styles/animations.css';
+import {
+  CreatePassLanguageProvider,
+  CreatePassLanguageSelector,
+  useCreatePassLanguage,
+} from './CreatePassLanguageContext';
+
+const HostelBookingFlow = dynamic(() => import('../components/HostelBookingFlow'), {
+  ssr: false,
+});
 
 interface SimplePassFormData {
   visitorName: string;
@@ -55,11 +61,31 @@ const VEHICLE_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
+const getInitialFormData = (): SimplePassFormData => {
+  const today = new Date().toISOString().split('T')[0];
+  return {
+    visitorName: '',
+    mobileNumber: '',
+    email: '',
+    visitorRelation: '',
+    numberOfPersons: 1,
+    purposeOfVisit: '',
+    purposeOther: '',
+    visitDate: today,
+    visitEndDate: today,
+    entryTime: '',
+    hasVehicle: false,
+    vehicleType: '',
+    vehicleNumber: '',
+    vehicleModel: '',
+  };
+};
+
 function CreatePassPageContent() {
   const router = useRouter();
   const { showSuccessModal } = useToast();
   const { user } = useAuthStore(); // Get user from Zustand auth store
-  const { t } = useLanguage(); // Get translation function
+  const { t } = useCreatePassLanguage(); // Lightweight translation function
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [entryTimeError, setEntryTimeError] = useState<string | null>(null);
@@ -87,56 +113,45 @@ function CreatePassPageContent() {
     conflictingPasses: any[];
   }>({ show: false, message: '', conflictingPasses: [] });
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+  const duplicateCheckRequestRef = useRef(0);
   
   // Accommodation flow state
   const [wantToBook, setWantToBook] = useState<boolean | null>(null);
   
   // Dynamic purpose options based on user role
-  const purposeOptions = isStudentLocked ? STUDENT_PURPOSE_OPTIONS : GENERAL_PURPOSE_OPTIONS;
+  const purposeOptions = useMemo(
+    () => (isStudentLocked ? STUDENT_PURPOSE_OPTIONS : GENERAL_PURPOSE_OPTIONS),
+    [isStudentLocked]
+  );
   const userRoleKey = userRole ? `common.role.${userRole.toLowerCase()}` : null;
-  const userRoleLabel = userRoleKey ? t(userRoleKey) : '';
-  const relationLabelMap: Record<string, string> = {
+  const userRoleLabel = useMemo(() => (userRoleKey ? t(userRoleKey) : ''), [userRoleKey, t]);
+  const relationLabelMap: Record<string, string> = useMemo(() => ({
     father: t('createPass.father'),
     mother: t('createPass.mother'),
     guardian: t('createPass.guardian'),
     parent: t('createPass.parentOther'),
-  };
-  const getRelationLabel = (relation: string) => {
+  }), [t]);
+  const getRelationLabel = useCallback((relation: string) => {
     const normalized = relation?.toLowerCase?.().trim() || '';
     return relationLabelMap[normalized] || relation;
-  };
+  }, [relationLabelMap]);
   
-  const [formData, setFormData] = useState<SimplePassFormData>({
-    visitorName: '',
-    mobileNumber: '',
-    email: '',
-    visitorRelation: '',
-    numberOfPersons: 1,
-    purposeOfVisit: '',
-    purposeOther: '',
-    visitDate: new Date().toISOString().split('T')[0],
-    visitEndDate: new Date().toISOString().split('T')[0],
-    entryTime: '',
-    hasVehicle: false,
-    vehicleType: '',
-    vehicleNumber: '',
-    vehicleModel: '',
-  });
+  const [formData, setFormData] = useState<SimplePassFormData>(() => getInitialFormData());
 
   const cardBaseClass = 'bg-white rounded-2xl border p-6 md:p-8';
   const inputBaseClass = 'w-full px-4 py-3 border rounded-xl bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 transition-all';
 
   // Auto-detect multi-day visit (overnight stay - end date is different from start date)
-  const isMultiDay = (() => {
+  const isMultiDay = useMemo(() => {
     if (!formData.visitDate || !formData.visitEndDate) return false;
     const start = new Date(formData.visitDate);
     const end = new Date(formData.visitEndDate);
     const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays >= 1; // 1+ nights stay requires accommodation
-  })();
+  }, [formData.visitDate, formData.visitEndDate]);
 
   // Hostel booking ONLY for Students creating passes for Parents/Guardians (multi-day)
-  const canBookHostel = (() => {
+  const canBookHostel = useMemo(() => {
     if (userRole?.toLowerCase() !== 'student') return false;
     if (!isMultiDay) return false;
     
@@ -145,7 +160,7 @@ function CreatePassPageContent() {
     const validRelations = ['parent', 'father', 'mother', 'guardian'];
     
     return validRelations.includes(relation);
-  })();
+  }, [userRole, isMultiDay, formData.visitorRelation]);
 
   // Real-time duplicate pass checking
   useEffect(() => {
@@ -160,6 +175,8 @@ function CreatePassPageContent() {
 
     // Debounce the check
     const timeoutId = setTimeout(async () => {
+      const requestId = ++duplicateCheckRequestRef.current;
+
       try {
         setCheckingDuplicate(true);
         const result = await gateEntryService.checkDuplicate(
@@ -169,19 +186,22 @@ function CreatePassPageContent() {
           isMultiDay ? formData.visitEndDate : undefined
         );
 
+        // Ignore stale responses from previous requests.
+        if (requestId !== duplicateCheckRequestRef.current) {
+          return;
+        }
+
         if (result.isDuplicate) {
           const passes = result.conflictingPasses || [];
           const firstPass = passes[0];
-          const statusKey = `allPasses.status.${firstPass?.status}`;
-          const translatedStatus = t(statusKey as any);
-          const statusLabel = translatedStatus === statusKey ? firstPass?.status : translatedStatus;
+          const statusLabel = firstPass?.status || '';
           const dateRange = firstPass?.visitEndDate
             ? `${new Date(firstPass.visitDate).toLocaleDateString()} - ${new Date(firstPass.visitEndDate).toLocaleDateString()}`
             : new Date(firstPass.visitDate).toLocaleDateString();
           
           setDuplicateWarning({
             show: true,
-            message: `${t('createPass.duplicateFound')} ${formData.visitorName} (${firstPass?.passId}) | ${t('createPass.visitPeriod')} ${dateRange} | ${t('allPasses.status')}: ${statusLabel}`,
+            message: `${t('createPass.duplicateFound')} ${formData.visitorName} (${firstPass?.passId}) | ${t('createPass.visitPeriod')} ${dateRange} | Status: ${statusLabel}`,
             conflictingPasses: passes
           });
         } else {
@@ -190,7 +210,9 @@ function CreatePassPageContent() {
       } catch {
         // Don't show error to user for now, backend will catch it
       } finally {
-        setCheckingDuplicate(false);
+        if (requestId === duplicateCheckRequestRef.current) {
+          setCheckingDuplicate(false);
+        }
       }
     }, 800); // 800ms debounce
 
@@ -214,7 +236,7 @@ function CreatePassPageContent() {
   }, [user]); // Re-run when user changes
 
   // Fetch guardians from API
-  const fetchGuardians = async () => {
+  const fetchGuardians = useCallback(async () => {
     try {
       setLoadingGuardians(true);
 
@@ -228,7 +250,7 @@ function CreatePassPageContent() {
     } finally {
       setLoadingGuardians(false);
     }
-  };
+  }, []);
 
   // Handle guardian selection
   const handleGuardianSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -374,7 +396,7 @@ function CreatePassPageContent() {
     await submitPass();
   };
 
-  const submitPass = async () => {
+  const submitPass = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -436,41 +458,34 @@ function CreatePassPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    formData,
+    isMultiDay,
+    canBookHostel,
+    wantToBook,
+    accommodationType,
+    showSuccessModal,
+    t,
+  ]);
 
-  const resetForm = () => {
-    setFormData({
-      visitorName: '',
-      mobileNumber: '',
-      email: '',
-      visitorRelation: '', // Clear relation - let user select
-      numberOfPersons: 1,
-      purposeOfVisit: '',
-      purposeOther: '',
-      visitDate: new Date().toISOString().split('T')[0],
-      visitEndDate: new Date().toISOString().split('T')[0],
-      entryTime: '',
-      hasVehicle: false,
-      vehicleType: '',
-      vehicleNumber: '',
-      vehicleModel: '',
-    });
+  const resetForm = useCallback(() => {
+    setFormData(getInitialFormData());
     setAccommodationType(null);
     setWantToBook(null);
     setCreatedPassId(null);
     setSelectedGuardianId(''); // Reset guardian selection
     setDuplicateWarning({ show: false, message: '', conflictingPasses: [] }); // Reset duplicate warning
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] p-3 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="relative rounded-2xl p-6 md:p-8 mb-6 bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] border border-[#03396c] shadow-[0_12px_28px_rgba(1,31,75,0.28)] animate-fade-in">
+        <div className="relative rounded-2xl p-6 md:p-8 mb-6 bg-gradient-to-r from-[#011f4b] via-[#03396c] to-[#005b96] border border-[#03396c] shadow-none md:shadow-[0_12px_28px_rgba(1,31,75,0.28)] animate-fade-in">
           <div className="relative z-10">
             {/* Header with Language Selector */}
             <div className="flex items-start justify-between gap-4 mb-3">
               <div className="flex items-center gap-3 flex-1">
-                <div className="bg-white/20 backdrop-blur-sm p-3 rounded-xl">
+                <div className="bg-white/20 backdrop-blur-0 md:backdrop-blur-sm p-3 rounded-xl">
                   <User className="w-7 h-7 md:w-8 md:h-8 text-white" />
                 </div>
                 <div className="flex-1">
@@ -480,14 +495,14 @@ function CreatePassPageContent() {
               </div>
               {/* Language Selector */}
               <div className="flex-shrink-0">
-                <LanguageSelector />
+                <CreatePassLanguageSelector />
               </div>
             </div>
             
             {/* Quick Stats */}
             {userRole && (
               <div className="mt-4 flex flex-wrap gap-3">
-                <div className="bg-white/15 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
+                <div className="bg-white/15 backdrop-blur-0 md:backdrop-blur-sm px-4 py-2 rounded-lg border border-white/30">
                   <span className="text-[#b3cde0] text-xs font-medium">{t('createPass.creatingAs')}</span>
                   <span className="text-white font-bold ml-2 text-sm">{userRoleLabel === userRoleKey ? userRole : userRoleLabel}</span>
                 </div>
@@ -518,7 +533,7 @@ function CreatePassPageContent() {
           )}
 
           {/* Visitor Information Card - Animated with Gradient Border */}
-          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-1`}>
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-none md:shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-1`}>
             {/* Section Header with Gradient */}
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
@@ -743,7 +758,7 @@ function CreatePassPageContent() {
           </div>
 
           {/* Visit Details Card - Animated with Green Gradient */}
-          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-2`}>
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-none md:shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-2`}>
             {/* Section Header with Gradient */}
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
@@ -892,7 +907,7 @@ function CreatePassPageContent() {
           </div>
 
           {/* Vehicle Details Card - Animated with Purple Gradient */}
-          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-3`}>
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-none md:shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-3`}>
             {/* Section Header with Gradient */}
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
@@ -997,7 +1012,7 @@ function CreatePassPageContent() {
 
           {/* Stay Details Card - Orange Gradient Theme - ONLY for Students creating passes for Parents */}
           {canBookHostel && (
-            <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-4`}>
+            <div className={`${cardBaseClass} border-[#6497b1] shadow-none md:shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-4`}>
               {/* Section Header with Gradient */}
               <div className="flex items-center gap-3 mb-6">
                 <div className="bg-gradient-to-br from-[#03396c] to-[#005b96] p-3 rounded-xl shadow-[0_6px_14px_rgba(3,57,108,0.28)]">
@@ -1087,7 +1102,7 @@ function CreatePassPageContent() {
           )}
 
           {/* Submit Buttons Card - Gradient Theme */}
-          <div className={`${cardBaseClass} border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-5`}>
+          <div className={`${cardBaseClass} border-[#6497b1] shadow-none md:shadow-[0_10px_24px_rgba(3,57,108,0.12)] animate-slide-up stagger-item-5`}>
             
             {/* Duplicate Pass Warning - Enhanced with Animation */}
             {duplicateWarning.show && (
@@ -1188,11 +1203,11 @@ function CreatePassPageContent() {
   );
 }
 
-// Wrap with LanguageProvider
+// Wrap with CreatePassLanguageProvider
 export default function CreatePassPage() {
   return (
-    <LanguageProvider>
+    <CreatePassLanguageProvider>
       <CreatePassPageContent />
-    </LanguageProvider>
+    </CreatePassLanguageProvider>
   );
 }

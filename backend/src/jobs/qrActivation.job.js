@@ -18,6 +18,22 @@ const getISTDate = () => {
   return new Date(Date.now() + istOffset);
 };
 
+const getISTCalendarDateUtcMidnight = () => {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now);
+
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+
+  return new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+};
+
 const ACTIVATION_HOURS_BEFORE = 5; // QR activates 5 hours before entry time
 
 const activateQRCodes = async () => {
@@ -26,8 +42,8 @@ const activateQRCodes = async () => {
     
     console.log(`[QR Activation Job] Running at ${now.toISOString()}`);
 
-    // Get today's date in YYYY-MM-DD format (IST)
-    const todayIST = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Use IST calendar date represented as UTC midnight for date-only comparisons.
+    const todayIST = getISTCalendarDateUtcMidnight();
     
     // ============ ACTIVATE NEW PASSES (status=created) ============
     const passesToActivate = await prisma.gate_pass.findMany({
@@ -199,6 +215,7 @@ const activateQRCodes = async () => {
           }
         },
         data: {
+          status: 'expired',
           qr_status: 'expired',
           pass_status: 'expired'
         }
