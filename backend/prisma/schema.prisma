@@ -127,7 +127,7 @@ model UserLogin {
   clubChangeRequestsApproved                        ClubChangeRequest[]                  @relation("ClubChangeApprovedBy")
   clubChangeRequestsRejected                        ClubChangeRequest[]                  @relation("ClubChangeRejectedBy")
   clubAuditLogs                                     ClubAuditLog[]                       @relation("ClubAuditLogPerformedBy")
-  reportingStructure                                ReportingStructure?                  @relation("UserReporting")
+  reportingStructure                                ReportingStructure[]                 @relation("UserReporting")
   directReports                                     ReportingStructure[]                 @relation("ManagerReporting")
   sentInvitations                                    EventTeamInvitation[]                @relation("InvitationInviter")
   receivedInvitations                                EventTeamInvitation[]                @relation("InvitationInvitee")
@@ -1863,6 +1863,9 @@ model Note {
   notingId                         String                      @unique @map("noting_id") @db.VarChar(64)
   category                         NoteCategoryEnum
   subcategory                      String                      @map("subcategory") @db.VarChar(64)
+  departmentId                     String?                     @map("department_id") @db.Uuid
+  departmentScope                  String?                     @map("department_scope") @db.VarChar(32) // school | central
+  departmentName                   String?                     @map("department_name") @db.VarChar(256)
   description                      String
   approvalPeriod                   NoteApprovalPeriodEnum      @map("approval_period")
   recurringFrequency               NoteRecurringFrequencyEnum? @map("recurring_frequency")
@@ -1951,6 +1954,8 @@ model Note {
   @@index([status, updatedAt], map: "note_status_updatedAt_idx")
   @@index([eventName])
   @@index([subcategory, status], map: "note_subcategory_status_idx")
+  @@index([departmentId], map: "note_department_id_idx")
+  @@index([departmentScope], map: "note_department_scope_idx")
   @@index([clubCategoryId], map: "note_clubCategoryId_idx")
   @@index([eventClubId], map: "note_eventClubId_idx")
   @@map("note")
@@ -2066,7 +2071,9 @@ model NoteCopyReply {
 
 model ReportingStructure {
   id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  userId        String     @unique @map("user_id") @db.Uuid
+  userId        String     @map("user_id") @db.Uuid
+  departmentScope String?  @map("department_scope") @db.VarChar(32)
+  departmentId  String?    @map("department_id") @db.Uuid
   managerId     String?    @map("manager_id") @db.Uuid
   hierarchyDepth Int       @default(0) @map("hierarchy_depth")
   hierarchyPath String?    @map("hierarchy_path") @db.Text
@@ -2078,7 +2085,11 @@ model ReportingStructure {
   user          UserLogin  @relation("UserReporting", fields: [userId], references: [id], onDelete: Cascade)
   manager       UserLogin? @relation("ManagerReporting", fields: [managerId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, departmentScope, departmentId], map: "reporting_structure_user_department_unique")
   @@index([userId])
+  @@index([departmentScope, departmentId], map: "reporting_structure_department_scope_id_idx")
+  @@index([userId, departmentScope, departmentId, isActive], map: "reporting_structure_user_scope_id_isActive_idx")
+  @@index([managerId, departmentScope, departmentId, isActive], map: "reporting_structure_manager_scope_id_isActive_idx")
   @@index([managerId])
   @@index([hierarchyDepth])
   @@index([managerId, isActive], map: "reporting_structure_managerId_isActive_idx")

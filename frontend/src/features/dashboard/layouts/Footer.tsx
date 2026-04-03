@@ -4,73 +4,226 @@ import React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Linkedin,
-  Youtube,
-  Instagram,
+  Mail,
+  Phone,
+  MapPin,
+  Facebook,
   Twitter,
-  GraduationCap,
+  Linkedin,
+  Github,
+  ChevronRight,
 } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
-  const navLinks = [
-    { name: 'About Us', href: '#' },
-    { name: 'Partner With Us', href: '#' },
-    { name: 'Contact Us', href: '#' },
-    { name: 'Privacy Policy', href: '#' },
-    { name: 'Refund Policy', href: '#' },
-    { name: 'Terms and Conditions', href: '#' },
+  const footerSections = [
+    {
+      title: 'Quick Links',
+      links: [
+        { name: 'Dashboard', href: '/dashboard', isExternal: false },
+        { name: 'Research', href: '/research', isExternal: false },
+        { name: 'IPR Module', href: '/ipr', isExternal: false },
+        { name: 'Admissions', href: 'http://localhost:3000/', isExternal: true },
+        { name: 'Publications', href: '/publications', isExternal: false },
+      ],
+    },
+    {
+      title: 'Resources',
+      links: [
+        { name: 'Documentation', href: '#' },
+        { name: 'Help Center', href: '#' },
+        { name: 'FAQs', href: '#' },
+        { name: 'Support', href: '#' },
+      ],
+    },
+    {
+      title: 'Legal',
+      links: [
+        { name: 'Privacy Policy', href: '#' },
+        { name: 'Terms of Service', href: '#' },
+        { name: 'Cookie Policy', href: '#' },
+        { name: 'Disclaimer', href: '#' },
+      ],
+    },
   ];
 
   const socialLinks = [
+    { icon: Facebook, href: 'https://www.facebook.com/sgtuniversity', label: 'Facebook' },
+    { icon: Twitter, href: 'https://twitter.com/sgtuniversity', label: 'Twitter' },
     { icon: Linkedin, href: 'https://www.linkedin.com/school/sgt-university', label: 'LinkedIn' },
-    { icon: Youtube, href: 'https://www.youtube.com/@sgtuniversity', label: 'YouTube' },
-    { icon: Instagram, href: 'https://www.instagram.com/sgtuniversity', label: 'Instagram' },
-    { icon: Twitter, href: 'https://twitter.com/sgtuniversity', label: 'X' },
+    { icon: Github, href: 'https://github.com/sgtuniversity', label: 'GitHub' },
   ];
 
+  const contactInfo = [
+    {
+      icon: Mail,
+      label: 'Email',
+      value: 'info@sgtuniversity.ac.in',
+      href: 'mailto:info@sgtuniversity.ac.in',
+    },
+    {
+      icon: Phone,
+      label: 'Phone',
+      value: '+91 1275 281112',
+      href: 'tel:+911275281112',
+    },
+    {
+      icon: MapPin,
+      label: 'Address',
+      value: 'Gurugram-Badli Road, Chandu, Budhera, Gurugram, Haryana - 122505',
+      href: 'https://goo.gl/maps/sgtuniversity',
+    },
+  ];
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5 },
+    },
+  };
+
   return (
-    <footer className="relative mt-8 w-screen -ml-6 -mr-6 overflow-hidden select-none">
-      {/* Gradient top border */}
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#003d6b] via-[#6497b1] to-[#003d6b]"></div>
-
-      {/* ====== TOP NAV BAR ====== */}
-      <div className="bg-[#004a80] border-b border-white/[0.10]">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          {/* Logo + Brand */}
-          <Link href="/dashboard" className="flex items-center gap-2.5 group">
-            <div className="relative w-9 h-9 rounded-lg bg-gradient-to-br from-[#6497b1] to-[#005b96] flex items-center justify-center shadow-lg shadow-[#005b96]/20 group-hover:shadow-[#6497b1]/30 transition-all duration-300">
-              <GraduationCap className="w-5 h-5 text-white" />
-              <div className="absolute inset-0 rounded-lg bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-            </div>
-            <span className="text-[15px] font-bold tracking-[0.08em] text-white/90 group-hover:text-white transition-colors uppercase">
-              SGT University
-            </span>
-          </Link>
-
-          {/* Nav Links */}
-          <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
-            {navLinks.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                className="relative text-[13px] text-white/60 hover:text-white font-medium tracking-wide transition-colors duration-200 after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-[1.5px] after:bg-[#6497b1] after:transition-all after:duration-300 hover:after:w-full"
-              >
-                {link.name}
-              </a>
-            ))}
-          </nav>
-        </div>
+    <footer className="relative bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 dark:from-gray-950 dark:via-blue-950 dark:to-gray-950 text-gray-300 pt-4 pb-2 mt-8 w-screen -ml-6 -mr-6">
+      {/* Background Effects */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
       </div>
 
-      {/* ====== COPYRIGHT BAR ====== */}
-      <div className="bg-[#003d6b]">
-        <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-[13px] text-white/50 font-medium">
-            © {currentYear} SGT University. All Rights Reserved
-          </p>
-          <div className="flex items-center gap-3">
+      <div className="relative z-10 w-full">
+        {/* Main Footer Content */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="w-full px-8 lg:px-16"
+        >
+          {/* Header Section */}
+          <motion.div variants={itemVariants} className="mb-3 pb-3 border-b border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
+              {/* Branding */}
+              <div className="space-y-1">
+                <motion.h2
+                  variants={itemVariants}
+                  className="text-lg font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent"
+                >
+                  SGT University
+                </motion.h2>
+                <motion.p
+                  variants={itemVariants}
+                  className="text-gray-400 max-w-sm text-xs"
+                >
+                  Transforming academic excellence through innovative research
+                  management and intellectual property protection.
+                </motion.p>
+              </div>
+
+              {/* Newsletter Signup */}
+              <motion.div variants={itemVariants} className="space-y-1">
+                <h3 className="text-sm font-semibold text-white">Stay Updated</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    className="flex-1 px-3 py-1.5 text-sm bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-blue-500/50 transition-all duration-300">
+                    Subscribe
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Contact Info */}
+            <motion.div
+              variants={containerVariants}
+              className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+            >
+              {contactInfo.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <motion.a
+                    key={item.label}
+                    variants={itemVariants}
+                    href={item.href}
+                    className="flex items-start gap-2 p-2 rounded-lg bg-gray-800/30 hover:bg-gray-800/60 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 group"
+                  >
+                    <Icon className="w-4 h-4 text-blue-400 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">{item.label}</p>
+                      <p className="text-xs text-white font-medium group-hover:text-blue-400 transition-colors">
+                        {item.value}
+                      </p>
+                    </div>
+                  </motion.a>
+                );
+              })}
+            </motion.div>
+          </motion.div>
+
+          {/* Links Grid */}
+          <motion.div
+            variants={containerVariants}
+            className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-3"
+          >
+            {footerSections.map((section) => (
+              <motion.div key={section.title} variants={itemVariants}>
+                <h3 className="text-sm font-semibold text-white mb-2">
+                  {section.title}
+                </h3>
+                <ul className="space-y-1">
+                  {section.links.map((link) => (
+                    <li key={link.name}>
+                      {(link as any).isExternal ? (
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-xs text-gray-400 hover:text-blue-400 transition-colors group"
+                        >
+                          <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -ml-2 group-hover:ml-0 transition-all" />
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            {link.name}
+                          </span>
+                        </a>
+                      ) : (
+                        <Link
+                          href={link.href}
+                          className="flex items-center gap-2 text-xs text-gray-400 hover:text-blue-400 transition-colors group"
+                        >
+                          <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 -ml-2 group-hover:ml-0 transition-all" />
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            {link.name}
+                          </span>
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* Social Links */}
+          <motion.div
+            variants={itemVariants}
+            className="flex justify-center gap-3 mb-3 pb-3 border-b border-gray-700"
+          >
             {socialLinks.map((social) => {
               const Icon = social.icon;
               return (
@@ -80,50 +233,41 @@ const Footer = () => {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={social.label}
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 0.92 }}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-white/[0.08] border border-white/[0.12] text-white/60 hover:text-white hover:bg-white/[0.18] hover:border-white/[0.25] transition-all duration-200"
+                  whileHover={{ scale: 1.2, rotate: 10 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-gray-700 hover:border-blue-500 text-gray-400 hover:text-blue-400 transition-colors"
                 >
-                  <Icon className="w-[15px] h-[15px]" />
+                  <Icon className="w-4 h-4" />
                 </motion.a>
               );
             })}
-          </div>
-        </div>
-      </div>
+          </motion.div>
 
-      {/* ====== GIANT WATERMARK SECTION ====== */}
-      <div className="relative bg-[#00335a] py-6 overflow-hidden">
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#002a4d] via-transparent to-transparent pointer-events-none" />
-        
-        {/* Animated subtle glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] bg-[#005b96]/[0.08] rounded-full blur-3xl pointer-events-none" />
-
-        {/* Giant Text */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 flex items-center justify-center"
-        >
-          <h2
-            className="text-[clamp(3rem,12vw,10rem)] font-black tracking-[0.06em] leading-none text-transparent uppercase select-none"
-            style={{
-              WebkitTextStroke: '1.5px rgba(255,255,255,0.08)',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%)',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-            }}
+          {/* Bottom Section */}
+          <motion.div
+            variants={itemVariants}
+            className="flex flex-col md:flex-row items-center justify-between gap-3 pt-2"
           >
-            SGT UNIVERSITY
-          </h2>
+            <p className="text-gray-500 text-[11px]">
+              © {currentYear} SGT University. All rights reserved.
+            </p>
+            <div className="flex items-center gap-3 text-[11px] text-gray-500">
+              <a href="#" className="hover:text-gray-300 transition-colors">
+                Privacy
+              </a>
+              <a href="#" className="hover:text-gray-300 transition-colors">
+                Terms
+              </a>
+              <a href="#" className="hover:text-gray-300 transition-colors">
+                Sitemap
+              </a>
+            </div>
+          </motion.div>
         </motion.div>
-
-        {/* Bottom fade-out line */}
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-[1px] bg-gradient-to-r from-transparent via-white/[0.10] to-transparent" />
       </div>
+
+      {/* Gradient Border Top */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent"></div>
     </footer>
   );
 };

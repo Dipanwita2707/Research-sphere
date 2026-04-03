@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, restrictTo, checkPermission, checkAnyPermission, requireNotingPermission } = require('../../../shared/middleware/auth');
+const { protect, restrictTo, checkPermission, checkAnyPermission } = require('../../../shared/middleware/auth');
 const asyncHandler = require('../../../shared/utils/asyncHandler');
 const validators = require('../validators/noting.validators');
 const { requireDraftNote, requireNoteApprover } = require('../middleware/noteAuth');
@@ -27,30 +27,23 @@ const NOTING_APPROVAL_KEYS = [
   'non_academic_resources_approve',
 ];
 
-const allowAdminOr = (middleware) => async (req, res, next) => {
-  if (['admin', 'superadmin'].includes(req.user?.role)) {
-    return next();
-  }
-  return middleware(req, res, next);
-};
+const NOTING_CORE_ACTION_OPTIONS = { checkDefaultPermissions: false };
 
 // All routes require authentication
 router.use(protect);
 
 // Configuration and preview routes - require at least noting_create or noting_view_own
 router.get('/config',
-  allowAdminOr(
-    checkAnyPermission(['noting_create', 'noting_view_own', 'noting_view_all'], { checkDefaultPermissions: true })
-  ),
+  checkAnyPermission(['noting_create', 'noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   lookupCtrl.getConfig
 );
 router.get('/preview-id',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   validators.previewIdValidation,
   lookupCtrl.previewNotingId
 );
 router.get('/my-creator-info',
-  checkAnyPermission(['noting_create', 'noting_view_own'], { checkDefaultPermissions: true }),
+  checkAnyPermission(['noting_create', 'noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   lookupCtrl.getMyCreatorInfo
 );
 router.get('/counts',
@@ -93,7 +86,7 @@ router.get(
 // Get copies assigned to current user (must be before /:id)
 router.get(
   '/my-copies',
-  checkAnyPermission(['noting_view_own', 'noting_view_all'], { checkDefaultPermissions: true }),
+  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   copyCtrl.getMyCopies
 );
 
@@ -106,7 +99,7 @@ router.get(
 // Get clubs where current user is the faculty facilitator (for event noting club dropdown)
 router.get(
   '/my-facilitator-clubs',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   lookupCtrl.getMyFacilitatorClubs
 );
 
@@ -114,38 +107,38 @@ router.get(
 router.get(
   '/admin/analytics/overview',
   restrictTo('admin', 'superadmin'),
-  checkPermission('noting_view_all', { checkDefaultPermissions: true }),
+  checkPermission('noting_view_all', NOTING_CORE_ACTION_OPTIONS),
   validators.adminAnalyticsValidation,
   adminCtrl.getOverviewAnalytics
 );
 router.get(
   '/admin/analytics/users',
   restrictTo('admin', 'superadmin'),
-  checkPermission('noting_view_all', { checkDefaultPermissions: true }),
+  checkPermission('noting_view_all', NOTING_CORE_ACTION_OPTIONS),
   validators.adminAnalyticsValidation,
   adminCtrl.getUserAnalytics
 );
 router.get(
   '/admin/analytics/activity',
   restrictTo('admin', 'superadmin'),
-  checkPermission('noting_view_all', { checkDefaultPermissions: true }),
+  checkPermission('noting_view_all', NOTING_CORE_ACTION_OPTIONS),
   validators.adminActivityAnalyticsValidation,
   adminCtrl.getActivityAnalytics
 );
 
 // Note CRUD routes - require noting_create for write, noting_view_own for read
 router.post('/',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   validators.createNoteValidation,
   crudCtrl.create
 );
 router.get('/',
-  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], { checkDefaultPermissions: true }),
+  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   validators.listNotesValidation,
   crudCtrl.list
 );
 router.get('/:id',
-  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], { checkDefaultPermissions: true }),
+  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   validators.noteIdValidation,
   crudCtrl.getById
 );
@@ -153,19 +146,19 @@ router.get('/:id',
 // Note management routes - require noting_create
 router.patch(
   '/:id',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   validators.updateDraftValidation,
   crudCtrl.updateDraft
 );
 router.delete(
   '/:id',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   validators.noteIdValidation,
   crudCtrl.deleteDraft
 );
 router.post(
   '/:id/submit',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   validators.noteIdValidation,
   crudCtrl.submitDraft
 );
@@ -228,13 +221,13 @@ router.post(
 // Post-approval copy sharing routes
 router.post(
   '/:id/send-copy',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   validators.sendCopyValidation,
   copyCtrl.sendCopy
 );
 router.get(
   '/:id/copies',
-  checkAnyPermission(['noting_view_own', 'noting_view_all'], { checkDefaultPermissions: true }),
+  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   validators.noteIdValidation,
   copyCtrl.getCopies
 );
@@ -242,13 +235,13 @@ router.get(
 // Copy reply and forward (escalation) routes
 router.post(
   '/copy/:copyId/reply',
-  checkAnyPermission(['noting_view_own', 'noting_view_all'], { checkDefaultPermissions: true }),
+  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   validators.replyCopyValidation,
   copyCtrl.replyCopy
 );
 router.post(
   '/copy/:copyId/forward',
-  checkPermission('noting_create', { checkDefaultPermissions: true }),
+  checkPermission('noting_create', NOTING_CORE_ACTION_OPTIONS),
   validators.forwardCopyValidation,
   copyCtrl.forwardCopy
 );
@@ -256,7 +249,7 @@ router.post(
 // Complete a copy (mark as done)
 router.post(
   '/copy/:copyId/complete',
-  checkAnyPermission(['noting_view_own', 'noting_view_all'], { checkDefaultPermissions: true }),
+  checkAnyPermission(['noting_view_own', 'noting_view_department', 'noting_view_all'], NOTING_CORE_ACTION_OPTIONS),
   validators.completeCopyValidation,
   copyCtrl.completeCopy
 );

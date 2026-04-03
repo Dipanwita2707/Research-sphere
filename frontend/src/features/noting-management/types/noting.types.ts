@@ -39,6 +39,9 @@ export interface Note {
   notingId: string;
   category: NoteCategory;
   subcategory: string;
+  departmentId?: string | null;
+  departmentScope?: 'school' | 'central' | null;
+  departmentName?: string | null;
   description: string;
   approvalPeriod: ApprovalPeriod;
   recurringFrequency?: RecurringFrequency | null;
@@ -295,6 +298,8 @@ export interface CreateNoteAttachmentPayload {
 export interface CreateNotePayload {
   category: NoteCategory;
   subcategory: string;
+  departmentId?: string | null;
+  departmentScope?: 'school' | 'central' | null;
   description: string;
   approvalPeriod: ApprovalPeriod;
   recurringFrequency?: RecurringFrequency | null;

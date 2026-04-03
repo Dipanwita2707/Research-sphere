@@ -552,10 +552,10 @@ const CENTRAL_DEPARTMENT_PERMISSIONS = {
       description: "Can view notings created by self",
     },
     {
-      key: "noting_view_pending",
-      label: "View Pending Notings",
+      key: "noting_view_department",
+      label: "View Department Notings",
       category: "Core Actions",
-      description: "Can view notings pending their action",
+      description: "Can view notings within assigned departments",
     },
     {
       key: "noting_view_all",

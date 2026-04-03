@@ -213,7 +213,14 @@ async function bulkResolvePermissions(users, permissionKey) {
  * @param {string} modulePermissionKey - e.g. 'event_approve', 'dsw_approve_noting'
  * @returns {Promise<Object>} { canAutoForward, nextApproverId, reason, managerInfo }
  */
-async function determineNextApproverByReporting(note, modulePermissionKey) {
+async function determineNextApproverByReporting(note, modulePermissionKey, contextOverride = null) {
+  const reportingContext = contextOverride?.departmentScope && contextOverride?.departmentId
+    ? contextOverride
+    : {
+      departmentScope: note?.departmentScope,
+      departmentId: note?.departmentId,
+    };
+
   try {
     const creator = await prisma.userLogin.findUnique({
       where: { id: note.createdById },
@@ -240,7 +247,7 @@ async function determineNextApproverByReporting(note, modulePermissionKey) {
     }
 
     // Get immediate manager (single DB query via reportingService)
-    const manager = await reportingService.getDirectManager(creator.id);
+    const manager = await reportingService.getDirectManager(creator.id, reportingContext);
 
     if (!manager) {
       return {
@@ -324,7 +331,14 @@ function canOverrideWorkflowRouting(user) {
  * @param {string} modulePermissionKey - Required permission key
  * @returns {Promise<Array>}         - List of users who can receive forward
  */
-async function getEligibleForwardTargets(userId, note, modulePermissionKey) {
+async function getEligibleForwardTargets(userId, note, modulePermissionKey, contextOverride = null) {
+  const reportingContext = contextOverride?.departmentScope && contextOverride?.departmentId
+    ? contextOverride
+    : {
+      departmentScope: note?.departmentScope,
+      departmentId: note?.departmentId,
+    };
+
   const currentUser = await prisma.userLogin.findUnique({
     where: { id: userId },
     select: {
@@ -345,7 +359,7 @@ async function getEligibleForwardTargets(userId, note, modulePermissionKey) {
   }
 
   // ── Regular user path — walk reporting chain ──────────────────────────────
-  const reportingChain = await reportingService.getReportingChain(userId);
+  const reportingChain = await reportingService.getReportingChain(userId, reportingContext);
   if (!reportingChain || reportingChain.length === 0) return [];
 
   // Batch-resolve permissions for all chain members in one round-trip

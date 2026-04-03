@@ -309,6 +309,19 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
 
       {/* ── Form Body ── */}
       <div className="p-6 space-y-5">
+        {Object.keys(errors).length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-semibold text-red-700">
+              Please fix the highlighted fields before continuing.
+            </p>
+            <div className="mt-1 text-xs text-red-700">
+              {Object.values(errors)
+                .slice(0, 3)
+                .join(" | ")}
+            </div>
+          </div>
+        )}
+
         {/* ════════════ STEP 1 – Club Details ════════════ */}
         {currentStep === 1 && (
           <>
@@ -574,7 +587,7 @@ export default function ClubCreationForm({ disabled }: { disabled?: boolean }) {
             {/* Initial Members */}
             <div>
               <label className="block text-sm font-medium text-ev-800 mb-1">
-                Initial Club Members <span className="text-red-500">*</span>
+                Initial Club Members
                 <span className="text-xs font-normal text-gray-400 ml-2">
                   ({(value.initialMembers || []).length}/50 added)
                 </span>

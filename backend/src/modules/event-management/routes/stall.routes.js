@@ -7,7 +7,15 @@
 const express = require('express');
 const router = express.Router({ mergeParams: true });
 const stallController = require('../controllers/stall.controller');
-const { validateEventId } = require('../validators/event.validators');
+const {
+    validateEventId,
+    validateStallApplicationSubmit,
+    validateStallApplicationReview,
+    validateStallBulkUpdate,
+    validateStallParams,
+    validateStallCreate,
+    validateStallUpdate,
+} = require('../validators/event.validators');
 const { checkAnyPermission } = require('../../../shared/middleware/auth');
 
 const eventManagePerm = checkAnyPermission(
@@ -23,13 +31,13 @@ router.get('/:id/stall-applications/my', validateEventId, stallController.getMyS
 // Bulk update applications
 router.patch(
     '/:id/stall-applications/bulk',
-    validateEventId,
+    validateStallBulkUpdate,
     eventManagePerm,
     stallController.bulkUpdateStallApplications
 );
 
 // Submit stall application (any authenticated user / student)
-router.post('/:id/stall-applications', validateEventId, stallController.submitStallApplication);
+router.post('/:id/stall-applications', validateStallApplicationSubmit, stallController.submitStallApplication);
 
 // Get all applications for an event (creator only)
 router.get(
@@ -50,7 +58,7 @@ router.patch(
 // Approve / reject a specific application
 router.patch(
     '/:id/stall-applications/:appId',
-    validateEventId,
+    validateStallApplicationReview,
     eventManagePerm,
     stallController.updateStallApplication
 );
@@ -61,12 +69,12 @@ router.patch(
 router.get('/:id/stalls', validateEventId, eventManagePerm, stallController.getStalls);
 
 // Creator adds a stall directly
-router.post('/:id/stalls', validateEventId, eventManagePerm, stallController.createStall);
+router.post('/:id/stalls', validateStallCreate, eventManagePerm, stallController.createStall);
 
 // Creator updates a stall
-router.patch('/:id/stalls/:stallId', validateEventId, eventManagePerm, stallController.updateStall);
+router.patch('/:id/stalls/:stallId', validateStallUpdate, eventManagePerm, stallController.updateStall);
 
 // Creator deletes a stall
-router.delete('/:id/stalls/:stallId', validateEventId, eventManagePerm, stallController.deleteStall);
+router.delete('/:id/stalls/:stallId', validateStallParams, eventManagePerm, stallController.deleteStall);
 
 module.exports = router;

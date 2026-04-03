@@ -12,6 +12,14 @@ router.use(protect);
  * Accessible by admin or users with view_reporting_structure permission
  */
 router.get(
+  '/departments',
+  reportingStructureController.getDepartmentOptions
+);
+
+/**
+ * Get reporting structure department options (school + central)
+ */
+router.get(
   '/tree',
   // TODO: Uncomment when permissions are added
   // hasPermission('view_reporting_structure'),
@@ -24,7 +32,11 @@ router.get(
  */
 router.get(
   '/chain/:userId',
-  [param('userId').notEmpty().withMessage('User ID is required')],
+  [
+    param('userId').notEmpty().withMessage('User ID is required'),
+    query('departmentScope').optional().isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    query('departmentId').optional().notEmpty().withMessage('departmentId is required when departmentScope is provided'),
+  ],
   reportingStructureController.getReportingChain
 );
 
@@ -34,7 +46,11 @@ router.get(
  */
 router.get(
   '/manager/:userId',
-  [param('userId').notEmpty().withMessage('User ID is required')],
+  [
+    param('userId').notEmpty().withMessage('User ID is required'),
+    query('departmentScope').optional().isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    query('departmentId').optional().notEmpty().withMessage('departmentId is required when departmentScope is provided'),
+  ],
   reportingStructureController.getDirectManager
 );
 
@@ -47,6 +63,8 @@ router.get(
   [
     param('userId').notEmpty().withMessage('User ID is required'),
     query('direct').optional().isBoolean().withMessage('direct must be a boolean'),
+    query('departmentScope').optional().isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    query('departmentId').optional().notEmpty().withMessage('departmentId is required when departmentScope is provided'),
   ],
   reportingStructureController.getSubordinates
 );
@@ -63,6 +81,8 @@ router.post(
   [
     body('userId').notEmpty().withMessage('User ID is required'),
     body('managerId').notEmpty().withMessage('Manager ID is required'),
+    body('departmentScope').isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    body('departmentId').notEmpty().withMessage('departmentId is required'),
   ],
   reportingStructureController.assignReportingManager
 );
@@ -77,6 +97,8 @@ router.post(
   [
     body('userId').notEmpty().withMessage('User ID is required'),
     body('managerChain').isArray({ min: 1, max: 5 }).withMessage('Manager chain must be array with 1-5 managers'),
+    body('departmentScope').isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    body('departmentId').notEmpty().withMessage('departmentId is required'),
   ],
   reportingStructureController.assignManagerChain
 );
@@ -90,7 +112,11 @@ router.delete(
   // TODO: Uncomment when permissions are added
   // hasPermission('manage_reporting_structure'),
   restrictTo('admin'), // Temporarily restrict to admin only
-  [param('userId').notEmpty().withMessage('User ID is required')],
+  [
+    param('userId').notEmpty().withMessage('User ID is required'),
+    query('departmentScope').isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    query('departmentId').notEmpty().withMessage('departmentId is required'),
+  ],
   reportingStructureController.removeReportingRelationship
 );
 
@@ -104,6 +130,8 @@ router.post(
   [
     body('userId').notEmpty().withMessage('User ID is required'),
     body('newManagerId').notEmpty().withMessage('New Manager ID is required'),
+    body('departmentScope').isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    body('departmentId').notEmpty().withMessage('departmentId is required'),
   ],
   reportingStructureController.moveUser
 );
@@ -116,6 +144,8 @@ router.post(
   '/hierarchy-info',
   [
     body('userIds').isArray({ min: 1 }).withMessage('userIds must be a non-empty array'),
+    body('departmentScope').optional().isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    body('departmentId').optional().notEmpty().withMessage('departmentId is required when departmentScope is provided'),
   ],
   reportingStructureController.getBulkHierarchyInfo
 );
@@ -137,6 +167,8 @@ router.post(
     body('relationships.*.managerId')
       .notEmpty()
       .withMessage('Each relationship must have managerId'),
+    body('departmentScope').isIn(['school', 'central']).withMessage('departmentScope must be school or central'),
+    body('departmentId').notEmpty().withMessage('departmentId is required'),
   ],
   reportingStructureController.bulkImportReportingStructure
 );

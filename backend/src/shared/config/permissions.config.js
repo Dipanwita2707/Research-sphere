@@ -622,6 +622,21 @@ const getPermissionsForUI = () => {
 // Validate permission keys
 const isValidPermission = (key) => ALL_PERMISSION_KEYS.includes(key);
 
+// Legacy permission-key aliases to keep old stored JSON permissions working.
+const PERMISSION_KEY_ALIASES = {
+  noting_view_department: ['noting_view_pending'],
+  noting_view_pending: ['noting_view_department'],
+};
+
+const getPermissionKeyVariants = (key) => {
+  if (!key || typeof key !== 'string') return [];
+
+  const prefixedKey = `${key.split('_')[0]}_${key}`;
+  const aliases = PERMISSION_KEY_ALIASES[key] || [];
+
+  return Array.from(new Set([key, prefixedKey, ...aliases]));
+};
+
 // Get default permissions by role
 // Faculty and Students can file IPR and Research by default (inherent right)
 // Staff and Admin do NOT get filing by default - they need explicit checkbox
@@ -648,9 +663,8 @@ const getDefaultPermissions = (role) => {
       // These require explicit permission assignment
       dsw_view_club: true, // Faculty can view clubs
       dsw_request_club_change: true, // Faculty facilitators can request changes
-      // Noting Permissions - Faculty can create notings (events, curriculum, etc.)
-      noting_create: true, // Faculty can initiate notings for approval workflows
-      noting_view_own: true, // Faculty can view their own notings
+      // Noting Core Actions are explicit-assignment only.
+      // (Chairperson override for students is handled in auth middleware.)
       // Event Permissions
       event_create: true,         // Faculty can create events (via noting)
       event_manage_own: true,     // Faculty can manage their own events
@@ -665,8 +679,7 @@ const getDefaultPermissions = (role) => {
     staff: {
       // DSW Permissions - view only
       dsw_view_club: true, // Staff can view clubs
-      // Noting Permissions - view only by default
-      noting_view_own: true, // Staff can view notings they're involved in
+      // Noting Core Actions are explicit-assignment only.
       // TMS Permissions - same as faculty (staff are also employees)
       tms_view_assigned_tickets: true,  // Staff can view tickets assigned to them
       tms_update_ticket: true,          // Staff can add remarks to tickets
@@ -683,10 +696,7 @@ const getDefaultPermissions = (role) => {
       dsw_suspend_club: true,
       dsw_approve_club_change: true,
       dsw_view_audit_logs: true,
-      // Noting Permissions
-      // Admin needs global read access so the Noting workspace and analytics
-      // dashboard can load without requiring an extra explicit assignment.
-      noting_view_all: true,
+      // Noting Core Actions are explicit-assignment only.
       // Event Permissions
       event_view_all: true,
       event_manage_all: true,
@@ -899,6 +909,8 @@ function hasPermission(user, permissionKey) {
     return false;
   }
 
+  const permissionVariants = getPermissionKeyVariants(permissionKey);
+
   // Special case: DEAN role has all permissions
   if (user.role === "dean" || user.roleCode === "DEAN") {
     return true;
@@ -907,7 +919,7 @@ function hasPermission(user, permissionKey) {
   // Check direct department permissions (array of {permissions: {...}} objects from Prisma)
   if (Array.isArray(user.schoolDeptPermissions)) {
     for (const perm of user.schoolDeptPermissions) {
-      if (perm?.permissions?.[permissionKey] === true) {
+      if (permissionVariants.some((variant) => perm?.permissions?.[variant] === true)) {
         return true;
       }
     }
@@ -915,7 +927,7 @@ function hasPermission(user, permissionKey) {
 
   if (Array.isArray(user.centralDeptPermissions)) {
     for (const perm of user.centralDeptPermissions) {
-      if (perm?.permissions?.[permissionKey] === true) {
+      if (permissionVariants.some((variant) => perm?.permissions?.[variant] === true)) {
         return true;
       }
     }
@@ -926,13 +938,13 @@ function hasPermission(user, permissionKey) {
   if (
     defaultPermissions &&
     typeof defaultPermissions === 'object' &&
-    defaultPermissions[permissionKey] === true
+    permissionVariants.some((variant) => defaultPermissions[variant] === true)
   ) {
     return true;
   }
 
   // _resolvedRolePermissions is set by hasPermissionAsync after resolving assignedRoleIds
-  if (user._resolvedRolePermissions?.[permissionKey] === true) {
+  if (permissionVariants.some((variant) => user._resolvedRolePermissions?.[variant] === true)) {
     return true;
   }
 
@@ -948,6 +960,8 @@ function hasPermission(user, permissionKey) {
  * @returns {Promise<boolean>}
  */
 async function hasPermissionAsync(user, permissionKey) {
+  const permissionVariants = getPermissionKeyVariants(permissionKey);
+
   // First check sync permissions
   if (hasPermission(user, permissionKey)) {
     return true;
@@ -970,11 +984,11 @@ async function hasPermissionAsync(user, permissionKey) {
     for (const role of roles) {
       const perms = role.permissions || {};
       // Check central dept permissions from role
-      if (perms.centralDeptPermissions?.[permissionKey] === true) {
+      if (permissionVariants.some((variant) => perms.centralDeptPermissions?.[variant] === true)) {
         return true;
       }
       // Check school dept permissions from role
-      if (perms.schoolDeptPermissions?.[permissionKey] === true) {
+      if (permissionVariants.some((variant) => perms.schoolDeptPermissions?.[variant] === true)) {
         return true;
       }
     }
@@ -1012,6 +1026,7 @@ module.exports = {
   // Utility Functions
   getPermissionsForUI,
   isValidPermission,
+  getPermissionKeyVariants,
   getDefaultPermissions,
   hasPermission,
   hasPermissionAsync,

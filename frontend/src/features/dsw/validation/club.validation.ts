@@ -69,7 +69,6 @@ export const clubFormSchema = z.object({
   facultyFacilitatorId: z.string().trim().min(1, "Faculty Facilitator is required"),
   initialMembers: z
     .array(z.string().trim().min(1))
-    .min(1, "Add at least one initial member")
     .max(50, "Cannot add more than 50 initial members"),
   targetStudentGroup: z
     .array(z.enum(targetGroups))
@@ -189,10 +188,53 @@ export function sanitizeClubFormData(
 export function flattenClubErrors(error: z.ZodError): Record<string, string> {
   const fieldErrors: Record<string, string> = {};
 
+  const labels: Record<string, string> = {
+    clubName: "Club Name",
+    clubCategoryId: "Club Category",
+    purpose: "Purpose / Objective",
+    academicSession: "Academic Session",
+    facultyFacilitatorId: "Faculty Facilitator",
+    initialMembers: "Initial Club Members",
+    targetStudentGroup: "Target Student Group",
+    expectedActivityTypes: "Expected Activity Types",
+    codeOfConductAccepted: "Code of Conduct",
+    antiDiscriminationAccepted: "Anti-Discrimination declaration",
+    meetingFrequency: "Meeting Frequency",
+    estimatedAnnualActivityCount: "Estimated Annual Activities",
+    proposedEmail: "Proposed Club Email",
+  };
+
+  const getFriendlyIssueMessage = (issue: z.ZodIssue, field: string) => {
+    const label = labels[field] || "This field";
+    const maybeTypeIssue = issue as z.ZodIssue & {
+      expected?: string;
+    };
+    const rawMessage = String(issue.message || "").toLowerCase();
+    const isMissingValue = rawMessage.includes("received undefined");
+
+    if (issue.code === "invalid_type" && isMissingValue) {
+      return `${label} is required`;
+    }
+
+    if (issue.code === "invalid_type" && maybeTypeIssue.expected === "array") {
+      return `Please select at least one option for ${label}`;
+    }
+
+    if (issue.code === "invalid_type" && maybeTypeIssue.expected === "string") {
+      return `${label} is required`;
+    }
+
+    if (issue.code === "invalid_type" && maybeTypeIssue.expected === "number") {
+      return `${label} is required`;
+    }
+
+    return issue.message;
+  };
+
   for (const issue of error.issues) {
     const field = String(issue.path[0] ?? "form");
     if (!fieldErrors[field]) {
-      fieldErrors[field] = issue.message;
+      fieldErrors[field] = getFriendlyIssueMessage(issue, field);
     }
   }
 

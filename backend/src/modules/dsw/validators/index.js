@@ -91,13 +91,16 @@ const clubCreationBodySchema = z
       (value) => sanitizePlainText(value, { maxLength: 256 }),
       z
         .string()
-        .min(3, "Club name must be between 3 and 256 characters")
-        .max(256, "Club name must be between 3 and 256 characters"),
+        .min(3, "Club Name validation failed: Club name must be at least 3 characters")
+        .max(100, "Club Name validation failed: Club name must not exceed 100 characters"),
     ),
     categoryId: z.string().uuid("Invalid category ID"),
     purpose: z.preprocess(
       (value) => sanitizePlainText(value, { maxLength: 4000 }),
-      z.string().min(50, "Purpose must be at least 50 characters"),
+      z
+        .string()
+        .min(50, "Purpose validation failed: Purpose must be at least 50 characters")
+        .max(2000, "Purpose validation failed: Purpose must not exceed 2000 characters"),
     ),
     academicSession: z.preprocess(
       (value) => normalizeAcademicSession(value),
@@ -145,13 +148,13 @@ const clubCreationBodySchema = z
       z
         .number()
         .int()
-        .min(1, "Activity count must be between 1 and 100")
-        .max(100, "Activity count must be between 1 and 100"),
+        .min(1, "Activity Count validation failed: Must be at least 1 activity per year")
+        .max(365, "Activity Count validation failed: Cannot exceed 365 activities per year"),
     ),
     proposedEmail: z.preprocess((value) => {
       if (value === undefined || value === null || value === "") return undefined;
       return sanitizeEmail(value);
-    }, z.string().email("Invalid email format").optional()),
+    }, z.string().email("Email validation failed: Enter a valid email address (e.g. club@sgtuniversity.org)").optional()),
     socialMediaHandles: socialMediaSchema,
     expectedStudentStrength: optionalInteger(
       1,
@@ -224,6 +227,34 @@ const validateGetClubs = validateRequest({
 
 const validateClubId = validateRequest({
   params: clubIdParamsSchema,
+});
+
+const validateClubUpdate = validateRequest({
+  params: clubIdParamsSchema,
+  body: z
+    .object({
+      proposedEmail: z.preprocess((value) => {
+        if (value === undefined || value === null || value === "") return undefined;
+        return sanitizeEmail(value);
+      }, z.string().email("Enter a valid email address (e.g. club@sgtuniversity.org)").optional()),
+      socialMediaHandles: socialMediaSchema,
+      expectedStudentStrength: optionalInteger(
+        2,
+        10000,
+        "Expected student strength must be between 2 and 10000",
+      ),
+      metadata: z.record(z.any()).optional(),
+    })
+    .strict(),
+});
+
+const validateProcessApproval = validateRequest({
+  body: z
+    .object({
+      notingId: z.string().uuid("Invalid noting ID"),
+      approvedById: z.string().uuid("Invalid approver ID"),
+    })
+    .strip(),
 });
 
 const validateCategoryCreation = validateRequest({
@@ -312,6 +343,8 @@ module.exports = {
   validateClubChangeRequest,
   validateGetClubs,
   validateClubId,
+  validateClubUpdate,
+  validateProcessApproval,
   validateCategoryCreation,
   validateCategoryUpdate,
   validateClubApplicationCreate,
