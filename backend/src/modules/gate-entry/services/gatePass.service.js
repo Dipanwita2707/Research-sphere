@@ -1,12 +1,29 @@
 const prisma = require('../../../shared/config/database');
 const QRCode = require('qrcode');
 const XLSX = require('xlsx');
+const cache = require('../../../shared/config/redis');
 const { hasViewAllPermission } = require('../../../shared/middleware/gateEntryAuth');
 
 // Simple logger
 const logger = {
   info: (msg, data) => console.log('[INFO]', msg, data || ''),
   error: (msg, error) => console.error('[ERROR]', msg, error)
+};
+
+const getISTCalendarDateUtcMidnight = () => {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(now);
+
+  const year = parts.find((p) => p.type === 'year')?.value;
+  const month = parts.find((p) => p.type === 'month')?.value;
+  const day = parts.find((p) => p.type === 'day')?.value;
+
+  return new Date(`${year}-${month}-${day}T00:00:00.000Z`);
 };
 
 // Match hostel booking availability cutoff behavior used in booking creation flow.
@@ -555,7 +572,7 @@ class GatePassService {
           special_instructions: data.special_instructions || null,
 
           // Status fields
-          status: 'active', // Legacy field
+          status: 'pending', // Legacy field mirrors pass_status='created'
           qr_status: 'inactive', // New field - QR activates 5 hours before entry
           pass_status: 'created', // New field - replaces status
           checkout_qr_expires_at: checkout_qr_expires_at, // Expiry at midnight after visit end date
@@ -778,11 +795,8 @@ class GatePassService {
    */
   async expirePastPasses() {
     try {
-      // Get today's date at midnight IST
-      const today = new Date();
-      const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-      const todayIST = new Date(today.getTime() + istOffset);
-      todayIST.setUTCHours(0, 0, 0, 0);
+      // Use IST calendar date represented as UTC midnight for date-only comparisons.
+      const todayIST = getISTCalendarDateUtcMidnight();
 
       console.log('[EXPIRE CHECK] Today IST:', todayIST.toISOString());
 
@@ -801,7 +815,7 @@ class GatePassService {
               visit_end_date: { lt: todayIST }
             }
           ],
-          pass_status: { notIn: ['checked_out', 'cancelled', 'expired'] }
+          pass_status: { notIn: ['cancelled', 'expired'] }
         },
         data: {
           status: 'expired', // Legacy field
@@ -854,11 +868,8 @@ class GatePassService {
       // Build where clause for filtering by user
       const whereBase = !showAllPasses && userId ? { created_by_id: userId } : {};
 
-      // Get today's date at midnight IST (matching expirePastPasses logic)
-      const today = new Date();
-      const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5:30
-      const todayIST = new Date(today.getTime() + istOffset);
-      todayIST.setUTCHours(0, 0, 0, 0);
+      // Keep stats cutoff aligned with expiry cutoff.
+      const todayIST = getISTCalendarDateUtcMidnight();
 
       const tomorrowIST = new Date(todayIST.getTime() + 24 * 60 * 60 * 1000);
 
@@ -870,7 +881,7 @@ class GatePassService {
         prisma.gate_pass.count({
           where: {
             ...whereBase,
-            status: 'active',
+            pass_status: { in: ['created', 'pending', 'approved', 'active', 'checked_in', 'checked_out'] },
             visit_date: { gte: todayIST, lt: tomorrowIST }
           }
         }),
@@ -878,13 +889,13 @@ class GatePassService {
         prisma.gate_pass.count({
           where: {
             ...whereBase,
-            status: { in: ['active', 'checked_in', 'pending'] }
+            pass_status: { in: ['created', 'pending', 'approved', 'active', 'checked_in', 'checked_out'] }
           }
         }),
         // Completed
-        prisma.gate_pass.count({ where: { ...whereBase, status: 'completed' } }),
+        prisma.gate_pass.count({ where: { ...whereBase, pass_status: 'completed' } }),
         // Expired
-        prisma.gate_pass.count({ where: { ...whereBase, status: 'expired' } })
+        prisma.gate_pass.count({ where: { ...whereBase, pass_status: 'expired' } })
       ]);
 
       return {
@@ -908,23 +919,129 @@ class GatePassService {
       // NOTE: Not auto-expiring here to keep verification fast
       // Pass expiry is checked individually after retrieval
 
+      const verifySelect = {
+        id: true,
+        pass_id: true,
+        status: true,
+        pass_status: true,
+        visitor_name: true,
+        mobile_number: true,
+        visitor_relation: true,
+        purpose_of_visit: true,
+        purpose_other: true,
+        visit_date: true,
+        visit_end_date: true,
+        expected_entry_time: true,
+        expected_exit_time: true,
+        entry_time: true,
+        actual_entry_time: true,
+        actual_exit_time: true,
+        qr_status: true,
+        qr_activation_time: true,
+        verification_code: true,
+        checkout_unique_id: true,
+        checkout_verification_code: true,
+        checkout_qr_code: true,
+        checkout_qr_expires_at: true,
+        extension_count: true,
+        extension_reason: true,
+        has_vehicle: true,
+        vehicle_number: true,
+        vehicle_type: true,
+        vehicle_model: true,
+        stay_required: true,
+        created_at: true,
+        updated_at: true,
+        cancellation_time: true,
+        cancellation_reason: true,
+        hostel_bookings: {
+          take: 1,
+          orderBy: { created_at: 'desc' },
+          select: {
+            id: true,
+            booking_status: true,
+            payment_status: true,
+            check_in_datetime: true,
+            check_out_datetime: true,
+            total_price: true,
+            requested_checkin_time: true,
+            checkin_request_status: true,
+            checkin_request_reject_reason: true,
+            room_cancel_request_status: true,
+            room_cancel_request_reason: true,
+            room_cancel_request_reject_reason: true,
+            room_cancel_request_requested_at: true,
+            room_cancel_request_reviewed_at: true,
+            room: {
+              select: {
+                room_number: true,
+                hostel: {
+                  select: {
+                    name: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        daily_entries: {
+          select: {
+            id: true,
+            day_number: true,
+            entry_date: true,
+            entry_time: true,
+            exit_time: true,
+            entry_gate: true,
+            exit_gate: true
+          },
+          orderBy: [{ day_number: 'asc' }, { entry_time: 'asc' }]
+        }
+      };
+
       const where = {};
+      let pass;
 
       if (searchType === 'pass_id') {
-        where.pass_id = { equals: searchTerm, mode: 'insensitive' };
+        const normalizedPassId = searchTerm.trim().toUpperCase();
+
+        // Fast path: unique lookup against normalized pass ID.
+        pass = await prisma.gate_pass.findUnique({
+          where: { pass_id: normalizedPassId },
+          select: verifySelect
+        });
+
+        // Compatibility fallback for any legacy non-standard casing.
+        if (!pass) {
+          where.pass_id = { equals: searchTerm.trim(), mode: 'insensitive' };
+        }
       } else if (searchType === 'mobile') {
-        where.mobile_number = searchTerm;
+        where.mobile_number = searchTerm.trim();
       } else if (searchType === 'name') {
-        where.visitor_name = { contains: searchTerm, mode: 'insensitive' };
+        where.visitor_name = { contains: searchTerm.trim(), mode: 'insensitive' };
       } else if (searchType === 'vehicle') {
-        where.vehicle_number = { equals: searchTerm, mode: 'insensitive' };
+        const normalizedVehicleNumber = searchTerm.trim().toUpperCase();
+
+        // Fast path: exact normalized match first.
+        pass = await prisma.gate_pass.findFirst({
+          where: { vehicle_number: normalizedVehicleNumber },
+          orderBy: { updated_at: 'desc' },
+          select: verifySelect
+        });
+
+        // Compatibility fallback for mixed-case stored values.
+        if (!pass) {
+          where.vehicle_number = { equals: searchTerm.trim(), mode: 'insensitive' };
+        }
       } else if (searchType === 'checkout_qr') {
         // Handle checkout QR verification (for cancelled passes with new unique checkout ID)
         try {
           const qrData = JSON.parse(searchTerm);
           if (qrData.type === 'CHECKOUT' && qrData.checkout_id) {
-            // Search by the NEW checkout_unique_id
-            where.checkout_unique_id = qrData.checkout_id;
+            // checkout_unique_id is unique; use direct lookup.
+            pass = await prisma.gate_pass.findUnique({
+              where: { checkout_unique_id: qrData.checkout_id },
+              select: verifySelect
+            });
             logger.info(`[VERIFY] Checkout QR scanned with checkout ID: ${qrData.checkout_id}`);
           } else {
             throw new Error('Invalid checkout QR code format');
@@ -934,9 +1051,13 @@ class GatePassService {
         }
       }
 
-      let pass = await prisma.gate_pass.findFirst({
-        where
-      });
+      if (!pass) {
+        pass = await prisma.gate_pass.findFirst({
+          where,
+          orderBy: { updated_at: 'desc' },
+          select: verifySelect
+        });
+      }
 
       if (!pass) {
         return null;
@@ -1008,15 +1129,6 @@ class GatePassService {
             logger.info(`Real-time QR activation for pass: ${pass.pass_id}`);
           }
         }
-      }
-
-      // Attach daily entry records for all passes (in/out tracking)
-      {
-        const dailyEntries = await prisma.gate_pass_daily_entry.findMany({
-          where: { gate_pass_id: pass.id },
-          orderBy: [{ day_number: 'asc' }, { entry_time: 'asc' }]
-        });
-        pass.daily_entries = dailyEntries;
       }
 
       // Return pass data
@@ -2205,11 +2317,23 @@ class GatePassService {
       });
 
       if (finalRoom.id === booking.room_id) {
+        const normalizedPaymentStatus = requiresPaymentResult
+          ? 'pending'
+          : (booking.payment_status === 'refunded' ? 'completed' : (booking.payment_status || 'completed'));
+
         const bookingPatch = {
           check_out_datetime: extensionCheckoutDeadline,
           billable_days: newBillableDays,
           price_per_day: newPricePerDay,
           total_price: newTotalPrice,
+          booking_status: requiresPaymentResult ? 'pending' : 'confirmed',
+          payment_status: normalizedPaymentStatus,
+          room_cancel_request_status: null,
+          room_cancel_request_reason: null,
+          room_cancel_request_requested_at: null,
+          room_cancel_request_reviewed_by_id: null,
+          room_cancel_request_reviewed_at: null,
+          room_cancel_request_reject_reason: null,
           updated_at: new Date()
         };
 
@@ -2217,8 +2341,6 @@ class GatePassService {
           const paymentQR = await hostelBookingService.generatePaymentQR(booking.id, additionalAmount);
           bookingPatch.payment_qr_code = paymentQR;
           bookingPatch.payment_reference = `EXT-${booking.id.substring(0, 8).toUpperCase()}`;
-          bookingPatch.payment_status = 'pending';
-          bookingPatch.booking_status = 'pending';
         }
 
         await tx.hostelBooking.update({
@@ -2628,6 +2750,19 @@ class GatePassService {
   async getAdvancedAnalytics(filters = {}) {
     try {
       const { dateFrom, dateTo, purpose, status, vehicleType } = filters;
+
+      const normalizedFilterKey = JSON.stringify({
+        dateFrom: dateFrom || null,
+        dateTo: dateTo || null,
+        purpose: purpose || 'all',
+        status: status || 'all',
+        vehicleType: vehicleType || 'all'
+      });
+      const cacheKey = `${cache.CACHE_KEYS.ANALYTICS}gate-entry:advanced:${normalizedFilterKey}`;
+      const cachedAnalytics = await cache.get(cacheKey);
+      if (cachedAnalytics) {
+        return cachedAnalytics;
+      }
 
       // Build where clause based on filters
       const whereClause = {};
@@ -3211,7 +3346,7 @@ class GatePassService {
       };
 
       // Return comprehensive analytics
-      return {
+      const analyticsPayload = {
         overview: {
           total,
           activeToday,
@@ -3247,6 +3382,9 @@ class GatePassService {
           vehicleType: vehicleType || 'all'
         }
       };
+
+      await cache.set(cacheKey, analyticsPayload, cache.CACHE_TTL.ANALYTICS);
+      return analyticsPayload;
     } catch (error) {
       logger.error('Error fetching advanced analytics:', error);
       throw error;

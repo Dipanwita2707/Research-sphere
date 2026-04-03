@@ -166,8 +166,32 @@ function GateEntryAnalyticsPageContent() {
   const [purposeFilter, setPurposeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [vehicleTypeFilter, setVehicleTypeFilter] = useState('all');
+  const [hasInitialized, setHasInitialized] = useState(false);
   const cardClass = 'bg-white rounded-2xl border border-[#6497b1] shadow-[0_10px_24px_rgba(3,57,108,0.12)]';
   const inputClass = 'w-full px-3 py-3 pl-10 border border-[#b3cde0] rounded-xl bg-white focus:ring-2 focus:ring-[#6497b1] focus:border-[#005b96] transition-all';
+
+  const buildActiveFilters = useCallback((overrides?: {
+    dateFrom?: string;
+    dateTo?: string;
+    purpose?: string;
+    status?: string;
+    vehicleType?: string;
+  }) => {
+    const effectiveDateFrom = overrides?.dateFrom ?? dateFrom;
+    const effectiveDateTo = overrides?.dateTo ?? dateTo;
+    const effectivePurpose = overrides?.purpose ?? purposeFilter;
+    const effectiveStatus = overrides?.status ?? statusFilter;
+    const effectiveVehicleType = overrides?.vehicleType ?? vehicleTypeFilter;
+
+    const filters: any = {};
+    if (effectiveDateFrom) filters.dateFrom = effectiveDateFrom;
+    if (effectiveDateTo) filters.dateTo = effectiveDateTo;
+    if (effectivePurpose !== 'all') filters.purpose = effectivePurpose;
+    if (effectiveStatus !== 'all') filters.status = effectiveStatus;
+    if (effectiveVehicleType !== 'all') filters.vehicleType = effectiveVehicleType;
+
+    return filters;
+  }, [dateFrom, dateTo, purposeFilter, statusFilter, vehicleTypeFilter]);
 
   // Check permission on mount
   useEffect(() => {
@@ -195,18 +219,7 @@ function GateEntryAnalyticsPageContent() {
       setLoading(true);
       setError(null);
 
-      const filters: any = {};
-      const effectiveDateFrom = overrideFilters?.dateFrom ?? dateFrom;
-      const effectiveDateTo = overrideFilters?.dateTo ?? dateTo;
-      const effectivePurpose = overrideFilters?.purpose ?? purposeFilter;
-      const effectiveStatus = overrideFilters?.status ?? statusFilter;
-      const effectiveVehicleType = overrideFilters?.vehicleType ?? vehicleTypeFilter;
-
-      if (effectiveDateFrom) filters.dateFrom = effectiveDateFrom;
-      if (effectiveDateTo) filters.dateTo = effectiveDateTo;
-      if (effectivePurpose !== 'all') filters.purpose = effectivePurpose;
-      if (effectiveStatus !== 'all') filters.status = effectiveStatus;
-      if (effectiveVehicleType !== 'all') filters.vehicleType = effectiveVehicleType;
+      const filters = buildActiveFilters(overrideFilters);
 
       const response = await gateEntryService.getAnalytics(filters);
       
@@ -220,16 +233,18 @@ function GateEntryAnalyticsPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, purposeFilter, statusFilter, vehicleTypeFilter, t]);
+  }, [buildActiveFilters, t]);
 
   // Initial load
   useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+    if (hasInitialized) return;
+    setHasInitialized(true);
+    fetchAnalytics(buildActiveFilters());
+  }, [hasInitialized, fetchAnalytics, buildActiveFilters]);
 
   // Apply filters
   const handleApplyFilters = () => {
-    fetchAnalytics();
+    fetchAnalytics(buildActiveFilters());
   };
 
   // Reset filters
@@ -498,7 +513,7 @@ function GateEntryAnalyticsPageContent() {
               {/* Bottom Row: Action Buttons */}
               <div className="flex items-center gap-3 justify-end">
                 <button
-                  onClick={fetchAnalytics}
+                  onClick={() => fetchAnalytics(buildActiveFilters())}
                   disabled={loading}
                   className="flex items-center gap-2 px-4 py-2.5 bg-white/15 backdrop-blur-sm border border-white/30 text-white rounded-xl hover:bg-white/25 transition-all font-medium hover-lift disabled:opacity-50"
                 >
