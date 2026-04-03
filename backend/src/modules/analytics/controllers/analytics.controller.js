@@ -1,10 +1,18 @@
 const prisma = require('../../../shared/config/database');
+const cache = require('../../../shared/config/redis');
 
 /**
  * Get university overview statistics
  */
 exports.getUniversityOverview = async (req, res) => {
   try {
+    // Serve from cache when available (analytics data is acceptable to be 2min stale)
+    const CACHE_KEY = 'analytics:overview';
+    const cached = await cache.get(CACHE_KEY);
+    if (cached) {
+      return res.json({ success: true, data: JSON.parse(cached) });
+    }
+
     // Batch queries to reduce concurrent connections
     // First batch: Schools and Departments
     const [
@@ -51,25 +59,24 @@ exports.getUniversityOverview = async (req, res) => {
       }),
     ]);
 
-    res.json({
-      success: true,
-      data: {
-        university: {
-          schools: { total: totalSchools, active: activeSchools },
-          departments: { total: totalDepartments, active: activeDepartments },
-          programmes: { total: totalProgrammes },
-        },
-        users: {
-          employees: { total: totalEmployees, active: activeEmployees },
-          students: { total: totalStudents, active: activeStudents },
-        },
-        ipr: {
-          total: totalIprApplications,
-          approved: approvedIpr,
-          pending: pendingIpr,
-        },
+    const overviewData = {
+      university: {
+        schools: { total: totalSchools, active: activeSchools },
+        departments: { total: totalDepartments, active: activeDepartments },
+        programmes: { total: totalProgrammes },
       },
-    });
+      users: {
+        employees: { total: totalEmployees, active: activeEmployees },
+        students: { total: totalStudents, active: activeStudents },
+      },
+      ipr: {
+        total: totalIprApplications,
+        approved: approvedIpr,
+        pending: pendingIpr,
+      },
+    };
+    await cache.set(CACHE_KEY, JSON.stringify(overviewData), 120);
+    return res.json({ success: true, data: overviewData });
   } catch (error) {
     console.error('Get university overview error:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch overview statistics' });
@@ -82,6 +89,13 @@ exports.getUniversityOverview = async (req, res) => {
 exports.getSchoolWiseStats = async (req, res) => {
   try {
     const { dateFrom, dateTo, iprType } = req.query;
+
+    // Cache key includes all query params so filtered results are cached separately
+    const CACHE_KEY = `analytics:schools:${dateFrom || ''}:${dateTo || ''}:${iprType || ''}`;
+    const cached = await cache.get(CACHE_KEY);
+    if (cached) {
+      return res.json({ success: true, data: JSON.parse(cached) });
+    }
 
     // Build IPR filter
     const iprWhere = {};
@@ -166,6 +180,7 @@ exports.getSchoolWiseStats = async (req, res) => {
       };
     });
 
+    await cache.set(CACHE_KEY, JSON.stringify(schoolStats), 300); // 5 min TTL
     res.json({
       success: true,
       data: schoolStats,
@@ -294,9 +309,7 @@ exports.getIprAnalytics = async (req, res) => {
 
     // Get applicant details filter if userType specified
     if (userType) {
-      where.applicantDetails = {
-        applicantType: userType,
-      };
+      where.applicantType = userType;
     }
 
     // Get total counts
@@ -324,10 +337,10 @@ exports.getIprAnalytics = async (req, res) => {
         _count: { id: true },
       }),
 
-      // Group by applicant type
-      prisma.iprApplicantDetails.groupBy({
+      // Group by applicant type (field is on IprApplication, not IprApplicantDetails)
+      prisma.iprApplication.groupBy({
         by: ['applicantType'],
-        where: where.applicantDetails || {},
+        where,
         _count: { id: true },
       }),
 
@@ -339,6 +352,7 @@ exports.getIprAnalytics = async (req, res) => {
           applicationNumber: true,
           title: true,
           iprType: true,
+          applicantType: true,
           status: true,
           createdAt: true,
           school: {
@@ -348,7 +362,11 @@ exports.getIprAnalytics = async (req, res) => {
             select: { departmentCode: true, departmentName: true },
           },
           applicantDetails: {
-            select: { applicantName: true, applicantType: true },
+            select: {
+              uid: true,
+              inventorName: true,
+              externalName: true,
+            },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -372,6 +390,16 @@ exports.getIprAnalytics = async (req, res) => {
       userTypeCounts[item.applicantType] = item._count.id;
     });
 
+    // Normalize recentApplications: derive a display name from available fields
+    const normalizedRecent = recentApplications.map(app => ({
+      ...app,
+      applicantDisplayName:
+        app.applicantDetails?.inventorName ||
+        app.applicantDetails?.externalName ||
+        app.applicantDetails?.uid ||
+        'Unknown',
+    }));
+
     res.json({
       success: true,
       data: {
@@ -379,7 +407,7 @@ exports.getIprAnalytics = async (req, res) => {
         byStatus: statusCounts,
         byType: typeCounts,
         byUserType: userTypeCounts,
-        recentApplications,
+        recentApplications: normalizedRecent,
       },
     });
   } catch (error) {
@@ -410,12 +438,14 @@ exports.getTopPerformers = async (req, res) => {
     const applications = await prisma.iprApplication.findMany({
       where,
       select: {
-        userId: true,
+        applicantUserId: true,
+        applicantType: true,
         status: true,
         applicantDetails: {
           select: {
-            applicantName: true,
-            applicantType: true,
+            uid: true,
+            inventorName: true,
+            externalName: true,
           },
         },
       },
@@ -424,13 +454,17 @@ exports.getTopPerformers = async (req, res) => {
     // Aggregate by user
     const userStats = new Map();
     applications.forEach(app => {
-      if (!app.userId) return;
-      
-      if (!userStats.has(app.userId)) {
-        userStats.set(app.userId, {
-          userId: app.userId,
-          name: app.applicantDetails?.applicantName || 'Unknown',
-          type: app.applicantDetails?.applicantType || 'unknown',
+      if (!app.applicantUserId) return;
+      const displayName =
+        app.applicantDetails?.inventorName ||
+        app.applicantDetails?.externalName ||
+        app.applicantDetails?.uid ||
+        'Unknown';
+      if (!userStats.has(app.applicantUserId)) {
+        userStats.set(app.applicantUserId, {
+          userId: app.applicantUserId,
+          name: displayName,
+          type: app.applicantType || 'unknown',
           total: 0,
           approved: 0,
           pending: 0,
@@ -438,7 +472,7 @@ exports.getTopPerformers = async (req, res) => {
         });
       }
 
-      const stats = userStats.get(app.userId);
+      const stats = userStats.get(app.applicantUserId);
       stats.total++;
 
       if (app.status === 'completed') {
@@ -471,6 +505,12 @@ exports.getTopPerformers = async (req, res) => {
 exports.getMonthlyTrend = async (req, res) => {
   try {
     const { schoolId, departmentId, year = new Date().getFullYear() } = req.query;
+
+    const CACHE_KEY = `analytics:monthly:${year}:${schoolId || ''}:${departmentId || ''}`;
+    const cached = await cache.get(CACHE_KEY);
+    if (cached) {
+      return res.json({ success: true, data: JSON.parse(cached) });
+    }
 
     // Build filter
     const where = {
@@ -514,6 +554,7 @@ exports.getMonthlyTrend = async (req, res) => {
       }
     });
 
+    await cache.set(CACHE_KEY, JSON.stringify(monthlyData), 300); // 5 min TTL
     res.json({
       success: true,
       data: monthlyData,

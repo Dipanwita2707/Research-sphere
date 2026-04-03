@@ -48,6 +48,9 @@ const hasDrdPermissions = (permissions: DepartmentPermission[]): boolean => {
     'ipr_review', 'ipr_approve', 'ipr_assign_school', 'ipr_recommend',
     'research_review', 'research_approve', 'research_assign_school',
     'book_review', 'book_approve', 'book_assign_school',
+    'applicant_analytics', 'drd_member_analytics',
+    'ipr_applicant_analytics', 'research_applicant_analytics', 'book_applicant_analytics',
+    'conference_applicant_analytics', 'grant_applicant_analytics',
     'drd_review', 'drd_approve', 'drd_recommend', 'drd_view_all',
     'view_all_ipr', 'review_ipr', 'approve_ipr', 'ipr'
   ];
@@ -152,6 +155,16 @@ export default function NavigationHeader() {
   const canFileResearch = isFaculty || isStudent || isAdmin || hasPermission(userPermissions, 'research_file_new');
   const hasDrdAccess = hasDrdPermissions(userPermissions) || isAdmin;
   const hasFinanceAccess = hasFinancePermissions(userPermissions);
+
+  const analyticsKeys = [
+    'applicant_analytics', 'drd_member_analytics',
+    'ipr_applicant_analytics', 'research_applicant_analytics',
+    'book_applicant_analytics', 'conference_applicant_analytics',
+    'grant_applicant_analytics',
+  ];
+  const hasAnalyticsAccess = isAdmin || userPermissions.some(dept =>
+    (dept.permissions || []).some(p => analyticsKeys.some(k => p.toLowerCase().includes(k)))
+  );
 
   // Review and Approval permissions
   const canReviewIpr = hasPermission(userPermissions, 'ipr_review') || hasPermission(userPermissions, 'review_ipr');
@@ -373,6 +386,19 @@ export default function NavigationHeader() {
       name: 'Review & Approve',
       description: 'Pending items for review',
       children: reviewApprovalChildren,
+    });
+  }
+
+  // Analytics section — gated by analytics-specific permissions
+  if (hasAnalyticsAccess) {
+    rndSubItems.push({
+      name: '📈 Analytics',
+      description: 'Research & IPR analytics dashboards',
+      children: [
+        { name: 'Overview', href: '/drd/analytics/overview', description: 'High-level KPIs & trends' },
+        { name: 'Applicant Analytics', href: '/drd/analytics/applicant', description: 'Submission trends by school & department' },
+        { name: 'DRD Member Performance', href: '/drd/analytics/drd-member', description: 'Review turnaround & workload' },
+      ],
     });
   }
 
