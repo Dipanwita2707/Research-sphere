@@ -15,11 +15,39 @@ function formatIssuePath(path) {
     .join("");
 }
 
+function humanizeIssueMessage(issue) {
+  const raw = issue?.message || "Invalid input";
+
+  // Keep custom/schema-authored messages as-is.
+  if (!raw.startsWith("Invalid input: expected")) {
+    return raw;
+  }
+
+  if (issue?.code === "invalid_type" && issue?.received === "undefined") {
+    return "This field is required";
+  }
+
+  if (issue?.code === "invalid_type" && issue?.expected === "array") {
+    return "Please select at least one option";
+  }
+
+  if (issue?.code === "invalid_type" && issue?.expected === "string") {
+    return "Please enter valid text";
+  }
+
+  if (issue?.code === "invalid_type" && issue?.expected === "number") {
+    return "Please enter a valid number";
+  }
+
+  return "Please enter a valid value";
+}
+
 function formatZodError(error) {
   return error.issues
     .map((issue) => {
       const path = formatIssuePath(issue.path);
-      return path === "request" ? issue.message : `${path}: ${issue.message}`;
+      const message = humanizeIssueMessage(issue);
+      return path === "request" ? message : `${path}: ${message}`;
     })
     .join("; ");
 }
@@ -30,7 +58,7 @@ function formatZodFieldErrors(error) {
   for (const issue of error.issues || []) {
     const path = formatIssuePath(issue.path);
     if (!fieldErrors[path]) {
-      fieldErrors[path] = issue.message;
+      fieldErrors[path] = humanizeIssueMessage(issue);
     }
   }
 
