@@ -307,7 +307,13 @@ export default function MyClubsPage() {
           </button>
           <button
             onClick={() => router.push("/dsw/create-club")}
-            className="ev-btn"
+            disabled={activeRequests.length > 0}
+            title={
+              activeRequests.length > 0
+                ? "You already have an active club request"
+                : "Create a new club request"
+            }
+            className="ev-btn disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
             New Club Request

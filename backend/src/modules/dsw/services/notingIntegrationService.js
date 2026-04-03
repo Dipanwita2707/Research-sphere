@@ -45,6 +45,58 @@ async function processApprovedClubCreationNoting(noting, approvedById) {
 }
 
 /**
+ * Find an active club-creation request (pending/draft) for the given student.
+ * Prevents duplicate parallel requests from the same student.
+ * @param {string} studentUserLoginId
+ * @returns {Promise<{id:string,notingId:string,status:string,clubName:string|null}|null>}
+ */
+async function findActiveClubCreationRequestForStudent(studentUserLoginId) {
+  const studentDetails = await prisma.studentDetails.findUnique({
+    where: { userLoginId: studentUserLoginId },
+    select: { id: true },
+  });
+
+  const orConditions = [
+    { clubInitialMembers: { has: studentUserLoginId } },
+  ];
+
+  if (studentDetails?.id) {
+    orConditions.push({ clubChairpersonId: studentDetails.id });
+  }
+
+  // Backward-compat: old requests may only reference the student in history remarks.
+  try {
+    const oldRows = await prisma.$queryRaw`
+      SELECT DISTINCT note_id
+      FROM note_history
+      WHERE remarks LIKE ${"%" + studentUserLoginId + "%"}
+    `;
+    const oldNoteIds = oldRows.map((r) => r.note_id).filter(Boolean);
+    if (oldNoteIds.length > 0) {
+      orConditions.push({ id: { in: oldNoteIds } });
+    }
+  } catch (_) {
+    // Non-fatal fallback path.
+  }
+
+  return prisma.note.findFirst({
+    where: {
+      category: DSWNotingConfig.CATEGORY,
+      subcategory: DSWNotingConfig.SUBCATEGORY,
+      status: { in: ["pending", "draft"] },
+      OR: orConditions,
+    },
+    select: {
+      id: true,
+      notingId: true,
+      status: true,
+      clubName: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/**
  * Create a Club Creation noting
  * This is called when a student initiates club creation.
  * The noting is assigned to the selected Faculty Facilitator,
@@ -55,6 +107,13 @@ async function processApprovedClubCreationNoting(noting, approvedById) {
  */
 async function createClubCreationNoting(clubData, createdById) {
   try {
+    const activeRequest = await findActiveClubCreationRequestForStudent(createdById);
+    if (activeRequest) {
+      throw new Error(
+        `You already have an active club request (${activeRequest.notingId}). Please wait until it is approved or resolved before creating a new one.`,
+      );
+    }
+
     // Generate noting ID
     const year = new Date().getFullYear();
     const prefix = `DSW-CLB-${year}-`;

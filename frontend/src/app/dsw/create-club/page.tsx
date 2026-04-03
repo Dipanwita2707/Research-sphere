@@ -2,12 +2,12 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Send, AlertCircle, Crown } from "lucide-react";
+import { ArrowLeft, Send, AlertCircle, Crown, FileText } from "lucide-react";
 import ClubCreationForm from "@/features/dsw/components/ClubCreationForm";
 import { notingAPI } from "@/features/dsw/services/api";
 import { useToast } from "@/shared/ui-components/Toast";
 import { useClubFormStore } from "@/features/dsw/stores/useClubFormStore";
-import { useMyClubs } from "@/features/dsw/hooks";
+import { useMyClubs, useMyClubRequests } from "@/features/dsw/hooks";
 import { useAuthStore } from "@/shared/auth/authStore";
 import {
   clubFormSchema,
@@ -20,9 +20,11 @@ export default function CreateClubPage() {
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
   const resetForm = useClubFormStore((state) => state.reset);
+  const currentStep = useClubFormStore((state) => state.currentStep);
 
   const { user: currentUser } = useAuthStore();
   const { data: myClubsData } = useMyClubs();
+  const { data: myClubRequests } = useMyClubRequests();
 
   // Check if this student is already chairperson of any non-archived club
   const existingChairClub = (myClubsData?.data ?? []).find(
@@ -30,13 +32,59 @@ export default function CreateClubPage() {
    currentUser?.id && c.status !== "archived",
   );
   const isAlreadyChairperson = !!existingChairClub;
+  const activeRequest = (myClubRequests ?? []).find(
+    (r) => r.status === "pending" || r.status === "draft",
+  );
+  const hasActiveRequest = !!activeRequest;
+  const isLastStep = currentStep === 3;
 
   const handleSubmit = async () => {
+    if (!isLastStep) {
+      setError(
+        "Please complete all steps first. Submit button becomes active only on Step 3 (Declarations).",
+      );
+      return;
+    }
+
     const clubData = sanitizeClubFormData(useClubFormStore.getState().data);
     const validation = clubFormSchema.safeParse(clubData);
     if (!validation.success) {
+      const FIELD_LABELS: Record<string, string> = {
+        clubName: "Club Name",
+        clubCategoryId: "Club Category",
+        purpose: "Purpose",
+        academicSession: "Academic Session",
+        facultyFacilitatorId: "Faculty Facilitator",
+        initialMembers: "Initial Members",
+        targetStudentGroup: "Target Student Group",
+        expectedActivityTypes: "Expected Activity Types",
+        codeOfConductAccepted: "Code of Conduct",
+        antiDiscriminationAccepted: "Anti-Discrimination Declaration",
+        meetingFrequency: "Meeting Frequency",
+        estimatedAnnualActivityCount: "Estimated Annual Activities",
+      };
+
       const messages = Array.from(
-        new Set(validation.error.issues.map((issue) => issue.message)),
+        new Set(
+          validation.error.issues.map((issue) => {
+            const expected = (issue as { expected?: string }).expected;
+            const rawMessage = String(issue.message || "").toLowerCase();
+            if (
+              issue.code === "invalid_type" &&
+              (rawMessage.includes("received undefined") ||
+                expected === "string" ||
+                expected === "number")
+            ) {
+              const key = String(issue.path?.[0] ?? "field");
+              return `${FIELD_LABELS[key] ?? key} is required`;
+            }
+            if (issue.code === "invalid_type" && expected === "array") {
+              const key = String(issue.path?.[0] ?? "field");
+              return `${FIELD_LABELS[key] ?? key}: please select at least one option`;
+            }
+            return issue.message;
+          }),
+        ),
       );
       setError(`Please complete all required fields:\n${messages.join("\n")}`);
       return;
@@ -48,6 +96,15 @@ export default function CreateClubPage() {
     // Hard block — student can only chair one club at a time
     if (isAlreadyChairperson) {
       setError(`You are already the chairperson of "${existingChairClub?.name}". A student can only be chairperson of one club at a time.`);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Hard block — only one active club request at a time
+    if (hasActiveRequest) {
+      setError(
+        `You already have an active club request (${activeRequest?.notingId}). Please wait for it to be resolved before submitting a new request.`,
+      );
       setIsSubmitting(false);
       return;
     }
@@ -178,6 +235,52 @@ export default function CreateClubPage() {
               </div>
             </div>
           </div>
+        ) : hasActiveRequest ? (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-blue-200 dark:border-blue-700 shadow-sm overflow-hidden">
+            <div className="bg-blue-50 dark:bg-blue-900/20 px-6 py-5 flex items-start gap-4 border-b border-blue-200 dark:border-blue-700">
+              <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-800/40 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-blue-900 dark:text-blue-200">
+                  Active Club Request Found
+                </h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  You can submit only one active club request at a time.
+                </p>
+              </div>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-ev-700">
+                Your existing request is currently in progress:
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3">
+                <p className="text-sm text-blue-900 dark:text-blue-200 font-semibold">
+                  {activeRequest?.clubName || "Club Request"}
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                  Noting ID: {activeRequest?.notingId} · Status: {activeRequest?.status}
+                </p>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => router.push("/dsw/my-clubs")}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  View My Requests
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/dsw/clubs")}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-semibold transition-colors"
+                >
+                  Browse All Clubs
+                </button>
+              </div>
+            </div>
+          </div>
         ) : (
           <>
             {/* Error Display */}
@@ -215,7 +318,7 @@ export default function CreateClubPage() {
 
                 <button
                   onClick={handleSubmit}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isLastStep}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 ev-btn disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
@@ -231,6 +334,12 @@ export default function CreateClubPage() {
                   )}
                 </button>
               </div>
+
+              {!isLastStep && (
+                <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+                  Complete Step {currentStep} and move to Step 3 to enable submission.
+                </p>
+              )}
 
               <div className="mt-4 bg-ev-50 border border-[#b3cde0] rounded-lg p-4">
                 <p className="text-sm text-ev-800">

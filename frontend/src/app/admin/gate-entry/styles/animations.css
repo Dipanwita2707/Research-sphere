@@ -368,6 +368,16 @@
   }
 }
 
+@media (max-width: 768px) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* ==================== Dark Mode Support ==================== */
 @media (prefers-color-scheme: dark) {
   .card-gradient {

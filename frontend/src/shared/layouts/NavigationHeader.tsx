@@ -1359,7 +1359,7 @@ export default function NavigationHeader() {
           </div>
 
           {/* Dark Mode Toggle */}
-          <button
+          {/* <button
             onClick={toggleTheme}
             className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
             title={theme ===
@@ -1371,7 +1371,7 @@ export default function NavigationHeader() {
             ) : (
               <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
-          </button>
+          </button> */}
 
           {/* Notifications */}
           <button
