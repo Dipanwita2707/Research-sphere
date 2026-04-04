@@ -5,6 +5,13 @@
  */
 
 const prisma = require('../../../shared/config/database');
+const { auditService, AuditActionType, AuditModule, AuditSeverity } = require('../../audit/services/audit.service');
+
+function _getIp(req) {
+  const fwd = req.headers?.['x-forwarded-for'];
+  if (fwd) return fwd.split(',')[0].trim();
+  return req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
+}
 
 // Tracking number generation
 const generateTrackingNumber = async (publicationType) => {
@@ -155,6 +162,21 @@ const createTracker = async (req, res) => {
         }
       }
     });
+
+    // Audit log (non-blocking)
+    auditService.log({
+      actorId: userId,
+      action: `Filed research progress tracker: ${tracker.title}`,
+      actionType: AuditActionType.CREATE,
+      module: AuditModule.RESEARCH,
+      category: 'progress_tracker',
+      severity: AuditSeverity.INFO,
+      targetTable: 'research_progress_trackers',
+      targetId: tracker.id,
+      newValues: { trackingNumber: tracker.trackingNumber, publicationType, title, currentStatus: initialStatus },
+      ipAddress: _getIp(req),
+      userAgent: req.headers['user-agent'],
+    }).catch(() => {});
 
     return res.status(201).json({
       success: true,
@@ -486,6 +508,24 @@ const updateTracker = async (req, res) => {
       }
     });
 
+    // Audit log for update (non-blocking)
+    if (changedFields.length > 0) {
+      auditService.log({
+        actorId: userId,
+        action: `Updated research progress tracker: ${updatedTracker.title}`,
+        actionType: AuditActionType.UPDATE,
+        module: AuditModule.RESEARCH,
+        category: 'progress_tracker',
+        severity: AuditSeverity.INFO,
+        targetTable: 'research_progress_trackers',
+        targetId: id,
+        newValues: updateData,
+        details: { changedFields },
+        ipAddress: _getIp(req),
+        userAgent: req.headers['user-agent'],
+      }).catch(() => {});
+    }
+
     return res.json({
       success: true,
       message: 'Tracker updated successfully',
@@ -624,6 +664,25 @@ const updateTrackerStatus = async (req, res) => {
       })
     ]);
 
+    // Audit log for status change / monthly progress (non-blocking)
+    auditService.log({
+      actorId: userId,
+      action: isMonthlyReportFlag
+        ? `Monthly progress report added for tracker: ${updatedTracker.title}`
+        : `Progress tracker status changed from ${tracker.currentStatus} to ${targetStatus}: ${updatedTracker.title}`,
+      actionType: isMonthlyReportFlag ? AuditActionType.UPDATE : AuditActionType.STATUS_CHANGE,
+      module: AuditModule.RESEARCH,
+      category: 'progress_tracker',
+      severity: AuditSeverity.INFO,
+      targetTable: 'research_progress_trackers',
+      targetId: id,
+      oldValues: { status: tracker.currentStatus },
+      newValues: { status: targetStatus },
+      details: { isMonthlyReport: isMonthlyReportFlag, notes, reportedDate, actualDate },
+      ipAddress: _getIp(req),
+      userAgent: req.headers['user-agent'],
+    }).catch(() => {});
+
     return res.json({
       success: true,
       message: `Status updated to ${newStatus}`,
@@ -678,6 +737,21 @@ const deleteTracker = async (req, res) => {
     await prisma.researchProgressTracker.delete({
       where: { id }
     });
+
+    // Audit log (non-blocking)
+    auditService.log({
+      actorId: userId,
+      action: `Deleted research progress tracker: ${tracker.title}`,
+      actionType: AuditActionType.DELETE,
+      module: AuditModule.RESEARCH,
+      category: 'progress_tracker',
+      severity: AuditSeverity.WARNING,
+      targetTable: 'research_progress_trackers',
+      targetId: id,
+      oldValues: { trackingNumber: tracker.trackingNumber, title: tracker.title, currentStatus: tracker.currentStatus },
+      ipAddress: _getIp(req),
+      userAgent: req.headers['user-agent'],
+    }).catch(() => {});
 
     return res.json({
       success: true,

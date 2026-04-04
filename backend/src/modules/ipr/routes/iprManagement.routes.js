@@ -92,19 +92,24 @@ router.get('/', protect, async (req, res) => {
       ]
     });
 
+    // Batch all counts into 3 groupBy queries instead of 8 sequential count() calls
+    const [statusGroups, typeGroups, priorityGroups] = await Promise.all([
+      prisma.iPR.groupBy({ by: ['status'], _count: { id: true } }),
+      prisma.iPR.groupBy({ by: ['type'], _count: { id: true } }),
+      prisma.iPR.groupBy({ by: ['priority'], _count: { id: true } }),
+    ]);
+    const cbs = Object.fromEntries(statusGroups.map(g => [g.status, g._count.id]));
+    const cbt = Object.fromEntries(typeGroups.map(g => [g.type, g._count.id]));
+    const cbp = Object.fromEntries(priorityGroups.map(g => [g.priority, g._count.id]));
     const statistics = {
-      total: await prisma.iPR.count(),
-      patents: await prisma.iPR.count({ where: { type: 'patent' } }),
-      copyrights: await prisma.iPR.count({ where: { type: 'copyright' } }),
-      trademarks: await prisma.iPR.count({ where: { type: 'trademark' } }),
-      pending: await prisma.iPR.count({ 
-        where: { status: { in: ['submitted', 'under_review'] } } 
-      }),
-      approved: await prisma.iPR.count({ 
-        where: { status: { in: ['approved', 'granted'] } } 
-      }),
-      rejected: await prisma.iPR.count({ where: { status: 'rejected' } }),
-      highPriority: await prisma.iPR.count({ where: { priority: 'high' } })
+      total: statusGroups.reduce((s, g) => s + g._count.id, 0),
+      patents: cbt['patent'] || 0,
+      copyrights: cbt['copyright'] || 0,
+      trademarks: cbt['trademark'] || 0,
+      pending: (cbs['submitted'] || 0) + (cbs['under_review'] || 0),
+      approved: (cbs['approved'] || 0) + (cbs['granted'] || 0),
+      rejected: cbs['rejected'] || 0,
+      highPriority: cbp['high'] || 0,
     };
 
     res.json({

@@ -36,6 +36,9 @@ async function handle(res, fn) {
 exports.getApplicantAnalytics = async (req, res) =>
   handle(res, () => service.getApplicantAnalytics(req.user, getFilters(req)));
 
+exports.getCategoryBreakdown = async (req, res) =>
+  handle(res, () => service.getCategoryBreakdown(req.user, getFilters(req)));
+
 exports.getApplicantSchoolAnalytics = async (req, res) =>
   handle(res, () =>
     service.getApplicantAnalytics(req.user, {

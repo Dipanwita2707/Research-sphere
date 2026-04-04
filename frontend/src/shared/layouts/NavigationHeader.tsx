@@ -116,7 +116,7 @@ export default function NavigationHeader() {
   const { data: notingPermsData } = useNotingPermissions({ enabled: !!user });
   const { data: myClubsData } = useMyClubs({ enabled: isStudent });
   const { data: unreadCount = 0 } = useUnreadNotificationCount({ enabled: !!user });
-  const { data: staffDashboardData } = useStaffDashboardSummary({ enabled: !!user });
+  const { data: staffDashboardData, isLoading: isNavLoading } = useStaffDashboardSummary({ enabled: !!user });
   const { data: hasVolunteerAssignments = false } = useHasVolunteerAssignments({ enabled: !!user });
   const userPermissions = staffDashboardData?.permissions || [];
   const hasNotingAccess = isAdmin || !!(
@@ -679,15 +679,23 @@ export default function NavigationHeader() {
   }
 
   // =====================================
-    // SYSTEM & COMMUNICATION - Chat + Mail grouped
+    // SYSTEM & COMMUNICATION - Chat + Mail grouped (hidden for now)
   // =====================================
-    menuItems.push({
-    name: 'System & Communication',
-    subItems: [
-      { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
-      { name: '📧 Mail', href: '/mail', description: 'Open the mail system' },
-    ],
-  });
+    // menuItems.push({
+    //   name: 'System & Communication',
+    //   subItems: [
+    //     { name: '💬 Chat', href: '/chat', description: 'Open the chat system' },
+    //     { name: '📧 Mail', href: '/mail', description: 'Open the mail system' },
+    //   ],
+    // });
+
+  // ── Active-route helper ──────────────────────────────────────────────────
+  /** Returns true if this item or any descendant href matches the current path */
+  const isItemActive = (item: SubMenuItem): boolean => {
+    if (item.href && item.href !== '#' && pathname.startsWith(item.href)) return true;
+    if (item.children) return item.children.some(isItemActive);
+    return false;
+  };
 
   return (
     <header
@@ -735,8 +743,21 @@ export default function NavigationHeader() {
             Dashboard
           </Link>
 
+          {/* Skeleton shimmer while menu data loads */}
+          {isNavLoading && !!user && (
+            <>
+              {[80, 96, 72, 88, 80].map((w, i) => (
+                <div
+                  key={i}
+                  className="h-8 rounded-lg animate-pulse bg-white/20"
+                  style={{ width: `${w}px` }}
+                />
+              ))}
+            </>
+          )}
+
           {/* Dynamic Menu Items */}
-          {menuItems.map((item) => (
+          {!isNavLoading && menuItems.map((item) => (
             <div
               key={item.name}
               className="relative"
@@ -790,36 +811,33 @@ export default function NavigationHeader() {
                 >
                   <div className="max-w-7xl mx-auto px-6 py-4 relative">
                     {/* Main Menu */}
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 transition-all duration-300 ${
+                    <div className={`grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden transition-all duration-300 ${
                       activeSubmenu ? 'invisible pointer-events-none' : 'visible'
                     }`}>
-                      {item.subItems.map((subItem) => (
-                        subItem.href ? (
+                      {item.subItems.map((subItem) => {
+                        const active = isItemActive(subItem);
+                        const itemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${
+                          active
+                            ? 'bg-[#005b96]/10'
+                            : 'hover:bg-[#005b96]/6'
+                        }`;
+                        const textCls = `text-sm font-semibold transition-colors truncate ${active ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
+                        const descCls = `text-xs mt-0.5 truncate ${active ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
+                        const iconCls = `w-4 h-4 transition-all ${active ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
+                        return subItem.href ? (
                           <Link
                             key={subItem.href}
                             href={subItem.href}
                             prefetch={getLinkPrefetch(subItem.href, subItem.prefetch)}
-                            onClick={() => {
-                              setActiveDropdown(null);
-                              setActiveSubmenu(null);
-                            }}
-                            className="group flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 hover:bg-[#005b96]/10"
+                            onClick={() => { setActiveDropdown(null); setActiveSubmenu(null); }}
+                            className={itemCls}
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold text-[#005b96] group-hover:text-[#003d66] transition-colors truncate">
-                                {subItem.name}
-                              </div>
-                              {subItem.description && (
-                                <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{subItem.description}</div>
-                              )}
+                              <div className={textCls}>{subItem.name}</div>
+                              {subItem.description && <div className={descCls}>{subItem.description}</div>}
                             </div>
                             <div className="ml-3 flex-shrink-0">
-                              <svg
-                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
+                              <svg className={iconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                               </svg>
                             </div>
@@ -828,60 +846,62 @@ export default function NavigationHeader() {
                           <button
                             key={subItem.name}
                             onClick={() => setActiveSubmenu(subItem.name)}
-                            className="group flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 hover:bg-[#005b96]/10 text-left"
+                            className={`${itemCls} text-left w-full`}
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-semibold text-[#005b96] group-hover:text-[#003d66] transition-colors truncate">
-                                {subItem.name}
-                              </div>
-                              {subItem.description && (
-                                <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{subItem.description}</div>
-                              )}
+                              <div className={textCls}>{subItem.name}</div>
+                              {subItem.description && <div className={descCls}>{subItem.description}</div>}
                             </div>
                             <div className="ml-3 flex-shrink-0">
-                              <svg
-                                className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                              >
+                              <svg className={iconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                               </svg>
                             </div>
                           </button>
-                        ) : null
-                      ))}
+                        ) : null;
+                      })}
                     </div>
 
                     {/* Nested Submenu Slide - Level 2 */}
                     {activeSubmenu && !activeSubmenu2 && (
-                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
-                        {/* Back Button */}
-                        <div className="mb-3">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/97" style={{ backdropFilter: 'blur(12px)' }}>
+                        {/* Back + Section header */}
+                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#005b96]/10">
                           <button
                             onClick={() => setActiveSubmenu(null)}
-                            className="flex items-center gap-2 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm"
+                            className="flex items-center gap-1.5 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm shrink-0"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
                             Back
                           </button>
+                          <span className="text-[#005b96]/30 text-sm">/</span>
+                          <span className="text-sm font-semibold text-[#003d66] truncate">{activeSubmenu}</span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden">
                           {item.subItems.find(si => si.name ===
    activeSubmenu)?.children?.map((child) => {
                             const isComingSoon = child.href ===
    '#' || child.description?.includes('Coming Soon');
                             const hasNestedChildren = child.children && child.children.length > 0;
+                            const childActive = isItemActive(child);
+                            const childItemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${
+                              childActive
+                                ? 'bg-[#005b96]/10'
+                                : 'hover:bg-[#005b96]/6'
+                            }`;
+                            const childTextCls = `text-sm font-semibold transition-colors truncate ${childActive ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
+                            const childDescCls = `text-xs mt-0.5 truncate ${childActive ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
+                            const childIconCls = `w-4 h-4 transition-all ${childActive ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
 
                             // Coming Soon items
                             if (isComingSoon && !hasNestedChildren) {
                               return (
                                 <div
                                   key={child.name}
-                                  className="group flex items-center justify-between py-2.5 px-3 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+                                  className="group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 bg-slate-50 cursor-not-allowed opacity-60"
                                 >
                                   <div className="flex-1 min-w-0">
                                     <div className="text-sm font-semibold text-gray-400 truncate flex items-center gap-2">
@@ -904,23 +924,14 @@ export default function NavigationHeader() {
                                 <button
                                   key={child.name}
                                   onClick={() => setActiveSubmenu2(child.name)}
-                                  className="group flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 hover:bg-[#005b96]/10 text-left"
+                                  className={`${childItemCls} text-left w-full`}
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-semibold text-[#005b96] group-hover:text-[#003d66] transition-colors truncate">
-                                      {child.name}
-                                    </div>
-                                    {child.description && (
-                                      <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{child.description}</div>
-                                    )}
+                                    <div className={childTextCls}>{child.name}</div>
+                                    {child.description && <div className={childDescCls}>{child.description}</div>}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
+                                    <svg className={childIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                     </svg>
                                   </div>
@@ -934,27 +945,15 @@ export default function NavigationHeader() {
                                 key={child.href || child.name}
                                 href={child.href!}
                                 prefetch={getLinkPrefetch(child.href, child.prefetch)}
-                                onClick={() => {
-                                  setActiveSubmenu(null);
-                                  setActiveDropdown(null);
-                                }}
-                                className="group flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 hover:bg-[#005b96]/10"
+                                onClick={() => { setActiveSubmenu(null); setActiveDropdown(null); }}
+                                className={childItemCls}
                               >
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-semibold text-[#005b96] group-hover:text-[#003d66] transition-colors truncate">
-                                    {child.name}
-                                  </div>
-                                  {child.description && (
-                                    <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{child.description}</div>
-                                  )}
+                                  <div className={childTextCls}>{child.name}</div>
+                                  {child.description && <div className={childDescCls}>{child.description}</div>}
                                 </div>
                                 <div className="ml-3 flex-shrink-0">
-                                  <svg
-                                    className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
+                                  <svg className={childIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                   </svg>
                                 </div>
@@ -967,26 +966,25 @@ export default function NavigationHeader() {
 
                     {/* Nested Submenu Slide - Level 3 (Third level) */}
                     {activeSubmenu && activeSubmenu2 && !activeSubmenu3 && (
-                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
-                        {/* Back Button */}
-                        <div className="mb-3">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/97" style={{ backdropFilter: 'blur(12px)' }}>
+                        {/* Breadcrumb back */}
+                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#005b96]/10">
                           <button
                             onClick={() => setActiveSubmenu2(null)}
-                            className="flex items-center gap-2 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm"
+                            className="flex items-center gap-1.5 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm shrink-0"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
-                            Back to {activeSubmenu}
+                            Back
                           </button>
+                          <span className="text-[#005b96]/30 text-sm">/</span>
+                          <span className="text-[11px] text-[#005b96]/60 truncate">{activeSubmenu}</span>
+                          <span className="text-[#005b96]/30 text-sm">/</span>
+                          <span className="text-sm font-semibold text-[#003d66] truncate">{activeSubmenu2}</span>
                         </div>
 
-                        {/* Submenu title */}
-                        <div className="mb-3 pb-2 border-b border-gray-200">
-                          <h3 className="text-lg font-bold text-[#005b96]">{activeSubmenu2}</h3>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden">
                           {item.subItems
                             .find(si => si.name ===
    activeSubmenu)?.children
@@ -996,12 +994,17 @@ export default function NavigationHeader() {
                               const isComingSoon = grandChild.href ===
    '#' || grandChild.description?.includes('Coming Soon');
                               const hasNestedChildren = grandChild.children && grandChild.children.length > 0;
+                              const gcActive = isItemActive(grandChild);
+                              const gcItemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${gcActive ? 'bg-[#005b96]/10' : 'hover:bg-[#005b96]/6'}`;
+                              const gcTextCls = `text-sm font-semibold transition-colors truncate ${gcActive ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
+                              const gcDescCls = `text-xs mt-0.5 truncate ${gcActive ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
+                              const gcIconCls = `w-4 h-4 transition-all ${gcActive ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
 
                               if (isComingSoon && !hasNestedChildren) {
                                 return (
                                   <div
                                     key={grandChild.name}
-                                    className="group flex items-center justify-between py-2.5 px-3 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+                                    className="group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 bg-slate-50 cursor-not-allowed opacity-60"
                                   >
                                     <div className="flex-1 min-w-0">
                                       <div className="text-sm font-semibold text-gray-400 truncate flex items-center gap-2">
@@ -1024,12 +1027,10 @@ export default function NavigationHeader() {
                                   <button
                                     key={grandChild.name}
                                     onClick={() => setActiveSubmenu3(grandChild.name)}
-                                    className="group flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 hover:bg-[#005b96]/10 text-left"
+                                    className={`${gcItemCls} text-left w-full`}
                                   >
                                     <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-semibold text-[#005b96] group-hover:text-[#003d66] transition-colors truncate">
-                                        {grandChild.name}
-                                      </div>
+                                      <div className={gcTextCls}>{grandChild.name}</div>
                                       {grandChild.description && (
                                         <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{grandChild.description}</div>
                                       )}
@@ -1061,23 +1062,14 @@ export default function NavigationHeader() {
                                     setActiveSubmenu(null);
                                     setActiveDropdown(null);
                                   }}
-                                  className="group flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 hover:bg-[#005b96]/10"
+                                  className={gcItemCls}
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-semibold text-[#005b96] group-hover:text-[#003d66] transition-colors truncate">
-                                      {grandChild.name}
-                                    </div>
-                                    {grandChild.description && (
-                                      <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{grandChild.description}</div>
-                                    )}
+                                    <div className={gcTextCls}>{grandChild.name}</div>
+                                    {grandChild.description && <div className={gcDescCls}>{grandChild.description}</div>}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
+                                    <svg className={gcIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                     </svg>
                                   </div>
@@ -1090,26 +1082,27 @@ export default function NavigationHeader() {
 
                     {/* Nested Submenu Slide - Level 4 (Fourth level) */}
                     {activeSubmenu && activeSubmenu2 && activeSubmenu3 && (
-                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/95" style={{ backdropFilter: 'blur(12px)' }}>
-                        {/* Back Button */}
-                        <div className="mb-3">
+                      <div className="absolute inset-0 px-6 py-4 transition-all duration-300 bg-white/97" style={{ backdropFilter: 'blur(12px)' }}>
+                        {/* Breadcrumb back */}
+                        <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#005b96]/10">
                           <button
                             onClick={() => setActiveSubmenu3(null)}
-                            className="flex items-center gap-2 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm"
+                            className="flex items-center gap-1.5 text-[#005b96] hover:text-[#003d66] font-medium transition-colors text-sm shrink-0"
                           >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                             </svg>
-                            Back to {activeSubmenu2}
+                            Back
                           </button>
+                          <span className="text-[#005b96]/30 text-sm">/</span>
+                          <span className="text-[11px] text-[#005b96]/60 truncate">{activeSubmenu}</span>
+                          <span className="text-[#005b96]/30 text-sm">/</span>
+                          <span className="text-[11px] text-[#005b96]/60 truncate">{activeSubmenu2}</span>
+                          <span className="text-[#005b96]/30 text-sm">/</span>
+                          <span className="text-sm font-semibold text-[#003d66] truncate">{activeSubmenu3}</span>
                         </div>
 
-                        {/* Submenu title */}
-                        <div className="mb-3 pb-2 border-b border-gray-200">
-                          <h3 className="text-lg font-bold text-[#005b96]">{activeSubmenu3}</h3>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 rounded-xl overflow-hidden">
                           {item.subItems
                             .find(si => si.name ===
    activeSubmenu)?.children
@@ -1125,7 +1118,7 @@ export default function NavigationHeader() {
                                 return (
                                   <div
                                     key={greatGrandChild.name}
-                                    className="group flex items-center justify-between py-2.5 px-3 rounded-lg bg-gray-50 cursor-not-allowed opacity-60"
+                                    className="group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 bg-slate-50 cursor-not-allowed opacity-60"
                                   >
                                     <div className="flex-1 min-w-0">
                                       <div className="text-sm font-semibold text-gray-400 truncate flex items-center gap-2">
@@ -1144,6 +1137,12 @@ export default function NavigationHeader() {
 
                               if (!greatGrandChild.href) return null;
 
+                              const ggActive = isItemActive(greatGrandChild);
+                              const ggItemCls = `group flex items-center justify-between py-2.5 px-4 border-b border-slate-100 transition-all duration-200 ${ggActive ? 'bg-[#005b96]/10' : 'hover:bg-[#005b96]/6'}`;
+                              const ggTextCls = `text-sm font-semibold transition-colors truncate ${ggActive ? 'text-[#003d66]' : 'text-[#005b96] group-hover:text-[#003d66]'}`;
+                              const ggDescCls = `text-xs mt-0.5 truncate ${ggActive ? 'text-[#005b96]/80' : 'text-[#005b96]/70'}`;
+                              const ggIconCls = `w-4 h-4 transition-all ${ggActive ? 'text-[#005b96] translate-x-0.5' : 'text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1'}`;
+
                               return (
                                 <Link
                                   key={greatGrandChild.href || greatGrandChild.name}
@@ -1155,23 +1154,14 @@ export default function NavigationHeader() {
                                     setActiveSubmenu(null);
                                     setActiveDropdown(null);
                                   }}
-                                  className="group flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-200 hover:bg-[#005b96]/10"
+                                  className={ggItemCls}
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-semibold text-[#005b96] group-hover:text-[#003d66] transition-colors truncate">
-                                      {greatGrandChild.name}
-                                    </div>
-                                    {greatGrandChild.description && (
-                                      <div className="text-xs text-[#005b96]/70 mt-0.5 truncate">{greatGrandChild.description}</div>
-                                    )}
+                                    <div className={ggTextCls}>{greatGrandChild.name}</div>
+                                    {greatGrandChild.description && <div className={ggDescCls}>{greatGrandChild.description}</div>}
                                   </div>
                                   <div className="ml-3 flex-shrink-0">
-                                    <svg
-                                      className="w-4 h-4 text-[#005b96]/60 group-hover:text-[#005b96] group-hover:translate-x-1 transition-all"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
+                                    <svg className={ggIconCls} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                                     </svg>
                                   </div>
@@ -1359,19 +1349,17 @@ export default function NavigationHeader() {
           </div>
 
           {/* Dark Mode Toggle */}
-          {/* <button
+          <button
             onClick={toggleTheme}
             className="p-2 sm:p-2.5 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all duration-200"
-            title={theme ===
-   'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {theme ===
-   'dark' ? (
+            {theme === 'dark' ? (
               <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
             ) : (
               <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
-          </button> */}
+          </button>
 
           {/* Notifications */}
           <button
@@ -1388,6 +1376,13 @@ export default function NavigationHeader() {
 
           {/* User Menu */}
           <div className="relative flex-shrink-0" ref={userMenuRef}>
+            {!user ? (
+              /* Skeleton shimmer for user avatar while auth loads */
+              <div className="flex items-center gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/20 animate-pulse" />
+                <div className="hidden lg:block h-4 w-20 bg-white/20 rounded animate-pulse" />
+              </div>
+            ) : (
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 pr-2 sm:pr-3 hover:bg-white/15 rounded-lg transition-all duration-200"
@@ -1398,6 +1393,7 @@ export default function NavigationHeader() {
               <span className="text-white text-sm font-medium hidden lg:block">{getUserDisplayName()}</span>
               <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 text-white/80 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
             </button>
+            )}
 
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 py-2 z-50 overflow-hidden">

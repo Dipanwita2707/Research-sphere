@@ -251,14 +251,14 @@ export default function DrdResearchDashboard() {
 
       {/* User Info Bar */}
       {user && (
-        <div className="bg-gradient-to-r from-sgt-50 to-white rounded-2xl p-4 shadow-sm border border-sgt-100 flex items-center justify-between">
+        <div className="bg-gradient-to-r from-sgt-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4 shadow-sm border border-sgt-100 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-sgt-gradient rounded-xl flex items-center justify-center">
               <User className="w-5 h-5 text-white" />
             </div>
             <div>
-              <p className="font-semibold text-gray-900">{user.employee?.displayName || user.student?.displayName || user.email}</p>
-              <p className="text-xs text-gray-500">
+              <p className="font-semibold text-gray-900 dark:text-white">{user.employee?.displayName || user.student?.displayName || user.email}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Role: {user.role?.name || 'N/A'} • UID: {user.uid}
                 {userPermissions?.assignedSchoolIds?.length > 0 && (
                   <span className="ml-2 text-blue-600">• Assigned to {userPermissions.assignedSchoolIds.length} school(s)</span>
@@ -268,7 +268,7 @@ export default function DrdResearchDashboard() {
           </div>
           <div className="flex items-center gap-4">
             {/* User Review Statistics */}
-            <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg px-4 py-2 border border-blue-100">
+            <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg px-4 py-2 border border-blue-100 dark:border-blue-800">
               <div className="text-center">
                 <div className="text-xl font-bold text-blue-600">
                   {contributions.filter((c: any) => 
@@ -276,9 +276,9 @@ export default function DrdResearchDashboard() {
    user.id)
                   ).length}
                 </div>
-                <div className="text-xs text-gray-600">You Reviewed</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">You Reviewed</div>
               </div>
-              <div className="w-px h-8 bg-blue-200"></div>
+              <div className="w-px h-8 bg-blue-200 dark:bg-blue-800"></div>
               <div className="text-center">
                 <div className="text-xl font-bold text-purple-600">
                   {contributions.filter((c: any) => 
@@ -287,9 +287,9 @@ export default function DrdResearchDashboard() {
    'recommended')
                   ).length}
                 </div>
-                <div className="text-xs text-gray-600">Recommended</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">Recommended</div>
               </div>
-              <div className="w-px h-8 bg-purple-200"></div>
+              <div className="w-px h-8 bg-purple-200 dark:bg-purple-800"></div>
               <div className="text-center">
                 <div className="text-xl font-bold text-green-600">
                   {contributions.filter((c: any) => 
@@ -298,12 +298,12 @@ export default function DrdResearchDashboard() {
    'approved')
                   ).length}
                 </div>
-                <div className="text-xs text-gray-600">Approved</div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">Approved</div>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {userPermissions?.canApprove && (
-                <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium">
                   <CheckCircle className="w-4 h-4 inline mr-1" />
                   Can Approve
                 </span>
@@ -320,9 +320,9 @@ export default function DrdResearchDashboard() {
       )}
 
       {/* Filters Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
             <Filter className="w-5 h-5 mr-2 text-sgt-600" />
             Filters & Search
           </h2>
@@ -335,7 +335,7 @@ export default function DrdResearchDashboard() {
                 onChange={(e) => setShowOnlyMyReviews(e.target.checked)}
                 className="w-4 h-4 text-sgt-600 border-gray-300 rounded focus:ring-sgt-500"
               />
-              <span className="text-sm font-medium text-gray-700">Show only my reviews</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Show only my reviews</span>
             </label>
             
             {/* My Review Decision Filter - Only show when "my reviews" is enabled */}
@@ -343,7 +343,7 @@ export default function DrdResearchDashboard() {
               <select
                 value={myReviewFilter}
                 onChange={(e) => setMyReviewFilter(e.target.value as 'all' | 'approved' | 'rejected' | 'recommended')}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500"
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500"
               >
                 <option value="all">All My Reviews</option>
                 <option value="approved">I Approved</option>
@@ -357,7 +357,7 @@ export default function DrdResearchDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Search */}
           <div className="lg:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Search</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Search</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -365,18 +365,18 @@ export default function DrdResearchDashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by title, app number, applicant..."
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
               />
             </div>
           </div>
           
           {/* Status Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
             >
               <option value="all">All Status</option>
               <option value="submitted">Submitted</option>
@@ -389,11 +389,11 @@ export default function DrdResearchDashboard() {
           
           {/* Publication Type Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Publication Type</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Publication Type</label>
             <select
               value={publicationTypeFilter}
               onChange={(e) => setPublicationTypeFilter(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
             >
               <option value="">All Types</option>
               {Object.entries(PUBLICATION_TYPE_CONFIG).map(([key, config]) => (
@@ -406,11 +406,11 @@ export default function DrdResearchDashboard() {
         {/* School Filter - Full Width */}
         {schools.length > 0 && (
           <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">School/Faculty</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">School/Faculty</label>
             <select
               value={schoolFilter}
               onChange={(e) => setSchoolFilter(e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
+              className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-sgt-500 focus:border-sgt-500 transition-all"
             >
               <option value="">All Schools</option>
               {schools.map(school => (
@@ -424,34 +424,43 @@ export default function DrdResearchDashboard() {
       </div>
 
       {/* Contributions List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Research Contributions</h2>
-            <p className="text-sm text-gray-500 mt-0.5">{filteredContributions.length} items found</p>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Research Contributions</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{filteredContributions.length} items found</p>
           </div>
           {filteredContributions.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
               <TrendingUp className="w-4 h-4" />
               <span>Showing latest submissions</span>
             </div>
           )}
         </div>
         
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sgt-600 mb-4"></div>
-              <p className="text-gray-500">Loading contributions...</p>
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-start gap-4 p-5">
+                  <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="h-5 w-2/3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2" />
+                    <div className="h-4 w-1/3 bg-gray-100 dark:bg-gray-600 rounded animate-pulse mb-2" />
+                    <div className="h-3 w-1/4 bg-gray-100 dark:bg-gray-600 rounded animate-pulse" />
+                  </div>
+                  <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse flex-shrink-0" />
+                </div>
+              ))}
             </div>
           ) : filteredContributions.length ===
    0 ? (
             <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 <FileText className="w-10 h-10 text-gray-400" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No contributions found</h3>
-              <p className="text-gray-500 max-w-sm mx-auto">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No contributions found</h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
                 {searchQuery || statusFilter !== 'all' || publicationTypeFilter || schoolFilter
                   ? 'Try adjusting your filters to see more results'
                   : 'There are no research contributions awaiting review'}
@@ -488,7 +497,7 @@ export default function DrdResearchDashboard() {
                 <Link
                   key={contribution.id}
                   href={reviewUrl}
-                  className="block p-6 hover:bg-gray-50 transition-all duration-200 group"
+                  className="block p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 group"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4 flex-1 min-w-0">
@@ -501,21 +510,21 @@ export default function DrdResearchDashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 group-hover:text-sgt-600 transition-colors line-clamp-2">
+                            <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-sgt-600 dark:group-hover:text-sgt-400 transition-colors line-clamp-2">
                               {contribution.title}
                             </h3>
-                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500 mt-2">
+                            <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400 mt-2">
                               <span className="flex items-center font-medium">
                                 <Hash className="w-3.5 h-3.5 mr-1" />
                                 {contribution.applicationNumber}
                               </span>
-                              <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                              <span className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
                               <span className="flex items-center">
                                 {pubTypeConfig?.label || contribution.publicationType}
                               </span>
                               {contribution.school && (
                                 <>
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                  <span className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
                                   <span className="flex items-center">
                                     <Building className="w-3.5 h-3.5 mr-1" />
                                     {contribution.school.shortName || contribution.school.facultyName}
@@ -525,7 +534,7 @@ export default function DrdResearchDashboard() {
                             </div>
                             
                             {/* Applicant Info */}
-                            <div className="flex items-center gap-2 text-xs text-gray-400 mt-1.5">
+                            <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500 mt-1.5">
                               <Users className="w-3.5 h-3.5" />
                               <span>
                                 {contribution.applicantUser?.employeeDetails?.displayName || 
@@ -533,7 +542,7 @@ export default function DrdResearchDashboard() {
                               </span>
                               {contribution.submittedAt && (
                                 <>
-                                  <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                  <span className="w-1 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></span>
                                   <Calendar className="w-3.5 h-3.5" />
                                   <span>{new Date(contribution.submittedAt).toLocaleDateString()}</span>
                                 </>
@@ -543,10 +552,10 @@ export default function DrdResearchDashboard() {
                             {/* Incentive Preview */}
                             {contribution.calculatedIncentiveAmount && (
                               <div className="flex items-center gap-3 mt-2 text-xs">
-                                <span className="px-2 py-1 bg-green-50 text-green-700 rounded-lg font-medium">
+                                <span className="px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg font-medium">
                                   ₹{contribution.calculatedIncentiveAmount.toLocaleString()}
                                 </span>
-                                <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg font-medium">
+                                <span className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg font-medium">
                                   {contribution.calculatedPoints} points
                                 </span>
                               </div>
@@ -568,20 +577,20 @@ export default function DrdResearchDashboard() {
                         {/* User Review Badge */}
                         {userHasReviewed && (
                           <div className="flex items-center gap-1">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg font-medium">
+                            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-lg font-medium">
                               <CheckCircle className="w-3 h-3 inline mr-1" />
                               {userReview?.decision ===
    'approved' ? 'You approved' : 'You reviewed'}
                             </span>
                             {userReview?.decision ===
    'recommended' && (
-                              <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-lg font-medium">
+                              <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded-lg font-medium">
                                 Recommended
                               </span>
                             )}
                             {userReview?.decision ===
    'approved' && (
-                              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-lg font-medium">
+                              <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-lg font-medium">
                                 Approved
                               </span>
                             )}
@@ -618,7 +627,7 @@ export default function DrdResearchDashboard() {
                         </button>
                       )}
                       
-                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-sgt-600 transition-colors" />
+                      <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-sgt-600 dark:group-hover:text-sgt-400 transition-colors" />
                     </div>
                   </div>
                 </Link>

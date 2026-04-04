@@ -856,8 +856,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
   }
   
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+    <div className="max-w-4xl mx-auto p-6 dark:text-gray-100">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-600 to-orange-700 px-6 py-4">
           <div>
@@ -870,7 +870,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
         <div className="p-6 space-y-8">
           {/* Error/Success Messages */}
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <p className="text-red-700">{error}</p>
               <button onClick={() => setError(null)} className="ml-auto">
@@ -880,7 +880,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           )}
           
           {success && (
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
               <p className="text-green-700">{success}</p>
             </div>
@@ -889,7 +889,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           {/* Edit Suggestions */}
           {editSuggestions.length > 0 && (
             <div className="space-y-3">
-              <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                 <h3 className="font-semibold text-orange-900 mb-2">Reviewer Suggestions ({editSuggestions.length})</h3>
                 <p className="text-sm text-orange-700">The reviewer has suggested changes to your application. Review and accept or reject each suggestion below.</p>
               </div>
@@ -901,20 +901,20 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   : suggestion.fieldName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                 
                 return (
-                  <div key={suggestion.id} className="p-4 bg-white border-2 border-orange-200 rounded-lg">
+                  <div key={suggestion.id} className="p-4 bg-white dark:bg-gray-800 border-2 border-orange-200 dark:border-orange-700 rounded-lg">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h4 className="font-semibold text-gray-900">{sdgLabel}</h4>
                         {suggestion.reviewer?.employeeDetails?.displayName && (
-                          <p className="text-xs text-gray-500">Suggested by {suggestion.reviewer.employeeDetails.displayName}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Suggested by {suggestion.reviewer.employeeDetails.displayName}</p>
                         )}
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 mb-3">
                       <div>
-                        <div className="text-xs text-gray-500 mb-1">Current Value</div>
-                        <div className="p-2 bg-red-50 border border-red-200 rounded text-sm">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Value</div>
+                        <div className="p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm">
                           {suggestion.fieldName ===
    'sdgGoals' 
                             ? suggestion.originalValue.split(',').map(sdg => SDG_GOALS.find(s => s.value ===
@@ -923,8 +923,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                         </div>
                       </div>
                       <div>
-                        <div className="text-xs text-gray-500 mb-1">Suggested Value</div>
-                        <div className="p-2 bg-green-50 border border-green-200 rounded text-sm">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Suggested Value</div>
+                        <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded text-sm dark:text-gray-300">
                           {suggestion.fieldName ===
    'sdgGoals'
                             ? suggestion.suggestedValue.split(',').map(sdg => SDG_GOALS.find(s => s.value ===
@@ -935,7 +935,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     </div>
                     
                     {suggestion.suggestionNote && (
-                      <div className="mb-3 p-2 bg-blue-50 border border-blue-200 rounded">
+                      <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
                         <div className="text-xs text-blue-600 mb-1">Reviewer Note</div>
                         <div className="text-sm text-blue-900">{suggestion.suggestionNote}</div>
                       </div>
@@ -988,13 +988,13 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           
           {/* Section 1: Project Status & Category - MOVED TO TOP */}
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2">
               Project Status & Category
             </h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Research Project Status *
                 </label>
                 <div className="flex gap-4">
@@ -1026,7 +1026,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Project Category *
                 </label>
                 <div className="flex gap-4">
@@ -1084,14 +1084,14 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               {formData.projectCategory ===
    'govt' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Funding Agency *
                   </label>
                   <select
                     name="fundingAgencyType"
                     value={formData.fundingAgencyType}
                     onChange={handleInputChange}
-                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="">Select Funding Agency</option>
                     {FUNDING_AGENCY_OPTIONS.map(opt => (
@@ -1108,7 +1108,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 formData.projectCategory ===
    'industry') && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Funding Agency Name *
                   </label>
                   <input
@@ -1116,7 +1116,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     name="fundingAgencyName"
                     value={formData.fundingAgencyName}
                     onChange={handleInputChange}
-                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter funding agency name"
                   />
                 </div>
@@ -1133,7 +1133,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Title of Research Project *
                 </label>
                 <input
@@ -1141,13 +1141,13 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter full project title"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Submitted Amount (₹) *
                 </label>
                 <input
@@ -1155,7 +1155,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="submittedAmount"
                   value={formData.submittedAmount}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter amount in INR"
                   min="0"
                 />
@@ -1164,7 +1164,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             {/* SDG Goals */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Sustainable Development Goals (SDGs)
               </label>
               <details className="group">
@@ -1226,7 +1226,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Project Type *
                 </label>
                 <div className="flex gap-4">
@@ -1260,7 +1260,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               {formData.projectType ===
    'international' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     No. of Representative Country Organizations in Consortium *
                   </label>
                   <input
@@ -1268,7 +1268,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     name="numberOfConsortiumOrgs"
                     value={formData.numberOfConsortiumOrgs}
                     onChange={handleInputChange}
-                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                    className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                     min="1"
                     max="10"
                   />
@@ -1279,30 +1279,30 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             {/* Consortium Organizations */}
             {formData.projectType ===
    'international' && formData.numberOfConsortiumOrgs > 0 && (
-              <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="font-medium text-blue-900">Consortium Organizations</h3>
+              <div className="space-y-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <h3 className="font-medium text-blue-900 dark:text-blue-300">Consortium Organizations</h3>
                 {consortiumOrganizations.map((org, index) => (
-                  <div key={org.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 bg-white rounded-lg border">
+                  <div key={org.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 bg-white dark:bg-gray-700 rounded-lg border dark:border-gray-600">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Organization Name *
                       </label>
                       <input
                         type="text"
                         value={org.organizationName}
                         onChange={(e) => updateConsortiumOrg(index, 'organizationName', e.target.value)}
-                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                         placeholder="Organization name"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Country *
                       </label>
                       <select
                         value={org.country}
                         onChange={(e) => updateConsortiumOrg(index, 'country', e.target.value)}
-                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                       >
                         <option value="">Select Country</option>
                         {COUNTRY_LIST.map(country => (
@@ -1311,14 +1311,14 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         No. of Team Members *
                       </label>
                       <input
                         type="number"
                         value={org.numberOfMembers}
                         onChange={(e) => updateConsortiumOrg(index, 'numberOfMembers', parseInt(e.target.value) || 1)}
-                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                        className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                         min="1"
                         max="20"
                       />
@@ -1338,7 +1338,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             {/* Is PI External Toggle */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Is PI External? *
               </label>
               <div className="flex gap-4">
@@ -1378,7 +1378,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   <span>Yes</span>
                 </label>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {formData.isPIExternal 
                   ? 'You will be a Co-PI. PI is from an external organization.' 
                   : 'Select your role as PI or Co-PI below.'}
@@ -1388,7 +1388,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             {/* My Role Selection - Only when PI is not external */}
             {!formData.isPIExternal && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   My Role *
                 </label>
                 <div className="flex gap-4">
@@ -1430,7 +1430,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     <span>Co-Principal Investigator (Co-PI)</span>
                   </label>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {formData.myRole ===
    'pi' 
                     ? 'You are the PI. Only one PI is allowed per project.' 
@@ -1441,7 +1441,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Total No. of Investigators *
                 </label>
                 <input
@@ -1449,11 +1449,11 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="totalInvestigators"
                   value={formData.totalInvestigators}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                   min={calculateMinimumInvestigators()}
                   max="20"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Includes you + all team members (min: {calculateMinimumInvestigators()})
                 </p>
               </div>
@@ -1461,7 +1461,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               {formData.totalInvestigators > 1 && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       No. of Internal Investigators
                     </label>
                     <input
@@ -1478,14 +1478,14 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                           numberOfInternalCoPIs: Math.max(0, value - (prev.isPIExternal ? 0 : 1))
                         }));
                       }}
-                      className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                      className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                       min="1"
                       max={formData.projectType ===
    'international' 
                         ? formData.totalInvestigators - consortiumOrganizations.reduce((sum, org) => sum + org.numberOfMembers, 0)
                         : formData.totalInvestigators}
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {formData.projectType ===
    'international' 
                         ? `Max: ${formData.totalInvestigators - consortiumOrganizations.reduce((sum, org) => sum + org.numberOfMembers, 0)} (Total - External members)` 
@@ -1494,18 +1494,18 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       No. of Internal Co-PIs (Auto-calculated)
                     </label>
                     <input
                       type="number"
                       name="numberOfInternalCoPIs"
                       value={formData.numberOfInternalCoPIs}
-                      className="w-full rounded-lg border-gray-300 shadow-sm bg-gray-50"
+                      className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm bg-gray-50 dark:bg-gray-700 dark:text-gray-400"
                       disabled
                       readOnly
                     />
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {formData.isPIExternal 
                         ? 'All Internal Investigators are Co-PIs (PI is external)' 
                         : 'Internal Investigators - 1 (1 PI + remaining Co-PIs)'}
@@ -1539,10 +1539,10 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                 
                 {/* Policy Info Banner */}
                 {activePolicy ? (
-                  <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="mb-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                     <div className="flex items-start gap-2">
                       <Info className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-green-800">
+                      <div className="text-sm text-green-800 dark:text-green-300">
                         <p className="font-semibold mb-1">Active Grant Policy: {activePolicy.policyName}</p>
                         <div className="flex flex-wrap gap-4 text-xs">
                           <span>Base: ₹{Number(activePolicy.baseIncentiveAmount).toLocaleString()} / {activePolicy.basePoints} pts</span>
@@ -1565,10 +1565,10 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     </div>
                   </div>
                 ) : (
-                  <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
                     <div className="flex items-start gap-2">
                       <Info className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-yellow-800">
+                      <div className="text-sm text-yellow-800 dark:text-yellow-300">
                         <p className="font-semibold">No active grant policy found</p>
                         <p className="text-xs mt-1">
                           Please ensure an active policy exists for <strong>{formData.projectCategory}</strong> category and <strong>{formData.projectType}</strong> type. Contact admin if needed.
@@ -1578,36 +1578,36 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   </div>
                 )}
                 
-                <table className="min-w-full divide-y divide-gray-200 border rounded-lg overflow-hidden">
-                  <thead className="bg-orange-50">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border dark:border-gray-700 rounded-lg overflow-hidden">
+                  <thead className="bg-orange-50 dark:bg-orange-900/30">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Designation</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Est. Incentive</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Est. Points</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Email</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Designation</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Role</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Est. Incentive</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Est. Points</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {/* Current User Row */}
                     <tr className="bg-orange-25">
-                      <td className="px-4 py-2 text-sm text-gray-900 font-medium">
+                      <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100 font-medium">
                         {user?.firstName && user?.lastName 
                           ? `${user.firstName} ${user.lastName}` 
                           : user?.employee?.displayName || user?.username || 'You'} (Applicant)
                       </td>
-                      <td className="px-4 py-2 text-sm text-gray-600">{user?.email || '-'}</td>
-                      <td className="px-4 py-2 text-sm text-gray-600">{user?.employee?.designation || user?.employeeDetails?.designation?.name || '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{user?.email || '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{user?.employee?.designation || user?.employeeDetails?.designation?.name || '-'}</td>
                       <td className="px-4 py-2">
-                        <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
+                        <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs font-medium">
                           {formData.myRole ===
    'pi' ? 'PI' : 'Co-PI'}
                         </span>
                       </td>
                       <td className="px-4 py-2 text-sm">
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Internal</span>
+                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs">Internal</span>
                       </td>
                       <td className="px-4 py-2 text-sm text-right">
                         {(() => {
@@ -1638,14 +1638,14 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                       const calc = calculateInvestigatorIncentive(inv.roleType, inv.investigatorCategory);
                       return (
                         <tr key={index}>
-                          <td className="px-4 py-2 text-sm text-gray-900">
+                          <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
                             {inv.name}
                             {inv.isTeamCoordinator && (
                               <span className="ml-2 px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">Coordinator</span>
                             )}
                           </td>
-                          <td className="px-4 py-2 text-sm text-gray-600">{inv.email || '-'}</td>
-                          <td className="px-4 py-2 text-sm text-gray-600">{inv.designation || '-'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{inv.email || '-'}</td>
+                          <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">{inv.designation || '-'}</td>
                           <td className="px-4 py-2">
                             <span className={`px-2 py-1 rounded text-xs font-medium ${
                               inv.roleType ===
@@ -1689,8 +1689,8 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     
                     {/* Totals Row */}
                     {activePolicy && (
-                      <tr className="bg-gray-100 font-bold">
-                        <td colSpan={5} className="px-4 py-3 text-sm text-right text-gray-700">
+                      <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
+                        <td colSpan={5} className="px-4 py-3 text-sm text-right text-gray-700 dark:text-gray-300">
                           TOTAL (Internal Investigators Only)
                         </td>
                         <td className="px-4 py-3 text-sm text-right">
@@ -1754,7 +1754,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Date of Submission
                 </label>
                 <input
@@ -1762,12 +1762,12 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="dateOfSubmission"
                   value={formData.dateOfSubmission}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Project Start Date
                 </label>
                 <input
@@ -1775,12 +1775,12 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   name="projectStartDate"
                   value={formData.projectStartDate}
                   onChange={handleInputChange}
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Project End Date
                 </label>
                 <input
@@ -1789,7 +1789,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   value={formData.projectEndDate}
                   onChange={handleInputChange}
                   min={formData.projectStartDate || undefined}
-                  className="w-full rounded-lg border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                  className="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:border-orange-500 focus:ring-orange-500 dark:bg-gray-700 dark:text-gray-100"
                 />
                 {formData.projectStartDate && formData.projectEndDate && 
                  new Date(formData.projectEndDate) < new Date(formData.projectStartDate) && (
@@ -1800,7 +1800,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Duration (Months)
                 </label>
                 <input
@@ -1814,7 +1814,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                   readOnly
                   title="Auto-calculated from start and end dates"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Auto-calculated from start and end dates
                 </p>
               </div>
@@ -1829,7 +1829,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             </h2>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Proposal Document (ZIP file) *
               </label>
               
@@ -1840,7 +1840,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     <FileText className="w-5 h-5 text-blue-600" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Current Document</p>
-                      <p className="text-xs text-gray-500">{existingProposalPath.split('/').pop()}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{existingProposalPath.split('/').pop()}</p>
                     </div>
                   </div>
                   <a
@@ -1879,7 +1879,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     hover:file:bg-orange-100
                     cursor-pointer"
                 />
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   Upload a ZIP file containing all project documents (Max 50MB)
                   {existingProposalPath && '. Uploading a new file will replace the existing one.'}
                 </p>
@@ -1892,7 +1892,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
                     <FileText className="w-5 h-5 text-green-600" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">{proposalFile.name}</p>
-                      <p className="text-xs text-gray-500">{(proposalFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{(proposalFile.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
                   <button
@@ -1909,7 +1909,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
           
           {/* Section 7: School & Department - Auto-filled from user profile */}
           <section className="space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900 border-b pb-2">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white border-b dark:border-gray-700 pb-2">
               Institutional Information
             </h2>
             <p className="text-sm text-gray-600 italic">
@@ -1918,7 +1918,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   School/Faculty *
                 </label>
                 <input
@@ -1931,7 +1931,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Department
                 </label>
                 <input
@@ -1951,7 +1951,7 @@ export default function GrantApplicationForm({ grantId, onSuccess }: Props) {
               type="button"
               onClick={handleSaveDraft}
               disabled={saving}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Draft

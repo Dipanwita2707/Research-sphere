@@ -48,31 +48,22 @@ const createGroup = async ({ name, description, createdById, isEncrypted = false
       },
     });
 
-    // Add initial members if provided (initialMembers can be UIDs or user IDs)
+    // Add initial members if provided (initialMembers can be UIDs, empIds, or emails)
     if (initialMembers.length > 0) {
-      // Resolve UIDs to user IDs
+      // Resolve by uid OR empId (via employeeDetails) OR email — gracefully skip any not found
       const users = await tx.userLogin.findMany({
         where: {
-          uid: {
-            in: initialMembers,
-          },
+          OR: [
+            { uid: { in: initialMembers } },
+            { employeeDetails: { empId: { in: initialMembers } } },
+            { email: { in: initialMembers.map((id) => id.toLowerCase()) } },
+          ],
         },
         select: {
           id: true,
           uid: true,
         },
       });
-
-      if (users.length === 0) {
-        throw new Error('No valid users found for the provided UIDs');
-      }
-
-      // Check for invalid UIDs
-      const foundUids = users.map(u => u.uid);
-      const invalidUids = initialMembers.filter(uid => !foundUids.includes(uid));
-      if (invalidUids.length > 0) {
-        throw new Error(`Invalid UIDs: ${invalidUids.join(', ')}`);
-      }
 
       const memberData = users
         .filter((user) => user.id !== createdById)
@@ -516,20 +507,24 @@ const bulkAddMembers = async (groupId, userIdentifiers, addedBy) => {
     duplicates: [],
   };
 
-  // Find users by uid or email
+  // Find users by uid, empId (via employeeDetails), or email
   const users = await prisma.userLogin.findMany({
     where: {
       OR: [
         { uid: { in: userIdentifiers } },
+        { employeeDetails: { empId: { in: userIdentifiers } } },
         { email: { in: userIdentifiers.map((id) => id.toLowerCase()) } },
       ],
     },
-    select: { id: true, uid: true, email: true },
+    select: { id: true, uid: true, email: true, employeeDetails: { select: { empId: true } } },
   });
 
   const userMap = new Map();
   users.forEach((user) => {
     userMap.set(user.uid, user);
+    if (user.employeeDetails?.empId) {
+      userMap.set(user.employeeDetails.empId, user);
+    }
     if (user.email) {
       userMap.set(user.email.toLowerCase(), user);
     }
@@ -581,6 +576,65 @@ const bulkAddMembers = async (groupId, userIdentifiers, addedBy) => {
   });
 
   return results;
+};
+
+/**
+ * Search all users that can be added to a group (excludes existing members)
+ */
+const searchUsersToAdd = async (groupId, query, limit = 20) => {
+  // Get IDs of existing group members to exclude them
+  const existingMembers = await prisma.chatGroupMember.findMany({
+    where: { groupId },
+    select: { userId: true },
+  });
+  const existingUserIds = existingMembers.map((m) => m.userId);
+
+  const users = await prisma.userLogin.findMany({
+    where: {
+      id: { notIn: existingUserIds },
+      OR: [
+        { uid: { contains: query, mode: 'insensitive' } },
+        { email: { contains: query, mode: 'insensitive' } },
+        {
+          employeeDetails: {
+            OR: [
+              { empId: { contains: query, mode: 'insensitive' } },
+              { firstName: { contains: query, mode: 'insensitive' } },
+              { lastName: { contains: query, mode: 'insensitive' } },
+              { displayName: { contains: query, mode: 'insensitive' } },
+            ],
+          },
+        },
+        {
+          studentLogin: {
+            OR: [
+              { firstName: { contains: query, mode: 'insensitive' } },
+              { lastName: { contains: query, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      uid: true,
+      email: true,
+      role: true,
+      profileImage: true,
+      employeeDetails: {
+        select: { firstName: true, lastName: true, displayName: true },
+      },
+      studentLogin: {
+        select: { firstName: true, lastName: true },
+      },
+      chatStatus: {
+        select: { isOnline: true, lastSeenAt: true },
+      },
+    },
+    take: limit,
+  });
+
+  return users;
 };
 
 /**
@@ -710,6 +764,7 @@ module.exports = {
   updateMemberPermissions,
   updateGroupPermissions,
   bulkAddMembers,
+  searchUsersToAdd,
   searchGroupMembers,
   getGroupOnlineMemberCount,
   muteMember,

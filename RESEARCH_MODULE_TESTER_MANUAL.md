@@ -25,9 +25,194 @@ Main areas covered:
 - mentor approval flow for student applicants
 - DRD reviewer workflow
 - DRD final approval workflow
+- frontend and API routes used during testing
+- category-wise entry paths for each contribution type
 - permission-controlled access
 - status transitions
 - notifications, audit, and completion behavior
+
+---
+
+## Route Map For Testers
+
+The Research module is available through both frontend pages and backend API routes.
+
+### Frontend routes
+
+These are the main UI routes testers will use:
+
+- `/research` - landing page for the Research module
+- `/research/apply` - create a new contribution for non-grant categories
+- `/research/apply-grant` - create a new grant submission
+- `/research/my-contributions` - applicant list view
+- `/research/contributed` - co-author contribution list
+- `/research/contribution/:id` - contribution details
+- `/research/contribution/:id/edit` - contribution edit and resubmission page
+- `/research/grant/:id` - grant details
+- `/research/progress-tracker` - progress tracker list
+- `/research/progress-tracker/new` - new tracker creation
+- `/research/progress-tracker/:id` - tracker detail view
+- `/research/grant-review` - grant review UI if enabled in the deployed frontend
+
+### Backend API base routes
+
+The main backend mount is:
+
+- `/api/v1/research`
+
+Important mounted sub-routes:
+
+- `/api/v1/research/progress`
+- `/api/v1/research/policies/research`
+- `/api/v1/research/policies/book`
+- `/api/v1/research/policies/book-chapter`
+- `/api/v1/research/policies/conference`
+- `/api/v1/research/policies/grant`
+- `/api/v1/research/policies/incentive`
+
+Backward-compatible routes also exist and may still be used by older frontend code:
+
+- `/api/v1/research-progress`
+- `/api/v1/research-policies`
+- `/api/v1/book-policies`
+- `/api/v1/book-chapter-policies`
+- `/api/v1/conference-policies`
+- `/api/v1/grant-policies`
+- `/api/v1/incentive-policies`
+
+### Core contribution workflow API routes
+
+These are the main filing and workflow routes testers should validate:
+
+- `GET /api/v1/research/my-contributions`
+- `GET /api/v1/research/contributed`
+- `GET /api/v1/research/lookup/:registrationNumber`
+- `GET /api/v1/research/incentive-policies`
+- `POST /api/v1/research`
+- `GET /api/v1/research/:id`
+- `PUT /api/v1/research/:id`
+- `DELETE /api/v1/research/:id`
+- `POST /api/v1/research/:id/submit`
+- `POST /api/v1/research/:id/resubmit`
+- `GET /api/v1/research/mentor/pending`
+- `POST /api/v1/research/:id/mentor-approve`
+- `POST /api/v1/research/:id/mentor-reject`
+- `POST /api/v1/research/:id/documents`
+- `GET /api/v1/research/:id/documents/:type/:filename`
+- `POST /api/v1/research/:id/authors`
+- `PUT /api/v1/research/:id/authors/:authorId`
+- `DELETE /api/v1/research/:id/authors/:authorId`
+- `GET /api/v1/research/review/pending`
+- `GET /api/v1/research/review/statistics`
+- `GET /api/v1/research/review/health`
+- `GET /api/v1/research/review/schools`
+- `POST /api/v1/research/:id/review/start`
+- `POST /api/v1/research/:id/review/request-changes`
+- `POST /api/v1/research/:id/review/recommend`
+- `POST /api/v1/research/:id/review/approve`
+- `POST /api/v1/research/:id/review/reject`
+- `POST /api/v1/research/:id/review/complete`
+- `POST /api/v1/research/suggestions/:suggestionId/respond`
+
+### Category-wise routes
+
+The Research module uses one shared contribution API for multiple categories. Testers should verify both the category entry page and the shared workflow routes.
+
+#### 1. Research paper
+
+Frontend entry route:
+
+- `/research/apply?type=research_paper`
+
+Primary API routes:
+
+- `POST /api/v1/research`
+- `GET /api/v1/research/:id`
+- `PUT /api/v1/research/:id`
+- `POST /api/v1/research/:id/submit`
+- `POST /api/v1/research/:id/resubmit`
+
+Policy route:
+
+- `GET /api/v1/research/policies/research/active/:publicationType`
+
+#### 2. Book
+
+Frontend entry route:
+
+- `/research/apply?type=book`
+
+Primary API routes:
+
+- `POST /api/v1/research`
+- `GET /api/v1/research/:id`
+- `PUT /api/v1/research/:id`
+- `POST /api/v1/research/:id/submit`
+- `POST /api/v1/research/:id/resubmit`
+
+Policy route:
+
+- `GET /api/v1/research/policies/book/active/:publicationType`
+
+#### 3. Book chapter
+
+Frontend entry route:
+
+- `/research/apply?type=book_chapter`
+
+Primary API routes:
+
+- `POST /api/v1/research`
+- `GET /api/v1/research/:id`
+- `PUT /api/v1/research/:id`
+- `POST /api/v1/research/:id/submit`
+- `POST /api/v1/research/:id/resubmit`
+
+Policy route:
+
+- `GET /api/v1/research/policies/book-chapter/active`
+
+#### 4. Conference paper
+
+Frontend entry route:
+
+- `/research/apply?type=conference_paper`
+
+Primary API routes:
+
+- `POST /api/v1/research`
+- `GET /api/v1/research/:id`
+- `PUT /api/v1/research/:id`
+- `POST /api/v1/research/:id/submit`
+- `POST /api/v1/research/:id/resubmit`
+
+Policy route:
+
+- `GET /api/v1/research/policies/conference/active/:subType`
+
+#### 5. Grant proposal
+
+Frontend entry routes:
+
+- `/research/apply-grant`
+- `/research/grant/:id`
+
+Primary API routes:
+
+- `POST /api/v1/research`
+- `GET /api/v1/research/:id`
+- `PUT /api/v1/research/:id`
+- `POST /api/v1/research/:id/submit`
+- `POST /api/v1/research/:id/resubmit`
+
+Policy routes:
+
+- `GET /api/v1/research/policies/grant/active/:projectCategory/:projectType`
+- `POST /api/v1/research/policies/grant/calculate`
+
+Important note:
+
+- grant submissions use a dedicated frontend entry page, but still flow through the shared research contribution workflow routes in the backend
 
 ---
 
@@ -202,45 +387,6 @@ Flow:
 If mentor rejects:
 
 `pending_mentor_approval -> changes_required -> resubmitted`
-
----
-
-## Workflow Diagram
-
-```mermaid
-flowchart TD
-    A[Admin assigns permissions and DRD scope] --> B[Permissions saved]
-    B --> C[User logs in / request authenticated]
-    C --> D[Auth middleware loads merged permissions]
-    D --> E{Permission check}
-
-    E -->|Allowed to file| F[Applicant creates and submits contribution]
-    E -->|Allowed to review| G[DRD reviewer accesses review queue]
-    E -->|Allowed to approve| H[DRD approver accesses approval queue]
-    E -->|Not allowed| X[403 Access denied]
-
-    F --> I{Student with mentor UID?}
-    I -->|Yes| J[pending_mentor_approval]
-    I -->|No| K[submitted]
-
-    J -->|Mentor approves| K
-    J -->|Mentor rejects| L[changes_required]
-
-    K --> M[Reviewer starts review]
-    M --> N[under_review]
-    N -->|Request changes| L
-    N -->|Recommend for approval| O[recommended for approval]
-
-    L -->|Applicant resubmits| P[resubmitted]
-    P --> M
-
-    O --> H
-    H -->|Approve| Q[approved]
-    H -->|Reject| R[rejected]
-
-    Q --> S[Incentives + notifications + audit]
-    S --> T[completed]
-```
 
 ---
 

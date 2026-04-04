@@ -367,6 +367,38 @@ const updateGroupPermissions = async (req, res) => {
 };
 
 /**
+ * Search all users that can be added to a group
+ */
+const searchUsersToAdd = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { q, limit = 20 } = req.query;
+    const userId = req.user.id;
+
+    const isMember = await isGroupMember(id, userId);
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not a member of this group',
+      });
+    }
+
+    const users = await groupService.searchUsersToAdd(id, q || '', parseInt(limit));
+
+    res.json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error('Search users to add error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search users',
+    });
+  }
+};
+
+/**
  * Search group members
  */
 const searchMembers = async (req, res) => {
@@ -488,6 +520,7 @@ module.exports = {
   updateMemberRole,
   updateMemberPermissions,
   updateGroupPermissions,
+  searchUsersToAdd,
   searchMembers,
   muteMember,
   unmuteMember,

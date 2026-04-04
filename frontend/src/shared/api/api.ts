@@ -8,6 +8,7 @@ const isDev = process.env.NODE_ENV ===
 const TIMEOUT = isDev ? 30000 : 30000; // 30s - noting/copies can be slow with heavy includes
 const MAX_RETRIES = isDev ? 0 : 1; // 0 retries in dev, 1 in prod (fail fast)
 const RETRY_DELAY = 1000; // 1 second
+const SLOW_REQUEST_THRESHOLD_MS = 1200;
 
 // Helper to get host URL (without /api/v1)
 export const getHostUrl = (): string => {
@@ -118,12 +119,20 @@ api.interceptors.request.use(
 // Response interceptor with retry logic
 api.interceptors.response.use(
   (response: AxiosResponse) => {
+    const duration = Date.now() - ((response.config as any)._startTime || 0);
+
     // Log request duration in development
     if (process.env.NODE_ENV ===
    'development') {
-      const duration = Date.now() - ((response.config as any)._startTime || 0);
       logger.debug(`[API] ${response.config.method?.toUpperCase()} ${response.config.url} - ${response.status} (${duration}ms)`);
     }
+
+    if (duration >= SLOW_REQUEST_THRESHOLD_MS) {
+      logger.warn(`[API] Slow request detected: ${response.config.method?.toUpperCase()} ${response.config.url} (${duration}ms)`, {
+        status: response.status,
+      });
+    }
+
     return response;
   },
   async (error: AxiosError) => {

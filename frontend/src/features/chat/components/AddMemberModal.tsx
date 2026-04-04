@@ -35,14 +35,10 @@ export function AddMemberModal({ groupId, onClose }: AddMemberModalProps) {
 
     setIsSearching(true);
     try {
-      const results = await chatService.searchGroupMembers(groupId, query, 20);
+      const results = await chatService.searchUsersToAdd(groupId, query, 20);
       // Filter out already selected users
-      const filtered = results
-        .filter(m => !selectedUsers.some(s => s.id ===
-   m.user?.id))
-        .map(m => m.user!)
-        .filter(Boolean);
-      setSearchResults(filtered as ChatUser[]);
+      const filtered = results.filter(u => !selectedUsers.some(s => s.id === u.id));
+      setSearchResults(filtered);
     } catch (error) {
       console.error('Search failed:', error);
     } finally {

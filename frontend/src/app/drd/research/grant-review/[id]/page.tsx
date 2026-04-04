@@ -631,8 +631,31 @@ export default function GrantReviewPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="h-9 w-36 bg-gray-200 rounded-lg animate-pulse" />
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+            <div className="h-7 w-2/3 bg-gray-200 rounded-lg animate-pulse mb-4" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-4 w-full bg-gray-100 rounded animate-pulse" />
+              ))}
+            </div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i}>
+                <div className="h-4 w-28 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-10 w-full bg-gray-100 rounded-lg animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

@@ -3429,21 +3429,21 @@ export default function ResearchContributionForm({ publicationType, contribution
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-5 px-4">
       {/* Header - Professional */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 px-6 py-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {contributionId ? 'Edit' : 'New'} {getPublicationTypeLabel()}
         </h1>
-        <p className="text-gray-500 mt-1">Fill in the details of your publication</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">Fill in the details of your publication</p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-        <nav className="flex border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <nav className="flex border-b border-gray-200 dark:border-gray-700">
           <button
             className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
    'entry'
-                ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
             onClick={() => setActiveTab('entry')}
           >
@@ -3452,8 +3452,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           <button
             className={`py-3.5 px-6 font-medium text-sm transition-all ${activeTab ===
    'process'
-                ? 'bg-blue-50 text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
             onClick={() => setActiveTab('process')}
           >
@@ -3464,19 +3464,19 @@ export default function ResearchContributionForm({ publicationType, contribution
 
       {/* Error/Success Messages */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center shadow-sm">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3 flex items-center shadow-sm">
           <AlertCircle className="w-5 h-5 text-red-500 mr-3 flex-shrink-0" />
-          <p className="text-red-700 flex-1">{error}</p>
-          <button onClick={() => setError(null)} className="ml-2 p-1 hover:bg-red-100 rounded-lg transition-colors">
+          <p className="text-red-700 dark:text-red-300 flex-1">{error}</p>
+          <button onClick={() => setError(null)} className="ml-2 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors">
             <X className="w-4 h-4 text-red-500" />
           </button>
         </div>
       )}
       
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center shadow-sm">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl px-4 py-3 flex items-center shadow-sm">
           <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-          <p className="text-green-700">{success}</p>
+          <p className="text-green-700 dark:text-green-300">{success}</p>
         </div>
       )}
 
@@ -3484,14 +3484,14 @@ export default function ResearchContributionForm({ publicationType, contribution
    'entry' && (
         <>
           {/* Publication Form - Professional */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
               <h2 className="text-lg font-semibold text-white">Publication Details</h2>
             </div>
             <div className="p-6 space-y-5">
               {/* Title - Changes based on publication type */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   {publicationType ===
    'book' ? 'Title of Book' : 
                    publicationType ===
@@ -3503,7 +3503,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   value={formData.title}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 hover:bg-white transition-colors"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 hover:bg-white dark:hover:bg-gray-600 transition-colors"
                   placeholder={publicationType ===
    'book' ? 'Enter the complete title of your book' : 
                                publicationType ===
@@ -3517,19 +3517,19 @@ export default function ResearchContributionForm({ publicationType, contribution
    'research_paper' && (
           <>
           {/* Research Details - All in One Box */}
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-slate-50 to-blue-50 dark:from-slate-800/50 dark:to-blue-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
             {/* Indexing Categories - Multi-Select */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Indexing Categories <span className="text-red-500">*</span>
-                <span className="text-xs text-gray-500 ml-2">(Select all that apply)</span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(Select all that apply)</span>
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {INDEXING_CATEGORIES.map(cat => (
                   <label key={cat.value} className={`inline-flex items-center text-sm cursor-pointer p-2 rounded-lg border transition-colors ${
                     formData.indexingCategories.includes(cat.value) 
-                      ? 'bg-blue-50 border-blue-300' 
-                      : 'bg-white border-gray-200 hover:border-blue-200'
+                      ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700' 
+                      : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-700'
                   }`}>
                     <input 
                       type="checkbox" 
@@ -3551,7 +3551,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       }}
                       className="w-4 h-4 text-blue-600 rounded border-gray-300"
                     />
-                    <span className="ml-2 text-gray-700">{cat.label}</span>
+                    <span className="ml-2 text-gray-700 dark:text-gray-300">{cat.label}</span>
                   </label>
                 ))}
               </div>
@@ -3564,7 +3564,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Interdisciplinary Field */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Interdisciplinary(SGT) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-4">
@@ -3576,7 +3576,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         onChange={handleInputChange}
                         className="w-4 h-4 text-blue-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -3591,7 +3591,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               formData.indexingCategories.includes('subsidiary_if_above_20') ||
               formData.indexingCategories.includes('nature_science_lancet_cell_nejm') ||
               formData.indexingCategories.includes('abdc_scopus_wos')) && (
-              <div className="pt-3 border-t border-slate-200">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
                 <h4 className="text-sm font-semibold text-indigo-700 mb-3 flex items-center">
                   <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
                   Journal Metrics
@@ -3599,7 +3599,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 </h4>
                 
                 {/* Show which categories require these fields */}
-                <div className="mb-3 text-xs text-gray-600 bg-blue-50 p-2 rounded">
+                <div className="mb-3 text-xs text-gray-600 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
                   Required for: {[
                     formData.indexingCategories.includes('scopus') && 'SCOPUS',
                     formData.indexingCategories.includes('scie_wos') && 'SCIE/SCI (WOS)',
@@ -3613,7 +3613,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {/* Quartile - for SCOPUS and ABDC */}
                   {(formData.indexingCategories.includes('scopus') || formData.indexingCategories.includes('abdc_scopus_wos')) && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Quartile <span className="text-red-500">*</span>
                         <span className="text-xs text-blue-600 ml-1">
                           ({[
@@ -3638,7 +3638,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                               onChange={handleInputChange}
                               className="w-4 h-4 text-blue-600"
                             />
-                            <span className="ml-1 text-gray-700">{q.label}</span>
+                            <span className="ml-1 text-gray-700 dark:text-gray-300">{q.label}</span>
                           </label>
                         ))}
                       </div>
@@ -3654,7 +3654,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     formData.indexingCategories.includes('scie_wos') ||
                     formData.indexingCategories.includes('abdc_scopus_wos')) && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Impact Factor <span className="text-red-500">*</span>
                         {formData.indexingCategories.includes('subsidiary_if_above_20') && (
                           <span className="text-xs text-purple-600 ml-1">(must be &gt;20 for Subsidiary)</span>
@@ -3666,7 +3666,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         name="impactFactor" 
                         value={formData.impactFactor} 
                         onChange={handleInputChange}
-                        className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white ${
+                        className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100 dark:placeholder-gray-400 ${
                           formData.indexingCategories.includes('subsidiary_if_above_20') && 
                           formData.impactFactor && 
                           parseFloat(formData.impactFactor) <= 20 
@@ -3689,7 +3689,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   {/* SJR - for SCOPUS and ABDC */}
                   {(formData.indexingCategories.includes('scopus') || formData.indexingCategories.includes('abdc_scopus_wos')) && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         SJR (Scimago Journal Rank) <span className="text-red-500">*</span>
                         <span className="text-xs text-green-600 ml-1">
                           ({[
@@ -3704,7 +3704,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         name="sjr" 
                         value={formData.sjr} 
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white"
+                        className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                         placeholder="e.g. 0.5"
                       />
                       {!formData.sjr && (
@@ -3718,18 +3718,18 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* NAAS (Rating ≥ 6) - Separate section as it's independent */}
             {formData.indexingCategories.includes('naas_rating_6_plus') && (
-              <div className="pt-3 border-t border-slate-200">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
                 <h4 className="text-sm font-semibold text-orange-700 mb-3 flex items-center">
                   <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
                   NAAS Details <span className="text-red-500 ml-1">*</span>
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       NAAS Rating (must be ≥ 6) <span className="text-red-500">*</span>
                     </label>
                     <input type="number" step="0.01" name="naasRating" value={formData.naasRating} onChange={handleInputChange}
-                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-orange-500 bg-white ${
+                      className={`w-full px-3 py-2.5 border rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100 ${
                         formData.naasRating && parseFloat(formData.naasRating) < 6 
                           ? 'border-red-500' : 'border-gray-300'
                       }`}
@@ -3751,7 +3751,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
           {/* Journal Name */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               Journal Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -3760,7 +3760,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               value={formData.journalName}
               onChange={handleInputChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 hover:bg-white transition-colors"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 dark:text-gray-100 hover:bg-white dark:hover:bg-gray-600 transition-colors"
               placeholder="Enter the journal name"
             />
           </div>
@@ -3776,10 +3776,10 @@ export default function ResearchContributionForm({ publicationType, contribution
           {(publicationType ===
    'book' && bookPolicy) || (publicationType ===
    'book_chapter' && bookChapterPolicy) ? (
-            <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 space-y-4">
+            <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800 space-y-4">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="w-5 h-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Current {publicationType ===
    'book' ? 'Book' : 'Book Chapter'} Policy
                 </h3>
@@ -3788,45 +3788,45 @@ export default function ResearchContributionForm({ publicationType, contribution
               {publicationType ===
    'book' && bookPolicy && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-medium text-gray-700 mb-2">Authored Book</h4>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Authored Book</h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Incentive:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
                         <span className="font-semibold text-green-600">₹{bookPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Points:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Points:</span>
                         <span className="font-semibold text-purple-600">{bookPolicy.authoredPoints}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-medium text-gray-700 mb-2">Edited Book</h4>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Edited Book</h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Incentive:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
                         <span className="font-semibold text-green-600">₹{bookPolicy.editedIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Points:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Points:</span>
                         <span className="font-semibold text-purple-600">{bookPolicy.editedPoints}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border border-gray-200 md:col-span-2">
-                    <h4 className="font-medium text-gray-700 mb-2">Bonuses</h4>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 md:col-span-2">
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Bonuses</h4>
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div className="text-center">
-                        <span className="block text-gray-600 mb-1">Scopus Indexed</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">Scopus Indexed</span>
                         <span className="font-semibold text-blue-600">₹{bookPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
-                        <span className="block text-gray-600 mb-1">SGT Publication</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">SGT Publication</span>
                         <span className="font-semibold text-blue-600">₹{bookPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
-                        <span className="block text-gray-600 mb-1">International</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">International</span>
                         <span className="font-semibold text-blue-600">₹{bookPolicy.internationalBonus?.toLocaleString()}</span>
                       </div>
                     </div>
@@ -3837,45 +3837,45 @@ export default function ResearchContributionForm({ publicationType, contribution
               {publicationType ===
    'book_chapter' && bookChapterPolicy && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-medium text-gray-700 mb-2">Authored Chapter</h4>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Authored Chapter</h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Incentive:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
                         <span className="font-semibold text-green-600">₹{bookChapterPolicy.authoredIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Points:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Points:</span>
                         <span className="font-semibold text-purple-600">{bookChapterPolicy.authoredPoints}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border border-gray-200">
-                    <h4 className="font-medium text-gray-700 mb-2">Edited Chapter</h4>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Edited Chapter</h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Incentive:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Incentive:</span>
                         <span className="font-semibold text-green-600">₹{bookChapterPolicy.editedIncentiveAmount?.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Points:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Points:</span>
                         <span className="font-semibold text-purple-600">{bookChapterPolicy.editedPoints}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-white p-4 rounded-lg border border-gray-200 md:col-span-2">
-                    <h4 className="font-medium text-gray-700 mb-2">Bonuses</h4>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 md:col-span-2">
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Bonuses</h4>
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div className="text-center">
-                        <span className="block text-gray-600 mb-1">Scopus Indexed</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">Scopus Indexed</span>
                         <span className="font-semibold text-blue-600">₹{bookChapterPolicy.indexingBonuses?.scopus_indexed?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
-                        <span className="block text-gray-600 mb-1">SGT Publication</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">SGT Publication</span>
                         <span className="font-semibold text-blue-600">₹{bookChapterPolicy.indexingBonuses?.sgt_publication_house?.toLocaleString()}</span>
                       </div>
                       <div className="text-center">
-                        <span className="block text-gray-600 mb-1">International</span>
+                        <span className="block text-gray-600 dark:text-gray-400 mb-1">International</span>
                         <span className="font-semibold text-blue-600">₹{bookChapterPolicy.internationalBonus?.toLocaleString()}</span>
                       </div>
                     </div>
@@ -3883,22 +3883,22 @@ export default function ResearchContributionForm({ publicationType, contribution
                 </div>
               )}
               
-              <p className="text-xs text-gray-600 mt-2">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                 <strong>Note:</strong> Final incentives will be calculated based on this policy and split among authors according to the split policy.
               </p>
             </div>
           ) : policyLoading ? (
-            <div className="p-5 bg-gray-50 rounded-xl border border-gray-200 text-center">
+            <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-700 text-center">
               <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
-              <p className="text-sm text-gray-600">Loading policy information...</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Loading policy information...</p>
             </div>
           ) : (
-            <div className="p-5 bg-yellow-50 rounded-xl border border-yellow-200">
+            <div className="p-5 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm text-yellow-800 font-medium">No active policy found</p>
-                  <p className="text-xs text-yellow-700 mt-1">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">No active policy found</p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
                     Please contact the administrator to set up a {publicationType ===
    'book' ? 'book' : 'book chapter'} policy before submitting.
                   </p>
@@ -3908,18 +3908,18 @@ export default function ResearchContributionForm({ publicationType, contribution
           )}
           
           {/* Book Details - All in One Box */}
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-green-50 rounded-xl border border-slate-200 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-slate-50 to-green-50 dark:from-slate-800/50 dark:to-green-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
             {/* Row 1: Publication Type (Scopus/Non-indexed/SGT Publication House) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Publication Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="bookIndexingType"
                   value={formData.bookIndexingType}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="scopus_indexed">Scopus Indexed</option>
@@ -3932,7 +3932,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               {formData.bookIndexingType ===
    'non_indexed' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Our Authorized Publications <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-4">
@@ -3944,7 +3944,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       className="w-4 h-4 text-green-600"
                       readOnly
                     />
-                    <span className="ml-1.5 text-gray-700">Yes</span>
+                    <span className="ml-1.5 text-gray-700 dark:text-gray-300">Yes</span>
                   </label>
                   <label className="inline-flex items-center text-sm cursor-not-allowed opacity-50">
                     <input type="radio" name="bookLetter" value="no"
@@ -3961,14 +3961,14 @@ export default function ResearchContributionForm({ publicationType, contribution
               {publicationType ===
    'book' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Author Type <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="bookPublicationType"
                   value={formData.bookPublicationType}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="authored">Authored</option>
@@ -3981,7 +3981,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Row 2: Interdisciplinary & Official ID Communication */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Interdisciplinary(SGT) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-4">
@@ -3993,14 +3993,14 @@ export default function ResearchContributionForm({ publicationType, contribution
                         onChange={handleInputChange}
                         className="w-4 h-4 text-green-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Have you communicated the publication with official ID? <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-4">
@@ -4012,7 +4012,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         onChange={handleInputChange}
                         className="w-4 h-4 text-green-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -4023,11 +4023,11 @@ export default function ResearchContributionForm({ publicationType, contribution
             {formData.communicatedWithOfficialId ===
    'no' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Your Personal Email ID <span className="text-red-500">*</span>
                 </label>
                 <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter your personal email address"
                   required
                 />
@@ -4038,37 +4038,37 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Book Chapter Specific: Book Title and Chapter Details */}
             {publicationType ===
    'book_chapter' && (
-              <div className="pt-3 border-t border-slate-200 space-y-4">
+              <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Book Title <span className="text-red-500">*</span>
                   </label>
                   <input type="text" name="bookTitle" value={formData.bookTitle} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter the title of the book containing your chapter"
                     required
                   />
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Chapter Number</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Chapter Number</label>
                     <input type="text" name="chapterNumber" value={formData.chapterNumber} onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                      className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g. Chapter 5"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Page Numbers</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Page Numbers</label>
                     <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                      className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                       placeholder="e.g. 100-125"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Editors</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Editors</label>
                   <input type="text" name="editors" value={formData.editors} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter editor names (comma separated)"
                   />
                 </div>
@@ -4076,27 +4076,27 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
 
             {/* Publisher Details & National/International */}
-            <div className="pt-3 border-t border-slate-200 space-y-4">
+            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Publisher <span className="text-red-500">*</span>
                   </label>
                   <input type="text" name="publisherName" value={formData.publisherName} onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Enter publisher name"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     National / International <span className="text-red-500">*</span>
                   </label>
                   <select
                     name="nationalInternational"
                     value={formData.nationalInternational}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                    className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                     required
                   >
                     <option value="">-- Select --</option>
@@ -4110,21 +4110,21 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* ISBN and Publication Date (removed Edition) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   ISBN <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="isbn" value={formData.isbn} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="978-xxx-xxx-xxxx-x"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Publication Date <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
@@ -4133,13 +4133,13 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Faculty Remarks */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Faculty Remarks</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Faculty Remarks</label>
               <textarea 
                 name="facultyRemarks" 
                 value={formData.facultyRemarks} 
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 bg-white resize-none"
+                className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 bg-white dark:bg-gray-700 dark:text-gray-100 resize-none"
                 placeholder="Any additional remarks or comments about the publication..."
               />
             </div>
@@ -4152,16 +4152,16 @@ export default function ResearchContributionForm({ publicationType, contribution
    'conference_paper' && (
           <>
           {/* Conference Type Selection */}
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 rounded-xl border border-slate-200 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Please Select Conference Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="conferenceSubType"
                 value={formData.conferenceSubType}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                 required
               >
                 <option value="">-- Please Select --</option>
@@ -4174,10 +4174,10 @@ export default function ResearchContributionForm({ publicationType, contribution
             
             {/* Conference Policy Display */}
             {formData.conferenceSubType && conferencePolicy && (
-              <div className="mt-4 p-4 bg-white rounded-lg border border-purple-200">
+              <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-800">
                 <div className="flex items-center gap-2 mb-3">
                   <Award className="w-5 h-5 text-purple-600" />
-                  <h4 className="font-semibold text-gray-900">Current Incentive Policy</h4>
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Current Incentive Policy</h4>
                 </div>
                 
                 {formData.conferenceSubType ===
@@ -4188,20 +4188,20 @@ export default function ResearchContributionForm({ publicationType, contribution
                       {conferencePolicy.quartileIncentives.map((qi: any) => (
                         <div key={qi.quartile} className="text-center p-2 bg-purple-50 rounded-lg">
                           <div className="text-xs font-medium text-purple-600">{qi.quartile}</div>
-                          <div className="text-sm font-semibold text-gray-900">₹{Number(qi.incentiveAmount).toLocaleString()}</div>
-                          <div className="text-xs text-gray-500">{qi.points} pts</div>
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white">₹{Number(qi.incentiveAmount).toLocaleString()}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">{qi.points} pts</div>
                         </div>
                       ))}
                     </div>
                     <div className="flex gap-4 mt-2 text-sm">
                       {conferencePolicy.internationalBonus && (
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 dark:text-gray-400">
                           <Globe className="w-4 h-4 inline mr-1 text-purple-500" />
                           International Bonus: <span className="font-medium text-green-600">₹{Number(conferencePolicy.internationalBonus).toLocaleString()}</span>
                         </span>
                       )}
                       {conferencePolicy.bestPaperAwardBonus && (
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 dark:text-gray-400">
                           <Trophy className="w-4 h-4 inline mr-1 text-amber-500" />
                           Best Paper Award: <span className="font-medium text-green-600">₹{Number(conferencePolicy.bestPaperAwardBonus).toLocaleString()}</span>
                         </span>
@@ -4213,12 +4213,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         <Coins className="w-4 h-4 text-green-600" />
-                        <span className="text-gray-600">Incentive Amount:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Incentive Amount:</span>
                         <span className="font-semibold text-green-600">₹{Number(conferencePolicy.flatIncentiveAmount || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Award className="w-4 h-4 text-purple-600" />
-                        <span className="text-gray-600">Points:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Points:</span>
                         <span className="font-semibold text-purple-600">{conferencePolicy.flatPoints || 0}</span>
                       </div>
                     </div>
@@ -4236,8 +4236,8 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             
             {formData.conferenceSubType && !conferencePolicy && !policyLoading && (
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-700">
+              <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <p className="text-sm text-amber-700 dark:text-amber-300">
                   <AlertCircle className="w-4 h-4 inline mr-1" />
                   No active policy configured for this conference type. Default incentives will be applied.
                 </p>
@@ -4249,27 +4249,27 @@ export default function ResearchContributionForm({ publicationType, contribution
           {(formData.conferenceSubType ===
    'paper_not_indexed' || formData.conferenceSubType ===
    'paper_indexed_scopus') && (
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 rounded-xl border border-slate-200 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-slate-50 to-purple-50 dark:from-slate-800/50 dark:to-purple-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
             {/* Title of Paper - Already covered by main title field */}
             
             {/* Conference Name & Proceedings Title */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Title of the Proceedings of Conference
                 </label>
                 <input type="text" name="proceedingsTitle" value={formData.proceedingsTitle} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter proceedings title"
                 />
               </div>
@@ -4278,20 +4278,20 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Priority Funding Area & Quartile (only for indexed) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Priority Areas of Funding</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority Areas of Funding</label>
                 <input type="text" name="priorityFundingArea" value={formData.priorityFundingArea} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter priority funding area"
                 />
               </div>
               {formData.conferenceSubType ===
    'paper_indexed_scopus' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Please Mention the Proceedings Quartile <span className="text-red-500">*</span>
                 </label>
                 <select name="proceedingsQuartile" value={formData.proceedingsQuartile} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 >
                   <option value="na">NA</option>
@@ -4307,7 +4307,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Presenters & Role */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Total No. of Presenter's</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Total No. of Presenter's</label>
                 <input 
                   type="number" 
                   name="totalPresenters" 
@@ -4329,11 +4329,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }}
                   min="1" 
                   max="2"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Whether you are a Presenter?
                   {formData.totalPresenters ===
    1 && <span className="text-xs text-green-600 ml-1">(Auto-set to Yes)</span>}
@@ -4353,7 +4353,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    1}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -4362,12 +4362,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {formData.conferenceSubType ===
    'paper_not_indexed' && formData.isPresenter ===
    'no' && (
-                  <div className="mt-3 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="mt-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-yellow-800">No Incentive Policy Applicable</p>
-                        <p className="text-xs text-yellow-700 mt-1">
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-300">No Incentive Policy Applicable</p>
+                        <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">
                           Since you are not a presenter, this submission will follow the approval process but <strong>no incentive or research points will be awarded</strong>.
                         </p>
                       </div>
@@ -4379,11 +4379,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                 {formData.conferenceSubType ===
    'paper_not_indexed' && formData.isPresenter ===
    'yes' && (
-                  <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Upload Presenter Certificate <span className="text-red-500">*</span>
                     </label>
-                    <p className="text-xs text-gray-500 mb-2">Please upload your presenter certificate to validate your participation.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Please upload your presenter certificate to validate your participation.</p>
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
@@ -4392,7 +4392,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           setPresenterCertificate(e.target.files[0]);
                         }
                       }}
-                      className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200"
+                      className="w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-100 dark:file:bg-blue-900/40 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-200 dark:hover:file:bg-blue-900/60"
                     />
                     {presenterCertificate && (
                       <div className="mt-2 text-sm text-green-600 flex items-center gap-2">
@@ -4411,7 +4411,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Virtual Conference?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Virtual Conference?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4420,7 +4420,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -4430,7 +4430,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Full Paper & National/International */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Paper</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Paper</label>
                 <div className="flex gap-4 mt-1">
                   <label className="inline-flex items-center text-sm cursor-pointer">
                     <input type="radio" name="fullPaper" value="yes"
@@ -4438,12 +4438,12 @@ export default function ResearchContributionForm({ publicationType, contribution
    'yes'} onChange={handleInputChange}
                       className="w-4 h-4 text-purple-600"
                     />
-                    <span className="ml-1.5 text-gray-700">Full Paper</span>
+                    <span className="ml-1.5 text-gray-700 dark:text-gray-300">Full Paper</span>
                   </label>
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">National / International <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">National / International <span className="text-red-500">*</span></label>
                 <div className="flex gap-4 mt-1">
                   {['national','international'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4452,7 +4452,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -4462,7 +4462,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Conference Location & Award */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Whether conference held at SGT?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Whether conference held at SGT?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4471,13 +4471,13 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Conference best paper Award?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Conference best paper Award?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4486,7 +4486,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -4496,7 +4496,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Interdisciplinary, Students, Industry */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Interdisciplinary (from SGT)?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interdisciplinary (from SGT)?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4505,13 +4505,13 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Industry?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Industry?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4520,7 +4520,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -4532,7 +4532,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Official ID & Central Facility */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Have you communicated the publication with official ID? <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-4 mt-1">
@@ -4543,13 +4543,13 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Have you used the facility of Central Instrumentation Facility of SGT?</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Have you used the facility of Central Instrumentation Facility of SGT?</label>
                 <div className="flex gap-4 mt-1">
                   {['yes','no'].map(v => (
                     <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4558,7 +4558,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                         className="w-4 h-4 text-purple-600"
                       />
-                      <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                      <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                     </label>
                   ))}
                 </div>
@@ -4569,11 +4569,11 @@ export default function ResearchContributionForm({ publicationType, contribution
             {formData.communicatedWithOfficialId ===
    'no' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Your Personal Email ID <span className="text-red-500">*</span>
                 </label>
                 <input type="email" name="personalEmail" value={formData.personalEmail} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter your personal email address"
                   required
                 />
@@ -4584,17 +4584,17 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Dates */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Conference Date</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Conference Date</label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Publication Date <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   required
                 />
               
@@ -4604,16 +4604,16 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Publication Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">ISSN/ISBN/Issue No</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ISSN/ISBN/Issue No</label>
                 <input type="text" name="issnIsbnIssueNo" value={formData.issnIsbnIssueNo} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter ISSN/ISBN/Issue No"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Page No</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Page No</label>
                 <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="e.g. 100-125"
                 />
               </div>
@@ -4622,16 +4622,16 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* DOI & Weblinks */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">DOIs of Paper</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">DOIs of Paper</label>
                 <input type="text" name="paperDoi" value={formData.paperDoi} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="Enter DOI"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">WebLink</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">WebLink</label>
                 <input type="url" name="weblink" value={formData.weblink} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                   placeholder="https://..."
                 />
               </div>
@@ -4639,18 +4639,18 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Paper WebLink */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Paper WebLink</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Paper WebLink</label>
               <input type="url" name="paperweblink" value={formData.paperweblink} onChange={handleInputChange}
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 placeholder="https://..."
               />
             </div>
 
             {/* Faculty Remarks */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Faculty Remarks</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Faculty Remarks</label>
               <textarea name="facultyRemarks" value={formData.facultyRemarks} onChange={handleInputChange}
-                rows={3} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white resize-none"
+                rows={3} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 bg-white resize-none dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
                 placeholder="Please mention the date and venue of conference..."
               />
             </div>
@@ -4660,10 +4660,10 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Type 3: Keynote Speaker / Session Chair / Invited Talks */}
           {formData.conferenceSubType ===
    'keynote_speaker_invited_talks' && (
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-orange-50 rounded-xl border border-slate-200 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-slate-50 to-orange-50 dark:from-slate-800/50 dark:to-orange-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
             {/* Role Selection */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Role <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-4">
@@ -4679,7 +4679,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    role.value} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
-                    <span className="ml-1.5 text-gray-700">{role.label}</span>
+                    <span className="ml-1.5 text-gray-700 dark:text-gray-300">{role.label}</span>
                   </label>
                 ))}
               </div>
@@ -4687,7 +4687,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Indexed In */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Indexed in <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-4">
@@ -4703,7 +4703,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    opt.value} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
-                    <span className="ml-1.5 text-gray-700">{opt.label}</span>
+                    <span className="ml-1.5 text-gray-700 dark:text-gray-300">{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -4711,7 +4711,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Conference Held Location */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Conference Held <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-4">
@@ -4725,7 +4725,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    opt.value} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
-                    <span className="ml-1.5 text-gray-700">{opt.label}</span>
+                    <span className="ml-1.5 text-gray-700 dark:text-gray-300">{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -4734,21 +4734,21 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Conference Name & Venue */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="venue" value={formData.venue} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter venue"
                   required
                 />
@@ -4758,21 +4758,21 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Date & Topic */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Date of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Topic <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="topic" value={formData.topic} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter topic"
                   required
                 />
@@ -4781,7 +4781,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Virtual Conference */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Whether you have attended Virtual Conference?</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Whether you have attended Virtual Conference?</label>
               <div className="flex gap-4 mt-1">
                 {['yes','no'].map(v => (
                   <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4790,7 +4790,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                       className="w-4 h-4 text-orange-600"
                     />
-                    <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                    <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                   </label>
                 ))}
               </div>
@@ -4801,10 +4801,10 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Type 4: Organizer/Coordinator/Member of Conference held at SGT */}
           {formData.conferenceSubType ===
    'organizer_coordinator_member' && (
-          <div className="p-5 bg-gradient-to-r from-slate-50 to-cyan-50 rounded-xl border border-slate-200 space-y-5">
+          <div className="p-5 bg-gradient-to-r from-slate-50 to-cyan-50 dark:from-slate-800/50 dark:to-cyan-900/20 rounded-xl border border-slate-200 dark:border-slate-700 space-y-5">
             {/* Category Selection */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Category <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-4">
@@ -4818,7 +4818,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    cat.value} onChange={handleInputChange}
                       className="w-4 h-4 text-cyan-600"
                     />
-                    <span className="ml-1.5 text-gray-700">{cat.label}</span>
+                    <span className="ml-1.5 text-gray-700 dark:text-gray-300">{cat.label}</span>
                   </label>
                 ))}
               </div>
@@ -4826,7 +4826,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Role Selection based on Category */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 {formData.eventCategory ===
    'seminar_symposia' ? 'Seminar/Symposia Role' : 'Role'} <span className="text-red-500">*</span>
               </label>
@@ -4847,7 +4847,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    role.value} onChange={handleInputChange}
                         className="w-4 h-4 text-cyan-600"
                       />
-                      <span className="ml-1.5 text-gray-700">{role.label}</span>
+                      <span className="ml-1.5 text-gray-700 dark:text-gray-300">{role.label}</span>
                     </label>
                   ))
                 ) : (
@@ -4864,7 +4864,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    role.value} onChange={handleInputChange}
                         className="w-4 h-4 text-cyan-600"
                       />
-                      <span className="ml-1.5 text-gray-700">{role.label}</span>
+                      <span className="ml-1.5 text-gray-700 dark:text-gray-300">{role.label}</span>
                     </label>
                   ))
                 )}
@@ -4873,7 +4873,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Conference Type */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Conference Type <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-4">
@@ -4887,7 +4887,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    opt.value} onChange={handleInputChange}
                       className="w-4 h-4 text-cyan-600"
                     />
-                    <span className="ml-1.5 text-gray-700">{opt.label}</span>
+                    <span className="ml-1.5 text-gray-700 dark:text-gray-300">{opt.label}</span>
                   </label>
                 ))}
               </div>
@@ -4896,21 +4896,21 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Conference Name & Venue */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Name of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="conferenceName" value={formData.conferenceName} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter conference name"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Venue <span className="text-red-500">*</span>
                 </label>
                 <input type="text" name="venue" value={formData.venue} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter venue"
                   required
                 />
@@ -4920,21 +4920,21 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Date & Topic */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Date of Conference <span className="text-red-500">*</span>
                 </label>
                 <input type="date" name="conferenceDate" value={formData.conferenceDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   required
                 />
                 
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Topic
                 </label>
                 <input type="text" name="topic" value={formData.topic} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="Enter topic"
                 />
               </div>
@@ -4942,7 +4942,7 @@ export default function ResearchContributionForm({ publicationType, contribution
 
             {/* Virtual Conference */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Whether you have attended Virtual Conference?</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Whether you have attended Virtual Conference?</label>
               <div className="flex gap-4 mt-1">
                 {['yes','no'].map(v => (
                   <label key={v} className="inline-flex items-center text-sm cursor-pointer">
@@ -4951,7 +4951,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    v} onChange={handleInputChange}
                       className="w-4 h-4 text-cyan-600"
                     />
-                    <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                    <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                   </label>
                 ))}
               </div>
@@ -4963,12 +4963,12 @@ export default function ResearchContributionForm({ publicationType, contribution
 
           {/* SDG Goals - Shown for all types */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
               UN Sustainable Development Goals (SDGs)
             </label>
             <details className="group">
-              <summary className="cursor-pointer px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 hover:bg-white flex justify-between items-center transition-colors">
-                <span className="text-gray-600">
+              <summary className="cursor-pointer px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 hover:bg-white dark:hover:bg-gray-600 flex justify-between items-center transition-colors">
+                <span className="text-gray-600 dark:text-gray-300">
                   {formData.sdgGoals.length > 0 
                     ? `${formData.sdgGoals.length} SDG${formData.sdgGoals.length !== 1 ? 's' : ''} selected`
                     : 'Click to select relevant SDGs'}
@@ -4977,10 +4977,10 @@ export default function ResearchContributionForm({ publicationType, contribution
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </summary>
-              <div className="mt-2 p-4 border border-gray-200 rounded-xl bg-white shadow-lg max-h-64 overflow-y-auto">
+              <div className="mt-2 p-4 border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 shadow-lg max-h-64 overflow-y-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {SDG_GOALS.map((sdg) => (
-                    <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-blue-50 rounded-lg cursor-pointer transition-colors">
+                    <label key={sdg.value} className="flex items-center space-x-2 px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={formData.sdgGoals.includes(sdg.value)}
@@ -4995,7 +4995,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                         }}
                         className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                       />
-                      <span className="text-sm">{sdg.label}</span>
+                      <span className="text-sm dark:text-gray-300">{sdg.label}</span>
                     </label>
                   ))}
                 </div>
@@ -5029,48 +5029,48 @@ export default function ResearchContributionForm({ publicationType, contribution
           {/* Publication Details Grid - Only for Research Papers */}
           {publicationType ===
    'research_paper' && (
-          <div className="p-5 bg-slate-50 rounded-xl border border-slate-200">
-            <h4 className="text-sm font-semibold text-gray-700 mb-4">Publication Information</h4>
+          <div className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+            <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">Publication Information</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">Volume <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Volume <span className="text-red-500">*</span></label>
                 <input type="text" name="volume" value={formData.volume} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500" placeholder="Vol"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="Vol"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">Issue <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Issue <span className="text-red-500">*</span></label>
                 <input type="text" name="issue" value={formData.issue} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500" placeholder="Iss"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="Iss"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">Pages <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Pages <span className="text-red-500">*</span></label>
                 <input type="text" name="pageNumbers" value={formData.pageNumbers} onChange={handleInputChange} required
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500" placeholder="1-10"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="1-10"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">DOI</label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">DOI</label>
                 <input type="text" name="doi" value={formData.doi} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500" placeholder="10.xxx"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="10.xxx"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">ISSN</label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">ISSN</label>
                 <input type="text" name="issn" value={formData.issn} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500" placeholder="1234-5678"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500" placeholder="1234-5678"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">Pub. Date</label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Pub. Date</label>
                 <input type="date" name="publicationDate" value={formData.publicationDate} onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-600 mb-2">Weblink (Publication URL)</label>
+              <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Weblink (Publication URL)</label>
               <input type="url" name="weblink" value={formData.publisherName} onChange={(e) => {
                   const url = e.target.value;
                   // Allow empty or valid https URLs
@@ -5080,7 +5080,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }
                 }}
                 pattern="https://.*"
-                className={`w-full px-3 py-2.5 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 ${formData.publisherName && !formData.publisherName.startsWith('https://') ? 'border-red-300' : 'border-gray-300'}`} 
+                className={`w-full px-3 py-2.5 border rounded-lg bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 ${formData.publisherName && !formData.publisherName.startsWith('https://') ? 'border-red-300' : 'border-gray-300 dark:border-gray-600'}`} 
                 placeholder="https://doi.org/10.xxxx/xxxxx"
               />
               {formData.publisherName && !formData.publisherName.startsWith('https://') && (
@@ -5106,13 +5106,13 @@ export default function ResearchContributionForm({ publicationType, contribution
       {/* Mentor Selection (Only for Students) - Compact */}
       {user?.userType ===
    'student' && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">Mentor Details (Optional)</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Mentor Details (Optional)</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* Mentor UID with Autocomplete */}
             <div className="relative" ref={mentorSuggestionsRef}>
-              <label className="block text-xs font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">
                 Mentor UID (Faculty)
               </label>
               <input
@@ -5122,20 +5122,20 @@ export default function ResearchContributionForm({ publicationType, contribution
                 onChange={handleMentorUidChange}
                 onFocus={() => formData.mentorUid.length >= 3 && setShowMentorSuggestions(true)}
                 placeholder="Enter Mentor's UID"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-gray-100"
               />
               
               {/* Autocomplete Suggestions Dropdown */}
               {showMentorSuggestions && mentorSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded shadow-lg max-h-48 overflow-y-auto">
                   {mentorSuggestions.map((suggestion, index) => (
                     <div
                       key={index}
                       onClick={() => selectMentorSuggestion(suggestion)}
-                      className="px-2 py-1.5 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      className="px-2 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0"
                     >
-                      <div className="font-medium text-gray-900 text-sm">{suggestion.uid}</div>
-                      <div className="text-xs text-gray-600">{suggestion.name}</div>
+                      <div className="font-medium text-gray-900 dark:text-white text-sm">{suggestion.uid}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{suggestion.name}</div>
                     </div>
                   ))}
                 </div>
@@ -5144,14 +5144,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             
             {/* Mentor Name (Auto-filled) */}
             <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Mentor Name</label>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-400 mb-1">Mentor Name</label>
               <input
                 type="text"
                 name="mentorName"
                 value={formData.mentorName}
                 readOnly
                 placeholder="Auto-filled"
-                className="w-full px-2 py-1.5 border border-gray-300 rounded bg-gray-50 text-sm text-gray-700"
+                className="w-full px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-gray-50 dark:bg-gray-700 dark:text-gray-300 text-sm text-gray-700"
               />
             </div>
           </div>
@@ -5159,7 +5159,7 @@ export default function ResearchContributionForm({ publicationType, contribution
       )}
 
       {/* Authors Section - Professional */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className={`bg-gradient-to-r ${formData.publicationType ===
    'conference_paper' ? 'from-purple-600 to-purple-700' : (formData.publicationType ===
    'book' || formData.publicationType ===
@@ -5170,13 +5170,13 @@ export default function ResearchContributionForm({ publicationType, contribution
         
         {/* Author Counts and Additional Info - All in One Box */}
         <div className={`p-4 bg-gradient-to-r ${formData.publicationType ===
-   'conference_paper' ? 'from-gray-50 to-purple-50' : (formData.publicationType ===
+   'conference_paper' ? 'from-gray-50 dark:from-gray-700/50 to-purple-50 dark:to-purple-900/20' : (formData.publicationType ===
    'book' || formData.publicationType ===
-   'book_chapter') ? 'from-gray-50 to-teal-50' : 'from-gray-50 to-emerald-50'} rounded-xl border border-gray-100 space-y-4`}>
+   'book_chapter') ? 'from-gray-50 dark:from-gray-700/50 to-teal-50 dark:to-teal-900/20' : 'from-gray-50 dark:from-gray-700/50 to-emerald-50 dark:to-emerald-900/20'} rounded-xl border border-gray-100 dark:border-gray-700 space-y-4`}>
           {/* Row 1: Basic Author Counts */}
           <div className="flex flex-wrap items-end gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Total Authors <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Total Authors <span className="text-red-500">*</span></label>
               <input type="number" min="1" value={totalAuthors}
                 onChange={(e) => {
                   if (hasAuthorsAdded) return;
@@ -5188,12 +5188,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                 disabled={hasAuthorsAdded}
                 className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
    'book' || publicationType ===
-   'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="1"
+   'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'} dark:border-gray-600 dark:text-gray-100`} placeholder="1"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">SGT Authors <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">SGT Authors <span className="text-red-500">*</span></label>
               <input type="number" min="1" max={totalAuthors} value={totalInternalAuthors}
                 onChange={(e) => {
                   if (hasAuthorsAdded) return;
@@ -5209,7 +5209,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 disabled={hasAuthorsAdded}
                 className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
    'book' || publicationType ===
-   'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="1"
+   'book_chapter' ? 'focus:ring-teal-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'} dark:border-gray-600 dark:text-gray-100`} placeholder="1"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
@@ -5222,7 +5222,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'paper_indexed_scopus')) && (
             <>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
                 Internal Co-Authors <span className="text-red-500">*</span>
                 <span className="text-gray-400 ml-1 font-normal">(Max: {totalAuthors ===
    totalInternalAuthors ? totalInternalAuthors - 1 : totalInternalAuthors})</span>
@@ -5246,19 +5246,19 @@ export default function ResearchContributionForm({ publicationType, contribution
                 }}
                 disabled={hasAuthorsAdded}
                 className={`w-24 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 ${publicationType ===
-   'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} placeholder="0"
+   'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'} ${hasAuthorsAdded ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : 'bg-white dark:bg-gray-700'} dark:border-gray-600 dark:text-gray-100`} placeholder="0"
                 title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
                 {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_position_based' ? 'Your Position' : 'Your Role'} <span className="text-red-500">*</span>
               </label>
               {getAllowedUserRoles().length ===
    1 || hasAuthorsAdded ? (
-                <div className={`px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-700 ${hasAuthorsAdded ? 'cursor-not-allowed' : ''}`}
+                <div className={`px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 ${hasAuthorsAdded ? 'cursor-not-allowed' : ''}`}
                   title={hasAuthorsAdded ? 'Remove all authors to change this field' : ''}
                 >
                   {(publicationType ===
@@ -5310,7 +5310,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     }
                   }
                 }}
-                  className={`px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 ${publicationType ===
+                  className={`px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 dark:text-gray-100 focus:ring-2 ${publicationType ===
    'conference_paper' ? 'focus:ring-purple-500' : 'focus:ring-emerald-500'}`}
                 >
                   {(publicationType ===
@@ -5342,14 +5342,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             {(publicationType ===
    'book' || publicationType ===
    'book_chapter') && (
-              <div className="flex items-center text-xs text-teal-700 bg-teal-50 px-3 py-2 rounded-lg border border-teal-200">
+              <div className="flex items-center text-xs text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-900/20 px-3 py-2 rounded-lg border border-teal-200 dark:border-teal-800">
                 <Coins className="w-4 h-4 mr-2" />
                 Incentive will be distributed equally among all SGT authors
               </div>
             )}
             
             {hasAuthorsAdded && (
-              <div className="flex items-center text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+              <div className="flex items-center text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg">
                 <AlertCircle className="w-4 h-4 mr-2" />
                 Remove all added authors to modify these fields
               </div>
@@ -5388,7 +5388,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       }}
                       className="w-4 h-4 text-emerald-600"
                     />
-                    <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                    <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                   </label>
                 ))}
               </div>
@@ -5410,7 +5410,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                       onChange={handleInputChange}
                       className="w-4 h-4 text-emerald-600"
                     />
-                    <span className="ml-1.5 capitalize text-gray-700">{v}</span>
+                    <span className="ml-1.5 capitalize text-gray-700 dark:text-gray-300">{v}</span>
                   </label>
                 ))}
               </div>
@@ -5447,7 +5447,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   }}
                   min="0"
                   max={totalAuthors - totalInternalAuthors}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 bg-white dark:bg-gray-700 dark:text-gray-100"
                   placeholder="0"
                 />
               </div>
@@ -5461,11 +5461,11 @@ export default function ResearchContributionForm({ publicationType, contribution
         {(totalAuthors > 1) && (
           <div className={`border ${publicationType ===
    'book' || publicationType ===
-   'book_chapter' ? 'border-teal-300 bg-teal-50' : 'border-orange-300 bg-orange-50'} rounded p-3 mb-4`}>
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">
+   'book_chapter' ? 'border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20' : 'border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20'} rounded p-3 mb-4`}>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
               Add Other Authors {editingAuthorIndex !== null && <span className="text-xs text-blue-600">(Editing)</span>}
             </h3>
-            <p className="text-xs text-gray-600 mb-2">
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
               {(() => {
                 const maxCoAuthors = totalAuthors - 1;
                 const currentAdded = coAuthors.filter(a => a.name).length;
@@ -5500,7 +5500,7 @@ export default function ResearchContributionForm({ publicationType, contribution
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Author Category - Internal/External */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {publicationType ===
    'book' || publicationType ===
    'book_chapter' ? 'Author From:' : 'Author Type:'} <span className="text-red-500">*</span>
@@ -5604,7 +5604,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'research_paper' || formData.publicationType ===
    'conference_paper') && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 {newAuthor.authorCategory ===
    'Internal' ? 'Select Type:' : 'Author category:'} <span className="text-red-500">*</span>
               </label>
@@ -5723,7 +5723,7 @@ export default function ResearchContributionForm({ publicationType, contribution
    'research_paper' || formData.publicationType ===
    'conference_paper') && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {formData.publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_position_based' ? 'Author Position:' : 'Author Role:'} <span className="text-red-500">*</span>
@@ -5731,7 +5731,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               <select
                 value={newAuthor.authorRole}
                 onChange={(e) => setNewAuthor(prev => ({ ...prev, authorRole: e.target.value }))}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-gray-100"
               >
                 {getAvailableOtherAuthorRoles().map(role => (
                   <option key={role.value} value={role.value}>{role.label}</option>
@@ -5752,7 +5752,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {newAuthor.authorCategory ===
    'Internal' && (
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   {newAuthor.authorType ===
    'Student' ? 'Reg No:' : (newAuthor.authorType ===
    'Author' ? 'UID/Reg No:' : 'UID:')} <span className="text-red-500">*</span>
@@ -5805,12 +5805,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                   placeholder={newAuthor.authorType ===
    'Student' ? 'e.g., 12345678' : (newAuthor.authorType ===
    'Author' ? 'e.g., STF12345 or 12345678' : 'e.g., STF12345')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
                 />
                 
                 {/* Search Suggestions Dropdown */}
                 {showSuggestions && searchSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                     {searchSuggestions.map((suggestion, idx) => {
                       // Handle different field names from backend
                       const displayName = suggestion.name || suggestion.displayName || `${suggestion.firstName || ''} ${suggestion.lastName || ''}`.trim();
@@ -5821,12 +5821,12 @@ export default function ResearchContributionForm({ publicationType, contribution
                         <div
                           key={idx}
                           onClick={() => selectAuthorFromSuggestion(suggestion)}
-                          className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-200 last:border-b-0"
+                          className="px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer border-b border-gray-200 dark:border-gray-700 last:border-b-0"
                         >
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-gray-900 dark:text-white">
                             {suggestion.uid} - {displayName}
                           </div>
-                          <div className="text-sm text-gray-600">
+                          <div className="text-sm text-gray-600 dark:text-gray-400">
                             {displayRole} {displayDept && `• ${displayDept}`}
                           </div>
                         </div>
@@ -5840,7 +5840,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {/* Name - auto-filled for Internal, manual entry for External */}
             <div className={newAuthor.authorCategory ===
    'External' ? '' : 'md:col-span-2'}>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Name: <span className="text-red-500">*</span>
               </label>
               <input
@@ -5851,14 +5851,14 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? 'Auto-filled after entering UID' : 'Enter full name'}
                 readOnly={newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory ===
-   'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
+                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-gray-100 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-gray-50 dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
               />
             </div>
             
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 E-mail: <span className="text-red-500">*</span>
               </label>
               <input
@@ -5869,14 +5869,14 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? 'Auto-filled after entering UID' : 'email@example.com'}
                 readOnly={newAuthor.authorCategory ===
    'Internal' && !!newAuthor.uid}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory ===
-   'Internal' && !!newAuthor.uid ? 'bg-gray-50' : ''}`}
+                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-gray-100 ${newAuthor.authorCategory ===
+   'Internal' && !!newAuthor.uid ? 'bg-gray-50 dark:bg-gray-700/50' : 'dark:bg-gray-700'}`}
               />
             </div>
             
             {/* Affiliation/Organization */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {newAuthor.authorCategory ===
    'Internal' ? 'Institute:' : 'Organization/Institute:'} <span className="text-red-500">*</span>
               </label>
@@ -5888,8 +5888,8 @@ export default function ResearchContributionForm({ publicationType, contribution
    'Internal' ? 'SGT University' : 'Enter organization/institute name'}
                 readOnly={newAuthor.authorCategory ===
    'Internal'}
-                className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${newAuthor.authorCategory ===
-   'Internal' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:text-gray-100 ${newAuthor.authorCategory ===
+   'Internal' ? 'bg-gray-100 dark:bg-gray-700/50 cursor-not-allowed' : 'dark:bg-gray-700'}`}
               />
             </div>
             
@@ -5897,7 +5897,7 @@ export default function ResearchContributionForm({ publicationType, contribution
             {newAuthor.authorCategory ===
    'External' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Designation: <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -5905,7 +5905,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                   value={newAuthor.designation}
                   onChange={(e) => setNewAuthor(prev => ({ ...prev, designation: e.target.value }))}
                   placeholder="e.g. Professor, Researcher, etc."
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
             )}
@@ -5995,14 +5995,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-              <div className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm">
+              <div className="mb-4 bg-gradient-to-r from-blue-50 dark:from-blue-900/20 to-indigo-50 dark:to-indigo-900/20 border-l-4 border-blue-500 p-4 rounded-r-lg shadow-sm">
                 <div className="flex items-start gap-3">
                   <svg className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <h4 className="text-sm font-semibold text-blue-900 mb-1">💡 Drag to Reorder Authors in Paper</h4>
-                    <p className="text-sm text-blue-800">
+                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-200 mb-1">💡 Drag to Reorder Authors in Paper</h4>
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
                       Click and drag the <span className="inline-flex items-center bg-white px-2 py-0.5 rounded border border-blue-200 shadow-sm font-mono text-xs">⋮⋮</span> handle to set author order in the paper. 
                       <span className="font-semibold">Only internal authors in positions 1-5</span> receive incentives and points. 
                       Internal authors beyond position #5 (6th, 7th, etc.) are highlighted in <span className="text-red-600 font-semibold">red</span> and get <strong>₹0</strong>.
@@ -6013,14 +6013,14 @@ export default function ResearchContributionForm({ publicationType, contribution
             )}
             
             <div className="w-full overflow-x-auto">
-              <table className="min-w-full border border-gray-300" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
-                <thead className="bg-gray-50">
+              <table className="min-w-full border border-gray-300 dark:border-gray-600" style={{ borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
                     {/* Up Arrow Column - only for role-based */}
                     {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-                      <th className="px-2 py-2 w-16 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
+                      <th className="px-2 py-2 w-16 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600">
                         ↑
                       </th>
                     )}
@@ -6028,54 +6028,54 @@ export default function ResearchContributionForm({ publicationType, contribution
                     {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider border-r">
+                      <th className="px-2 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600">
                         Order
                       </th>
                     )}
-                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-20">
+                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-20">
                       Category
                     </th>
-                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-20">
+                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-20">
                       Type
                     </th>
-                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-20">
+                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-20">
                       Role
                     </th>
-                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-32">
+                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-32">
                       UID/Name
                     </th>
-                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-36">
+                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-36">
                       Email
                     </th>
-                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-28">
+                    <th className="px-1 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-28">
                       Affiliation
                     </th>
-                    <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-20">
+                    <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-20">
                       <div className="flex items-center gap-1">
                         <Coins className="w-3.5 h-3.5 text-green-600" />
                         Incentive
                       </div>
                     </th>
-                    <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-16">
+                    <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-16">
                       <div className="flex items-center gap-1">
                         <Award className="w-3.5 h-3.5 text-blue-600" />
                         Points
                       </div>
                     </th>
-                    <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider border-r w-20">
+                    <th className="px-1 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider border-r dark:border-gray-600 w-20">
                       Action
                     </th>
                     {/* Down Arrow Column - only for role-based */}
                     {publicationType ===
    'research_paper' && policyData?.distributionMethod ===
    'author_role_based' && (
-                      <th className="px-2 py-2 w-16 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
+                      <th className="px-2 py-2 w-16 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                         ↓
                       </th>
                     )}
                   </tr>
                 </thead>
-                <tbody className="bg-white">
+                <tbody className="bg-white dark:bg-gray-800">
                   {/* Render all authors (user + co-authors) sorted by displayOrder */}
                   {(() => {
                     // Determine user's displayOrder
@@ -6262,7 +6262,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                           }}
                           className={`
                             rounded-lg border-2
-                            ${author.isUser ? 'bg-gradient-to-r from-blue-50 via-blue-100/70 to-blue-50 border-blue-400' : 'bg-white border-gray-200'}
+                            ${author.isUser ? 'bg-gradient-to-r from-blue-50 dark:from-blue-900/30 via-blue-100/70 dark:via-blue-800/30 to-blue-50 dark:to-blue-900/30 border-blue-400' : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'}
                             ${isDragging ? 'opacity-90 bg-gradient-to-r from-blue-200 to-blue-300 border-blue-600 relative z-50 scale-105' : ''} 
                             ${isDragOver ? 'border-blue-600 bg-gradient-to-b from-blue-100 to-blue-50 scale-[1.02]' : ''} 
                             ${isBeyondFifth && !isDragging && !author.isUser ? 'bg-gradient-to-r from-red-50 via-red-100/70 to-red-50 border-red-400' : ''} 
@@ -6384,22 +6384,22 @@ export default function ResearchContributionForm({ publicationType, contribution
                               </div>
                             </td>
                           )}
-                          <td className="px-1 py-2 text-xs font-medium text-gray-900 border-r">
+                          <td className="px-1 py-2 text-xs font-medium text-gray-900 dark:text-gray-200 border-r dark:border-gray-600">
                             {author.authorCategory}
                           </td>
-                          <td className="px-1 py-2 text-xs font-medium text-gray-900 border-r">
+                          <td className="px-1 py-2 text-xs font-medium text-gray-900 dark:text-gray-200 border-r dark:border-gray-600">
                             {author.authorType}
                           </td>
-                          <td className={`px-1 py-2 text-xs font-medium ${author.isUser ? 'text-blue-600' : 'text-gray-700'} border-r`}>
+                          <td className={`px-1 py-2 text-xs font-medium ${author.isUser ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300'} border-r dark:border-gray-600`}>
                             {roleLabel}
                           </td>
-                          <td className="px-1 py-2 text-xs font-medium text-gray-900 border-r break-words">
+                          <td className="px-1 py-2 text-xs font-medium text-gray-900 dark:text-gray-200 border-r dark:border-gray-600 break-words">
                             {author.uid ? `${author.uid} - ${author.name}` : author.name}
                           </td>
-                          <td className="px-1 py-2 text-xs text-gray-900 border-r break-all">
+                          <td className="px-1 py-2 text-xs text-gray-900 dark:text-gray-200 border-r dark:border-gray-600 break-all">
                             {author.email}
                           </td>
-                          <td className="px-1 py-2 text-xs text-gray-900 border-r break-words">
+                          <td className="px-1 py-2 text-xs text-gray-900 dark:text-gray-200 border-r dark:border-gray-600 break-words">
                             {author.affiliation}
                           </td>
                           <td className="px-1 py-2 text-xs border-r text-center">
@@ -6536,13 +6536,13 @@ export default function ResearchContributionForm({ publicationType, contribution
                     });
                     
                     return (
-                      <tr className="bg-gray-100 font-bold">
+                      <tr className="bg-gray-100 dark:bg-gray-700 font-bold">
                         <td colSpan={publicationType ===
    'research_paper' && policyData?.distributionMethod ===
-   'author_role_based' ? 9 : 6} className="px-4 py-3 text-sm text-right border-r">
+   'author_role_based' ? 9 : 6} className="px-4 py-3 text-sm text-right border-r dark:border-gray-600 dark:text-gray-300">
                           TOTAL
                         </td>
-                        <td className="px-4 py-3 text-sm border-r">
+                        <td className="px-4 py-3 text-sm border-r dark:border-gray-600">
                           <span className="text-green-700 font-bold">₹{totalIncentive.toLocaleString()}</span>
                         </td>
                         <td className="px-4 py-3 text-sm border-r">
@@ -6555,7 +6555,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
               <span className="font-medium">Incentive Distribution Rules:</span><br/>
               {(formData.publicationType ===
    'book' || formData.publicationType ===
@@ -6589,15 +6589,15 @@ export default function ResearchContributionForm({ publicationType, contribution
 
 
       {/* Document Upload Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="p-5 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="p-5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2.5 bg-amber-100 rounded-lg">
+            <div className="p-2.5 bg-amber-100 dark:bg-amber-900/40 rounded-lg">
               <FileText className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">Upload Documents</h3>
-              <p className="text-sm text-gray-500">Upload all documents as a single ZIP file (Max 5 MB)</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Upload Documents</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Upload all documents as a single ZIP file (Max 5 MB)</p>
             </div>
           </div>
 
@@ -6605,8 +6605,8 @@ export default function ResearchContributionForm({ publicationType, contribution
           {publicationType ===
    'conference_paper' && formData.conferenceSubType ===
    'paper_indexed_scopus' && (
-            <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-              <h4 className="text-sm font-semibold text-purple-900 mb-3">Document Submission Checklist (Mark before submit)</h4>
+            <div className="mb-4 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+              <h4 className="text-sm font-semibold text-purple-900 dark:text-purple-300 mb-3">Document Submission Checklist (Mark before submit)</h4>
               <div className="space-y-2">
                 <div className="flex items-start gap-2">
                   <input
@@ -6617,7 +6617,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     onChange={(e) => setFormData(prev => ({ ...prev, takeholderContents: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
-                  <label className="text-sm text-gray-700">i. Takeholder Contents</label>
+                  <label className="text-sm text-gray-700 dark:text-gray-300">i. Takeholder Contents</label>
                 </div>
                 <div className="flex items-start gap-2">
                   <input
@@ -6628,7 +6628,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     onChange={(e) => setFormData(prev => ({ ...prev, frontPageWithAuthorAffiliation: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
-                  <label className="text-sm text-gray-700">ii. Front page of the paper with author affiliation to be included</label>
+                  <label className="text-sm text-gray-700 dark:text-gray-300">ii. Front page of the paper with author affiliation to be included</label>
                 </div>
                 <div className="flex items-start gap-2">
                   <input
@@ -6639,7 +6639,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     onChange={(e) => setFormData(prev => ({ ...prev, nameContainsSpecialCharacters: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
-                  <label className="text-sm text-gray-700">iii. Please ensure the name contains no special characters (accents, unicode, etc.)</label>
+                  <label className="text-sm text-gray-700 dark:text-gray-300">iii. Please ensure the name contains no special characters (accents, unicode, etc.)</label>
                 </div>
                 <div className="flex items-start gap-2">
                   <input
@@ -6650,7 +6650,7 @@ export default function ResearchContributionForm({ publicationType, contribution
                     onChange={(e) => setFormData(prev => ({ ...prev, confDatesVenue: e.target.checked ? 'yes' : 'no' }))}
                     className="w-4 h-4 mt-0.5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
                   />
-                  <label className="text-sm text-gray-700">iv. Please mention the date and venue of conference</label>
+                  <label className="text-sm text-gray-700 dark:text-gray-300">iv. Please mention the date and venue of conference</label>
                 </div>
               </div>
             </div>
@@ -6671,11 +6671,11 @@ export default function ResearchContributionForm({ publicationType, contribution
                   handleResearchDocumentUpload(e);
                 }
               }}
-              className="w-full file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:font-medium file:bg-amber-100 file:text-amber-700 hover:file:bg-amber-200 file:cursor-pointer cursor-pointer border border-dashed border-amber-300 rounded-xl p-3 bg-white"
+              className="w-full file:mr-4 file:py-2.5 file:px-5 file:rounded-lg file:border-0 file:font-medium file:bg-amber-100 dark:file:bg-amber-900/40 file:text-amber-700 dark:file:text-amber-300 hover:file:bg-amber-200 dark:hover:file:bg-amber-900/60 file:cursor-pointer cursor-pointer border border-dashed border-amber-300 dark:border-amber-700 rounded-xl p-3 bg-white dark:bg-gray-700 dark:text-gray-300"
             />
             {researchDocument && (
-              <div className="mt-3 flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
-                <span className="text-green-700 flex items-center gap-2">
+              <div className="mt-3 flex items-center justify-between p-3 bg-white dark:bg-gray-700 rounded-lg border border-green-200 dark:border-green-800">
+                <span className="text-green-700 dark:text-green-400 flex items-center gap-2">
                   <FileText className="w-4 h-4" />
                   {researchDocument.name} ({(researchDocument.size / 1024 / 1024).toFixed(2)} MB)
                 </span>
@@ -6691,9 +6691,9 @@ export default function ResearchContributionForm({ publicationType, contribution
       </div>
 
           {/* Submit Actions */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-gray-500 dark:text-gray-400">
                 {autoSaving ? (
               <span className="flex items-center text-blue-600">
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -6715,7 +6715,7 @@ export default function ResearchContributionForm({ publicationType, contribution
               type="button"
               onClick={handleSaveDraft}
               disabled={saving || submitting || autoSaving}
-              className="inline-flex items-center px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -6746,8 +6746,8 @@ export default function ResearchContributionForm({ publicationType, contribution
       {/* Already in Process Tab */}
       {activeTab ===
    'process' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold mb-4">My Research Contributions</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-semibold dark:text-white mb-4">My Research Contributions</h2>
           {loadingContributions ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -6760,17 +6760,17 @@ export default function ResearchContributionForm({ publicationType, contribution
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full border border-gray-300">
-                <thead className="bg-gray-50">
+              <table className="min-w-full border border-gray-300 dark:border-gray-600">
+                <thead className="bg-gray-50 dark:bg-gray-700">
                   <tr>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">#</th>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">App Number</th>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">Title</th>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">Type</th>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">Role</th>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                    <th className="px-4 py-2 border text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">#</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">App Number</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Title</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Type</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Role</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Submitted</th>
+                    <th className="px-4 py-2 border dark:border-gray-600 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -6778,46 +6778,46 @@ export default function ResearchContributionForm({ publicationType, contribution
                     const isApplicant = contrib.applicantUserId ===
    user?.id;
                     return (
-                      <tr key={contrib.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-2 border text-sm text-center">{index + 1}</td>
-                        <td className="px-4 py-2 border text-sm font-mono">
+                      <tr key={contrib.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td className="px-4 py-2 border dark:border-gray-600 text-sm dark:text-gray-300 text-center">{index + 1}</td>
+                        <td className="px-4 py-2 border dark:border-gray-600 text-sm font-mono dark:text-gray-300">
                           {contrib.applicationNumber || contrib.id.slice(-8)}
                         </td>
-                        <td className="px-4 py-2 border text-sm">
-                          <div className="font-medium text-gray-900">{contrib.title}</div>
+                        <td className="px-4 py-2 border dark:border-gray-600 text-sm">
+                          <div className="font-medium text-gray-900 dark:text-white">{contrib.title}</div>
                           {contrib.journalName && (
-                            <div className="text-xs text-gray-500 mt-1">{contrib.journalName}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{contrib.journalName}</div>
                           )}
                         </td>
-                        <td className="px-4 py-2 border text-sm">
-                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded uppercase font-medium">
+                        <td className="px-4 py-2 border dark:border-gray-600 text-sm">
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded uppercase font-medium">
                             {contrib.publicationType.replace('_', ' ')}
                           </span>
                         </td>
-                        <td className="px-4 py-2 border text-sm">
+                        <td className="px-4 py-2 border dark:border-gray-600 text-sm">
                           <span className={`inline-flex items-center px-2 py-1 text-xs rounded-full font-medium ${
                             contrib.status ===
-   'draft' ? 'bg-gray-100 text-gray-800' :
+   'draft' ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300' :
                             contrib.status ===
-   'submitted' ? 'bg-blue-100 text-blue-800' :
+   'submitted' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
                             contrib.status ===
-   'under_review' ? 'bg-yellow-100 text-yellow-800' :
+   'under_review' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' :
                             contrib.status ===
-   'approved' ? 'bg-green-100 text-green-800' :
+   'approved' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
                             contrib.status ===
-   'rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
+   'rejected' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' :
+                            'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'
                           }`}>
                             {contrib.status.replace('_', ' ').toUpperCase()}
                           </span>
                         </td>
-                        <td className="px-4 py-2 border text-sm text-center">
+                        <td className="px-4 py-2 border dark:border-gray-600 text-sm text-center">
                           {isApplicant ? (
-                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                            <span className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full font-medium">
                               Applicant
                             </span>
                           ) : (
-                            <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full font-medium">
+                            <span className="inline-flex items-center px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 text-xs rounded-full font-medium">
                               {(() => {
                                 const userAuthor = contrib.authors?.find((a: any) => a.userId ===
    user?.id);

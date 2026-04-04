@@ -7,14 +7,10 @@ import { getProfileImageUrl } from '@/features/chat/services/chat.service';
 import logger from '@/shared/utils/logger';
 import { extractErrorMessage } from '@/shared/types/api.types';
 import { 
-  Settings,
   Bell,
   Lock,
   Eye,
   EyeOff,
-  Moon,
-  Sun,
-  Globe,
   Shield,
   Save,
   CheckCircle,
@@ -49,13 +45,6 @@ export default function SettingsPage() {
     confirmPassword: ''
   });
 
-  const [preferences, setPreferences] = useState({
-    theme: 'light',
-    language: 'en',
-    compactView: false,
-    showTips: true
-  });
-
   // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
@@ -69,12 +58,6 @@ export default function SettingsPage() {
           taskReminders: settings.taskReminders,
           systemAlerts: settings.systemAlerts,
           weeklyDigest: settings.weeklyDigest
-        });
-        setPreferences({
-          theme: settings.theme,
-          language: settings.language,
-          compactView: settings.compactView,
-          showTips: settings.showTips
         });
       } catch (error) {
         logger.error('Error loading settings:', error);
@@ -93,10 +76,6 @@ export default function SettingsPage() {
     setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handlePreferenceChange = (key: keyof typeof preferences, value: string | boolean) => {
-    setPreferences(prev => ({ ...prev, [key]: value }));
-  };
-
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setPasswordData(prev => ({ ...prev, [name]: value }));
@@ -113,26 +92,6 @@ export default function SettingsPage() {
       setTimeout(() => setMessage(null), 3000);
     } catch (error: unknown) {
       logger.error('Error saving notifications:', error);
-      setMessage({ 
-        type: 'error', 
-        text: extractErrorMessage(error)
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSavePreferences = async () => {
-    try {
-      setIsSaving(true);
-      setMessage(null);
-      
-      await profileService.updateSettings(preferences);
-      
-      setMessage({ type: 'success', text: 'Preferences saved successfully!' });
-      setTimeout(() => setMessage(null), 3000);
-    } catch (error: unknown) {
-      logger.error('Error saving preferences:', error);
       setMessage({ 
         type: 'error', 
         text: extractErrorMessage(error)
@@ -180,24 +139,23 @@ export default function SettingsPage() {
     { id: 'profile', name: 'Profile', icon: User },
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'security', name: 'Security', icon: Lock },
-    { id: 'preferences', name: 'Preferences', icon: Settings }
   ];
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="mt-2 text-gray-600">Manage your account settings and preferences</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Manage your account settings and preferences</p>
         </div>
 
         {/* Message Alert */}
@@ -205,8 +163,8 @@ export default function SettingsPage() {
           <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
             message.type ===
    'success' 
-              ? 'bg-green-50 text-green-800 border border-green-200' 
-              : 'bg-red-50 text-red-800 border border-red-200'
+              ? 'bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800' 
+              : 'bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800'
           }`}>
             {message.type ===
    'success' ? (
@@ -218,9 +176,9 @@ export default function SettingsPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           {/* Tabs */}
-          <div className="border-b border-gray-200">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
               {tabs.map((tab) => (
                 <button
@@ -230,8 +188,8 @@ export default function SettingsPage() {
                     flex items-center py-4 px-1 border-b-2 font-medium text-sm transition-colors
                     ${activeTab ===
    tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                     }
                   `}
                 >
@@ -255,8 +213,8 @@ export default function SettingsPage() {
    'profile' && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Photo</h3>
-                      <p className="text-sm text-gray-500 mb-6">Upload and manage your profile photo</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Profile Photo</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Upload and manage your profile photo</p>
                     </div>
 
                     <ProfilePhotoUpload
@@ -274,9 +232,9 @@ export default function SettingsPage() {
                       }}
                     />
 
-                    <div className="pt-6 border-t border-gray-200">
-                      <h4 className="text-md font-semibold text-gray-900 mb-3">About Profile Photos</h4>
-                      <ul className="text-sm text-gray-600 space-y-2">
+                    <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">About Profile Photos</h4>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
                         <li className="flex items-start gap-2">
                           <span className="text-blue-600 mt-1">•</span>
                           <span>Your profile photo is visible to other users in your groups and conversations</span>
@@ -299,8 +257,8 @@ export default function SettingsPage() {
    'notifications' && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Notification Preferences</h3>
-                      <p className="text-sm text-gray-500 mb-6">Choose how you want to receive notifications</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Notification Preferences</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Choose how you want to receive notifications</p>
                     </div>
 
                     <div className="space-y-4">
@@ -312,17 +270,17 @@ export default function SettingsPage() {
                         { key: 'systemAlerts', label: 'System Alerts', description: 'Important system notifications and alerts' },
                         { key: 'weeklyDigest', label: 'Weekly Digest', description: 'Receive a weekly summary of activities' }
                       ].map((item) => (
-                        <div key={item.key} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                        <div key={item.key} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
                           <div>
-                            <p className="font-medium text-gray-900">{item.label}</p>
-                            <p className="text-sm text-gray-500">{item.description}</p>
+                            <p className="font-medium text-gray-900 dark:text-white">{item.label}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{item.description}</p>
                           </div>
                           <button
                             onClick={() => handleNotificationChange(item.key as keyof typeof notifications)}
                             className={`
                               relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
-                              transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                              ${notifications[item.key as keyof typeof notifications] ? 'bg-blue-600' : 'bg-gray-200'}
+                              transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800
+                              ${notifications[item.key as keyof typeof notifications] ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-600'}
                             `}
                           >
                             <span
@@ -364,21 +322,21 @@ export default function SettingsPage() {
    'security' && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h3>
-                      <p className="text-sm text-gray-500 mb-6">Update your password to keep your account secure</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Change Password</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Update your password to keep your account secure</p>
                     </div>
 
                     <div className="max-w-md space-y-4">
                       {/* Current Password */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
                         <div className="relative">
                           <input
                             type={showCurrentPassword ? 'text' : 'password'}
                             name="currentPassword"
                             value={passwordData.currentPassword}
                             onChange={handlePasswordChange}
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                             placeholder="Enter current password"
                           />
                           <button
@@ -393,14 +351,14 @@ export default function SettingsPage() {
 
                       {/* New Password */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
                         <div className="relative">
                           <input
                             type={showNewPassword ? 'text' : 'password'}
                             name="newPassword"
                             value={passwordData.newPassword}
                             onChange={handlePasswordChange}
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                             placeholder="Enter new password"
                           />
                           <button
@@ -411,19 +369,19 @@ export default function SettingsPage() {
                             {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                           </button>
                         </div>
-                        <p className="mt-1 text-xs text-gray-500">Must be at least 8 characters</p>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Must be at least 8 characters</p>
                       </div>
 
                       {/* Confirm Password */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
                         <div className="relative">
                           <input
                             type={showConfirmPassword ? 'text' : 'password'}
                             name="confirmPassword"
                             value={passwordData.confirmPassword}
                             onChange={handlePasswordChange}
-                            className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                             placeholder="Confirm new password"
                           />
                           <button
@@ -458,14 +416,14 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Security Info */}
-                    <div className="mt-8 pt-6 border-t border-gray-200">
-                      <h4 className="font-medium text-gray-900 mb-4">Security Information</h4>
-                      <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                      <h4 className="font-medium text-gray-900 dark:text-white mb-4">Security Information</h4>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
                         <div className="flex items-start">
-                          <Shield className="w-5 h-5 text-blue-600 mt-0.5 mr-3" />
+                          <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" />
                           <div>
-                            <p className="text-sm font-medium text-blue-900">Your account is protected</p>
-                            <p className="text-sm text-blue-700 mt-1">
+                            <p className="text-sm font-medium text-blue-900 dark:text-blue-300">Your account is protected</p>
+                            <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
                               Last login: {new Date().toLocaleDateString('en-IN', { 
                                 year: 'numeric', 
                                 month: 'long', 
@@ -477,121 +435,6 @@ export default function SettingsPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Preferences Tab */}
-                {activeTab ===
-   'preferences' && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Display Preferences</h3>
-                      <p className="text-sm text-gray-500 mb-6">Customize your experience</p>
-                    </div>
-
-                    <div className="space-y-6">
-                      {/* Theme */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">Theme</label>
-                        <div className="flex space-x-4">
-                          <button
-                            onClick={() => handlePreferenceChange('theme', 'light')}
-                            className={`
-                              flex items-center px-4 py-3 rounded-lg border-2 transition-colors
-                              ${preferences.theme ===
-   'light' 
-                                ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                              }
-                            `}
-                          >
-                            <Sun className="w-5 h-5 mr-2" />
-                            Light
-                          </button>
-                          <button
-                            onClick={() => handlePreferenceChange('theme', 'dark')}
-                            className={`
-                              flex items-center px-4 py-3 rounded-lg border-2 transition-colors
-                              ${preferences.theme ===
-   'dark' 
-                                ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                                : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                              }
-                            `}
-                          >
-                            <Moon className="w-5 h-5 mr-2" />
-                            Dark
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Language */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-3">Language</label>
-                        <div className="relative max-w-xs">
-                          <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                          <select
-                            value={preferences.language}
-                            onChange={(e) => handlePreferenceChange('language', e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
-                          >
-                            <option value="en">English</option>
-                            <option value="hi">हिंदी (Hindi)</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Other Preferences */}
-                      <div className="space-y-4 pt-4">
-                        {[
-                          { key: 'compactView', label: 'Compact View', description: 'Use a more condensed layout' },
-                          { key: 'showTips', label: 'Show Tips', description: 'Display helpful tips and suggestions' }
-                        ].map((item) => (
-                          <div key={item.key} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-                            <div>
-                              <p className="font-medium text-gray-900">{item.label}</p>
-                              <p className="text-sm text-gray-500">{item.description}</p>
-                            </div>
-                            <button
-                              onClick={() => handlePreferenceChange(item.key as keyof typeof preferences, !preferences[item.key as keyof typeof preferences])}
-                              className={`
-                                relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
-                                transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                                ${preferences[item.key as keyof typeof preferences] ? 'bg-blue-600' : 'bg-gray-200'}
-                              `}
-                            >
-                              <span
-                                className={`
-                                  pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 
-                                  transition duration-200 ease-in-out
-                                  ${preferences[item.key as keyof typeof preferences] ? 'translate-x-5' : 'translate-x-0'}
-                                `}
-                              />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-4">
-                      <button
-                        onClick={handleSavePreferences}
-                        disabled={isSaving}
-                        className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                      >
-                        {isSaving ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            <Save className="w-4 h-4 mr-2" />
-                            Save Preferences
-                          </>
-                        )}
-                      </button>
                     </div>
                   </div>
                 )}

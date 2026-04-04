@@ -65,19 +65,31 @@ export default function GrantApplyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="h-8 w-64 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+          <div className="h-4 w-80 bg-gray-100 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm space-y-5">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i}>
+                <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-2" />
+                <div className="h-10 w-full bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse" />
+              </div>
+            ))}
+            <div className="h-10 w-32 bg-orange-100 rounded-lg animate-pulse mt-4" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
-          <p className="text-gray-600 mb-4">Please log in to submit a grant application.</p>
+          <h2 className="text-xl font-semibold dark:text-white mb-2">Authentication Required</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Please log in to submit a grant application.</p>
           <Link href="/login" className="text-orange-600 hover:text-orange-700 font-medium">
             Go to Login
           </Link>
@@ -88,11 +100,11 @@ export default function GrantApplyPage() {
 
   if (!canFileResearch) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Access Restricted</h2>
-          <p className="text-gray-600 mb-4">
+          <h2 className="text-xl font-semibold dark:text-white mb-2">Access Restricted</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
             You don&apos;t have permission to submit grant applications. 
             Please contact your administrator if you believe this is an error.
           </p>
@@ -105,13 +117,13 @@ export default function GrantApplyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <Link 
             href="/research/apply" 
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2"
+            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-2"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Research Types

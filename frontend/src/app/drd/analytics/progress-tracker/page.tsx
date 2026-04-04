@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -56,7 +56,7 @@ function formatPercent(value: number) {
 }
 
 function formatDate(value?: string | null) {
-  if (!value) return '—';
+  if (!value) return 'â€”';
   return new Date(value).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -101,14 +101,14 @@ function pubTypeLabel(type: string) {
 
 function Panel({ title, subtitle, icon, actions, children }: { title: string; subtitle?: string; icon?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode; }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+    <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 shadow-sm">
+      <div className="border-b border-slate-100 dark:border-slate-700 px-5 py-4 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             {icon && <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 text-white">{icon}</div>}
             <div>
-              <h2 className="text-sm font-semibold tracking-tight text-slate-900">{title}</h2>
-              {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+              <h2 className="text-sm font-semibold tracking-tight text-slate-900 dark:text-slate-100">{title}</h2>
+              {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400">{subtitle}</p>}
             </div>
           </div>
           {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
@@ -121,13 +121,13 @@ function Panel({ title, subtitle, icon, actions, children }: { title: string; su
 
 function MetricCard({ label, value, hint, icon, accent }: { label: string; value: string | number; hint: string; icon: React.ReactNode; accent: string; }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className={`absolute inset-x-0 top-0 h-[3px] ${accent}`} />
       <div className="mt-1 flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
-          <p className="mt-2 text-xs leading-5 text-slate-500">{hint}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{label}</p>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">{value}</p>
+          <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{hint}</p>
         </div>
         <div className={`flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-sm ${accent}`}>{icon}</div>
       </div>
@@ -149,13 +149,13 @@ function StatusPipelineFunnel({ statusFunnel, rejectedCount, onStatusClick }: { 
           const pct = maxCount > 0 ? (count / maxCount) * 100 : 0;
           return (
             <React.Fragment key={status}>
-              <button onClick={() => onStatusClick(status)} className="min-w-[140px] flex-1 rounded-[24px] border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/80 p-4 text-center shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_20px_40px_-24px_rgba(15,23,42,0.35)]">
-                <div className="mx-auto mb-3 h-2.5 w-full rounded-full bg-slate-100">
+              <button onClick={() => onStatusClick(status)} className="min-w-[140px] flex-1 rounded-[24px] border border-slate-200/80 dark:border-slate-700/80 bg-gradient-to-b from-white to-slate-50/80 dark:from-gray-800 dark:to-gray-800/80 p-4 text-center shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_20px_40px_-24px_rgba(15,23,42,0.35)]">
+                <div className="mx-auto mb-3 h-2.5 w-full rounded-full bg-slate-100 dark:bg-slate-700">
                   <div className="h-2.5 rounded-full transition-all duration-500" style={{ background: `linear-gradient(90deg, ${meta.color}, ${meta.color}CC)`, width: `${Math.max(pct, count > 0 ? 8 : 0)}%` }} />
                 </div>
                 <div className={`text-3xl font-semibold tracking-tight ${meta.textColor}`}>{count}</div>
-                <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{meta.label}</div>
-                <div className="mt-3 inline-flex rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-500">{pct.toFixed(0)}% of peak load</div>
+                <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{meta.label}</div>
+                <div className="mt-3 inline-flex rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-700 px-2.5 py-1 text-[11px] text-slate-500 dark:text-slate-400">{pct.toFixed(0)}% of peak load</div>
               </button>
               {index < FUNNEL_PIPELINE.length - 1 && <div className="flex w-10 shrink-0 items-center justify-center"><ArrowRight className="h-4 w-4 text-slate-300" /></div>}
             </React.Fragment>
@@ -191,21 +191,21 @@ function CategoryBreakdownGrid({ categoryBreakdown, activeFilter, onFilterChange
           const isActive = activeFilter ===
    category.publicationType;
           return (
-            <button key={category.publicationType} onClick={() => { onFilterChange(category.publicationType); onDrilldown(category.publicationType as TrackerPubType); }} className={`group relative overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_-22px_rgba(15,23,42,0.35)] ${isActive ? 'border-slate-300 bg-slate-50 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.25)]' : 'border-slate-200/80 bg-white/80 hover:border-slate-300'}`}>
+            <button key={category.publicationType} onClick={() => { onFilterChange(category.publicationType); onDrilldown(category.publicationType as TrackerPubType); }} className={`group relative overflow-hidden rounded-[24px] border p-4 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_44px_-22px_rgba(15,23,42,0.35)] ${isActive ? 'border-slate-300 bg-slate-50 dark:bg-gray-700 shadow-[0_18px_40px_-22px_rgba(59,130,246,0.25)]' : 'border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-gray-800/80 hover:border-slate-300'}`}>
               <div className="absolute right-0 top-0 h-20 w-20 rounded-full bg-slate-100/60 blur-2xl" />
               <div className="relative flex items-start justify-between gap-3">
                 <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${meta.chipClass}`}>{meta.icon}<span>{meta.label}</span></div>
                 {isActive && <span className="rounded-full bg-slate-900 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">filtered</span>}
               </div>
-              <div className="relative mt-5 text-3xl font-semibold tracking-tight text-slate-900">{category.total}</div>
-              <p className="relative mt-1 text-xs text-slate-500">Total tracked records</p>
+              <div className="relative mt-5 text-3xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">{category.total}</div>
+              <p className="relative mt-1 text-xs text-slate-500 dark:text-slate-400">Total tracked records</p>
               <div className="relative mt-4 grid grid-cols-3 gap-2 text-xs">
-                <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-emerald-700"><p className="font-semibold">{category.published}</p><p className="mt-0.5 text-[11px] text-emerald-600">Published</p></div>
-                <div className="rounded-2xl border border-blue-100 bg-blue-50/80 px-3 py-2 text-blue-700"><p className="font-semibold">{category.active}</p><p className="mt-0.5 text-[11px] text-blue-600">Active</p></div>
-                <div className="rounded-2xl border border-red-100 bg-red-50/80 px-3 py-2 text-red-700"><p className="font-semibold">{category.rejected}</p><p className="mt-0.5 text-[11px] text-red-500">Rejected</p></div>
+                <div className="rounded-2xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/80 dark:bg-emerald-900/20 px-3 py-2 text-emerald-700 dark:text-emerald-400"><p className="font-semibold">{category.published}</p><p className="mt-0.5 text-[11px] text-emerald-600 dark:text-emerald-400">Published</p></div>
+                <div className="rounded-2xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/80 dark:bg-blue-900/20 px-3 py-2 text-blue-700 dark:text-blue-400"><p className="font-semibold">{category.active}</p><p className="mt-0.5 text-[11px] text-blue-600 dark:text-blue-400">Active</p></div>
+                <div className="rounded-2xl border border-red-100 dark:border-red-900/50 bg-red-50/80 dark:bg-red-900/20 px-3 py-2 text-red-700 dark:text-red-400"><p className="font-semibold">{category.rejected}</p><p className="mt-0.5 text-[11px] text-red-500 dark:text-red-400">Rejected</p></div>
               </div>
               <div className="relative mt-4 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-gradient-to-r from-emerald-400 to-teal-500" style={{ width: `${completionRate}%` }} /></div>
-              <p className="relative mt-2 text-xs text-slate-400">{completionRate.toFixed(0)}% published conversion</p>
+              <p className="relative mt-2 text-xs text-slate-400 dark:text-slate-500">{completionRate.toFixed(0)}% published conversion</p>
             </button>
           );
         })}
@@ -268,7 +268,7 @@ function TrackerRecordsDrawer({
   return (
     <>
       <div className="fixed inset-0 z-40 bg-slate-950/45 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-white/10 bg-[linear-gradient(180deg,_rgba(255,255,255,0.96)_0%,_rgba(248,250,252,0.98)_100%)] shadow-2xl">
+      <div className="fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-white/10 bg-[linear-gradient(180deg,_rgba(255,255,255,0.96)_0%,_rgba(248,250,252,0.98)_100%)] dark:bg-gray-800 shadow-2xl">
         <div className="border-b border-slate-100 bg-[linear-gradient(135deg,rgba(2,6,23,0.98)_0%,rgba(15,23,42,0.96)_42%,rgba(3,105,161,0.86)_100%)] px-6 py-5 text-white">
           <div className="flex items-start gap-4">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-white/10 text-white backdrop-blur-sm">
@@ -280,7 +280,7 @@ function TrackerRecordsDrawer({
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-200">
                 {drilldown.status && <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1">Stage: {STATUS_META[drilldown.status].label}</span>}
                 {drilldown.publicationType && <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1">Type: {pubTypeLabel(drilldown.publicationType)}</span>}
-                <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1">Window: {fromDate} → {toDate}</span>
+                <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1">Window: {fromDate} â†’ {toDate}</span>
               </div>
             </div>
             <button onClick={onClose} className="rounded-2xl border border-white/10 bg-white/10 p-2 text-white transition-colors hover:bg-white/15">
@@ -289,8 +289,8 @@ function TrackerRecordsDrawer({
           </div>
         </div>
 
-        <div className="border-b border-slate-100 px-6 py-3 text-sm text-slate-500">
-          {loading ? 'Loading records…' : `${totalCount} tracker record${totalCount !== 1 ? 's' : ''} found`}
+        <div className="border-b border-slate-100 dark:border-slate-700 px-6 py-3 text-sm text-slate-500 dark:text-slate-400">
+          {loading ? 'Loading recordsâ€¦' : `${totalCount} tracker record${totalCount !== 1 ? 's' : ''} found`}
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
@@ -299,13 +299,13 @@ function TrackerRecordsDrawer({
               <Loader2 className="h-8 w-8 animate-spin text-slate-300" />
             </div>
           ) : error ? (
-            <div className="rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+            <div className="rounded-[24px] border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-400">{error}</div>
           ) : records.length ===
    0 ? (
-            <div className="rounded-[24px] border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">No tracker records found for this drill-down.</div>
+            <div className="rounded-[24px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-8 text-center text-sm text-slate-400 dark:text-slate-500">No tracker records found for this drill-down.</div>
           ) : (
             records.map((record) => (
-              <div key={record.id} className="rounded-[24px] border border-slate-200/80 bg-white/90 p-4 shadow-sm">
+              <div key={record.id} className="rounded-[24px] border border-slate-200/80 dark:border-slate-700/80 bg-white/90 dark:bg-gray-800/90 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -315,8 +315,8 @@ function TrackerRecordsDrawer({
                       </span>
                       <TrackerStatusBadge status={record.currentStatus} />
                     </div>
-                    <h3 className="mt-3 text-base font-semibold tracking-tight text-slate-900">{record.title}</h3>
-                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                    <h3 className="mt-3 text-base font-semibold tracking-tight text-slate-900 dark:text-slate-100">{record.title}</h3>
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-400">
                       <span>{record.trackingNumber}</span>
                       <span>{record.userName}</span>
                       <span>{record.schoolName}</span>
@@ -331,9 +331,9 @@ function TrackerRecordsDrawer({
                   )}
                 </div>
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-500"><p className="font-medium text-slate-700">Created</p><p className="mt-1">{formatDate(record.createdAt)}</p></div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-500"><p className="font-medium text-slate-700">Last Updated</p><p className="mt-1">{formatDate(record.latestStatusChangedAt || record.updatedAt)}</p></div>
-                  <div className="rounded-2xl bg-slate-50 px-3 py-2 text-xs text-slate-500"><p className="font-medium text-slate-700">Completion</p><p className="mt-1">{formatDate(record.actualCompletionDate || record.expectedCompletionDate)}</p></div>
+                  <div className="rounded-2xl bg-slate-50 dark:bg-slate-700 px-3 py-2 text-xs text-slate-500 dark:text-slate-400"><p className="font-medium text-slate-700 dark:text-slate-300">Created</p><p className="mt-1">{formatDate(record.createdAt)}</p></div>
+                  <div className="rounded-2xl bg-slate-50 dark:bg-slate-700 px-3 py-2 text-xs text-slate-500 dark:text-slate-400"><p className="font-medium text-slate-700 dark:text-slate-300">Last Updated</p><p className="mt-1">{formatDate(record.latestStatusChangedAt || record.updatedAt)}</p></div>
+                  <div className="rounded-2xl bg-slate-50 dark:bg-slate-700 px-3 py-2 text-xs text-slate-500 dark:text-slate-400"><p className="font-medium text-slate-700 dark:text-slate-300">Completion</p><p className="mt-1">{formatDate(record.actualCompletionDate || record.expectedCompletionDate)}</p></div>
                 </div>
               </div>
             ))
@@ -352,7 +352,7 @@ function AvgDaysTable({ avgDaysPerStatus }: { avgDaysPerStatus: ProgressTrackerA
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         {entries.map(({ status, days }) => {
           const meta = STATUS_META[status];
-          return <div key={status} className={`rounded-[22px] border px-4 py-4 shadow-sm ${meta.bg} ${meta.border}`}><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{meta.label}</p><p className={`mt-3 text-3xl font-semibold tracking-tight ${meta.textColor}`}>{days}d</p><p className="mt-2 text-xs text-slate-500">Average stage duration</p></div>;
+          return <div key={status} className={`rounded-[22px] border px-4 py-4 shadow-sm ${meta.bg} ${meta.border}`}><p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">{meta.label}</p><p className={`mt-3 text-3xl font-semibold tracking-tight ${meta.textColor}`}>{days}d</p><p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Average stage duration</p></div>;
         })}
       </div>
     </Panel>
@@ -371,7 +371,7 @@ function ActiveUsersLeaderboard({ users }: { users: ProgressTrackerAnalyticsData
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200/70">Top Performer #{index + 1}</p>
                   <h4 className="mt-2 text-lg font-semibold tracking-tight">{user.name}</h4>
-                  <p className="mt-1 text-xs text-slate-300">{user.schoolName} · {user.departmentName}</p>
+                  <p className="mt-1 text-xs text-slate-300">{user.schoolName} Â· {user.departmentName}</p>
                 </div>
                 <div className="rounded-2xl bg-white/10 px-3 py-1.5 text-sm font-semibold backdrop-blur-sm">{user.totalTrackers}</div>
               </div>
@@ -385,11 +385,11 @@ function ActiveUsersLeaderboard({ users }: { users: ProgressTrackerAnalyticsData
         </div>
       )}
       {users.length ===
-   0 ? <p className="py-6 text-center text-sm text-slate-400">No data available.</p> : (
-        <div className="overflow-x-auto rounded-[24px] border border-slate-200/80 bg-white/80">
+   0 ? <p className="py-6 text-center text-sm text-slate-400 dark:text-slate-500">No data available.</p> : (
+        <div className="overflow-x-auto rounded-[24px] border border-slate-200/80 dark:border-slate-700/80 bg-white/80 dark:bg-gray-800/80">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/80">
+              <tr className="border-b border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-gray-700/80">
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Rank</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Researcher</th>
                 <th className="hidden px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:table-cell">School</th>
@@ -402,16 +402,16 @@ function ActiveUsersLeaderboard({ users }: { users: ProgressTrackerAnalyticsData
             </thead>
             <tbody>
               {users.map((user, index) => (
-                <tr key={user.userId} className="border-b border-slate-50 transition-colors hover:bg-slate-50/70">
+                <tr key={user.userId} className="border-b border-slate-50 dark:border-slate-700 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-700/50">
                   <td className="px-4 py-3">{index < 3 ? <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${index ===
    0 ? 'bg-yellow-100 text-yellow-700' : index ===
-   1 ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-600'}`}>{index + 1}</span> : <span className="text-xs text-slate-400">{index + 1}</span>}</td>
-                  <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-sky-100 text-sky-700"><User2 className="h-4 w-4" /></div><div><span className="block max-w-[180px] truncate font-medium text-slate-800">{user.name}</span><span className="block text-xs text-slate-400 sm:hidden">{user.schoolName}</span></div></div></td>
-                  <td className="hidden px-4 py-3 sm:table-cell"><span className="block max-w-[110px] truncate text-xs text-slate-500">{user.schoolName}</span></td>
-                  <td className="hidden px-4 py-3 md:table-cell"><span className="block max-w-[130px] truncate text-xs text-slate-500">{user.departmentName}</span></td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-800">{user.totalTrackers}</td>
-                  <td className="px-4 py-3 text-right"><span className="inline-flex rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">{user.activeTrackers}</span></td>
-                  <td className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"><CheckCircle2 className="h-3 w-3" />{user.publishedCount}</span></td>
+   1 ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-600'}`}>{index + 1}</span> : <span className="text-xs text-slate-400 dark:text-slate-500">{index + 1}</span>}</td>
+                  <td className="px-4 py-3"><div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-2xl bg-sky-100 text-sky-700"><User2 className="h-4 w-4" /></div><div><span className="block max-w-[180px] truncate font-medium text-slate-800 dark:text-slate-200">{user.name}</span><span className="block text-xs text-slate-400 sm:hidden">{user.schoolName}</span></div></div></td>
+                  <td className="hidden px-4 py-3 sm:table-cell"><span className="block max-w-[110px] truncate text-xs text-slate-500 dark:text-slate-400">{user.schoolName}</span></td>
+                  <td className="hidden px-4 py-3 md:table-cell"><span className="block max-w-[130px] truncate text-xs text-slate-500 dark:text-slate-400">{user.departmentName}</span></td>
+                  <td className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-slate-200">{user.totalTrackers}</td>
+                  <td className="px-4 py-3 text-right"><span className="inline-flex rounded-full bg-blue-50 dark:bg-blue-900/30 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-400">{user.activeTrackers}</span></td>
+                  <td className="px-4 py-3 text-right"><span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 dark:bg-emerald-900/30 px-2 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400"><CheckCircle2 className="h-3 w-3" />{user.publishedCount}</span></td>
                   <td className="hidden px-4 py-3 text-right sm:table-cell"><span className="text-xs text-slate-400">{user.statusTransitions}</span></td>
                 </tr>
               ))}
@@ -439,7 +439,7 @@ function SchoolDeptTable({ schoolWise, departmentWise }: { schoolWise: ProgressT
    'school' ? 'By School' : 'By Department'}</button>)}</div>}
     >
       {rows.length ===
-   0 ? <p className="py-6 text-center text-sm text-slate-400">No data available.</p> : (
+   0 ? <p className="py-6 text-center text-sm text-slate-400 dark:text-slate-500">No data available.</p> : (
         <div className="space-y-3">
           {rows.slice(0, 15).map((row) => {
             const pct = (row.totalTrackers / maxTotal) * 100;
@@ -450,19 +450,19 @@ function SchoolDeptTable({ schoolWise, departmentWise }: { schoolWise: ProgressT
    'dept' ? row.schoolName : null;
             return (
               <div key={view ===
-   'school' ? row.schoolId : (row as { departmentId: string }).departmentId} className="rounded-[22px] border border-slate-200/70 bg-white/75 p-4 shadow-sm">
+   'school' ? row.schoolId : (row as { departmentId: string }).departmentId} className="rounded-[22px] border border-slate-200/70 dark:border-slate-700/70 bg-white/75 dark:bg-gray-800/75 p-4 shadow-sm">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center">
                   <div className="flex min-w-0 flex-1 items-center gap-4">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg"><GraduationCap className="h-5 w-5" /></div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-1.5"><span className="truncate text-sm font-semibold text-slate-800">{name}</span>{subLabel && <span className="truncate text-xs text-slate-400">· {subLabel}</span>}</div>
-                      <div className="mt-2 flex items-center gap-3"><div className="h-2 flex-1 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-gradient-to-r from-slate-900 via-sky-700 to-cyan-500" style={{ width: `${Math.max(pct, row.totalTrackers > 0 ? 2 : 0)}%` }} /></div><span className="w-14 text-right text-xs font-medium text-slate-400">{pct.toFixed(0)}%</span></div>
+                      <div className="flex items-baseline gap-1.5"><span className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{name}</span>{subLabel && <span className="truncate text-xs text-slate-400 dark:text-slate-500">Â· {subLabel}</span>}</div>
+                      <div className="mt-2 flex items-center gap-3"><div className="h-2 flex-1 rounded-full bg-slate-100 dark:bg-slate-700"><div className="h-2 rounded-full bg-gradient-to-r from-slate-900 via-sky-700 to-cyan-500" style={{ width: `${Math.max(pct, row.totalTrackers > 0 ? 2 : 0)}%` }} /></div><span className="w-14 text-right text-xs font-medium text-slate-400">{pct.toFixed(0)}%</span></div>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs md:w-[270px]">
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2 text-center"><span className="block text-lg font-semibold text-slate-800">{row.totalTrackers}</span><span className="mt-0.5 block text-[11px] text-slate-500">Total</span></div>
-                    <div className="rounded-2xl bg-blue-50 px-3 py-2 text-center"><span className="block text-lg font-semibold text-blue-700">{row.activeTrackers}</span><span className="mt-0.5 block text-[11px] text-blue-500">Active</span></div>
-                    <div className="rounded-2xl bg-emerald-50 px-3 py-2 text-center"><span className="block text-lg font-semibold text-emerald-700">{publishRate.toFixed(0)}%</span><span className="mt-0.5 block text-[11px] text-emerald-500">Published</span></div>
+                    <div className="rounded-2xl bg-slate-50 dark:bg-gray-700 px-3 py-2 text-center"><span className="block text-lg font-semibold text-slate-800 dark:text-slate-200">{row.totalTrackers}</span><span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-400">Total</span></div>
+                    <div className="rounded-2xl bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-center"><span className="block text-lg font-semibold text-blue-700">{row.activeTrackers}</span><span className="mt-0.5 block text-[11px] text-blue-500">Active</span></div>
+                    <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 text-center"><span className="block text-lg font-semibold text-emerald-700">{publishRate.toFixed(0)}%</span><span className="mt-0.5 block text-[11px] text-emerald-500">Published</span></div>
                   </div>
                 </div>
               </div>
@@ -529,11 +529,11 @@ export default function ProgressTrackerAnalyticsPage() {
   if (accessDenied) {
     return (
       <ProtectedRoute>
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-          <div className="w-full max-w-md rounded-xl border bg-white p-8 text-center shadow-lg">
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 p-6">
+          <div className="w-full max-w-md rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-800 p-8 text-center shadow-lg">
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-red-100"><AlertCircle className="h-8 w-8 text-red-600" /></div>
-            <h2 className="mb-4 text-2xl font-bold text-gray-900">Access Denied</h2>
-            <p className="mb-6 text-gray-600">You need <strong>Applicant Analytics</strong> permission to view Progress Tracker Analytics.</p>
+            <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">Access Denied</h2>
+            <p className="mb-6 text-gray-600 dark:text-gray-400">You need <strong>Applicant Analytics</strong> permission to view Progress Tracker Analytics.</p>
             <button onClick={() => router.push('/drd/analytics/overview')} className="rounded-lg bg-blue-600 px-6 py-2.5 text-white transition-colors hover:bg-blue-700">Back to Analytics</button>
           </div>
         </div>
@@ -544,7 +544,7 @@ export default function ProgressTrackerAnalyticsPage() {
   return (
     <ProtectedRoute>
       {drilldown && <TrackerRecordsDrawer drilldown={drilldown} fromDate={fromDate} toDate={toDate} onClose={() => setDrilldown(null)} />}
-      <div className="min-h-screen bg-[#f2f4f8]">
+      <div className="min-h-screen bg-[#f2f4f8] dark:bg-gray-900">
         {/* Full-bleed header */}
         <header className="relative overflow-hidden bg-[linear-gradient(135deg,#050c1b_0%,#0f1f3d_42%,#0c3461_100%)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_-10%_-10%,rgba(56,189,248,0.2),transparent),radial-gradient(ellipse_50%_60%_at_110%_110%,rgba(99,102,241,0.18),transparent)]" />
@@ -562,7 +562,7 @@ export default function ProgressTrackerAnalyticsPage() {
                   </span>
                 </div>
                 <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl lg:text-[2.25rem]">Progress Tracker Analytics</h1>
-                <p className="max-w-2xl text-sm leading-relaxed text-slate-300">Pipeline health, publication momentum, and who is driving research activity — all in one view.</p>
+                <p className="max-w-2xl text-sm leading-relaxed text-slate-300">Pipeline health, publication momentum, and who is driving research activity â€” all in one view.</p>
               </div>
               <div className="flex shrink-0 flex-wrap items-start gap-2">
                 <button
@@ -610,13 +610,13 @@ export default function ProgressTrackerAnalyticsPage() {
 
         {/* Content */}
         <div className="px-6 py-6 space-y-6 sm:px-8 lg:px-12 xl:px-16">
-          {error && <div className="flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700"><AlertCircle className="h-5 w-5 flex-shrink-0" /><span className="text-sm">{error}</span></div>}
+          {error && <div className="flex items-center gap-3 rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/20 p-4 text-red-700 dark:text-red-400"><AlertCircle className="h-5 w-5 flex-shrink-0" /><span className="text-sm">{error}</span></div>}
 
           {loading && !data ? (
             <div className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-3 h-3 w-24 rounded bg-slate-100" /><div className="h-8 w-20 rounded bg-slate-100" /></div>)}</div>
-              <div className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-white p-5" />
-              <div className="h-56 animate-pulse rounded-2xl border border-slate-200 bg-white p-5" />
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="animate-pulse rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-5"><div className="mb-3 h-3 w-24 rounded bg-slate-100 dark:bg-slate-700" /><div className="h-8 w-20 rounded bg-slate-100 dark:bg-slate-700" /></div>)}</div>
+              <div className="h-40 animate-pulse rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-5" />
+              <div className="h-56 animate-pulse rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-5" />
             </div>
           ) : data ? (
             <>
@@ -627,7 +627,7 @@ export default function ProgressTrackerAnalyticsPage() {
                 {/* Bar chart: Filed vs Published per month */}
                 <div className="lg:col-span-3">
                   <AnalyticsBarChart
-                    title="Filed vs Published — Monthly"
+                    title="Filed vs Published â€” Monthly"
                     subtitle="New trackers filed each month compared to those that reached publication."
                     data={(data.monthlyTrend || []).map((month) => ({
                       label: month.label,
@@ -678,13 +678,14 @@ export default function ProgressTrackerAnalyticsPage() {
               {data.avgDaysPerStatus && <AvgDaysTable avgDaysPerStatus={data.avgDaysPerStatus} />}
               <ActiveUsersLeaderboard users={data.activeUsers} />
               <SchoolDeptTable schoolWise={data.schoolWise} departmentWise={data.departmentWise} />
-              <div className="pb-4 text-center text-xs text-slate-400">Analytics scope: <span className="font-medium capitalize text-slate-600">{data.meta.scopeApplied.scopeLevel}</span> · {data.meta.timeRange.from} → {data.meta.timeRange.to}</div>
+              <div className="pb-4 text-center text-xs text-slate-400 dark:text-slate-500">Analytics scope: <span className="font-medium capitalize text-slate-600 dark:text-slate-400">{data.meta.scopeApplied.scopeLevel}</span> Â· {data.meta.timeRange.from} â†’ {data.meta.timeRange.to}</div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400"><Loader2 className="h-8 w-8 animate-spin" /><p className="text-sm">Loading analytics…</p></div>
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-slate-400"><Loader2 className="h-8 w-8 animate-spin" /><p className="text-sm">Loading analyticsâ€¦</p></div>
           )}
         </div>
       </div>
     </ProtectedRoute>
   );
 }
+

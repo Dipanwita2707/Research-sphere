@@ -212,12 +212,12 @@ function ContributedIPRDetailContent() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center">
-            <Link href="/ipr/contributed" className="mr-4 p-2 hover:bg-gray-100 rounded-lg">
-              <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <Link href="/ipr/contributed" className="mr-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{application.title}</h1>
-              <p className="text-gray-600 mt-1">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{application.title}</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
                 Application ID: {application.id.substring(0, 8).toUpperCase()}
               </p>
             </div>
@@ -249,38 +249,38 @@ function ContributedIPRDetailContent() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Application Details */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <FileText className="w-5 h-5 mr-2 text-blue-600" />
               Application Details
             </h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">Title</label>
-                <p className="text-gray-900">{application.title}</p>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Title</label>
+                <p className="text-gray-900 dark:text-white">{application.title}</p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">Description</label>
-                <p className="text-gray-900 whitespace-pre-wrap">{application.description}</p>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Description</label>
+                <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{application.description}</p>
               </div>
               
               {application.remarks && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Remarks</label>
-                  <p className="text-gray-900">{application.remarks}</p>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Remarks</label>
+                  <p className="text-gray-900 dark:text-white">{application.remarks}</p>
                 </div>
               )}
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Project Type</label>
-                  <p className="text-gray-900 capitalize">{application.projectType?.replace(/_/g, ' ')}</p>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Project Type</label>
+                  <p className="text-gray-900 dark:text-white capitalize">{application.projectType?.replace(/_/g, ' ')}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Filing Type</label>
-                  <p className="text-gray-900 capitalize">{application.filingType}</p>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Filing Type</label>
+                  <p className="text-gray-900 dark:text-white capitalize">{application.filingType}</p>
                 </div>
               </div>
               
@@ -300,8 +300,8 @@ function ContributedIPRDetailContent() {
           </div>
 
           {/* Filed By Information */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <User className="w-5 h-5 mr-2 text-blue-600" />
               Filed By (Primary Applicant)
             </h2>
@@ -311,13 +311,13 @@ function ContributedIPRDetailContent() {
                 <User className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">{getApplicantName(application)}</p>
-                <p className="text-sm text-gray-600">{application.applicantUser?.uid}</p>
+                <p className="font-semibold text-gray-900 dark:text-white">{getApplicantName(application)}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{application.applicantUser?.uid}</p>
                 {application.applicantUser?.employeeDetails?.designation && (
-                  <p className="text-sm text-gray-500">{application.applicantUser.employeeDetails.designation}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{application.applicantUser.employeeDetails.designation}</p>
                 )}
                 {application.applicantUser?.email && (
-                  <p className="text-sm text-gray-500 flex items-center mt-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center mt-1">
                     <Mail className="w-4 h-4 mr-1" />
                     {application.applicantUser.email}
                   </p>
@@ -328,24 +328,24 @@ function ContributedIPRDetailContent() {
 
           {/* Contributors/Inventors */}
           {application.contributors && application.contributors.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <Users className="w-5 h-5 mr-2 text-blue-600" />
                 All Inventors/Contributors
               </h2>
               
               <div className="space-y-3">
                 {application.contributors.map((contributor, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
                         <User className="w-5 h-5 text-purple-600" />
                       </div>
                       <div>
-                        <p className="font-medium text-gray-900">{contributor.name}</p>
-                        <p className="text-sm text-gray-600">{contributor.uid}</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{contributor.name}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{contributor.uid}</p>
                         {contributor.department && (
-                          <p className="text-xs text-gray-500">{contributor.department}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500">{contributor.department}</p>
                         )}
                       </div>
                     </div>
@@ -360,17 +360,17 @@ function ContributedIPRDetailContent() {
 
           {/* Reviews */}
           {application.reviews && application.reviews.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
                 Review Comments
               </h2>
               
               <div className="space-y-4">
                 {application.reviews.map((review, idx) => (
-                  <div key={idx} className="p-4 bg-gray-50 rounded-lg border-l-4 border-blue-400">
+                  <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-l-4 border-blue-400">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900 capitalize">
+                      <span className="font-medium text-gray-900 dark:text-white capitalize">
                         {review.reviewerRole?.replace(/_/g, ' ')}
                       </span>
                       <span className={`px-2 py-1 text-xs rounded ${
@@ -384,9 +384,9 @@ function ContributedIPRDetailContent() {
                       </span>
                     </div>
                     {review.comments && (
-                      <p className="text-gray-700 mb-2">{review.comments}</p>
+                      <p className="text-gray-700 dark:text-gray-300 mb-2">{review.comments}</p>
                     )}
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
                       {review.reviewer?.employeeDetails 
                         ? `${review.reviewer.employeeDetails.firstName} ${review.reviewer.employeeDetails.lastName || ''}`
                         : review.reviewer?.uid
@@ -400,8 +400,8 @@ function ContributedIPRDetailContent() {
 
           {/* Edit Suggestions */}
           {application.editSuggestions && application.editSuggestions.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <AlertTriangle className="w-5 h-5 mr-2 text-orange-600" />
                 Requested Changes
               </h2>
@@ -410,7 +410,7 @@ function ContributedIPRDetailContent() {
                 {application.editSuggestions.map((suggestion, idx) => (
                   <div key={idx} className="p-4 bg-orange-50 rounded-lg border border-orange-200">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900 capitalize">
+                      <span className="font-medium text-gray-900 dark:text-white capitalize">
                         Field: {suggestion.fieldName?.replace(/_/g, ' ')}
                       </span>
                       <span className={`px-2 py-1 text-xs rounded ${
@@ -443,8 +443,8 @@ function ContributedIPRDetailContent() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Timeline/Status History */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <History className="w-5 h-5 mr-2 text-blue-600" />
               Status History
             </h2>
@@ -461,13 +461,13 @@ function ContributedIPRDetailContent() {
                         <HistoryIcon className={`w-4 h-4 ${config.color}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {config.label}
                         </p>
                         {history.comments && (
-                          <p className="text-xs text-gray-600 mt-1">{history.comments}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{history.comments}</p>
                         )}
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                           {formatDate(history.changedAt)}
                         </p>
                       </div>
@@ -475,40 +475,40 @@ function ContributedIPRDetailContent() {
                   );
                 })
               ) : (
-                <p className="text-gray-500 text-sm">No status history available</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">No status history available</p>
               )}
             </div>
           </div>
 
           {/* Important Dates */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
               <Calendar className="w-5 h-5 mr-2 text-blue-600" />
               Important Dates
             </h2>
             
             <div className="space-y-3">
               <div>
-                <p className="text-xs text-gray-500">Created</p>
-                <p className="text-sm text-gray-900">{formatDate(application.createdAt)}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Created</p>
+                <p className="text-sm text-gray-900 dark:text-white">{formatDate(application.createdAt)}</p>
               </div>
               {application.submittedAt && (
                 <div>
-                  <p className="text-xs text-gray-500">Submitted</p>
-                  <p className="text-sm text-gray-900">{formatDate(application.submittedAt)}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Submitted</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{formatDate(application.submittedAt)}</p>
                 </div>
               )}
               <div>
-                <p className="text-xs text-gray-500">Last Updated</p>
-                <p className="text-sm text-gray-900">{formatDate(application.updatedAt)}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Last Updated</p>
+                <p className="text-sm text-gray-900 dark:text-white">{formatDate(application.updatedAt)}</p>
               </div>
             </div>
           </div>
 
           {/* School/Department */}
           {(application.school || application.department) && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                 <Building className="w-5 h-5 mr-2 text-blue-600" />
                 Institution
               </h2>
@@ -516,14 +516,14 @@ function ContributedIPRDetailContent() {
               <div className="space-y-2">
                 {application.school && (
                   <div>
-                    <p className="text-xs text-gray-500">School/Faculty</p>
-                    <p className="text-sm text-gray-900">{application.school.facultyName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">School/Faculty</p>
+                    <p className="text-sm text-gray-900 dark:text-white">{application.school.facultyName}</p>
                   </div>
                 )}
                 {application.department && (
                   <div>
-                    <p className="text-xs text-gray-500">Department</p>
-                    <p className="text-sm text-gray-900">{application.department.departmentName}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Department</p>
+                    <p className="text-sm text-gray-900 dark:text-white">{application.department.departmentName}</p>
                   </div>
                 )}
               </div>

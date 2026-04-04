@@ -119,17 +119,17 @@ export default function ContributedResearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Co-authored Research</h1>
-              <p className="text-gray-600 mt-1">Research contributions where you are listed as a co-author</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Co-authored Research</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">Research contributions where you are listed as a co-author</p>
             </div>
           </div>
         </div>
@@ -138,30 +138,30 @@ export default function ContributedResearchPage() {
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Stats Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500 text-sm">Total Co-authored</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm">Total Co-authored</span>
               <Users className="w-5 h-5 text-blue-500" />
             </div>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
+            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.total}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500 text-sm">Approved</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm">Approved</span>
               <CheckCircle className="w-5 h-5 text-green-500" />
             </div>
             <p className="text-2xl font-bold text-green-600 mt-1">{stats.approved}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500 text-sm">Your Incentive Share</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm">Your Incentive Share</span>
               <Coins className="w-5 h-5 text-green-500" />
             </div>
             <p className="text-2xl font-bold text-green-600 mt-1">₹{stats.totalIncentives.toLocaleString()}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500 text-sm">Your Points Share</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm">Your Points Share</span>
               <Award className="w-5 h-5 text-purple-500" />
             </div>
             <p className="text-2xl font-bold text-purple-600 mt-1">{stats.totalPoints}</p>
@@ -169,12 +169,12 @@ export default function ContributedResearchPage() {
         </div>
 
         {/* Contributions List */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="font-semibold text-gray-900">Research Contributions</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="font-semibold text-gray-900 dark:text-white">Research Contributions</h2>
           </div>
           
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -182,9 +182,9 @@ export default function ContributedResearchPage() {
             ) : contributions.length ===
    0 ? (
               <div className="text-center py-12">
-                <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No co-authored research</h3>
-                <p className="text-gray-500">
+                <Users className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No co-authored research</h3>
+                <p className="text-gray-500 dark:text-gray-400">
                   You haven't been added as a co-author to any research contributions yet
                 </p>
               </div>
@@ -201,7 +201,7 @@ export default function ContributedResearchPage() {
                   <Link
                     key={contribution.id}
                     href={`/research/contribution/${contribution.id}`}
-                    className="block p-4 hover:bg-gray-50 transition-colors"
+                    className="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4 flex-1 min-w-0">
@@ -210,14 +210,14 @@ export default function ContributedResearchPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center space-x-2">
-                            <h3 className="font-medium text-gray-900 truncate">{contribution.title}</h3>
+                            <h3 className="font-medium text-gray-900 dark:text-white truncate">{contribution.title}</h3>
                             {userRole && (
                               <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full flex-shrink-0">
                                 {userRole}
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center space-x-3 text-sm text-gray-500 mt-1">
+                          <div className="flex items-center space-x-3 text-sm text-gray-500 dark:text-gray-400 mt-1">
                             <span>{contribution.applicationNumber || 'Pending'}</span>
                             <span>•</span>
                             <span>{pubTypeConfig?.label || contribution.publicationType}</span>
@@ -243,7 +243,7 @@ export default function ContributedResearchPage() {
                             </div>
                           )}
                           {/* Filed by */}
-                          <div className="text-xs text-gray-400 mt-1">
+                          <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                             Filed by: {contribution.applicantUser?.employeeDetails?.displayName || 
                                       contribution.applicantUser?.email || 'Unknown'}
                           </div>
@@ -257,8 +257,8 @@ export default function ContributedResearchPage() {
                           {statusConfig.label}
                         </div>
                         
-                        <Eye className="w-5 h-5 text-gray-400" />
-                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                        <Eye className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                        <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                       </div>
                     </div>
                   </Link>

@@ -16,31 +16,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light');
 
   useEffect(() => {
-    // Force light theme
-    const initialTheme = 'light';
-    
-    setThemeState(initialTheme);
-    document.documentElement.classList.remove('dark');
-    localStorage.setItem('theme', 'light');
+    const saved = localStorage.getItem('theme') as Theme | null;
+    const initial = saved === 'dark' ? 'dark' : 'light';
+    setThemeState(initial);
+    if (initial === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, []);
 
   const setTheme = (newTheme: Theme) => {
-    // Force light theme
-    setThemeState('light');
-    localStorage.setItem('theme', 'light');
-    document.documentElement.classList.remove('dark');
+    setThemeState(newTheme);
+    localStorage.setItem('theme', newTheme);
+    if (newTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   };
 
   const toggleTheme = () => {
-    // Do nothing or enforce light
-    setTheme('light');
+    setTheme(theme === 'dark' ? 'light' : 'dark');
   };
-
-  // Render children immediately to avoid a flash-of-blank.
-  // The initial render uses the default 'light' theme; once the effect runs
-  // (client-only), the correct saved/system theme is applied. Any mismatch
-  // is a harmless class toggle (< 1 frame) instead of a full blank page.
-
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
       {children}

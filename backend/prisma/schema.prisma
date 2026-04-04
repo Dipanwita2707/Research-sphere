@@ -857,6 +857,10 @@ model IprApplication {
   @@index([schoolId])
   @@index([departmentId])
   @@index([status])
+  @@index([submittedAt])
+  @@index([currentReviewerId])
+  @@index([status, currentReviewerId])
+  @@index([schoolId, submittedAt])
   @@index([sourceProvisionalId])
   @@map("ipr_application")
 }
@@ -889,6 +893,7 @@ model IprApplicantDetails {
   mentorUid             String?        @map("mentor_uid") @db.VarChar(64)
   iprApplication        IprApplication @relation(fields: [iprApplicationId], references: [id], onDelete: Cascade)
 
+  @@index([mentorUid])
   @@map("ipr_applicant_details")
 }
 
@@ -948,6 +953,8 @@ model IprReview {
 
   @@index([iprApplicationId])
   @@index([reviewerId])
+  @@index([decision])
+  @@index([iprApplicationId, decision])
   @@map("ipr_review")
 }
 
@@ -1379,6 +1386,12 @@ model ResearchContribution {
   @@index([publicationType])
   @@index([schoolId])
   @@index([departmentId])
+  @@index([submittedAt])
+  @@index([currentReviewerId])
+  @@index([status, currentReviewerId])
+  @@index([schoolId, submittedAt])
+  @@index([departmentId, submittedAt])
+  @@index([publicationType, schoolId, submittedAt])
   @@index([conferenceSubType])
   @@map("research_contribution")
 }
@@ -1411,6 +1424,7 @@ model ResearchContributionApplicantDetails {
   updatedAt              DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   researchContribution   ResearchContribution @relation(fields: [researchContributionId], references: [id], onDelete: Cascade, map: "research_contribution_applicant_details_contribution_fkey")
 
+  @@index([mentorUid])
   @@map("research_contribution_applicant_details")
 }
 
@@ -1478,6 +1492,8 @@ model ResearchContributionReview {
 
   @@index([reviewerId])
   @@index([researchContributionId], map: "research_contribution_review_contribution_id_idx")
+  @@index([decision])
+  @@index([researchContributionId, decision])
   @@map("research_contribution_review")
 }
 
@@ -1763,6 +1779,8 @@ model GrantApplication {
   @@index([projectCategory])
   @@index([schoolId])
   @@index([departmentId])
+  @@index([submittedAt])
+  @@index([schoolId, submittedAt])
   @@map("grant_application")
 }
 

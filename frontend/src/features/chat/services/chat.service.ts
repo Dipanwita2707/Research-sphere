@@ -170,6 +170,20 @@ export const searchGroupMembers = async (
 };
 
 /**
+ * Search all users that can be added to a group (excludes existing members)
+ */
+export const searchUsersToAdd = async (
+  groupId: string,
+  query: string,
+  limit?: number
+): Promise<ChatUser[]> => {
+  const response = await api.get<ApiResponse<ChatUser[]>>(`${BASE_URL}/groups/${groupId}/members/search-users`, {
+    params: { q: query, limit },
+  });
+  return response.data.data || [];
+};
+
+/**
  * Mute member
  */
 export const muteMember = async (

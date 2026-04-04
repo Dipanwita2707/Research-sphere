@@ -493,91 +493,115 @@ class ContributionService {
     const calculator = new IncentiveCalculator(this.prisma);
     const t = (v, max) => (v ? String(v).substring(0, max) : v);
 
-    for (const author of authorsList) {
-      let authorUserId = null;
-      if (author.registrationNumber || author.uid) {
-        const user = await this.prisma.userLogin.findFirst({
-          where: { uid: author.registrationNumber || author.uid }
-        });
-        if (user) authorUserId = user.id;
-      }
+    // Batch-resolve all author UIDs in a single query instead of one per author
+    const authorUids = authorsList
+      .map(a => a.registrationNumber || a.uid)
+      .filter(Boolean);
+    const resolvedUsers = authorUids.length
+      ? await this.prisma.userLogin.findMany({
+          where: { uid: { in: authorUids } },
+          select: { id: true, uid: true }
+        })
+      : [];
+    const uidToUserId = Object.fromEntries(resolvedUsers.map(u => [u.uid, u.id]));
 
-      const mappedAuthorType = this._mapAuthorRole(author);
-      const isInternalAuthor = author.authorType?.startsWith('internal_') ||
-        author.affiliation?.toLowerCase().includes('sgt') ||
-        author.affiliation?.toLowerCase().includes('university') || false;
-      const authorIsStudent = author.authorType === 'internal_student';
-      const authorCategory = this._resolveAuthorCategory(author.authorType);
+    // Compute per-author data (incentive calc remains async — run in parallel)
+    const enrichedAuthors = await Promise.all(
+      authorsList.map(async (author) => {
+        const uidKey = author.registrationNumber || author.uid;
+        const authorUserId = (uidKey && uidToUserId[uidKey]) || null;
 
-      const authorIncentive = await calculator.calculate({
-        contributionData: incentiveContributionData,
-        publicationType,
-        authorRole: mappedAuthorType,
-        isStudent: authorIsStudent,
-        sjrValue: Number(sjr) || 0,
-        coAuthorCount: authorComposition.internalCoAuthorCount + authorComposition.externalCoAuthorCount,
-        totalAuthors: totalAuthorCount,
-        isInternal: isInternalAuthor,
-        internalCoAuthorCount: authorComposition.internalCoAuthorCount,
-        externalFirstCorrespondingPct: authorComposition.externalFirstCorrespondingPct,
-        internalEmployeeCoAuthorCount: authorComposition.internalEmployeeCoAuthorCount
-      });
+        const mappedAuthorType = this._mapAuthorRole(author);
+        const isInternalAuthor = author.authorType?.startsWith('internal_') ||
+          author.affiliation?.toLowerCase().includes('sgt') ||
+          author.affiliation?.toLowerCase().includes('university') || false;
+        const authorIsStudent = author.authorType === 'internal_student';
+        const authorCategory = this._resolveAuthorCategory(author.authorType);
 
-      await this.prisma.researchContributionAuthor.create({
-        data: {
-          researchContributionId: contributionId,
-          userId: authorUserId,
-          uid: t(author.uid, 64),
-          registrationNo: t(author.registrationNumber, 64),
-          name: t(author.name, 256),
-          email: t(author.email, 256),
-          phone: t(author.phone, 20),
-          affiliation: t(author.affiliation, 256),
-          department: t(author.department, 256),
-          designation: t(author.designation, 256),
-          isInternational: author.isInternational || false,
-          authorOrder: author.orderNumber || 1,
-          authorPosition: author.authorPosition || author.orderNumber || 1,
-          isCorresponding: author.isCorresponding || false,
-          authorType: mappedAuthorType,
+        const authorIncentive = await calculator.calculate({
+          contributionData: incentiveContributionData,
+          publicationType,
+          authorRole: mappedAuthorType,
+          isStudent: authorIsStudent,
+          sjrValue: Number(sjr) || 0,
+          coAuthorCount: authorComposition.internalCoAuthorCount + authorComposition.externalCoAuthorCount,
+          totalAuthors: totalAuthorCount,
           isInternal: isInternalAuthor,
-          authorCategory: t(authorCategory, 64),
-          isPhdWork: author.isPhdWork || false,
-          phdTitle: t(author.phdTitle, 512),
-          phdObjectives: author.phdObjectives,
-          coveredObjectives: t(author.coveredObjectives, 256),
-          addressesSocietal: author.addressesSocietal || false,
-          addressesGovernment: author.addressesGovernment || false,
-          addressesEnvironmental: author.addressesEnvironmental || false,
-          addressesIndustrial: author.addressesIndustrial || false,
-          addressesBusiness: author.addressesBusiness || false,
-          addressesConceptual: author.addressesConceptual || false,
-          isNewsworthy: author.isNewsworthy || false,
-          incentiveShare: authorIncentive.incentiveAmount,
-          pointsShare: authorIncentive.points,
-          canView: true,
-          canEdit: false
-        }
-      });
-
-      if (authorUserId && authorUserId !== userId) {
-        await this.prisma.notification.create({
-          data: {
-            userId: authorUserId,
-            type: 'research_author_added',
-            title: 'Added to Research Contribution',
-            message: `You have been added as ${mappedAuthorType.replace(/_/g, ' ')} to the research contribution "${data.title}".`,
-            referenceType: 'research_contribution',
-            referenceId: contributionId,
-            metadata: {
-              authorRole: mappedAuthorType,
-              contributionTitle: data.title,
-              estimatedIncentive: authorIncentive.incentiveAmount,
-              estimatedPoints: authorIncentive.points
-            }
-          }
+          internalCoAuthorCount: authorComposition.internalCoAuthorCount,
+          externalFirstCorrespondingPct: authorComposition.externalFirstCorrespondingPct,
+          internalEmployeeCoAuthorCount: authorComposition.internalEmployeeCoAuthorCount
         });
-      }
+
+        return {
+          authorUserId,
+          mappedAuthorType,
+          isInternalAuthor,
+          authorCategory,
+          authorIncentive,
+          author,
+        };
+      })
+    );
+
+    // Batch insert all authors with createMany (single DB round-trip)
+    await this.prisma.researchContributionAuthor.createMany({
+      data: enrichedAuthors.map(({ authorUserId, mappedAuthorType, isInternalAuthor, authorCategory, authorIncentive, author }) => ({
+        researchContributionId: contributionId,
+        userId: authorUserId,
+        uid: t(author.uid, 64),
+        registrationNo: t(author.registrationNumber, 64),
+        name: t(author.name, 256),
+        email: t(author.email, 256),
+        phone: t(author.phone, 20),
+        affiliation: t(author.affiliation, 256),
+        department: t(author.department, 256),
+        designation: t(author.designation, 256),
+        isInternational: author.isInternational || false,
+        authorOrder: author.orderNumber || 1,
+        authorPosition: author.authorPosition || author.orderNumber || 1,
+        isCorresponding: author.isCorresponding || false,
+        authorType: mappedAuthorType,
+        isInternal: isInternalAuthor,
+        authorCategory: t(authorCategory, 64),
+        isPhdWork: author.isPhdWork || false,
+        phdTitle: t(author.phdTitle, 512),
+        phdObjectives: author.phdObjectives,
+        coveredObjectives: t(author.coveredObjectives, 256),
+        addressesSocietal: author.addressesSocietal || false,
+        addressesGovernment: author.addressesGovernment || false,
+        addressesEnvironmental: author.addressesEnvironmental || false,
+        addressesIndustrial: author.addressesIndustrial || false,
+        addressesBusiness: author.addressesBusiness || false,
+        addressesConceptual: author.addressesConceptual || false,
+        isNewsworthy: author.isNewsworthy || false,
+        incentiveShare: authorIncentive.incentiveAmount,
+        pointsShare: authorIncentive.points,
+        canView: true,
+        canEdit: false,
+      })),
+      skipDuplicates: true,
+    });
+
+    // Batch insert co-author notifications (single DB round-trip)
+    const notificationRows = enrichedAuthors
+      .filter(({ authorUserId }) => authorUserId && authorUserId !== userId)
+      .map(({ authorUserId, mappedAuthorType, authorIncentive }) => ({
+        userId: authorUserId,
+        type: 'research_author_added',
+        title: 'Added to Research Contribution',
+        message: `You have been added as ${mappedAuthorType.replace(/_/g, ' ')} to the research contribution "${data.title}".`,
+        referenceType: 'research_contribution',
+        referenceId: contributionId,
+        metadata: {
+          authorRole: mappedAuthorType,
+          contributionTitle: data.title,
+          estimatedIncentive: authorIncentive.incentiveAmount,
+          estimatedPoints: authorIncentive.points,
+        },
+      }));
+
+    if (notificationRows.length) {
+      await this.prisma.notification.createMany({ data: notificationRows });
     }
   }
 
@@ -673,6 +697,11 @@ class ContributionService {
     if (authors && Array.isArray(authors)) {
       await this.prisma.researchContributionAuthor.deleteMany({ where: { researchContributionId: id } });
       await this._createAuthors(id, { ...updateData, userId, publicationType: contribution.publicationType });
+    }
+
+    // Audit: log update
+    if (this.auditLogger?.logResearchUpdate) {
+      this.auditLogger.logResearchUpdate(contribution, updated, userId, null, 'Updated research contribution').catch(() => {});
     }
 
     return this.repo.findById(id, {
@@ -911,6 +940,10 @@ class ContributionService {
 
       return tx.researchContribution.findUnique({ where: { id } });
     });
+
+    // Audit: log resubmission status change
+    this._dispatchStatusAudit(updated, 'changes_required', 'resubmitted', userId, null, comments || 'Resubmitted after making requested changes').catch(() => {});
+
     return updated;
   }
 
@@ -919,6 +952,12 @@ class ContributionService {
     if (!contribution) { const e = new Error('Research contribution not found'); e.statusCode = 404; throw e; }
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can delete this contribution'); e.statusCode = 403; throw e; }
     if (contribution.status !== 'draft') { const e = new Error('Can only delete draft contributions'); e.statusCode = 400; throw e; }
+
+    // Audit: log deletion
+    if (this.auditLogger?.logResearchStatusChange) {
+      this.auditLogger.logResearchStatusChange(contribution, 'draft', 'deleted', userId, null, 'Contribution deleted by applicant').catch(() => {});
+    }
+
     await this.repo.delete(id);
   }
 
@@ -984,22 +1023,40 @@ class ContributionService {
         referenceType: 'research_contribution', referenceId: id
       }});
     }
+    // Audit: log author addition
+    if (this.auditLogger?.logResearchUpdate) {
+      this.auditLogger.logResearchUpdate(null, { id, title: contribution.title, authorAdded: authorData.name || authorData.uid }, userId, null, `Added author: ${authorData.name || authorData.uid || 'unknown'}`).catch(() => {});
+    }
+
     return author;
   }
 
   async updateAuthor(id, authorId, userId, data) {
     const contribution = await this.repo.findFirst({ id, applicantUserId: userId, status: { in: ['draft', 'changes_required'] } });
     if (!contribution) { const e = new Error('Contribution not found or cannot be edited'); e.statusCode = 404; throw e; }
-    return this.prisma.researchContributionAuthor.update({ where: { id: authorId }, data });
+    const updatedAuthor = await this.prisma.researchContributionAuthor.update({ where: { id: authorId }, data });
+
+    // Audit: log author update
+    if (this.auditLogger?.logResearchUpdate) {
+      this.auditLogger.logResearchUpdate(null, { id, title: contribution.title, authorUpdated: authorId }, userId, null, 'Updated author details').catch(() => {});
+    }
+
+    return updatedAuthor;
   }
 
   async removeAuthor(id, authorId, userId) {
     const contribution = await this.repo.findById(id);
     if (!contribution) { const e = new Error('Research contribution not found'); e.statusCode = 404; throw e; }
     if (contribution.applicantUserId !== userId) { const e = new Error('Only the applicant can remove authors'); e.statusCode = 403; throw e; }
+    const removedAuthor = await this.prisma.researchContributionAuthor.findUnique({ where: { id: authorId }, select: { name: true, uid: true } });
     await this.prisma.researchContributionAuthor.delete({ where: { id: authorId } });
     const authorCount = await this.prisma.researchContributionAuthor.count({ where: { researchContributionId: id } });
     await this.repo.update(id, { totalAuthors: authorCount + 1 });
+
+    // Audit: log author removal
+    if (this.auditLogger?.logResearchUpdate) {
+      this.auditLogger.logResearchUpdate({ id, title: contribution.title }, { id, authorRemoved: removedAuthor?.name || removedAuthor?.uid || authorId }, userId, null, `Removed author: ${removedAuthor?.name || removedAuthor?.uid || authorId}`).catch(() => {});
+    }
   }
 
   // ─── Lookup ──────────────────────────────────────────────────────────────

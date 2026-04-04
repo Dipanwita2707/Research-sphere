@@ -370,7 +370,7 @@ export default function InvestigatorManager({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <label className="block text-sm font-medium text-gray-700">{label}</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label>
         {!isEditing && !disabled && (
           <button
             type="button"
@@ -387,7 +387,7 @@ export default function InvestigatorManager({
       {investigators.length > 0 && (
         <div className="space-y-2">
           {investigators.map((investigator, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                   investigator.investigatorCategory ===
@@ -402,16 +402,16 @@ export default function InvestigatorManager({
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{investigator.name}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{investigator.name}</span>
                     {investigator.uid && (
-                      <span className="text-xs text-gray-500">({investigator.uid})</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">({investigator.uid})</span>
                     )}
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                       investigator.roleType ===
-   'pi' ? 'bg-purple-100 text-purple-700' :
+   'pi' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
                       investigator.roleType ===
-   'co_pi' ? 'bg-orange-100 text-orange-700' :
-                      'bg-gray-100 text-gray-700'
+   'co_pi' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' :
+                      'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300'
                     }`}>
                       {ROLE_LABELS[investigator.roleType]}
                     </span>
@@ -421,10 +421,10 @@ export default function InvestigatorManager({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                     <span className={`px-2 py-0.5 rounded text-xs ${
                       investigator.investigatorCategory ===
-   'Internal' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+   'Internal' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
                     }`}>
                       {investigator.investigatorCategory}
                     </span>
@@ -455,7 +455,7 @@ export default function InvestigatorManager({
                       className={`px-2 py-1 text-xs rounded ${
                         investigator.isTeamCoordinator 
                           ? 'bg-yellow-100 text-yellow-700' 
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          : 'bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
                       }`}
                     >
                       {investigator.isTeamCoordinator ? 'Coordinator ✓' : 'Set Coordinator'}
@@ -477,17 +477,17 @@ export default function InvestigatorManager({
 
       {investigators.length ===
    0 && !isEditing && (
-        <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+        <div className="text-center py-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-dashed border-gray-300 dark:border-gray-600">
           <Users className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">No team members added yet</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No team members added yet</p>
         </div>
       )}
 
       {/* Add investigator form */}
       {isEditing && !disabled && (
-        <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-200 space-y-4">
+        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800 space-y-4">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-400">
               {error}
             </div>
           )}
@@ -495,11 +495,11 @@ export default function InvestigatorManager({
           <div className="grid grid-cols-3 gap-4">
             {/* Role Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role *</label>
               <select
                 value={newInvestigator.roleType}
                 onChange={(e) => setNewInvestigator({ ...newInvestigator, roleType: e.target.value as InvestigatorRole })}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                 disabled={newInvestigator.investigatorCategory ===
    'External' && mustExternalBePI()}
               >
@@ -517,7 +517,7 @@ export default function InvestigatorManager({
 
             {/* Category Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category *</label>
               <select
                 value={newInvestigator.investigatorCategory}
                 onChange={(e) => {
@@ -550,7 +550,7 @@ export default function InvestigatorManager({
                   });
                   setSearchTerm('');
                 }}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
               >
                 <option value="Internal" disabled={isInternalLimitReached()}>
                   Internal (SGT) {isInternalLimitReached() ? '(Limit Reached)' : ''}
@@ -566,23 +566,23 @@ export default function InvestigatorManager({
 
             {/* Type Selection - Faculty/Employee only for grants */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type *</label>
               <select
                 value={newInvestigator.investigatorType}
                 onChange={(e) => setNewInvestigator({ ...newInvestigator, investigatorType: e.target.value as 'Faculty' })}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                 disabled
               >
                 <option value="Faculty">Faculty/Employee</option>
               </select>
-              <p className="mt-1 text-xs text-gray-500">Grant applications are for Faculty/Employees only</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Grant applications are for Faculty/Employees only</p>
             </div>
           </div>
 
           {newInvestigator.investigatorCategory ===
    'Internal' ? (
             <div ref={searchRef} className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Search by UID/Name *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search by UID/Name *</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -593,22 +593,22 @@ export default function InvestigatorManager({
                     searchInvestigators(e.target.value);
                   }}
                   placeholder="Type to search..."
-                  className="w-full pl-10 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  className="w-full pl-10 rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                 />
               </div>
               
               {showSuggestions && searchSuggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-600 max-h-60 overflow-y-auto">
                   {searchSuggestions.map((suggestion, index) => (
                     <button
                       key={index}
                       type="button"
                       onClick={() => selectInvestigatorFromSuggestion(suggestion)}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-3 border-b last:border-b-0"
+                      className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 border-b dark:border-gray-700 last:border-b-0"
                     >
                       <User className="w-4 h-4 text-gray-400" />
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 dark:text-white">
                           {suggestion.name || suggestion.displayName}
                         </div>
                         <div className="text-sm text-gray-500">
@@ -625,7 +625,7 @@ export default function InvestigatorManager({
               {/* Consortium Organization Selection (for international projects) */}
               {consortiumOrganizations.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Consortium Organization *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Consortium Organization *</label>
                   <select
                     value={newInvestigator.consortiumOrgId || ''}
                     onChange={(e) => {
@@ -639,7 +639,7 @@ export default function InvestigatorManager({
                         affiliation: org?.organizationName || ''
                       });
                     }}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                   >
                     <option value="">Select Organization</option>
                     {consortiumOrganizations.map(org => {
@@ -658,22 +658,22 @@ export default function InvestigatorManager({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
                   <input
                     type="text"
                     value={newInvestigator.name}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, name: e.target.value })}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Full name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
                   <input
                     type="email"
                     value={newInvestigator.email || ''}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, email: e.target.value })}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                     placeholder="email@example.com"
                   />
                 </div>
@@ -681,23 +681,23 @@ export default function InvestigatorManager({
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Designation</label>
                   <input
                     type="text"
                     value={newInvestigator.designation || ''}
                     onChange={(e) => setNewInvestigator({ ...newInvestigator, designation: e.target.value })}
-                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Professor, Researcher, etc."
                   />
                 </div>
                 {!consortiumOrganizations.length && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Affiliation *</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Affiliation *</label>
                     <input
                       type="text"
                       value={newInvestigator.affiliation}
                       onChange={(e) => setNewInvestigator({ ...newInvestigator, affiliation: e.target.value })}
-                      className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                      className="w-full rounded-md border-gray-300 dark:border-gray-600 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100"
                       placeholder="University/Organization"
                     />
                   </div>
@@ -730,7 +730,7 @@ export default function InvestigatorManager({
                 setSearchTerm('');
                 setError('');
               }}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center justify-center gap-2"
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center justify-center gap-2"
             >
               <Check className="w-4 h-4" />
               Done

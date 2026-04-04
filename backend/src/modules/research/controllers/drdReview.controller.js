@@ -1,4 +1,10 @@
 const prisma = require('../../../shared/config/database');
+const { logIprStatusChange, logIprUpdate } = require('../../../shared/utils/auditLogger');
+
+// Non-blocking audit helper
+const _auditIprStatus = (application, oldStatus, newStatus, userId, req, comments) => {
+  logIprStatusChange(application, oldStatus, newStatus, userId, req, comments).catch(() => {});
+};
 
 // Helper function to notify all contributors of an IPR application
 const notifyContributors = async (iprApplicationId, notificationType, title, message, additionalMetadata = {}) => {
@@ -323,6 +329,9 @@ const assignDrdReviewer = async (req, res) => {
       },
     });
 
+    // Audit: reviewer assignment
+    _auditIprStatus(application, application.status, 'under_drd_review', userId, req, `Assigned to reviewer: ${reviewerId}`);
+
     res.json({
       success: true,
       message: 'Reviewer assigned successfully',
@@ -433,6 +442,9 @@ const submitDrdReview = async (req, res) => {
       );
     }
 
+    // Audit: DRD review decision
+    _auditIprStatus(application, application.status, newStatus, userId, req, comments || `DRD review: ${decision}`);
+
     res.json({
       success: true,
       message: `DRD review submitted (${decision})`,
@@ -487,6 +499,9 @@ const acceptEditsAndResubmit = async (req, res) => {
         comments: 'Accepted edits and resubmitted',
       },
     });
+
+    // Audit: edits accepted and resubmitted
+    _auditIprStatus(application, application.status, 'resubmitted', userId, req, 'Accepted edits and resubmitted');
 
     res.json({
       success: true,
@@ -721,6 +736,9 @@ const finalApproval = async (req, res) => {
       { newStatus: 'submitted_to_govt' }
     );
 
+    // Audit: DRD Head final approval
+    _auditIprStatus(application, application.status, 'submitted_to_govt', userId, req, comments || 'DRD Head approved - submitted to government');
+
     res.json({
       success: true,
       message: 'IPR application approved by DRD Head - submitted to government for filing',
@@ -797,6 +815,9 @@ const finalRejection = async (req, res) => {
         comments: `Final rejection by DRD: ${comments}`
       }
     });
+
+    // Audit: DRD final rejection
+    _auditIprStatus(application, application.status, 'drd_rejected', userId, req, comments);
 
     res.json({
       success: true,
@@ -920,6 +941,9 @@ const requestChanges = async (req, res) => {
       { actionUrl: `/ipr/my-applications/${id}` }
     );
 
+    // Audit: changes requested
+    _auditIprStatus(application, application.status, 'changes_required', userId, req, comments);
+
     res.json({
       success: true,
       message: 'Changes requested successfully',
@@ -1023,6 +1047,9 @@ const systemOverride = async (req, res) => {
       }
     });
 
+    // Audit: system override
+    _auditIprStatus(application, application.status, overrideStatus, userId, req, comments || `System override to ${overrideStatus}`);
+
     res.json({
       success: true,
       message: `System override applied - status changed to ${overrideStatus}`,
@@ -1104,6 +1131,9 @@ const recommendToHead = async (req, res) => {
       { newStatus: 'recommended_to_head' }
     );
 
+    // Audit: recommend to DRD Head
+    _auditIprStatus(application, application.status, 'recommended_to_head', userId, req, comments || 'Recommended to DRD Head');
+
     res.json({
       success: true,
       message: 'Application recommended to DRD Head',
@@ -1182,6 +1212,9 @@ const headApproveAndSubmitToGovt = async (req, res) => {
       `Great news! The IPR application "${application.title}" has been approved by DRD Head and submitted to Government.`,
       { newStatus: 'submitted_to_govt' }
     );
+
+    // Audit: Head approve & submit to govt
+    _auditIprStatus(application, application.status, 'submitted_to_govt', userId, req, 'DRD Head approved - Submitted to Government');
 
     res.json({
       success: true,
@@ -1281,6 +1314,9 @@ const addGovtApplicationId = async (req, res) => {
       { govtApplicationId, newStatus: 'govt_application_filed' }
     );
 
+    // Audit: govt application filed
+    _auditIprStatus(application, application.status, 'govt_application_filed', userId, req, `Government Application ID: ${govtApplicationId}`);
+
     res.json({
       success: true,
       message: 'Government Application ID added successfully',
@@ -1364,27 +1400,25 @@ const creditIncentivesToInventors = async (application, userId) => {
     const perInventorIncentive = Math.floor(totalIncentive / inventorCount);
     const perInventorPoints = Math.floor(totalPoints / inventorCount);
 
-    // Notify and track each inventor
-    for (const inventor of inventors) {
-      if (inventor.userId) {
-        // Notify the inventor about their credited incentive
-        await prisma.notification.create({
-          data: {
-            userId: inventor.userId,
-            type: 'incentive_credited',
-            title: 'Incentive Credited! [PAYMENT]',
-            message: `Congratulations! ₹${perInventorIncentive.toLocaleString()} and ${perInventorPoints} research points have been credited for your contribution to "${application.title}".`,
-            referenceType: 'ipr_application',
-            referenceId: application.id,
-            metadata: {
-              incentiveAmount: perInventorIncentive,
-              pointsAwarded: perInventorPoints,
-              publicationId: application.publicationId,
-              totalInventors: inventorCount
-            }
-          }
-        });
-      }
+    // Batch notify all inventors (single DB round-trip)
+    const inventorNotifs = inventors
+      .filter(inv => inv.userId)
+      .map(inv => ({
+        userId: inv.userId,
+        type: 'incentive_credited',
+        title: 'Incentive Credited! [PAYMENT]',
+        message: `Congratulations! ₹${perInventorIncentive.toLocaleString()} and ${perInventorPoints} research points have been credited for your contribution to "${application.title}".`,
+        referenceType: 'ipr_application',
+        referenceId: application.id,
+        metadata: {
+          incentiveAmount: perInventorIncentive,
+          pointsAwarded: perInventorPoints,
+          publicationId: application.publicationId,
+          totalInventors: inventorCount,
+        },
+      }));
+    if (inventorNotifs.length) {
+      await prisma.notification.createMany({ data: inventorNotifs });
     }
 
     return {
@@ -1486,6 +1520,9 @@ const addPublicationId = async (req, res) => {
           }
         });
       }
+
+      // Audit: rejection reference added
+      _auditIprStatus(application, application.status, 'govt_rejected', userId, req, `Rejection reference: ${publicationId}`);
 
       return res.json({
         success: true,
@@ -1608,6 +1645,9 @@ const addPublicationId = async (req, res) => {
       }
     );
 
+    // Audit: publication ID added, IPR published
+    _auditIprStatus(application, application.status, 'published', userId, req, `Publication ID: ${publicationId}`);
+
     res.json({
       success: true,
       message: `Publication ID added successfully! Total: ₹${totalIncentive} and ${totalPoints} points. Each inventor receives: ₹${perInventorIncentive} and ${perInventorPoints} points (split among ${inventorCount} inventor(s))`,
@@ -1707,6 +1747,9 @@ const markGovtRejected = async (req, res) => {
         }
       });
     }
+
+    // Audit: govt rejection
+    _auditIprStatus(application, application.status, 'govt_rejected', userId, req, comments || 'Government rejected');
 
     res.json({
       success: true,
@@ -1814,25 +1857,20 @@ const addStatusUpdate = async (req, res) => {
     }
 
     if (notifyInventors !== false && iprApplication.contributors?.length > 0) {
-      // Notify all inventors/contributors
-      for (const contributor of iprApplication.contributors) {
-        if (contributor.userId && contributor.userId !== iprApplication.applicantUser.id) {
-          await prisma.notification.create({
-            data: {
-              userId: contributor.userId,
-              type: 'ipr_status_update',
-              title: notificationTitle,
-              message: updateMessage,
-              referenceType: 'ipr_application',
-              referenceId: id,
-              metadata: {
-                updateType,
-                priority,
-                statusUpdateId: statusUpdate.id,
-              }
-            }
-          });
-        }
+      // Batch notify all inventors/contributors (single DB round-trip)
+      const contributorNotifs = iprApplication.contributors
+        .filter(c => c.userId && c.userId !== iprApplication.applicantUser.id)
+        .map(c => ({
+          userId: c.userId,
+          type: 'ipr_status_update',
+          title: notificationTitle,
+          message: updateMessage,
+          referenceType: 'ipr_application',
+          referenceId: id,
+          metadata: { updateType, priority, statusUpdateId: statusUpdate.id },
+        }));
+      if (contributorNotifs.length) {
+        await prisma.notification.createMany({ data: contributorNotifs });
       }
     }
 

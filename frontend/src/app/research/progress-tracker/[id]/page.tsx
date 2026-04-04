@@ -518,8 +518,36 @@ export default function TrackerDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
+        {/* Back button skeleton */}
+        <div className="h-9 w-32 bg-gray-200 rounded-lg animate-pulse" />
+        {/* Header card skeleton */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex-1">
+              <div className="h-7 w-2/3 bg-gray-200 rounded-lg animate-pulse mb-3" />
+              <div className="flex gap-3">
+                <div className="h-5 w-28 bg-gray-100 rounded-full animate-pulse" />
+                <div className="h-5 w-32 bg-gray-100 rounded-full animate-pulse" />
+              </div>
+            </div>
+            <div className="h-8 w-24 bg-gray-200 rounded-lg animate-pulse" />
+          </div>
+          <div className="h-2 w-full bg-gray-100 rounded-full animate-pulse" />
+        </div>
+        {/* Stages skeleton */}
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
+                <div className="h-5 w-48 bg-gray-200 rounded animate-pulse" />
+                <div className="ml-auto h-5 w-20 bg-gray-100 rounded-full animate-pulse" />
+              </div>
+              <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

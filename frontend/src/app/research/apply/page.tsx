@@ -67,8 +67,31 @@ export default function ResearchApplyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Header skeleton */}
+          <div className="h-8 w-64 bg-gray-200 rounded-lg animate-pulse" />
+          <div className="h-4 w-96 bg-gray-100 rounded animate-pulse" />
+          {/* Type selector skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                <div className="w-12 h-12 bg-gray-200 rounded-lg animate-pulse mb-4" />
+                <div className="h-5 w-32 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+          {/* Form skeleton */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i}>
+                <div className="h-4 w-28 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-10 w-full bg-gray-100 rounded-lg animate-pulse" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

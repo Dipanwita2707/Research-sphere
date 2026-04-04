@@ -207,12 +207,12 @@ export default function MentorApprovalsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <Link href="/ipr" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">
+        <Link href="/ipr" className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to IPR Dashboard
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Mentor Approvals</h1>
-        <p className="mt-1 text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Mentor Approvals</h1>
+        <p className="mt-1 text-gray-600 dark:text-gray-400">
           Review and approve IPR applications from your mentee students
         </p>
       </div>
@@ -221,47 +221,47 @@ export default function MentorApprovalsPage() {
       {activeTab ===
    'history' && historyData && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
                 <FileText className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{historyData.stats.total}</p>
-                <p className="text-sm text-gray-500">Total Applications</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{historyData.stats.total}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Applications</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{historyData.stats.approved}</p>
-                <p className="text-sm text-gray-500">Approved</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{historyData.stats.approved}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Approved</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
                 <Clock className="w-5 h-5 text-orange-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{historyData.stats.pending}</p>
-                <p className="text-sm text-gray-500">Pending</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{historyData.stats.pending}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pending</p>
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-gray-200">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg flex items-center justify-center">
                 <RefreshCw className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{historyData.stats.changesRequired}</p>
-                <p className="text-sm text-gray-500">Changes Requested</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{historyData.stats.changesRequired}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Changes Requested</p>
               </div>
             </div>
           </div>
@@ -269,7 +269,7 @@ export default function MentorApprovalsPage() {
       )}
 
       {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
+      <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('pending')}
@@ -312,21 +312,21 @@ export default function MentorApprovalsPage() {
 
       {applications.length ===
    0 ? (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
           {activeTab ===
    'pending' ? (
             <>
               <CheckCheck className="w-16 h-16 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Pending Approvals</h3>
-              <p className="text-gray-600">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Pending Approvals</h3>
+              <p className="text-gray-600 dark:text-gray-400">
                 You don't have any IPR applications waiting for your approval.
               </p>
             </>
           ) : (
             <>
-              <History className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications Yet</h3>
-              <p className="text-gray-600">
+              <History className="w-16 h-16 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No Applications Yet</h3>
+              <p className="text-gray-600 dark:text-gray-400">
                 No students have submitted IPR applications with you as mentor.
               </p>
             </>
@@ -344,7 +344,7 @@ export default function MentorApprovalsPage() {
             return (
               <div
                 key={app.id}
-                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between">
@@ -353,10 +353,10 @@ export default function MentorApprovalsPage() {
                         <TypeIcon className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                           {app.title}
                         </h3>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                           {app.applicationNumber} • {typeConfig.label}
                         </p>
                       </div>
@@ -374,19 +374,19 @@ export default function MentorApprovalsPage() {
                   </div>
 
                   <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-2 text-gray-600">
+                      <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                       <User className="w-4 h-4" />
                       <span className="text-sm">
                         <strong>Student:</strong> {getApplicantName(app)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                       <Calendar className="w-4 h-4" />
                       <span className="text-sm">
                         <strong>Submitted:</strong> {formatDate(app.createdAt)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                       <Building className="w-4 h-4" />
                       <span className="text-sm">
                         <strong>School:</strong> {app.school?.facultyName || app.school?.name || 'N/A'}
@@ -395,8 +395,8 @@ export default function MentorApprovalsPage() {
                   </div>
 
                   {app.description && (
-                    <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-700 line-clamp-3">
+                    <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
                         {app.description}
                       </p>
                     </div>
@@ -405,7 +405,7 @@ export default function MentorApprovalsPage() {
                   <div className="mt-6 flex items-center gap-3 justify-end">
                     <Link
                       href={`/ipr/application/${app.id}`}
-                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
                     >
                       <Eye className="w-4 h-4 mr-2" />
                       View Details
@@ -455,38 +455,38 @@ export default function MentorApprovalsPage() {
       {/* Approval Modal */}
       {showApprovalModal && selectedApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Approve IPR Application
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 You are approving "{selectedApp.title}"
               </p>
             </div>
             <div className="p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Comments (Optional)
               </label>
               <textarea
                 value={approvalComments}
                 onChange={(e) => setApprovalComments(e.target.value)}
                 placeholder="Add any comments or recommendations..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 rows={4}
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 Once approved, this application will be submitted for DRD review.
               </p>
             </div>
-            <div className="p-6 bg-gray-50 flex items-center justify-end gap-3">
+            <div className="p-6 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-end gap-3">
               <button
                 onClick={() => {
                   setShowApprovalModal(false);
                   setSelectedApp(null);
                   setApprovalComments('');
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600"
                 disabled={submitting}
               >
                 Cancel
@@ -516,39 +516,39 @@ export default function MentorApprovalsPage() {
       {/* Reject Modal */}
       {showRejectModal && selectedApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Request Changes
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Send "{selectedApp.title}" back to the student for revision
               </p>
             </div>
             <div className="p-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Feedback / Reason for Changes <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={rejectComments}
                 onChange={(e) => setRejectComments(e.target.value)}
                 placeholder="Please provide detailed feedback on what changes are needed..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
                 rows={4}
                 required
               />
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                 The student will receive this feedback and can make changes before resubmitting.
               </p>
             </div>
-            <div className="p-6 bg-gray-50 flex items-center justify-end gap-3">
+            <div className="p-6 bg-gray-50 dark:bg-gray-700/50 flex items-center justify-end gap-3">
               <button
                 onClick={() => {
                   setShowRejectModal(false);
                   setSelectedApp(null);
                   setRejectComments('');
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600"
                 disabled={submitting}
               >
                 Cancel

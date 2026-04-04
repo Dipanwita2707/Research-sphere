@@ -612,22 +612,22 @@ export default function EditContributionPage() {
   const PubTypeIcon = pubTypeConfig?.icon || FileText;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Link href={`/research/contribution/${id}`} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <ArrowLeft className="w-5 h-5 text-gray-600" />
+                <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Edit Contribution</h1>
-                <p className="text-sm text-gray-500">{contribution.applicationNumber}</p>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">Edit Contribution</h1>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{contribution.applicationNumber}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={handleSave} disabled={saving} className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+              <button onClick={handleSave} disabled={saving} className="flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                 Save Draft
               </button>
@@ -678,14 +678,14 @@ export default function EditContributionPage() {
             <PubTypeIcon className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-medium text-gray-900">{pubTypeConfig?.label || contribution.publicationType}</p>
-            <p className="text-sm text-gray-500">Publication Type (cannot be changed)</p>
+            <p className="font-medium text-gray-900 dark:text-white">{pubTypeConfig?.label || contribution.publicationType}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Publication Type (cannot be changed)</p>
           </div>
         </div>
 
         {/* Basic Information - Title */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Basic Information</h2>
           <div className={`${hasSuggestion('title') ? 'ring-2 ring-orange-300 rounded-lg p-3 bg-orange-50' : ''}`}>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Title <span className="text-red-500">*</span>
@@ -706,8 +706,8 @@ export default function EditContributionPage() {
         {/* Research Paper Specific Fields */}
         {contribution.publicationType ===
    'research_paper' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Research Details</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Research Details</h2>
             <div className="space-y-6">
               {/* Targeted Research Type */}
               <div className={`${hasSuggestion('targetedResearchType') ? 'ring-2 ring-orange-300 rounded-lg p-3 bg-orange-50' : ''}`}>
@@ -1304,8 +1304,8 @@ export default function EditContributionPage() {
         {(contribution.publicationType ===
    'book' || contribution.publicationType ===
    'book_chapter') && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               {contribution.publicationType ===
    'book' ? 'Book Details' : 'Book Chapter Details'}
             </h2>
@@ -1674,8 +1674,8 @@ export default function EditContributionPage() {
         {/* Conference Paper Details */}
         {contribution.publicationType ===
    'conference_paper' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Conference Details</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Conference Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Conference Sub Type */}
@@ -2443,8 +2443,8 @@ export default function EditContributionPage() {
         {/* Grant message */}
         {contribution.publicationType ===
    'grant_proposal' && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Grant Details</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Grant Details</h2>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <div className="flex items-start space-x-3">
                 <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />

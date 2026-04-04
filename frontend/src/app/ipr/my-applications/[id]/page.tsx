@@ -217,7 +217,7 @@ function IprApplicationDetailContent() {
       <div className="mb-6">
         <button
           onClick={() => router.push('/ipr/my-applications')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to My Applications
@@ -230,11 +230,11 @@ function IprApplicationDetailContent() {
                 ID: {application.applicationNumber || application.id.slice(0, 8).toUpperCase()}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
               <FileText className="w-7 h-7 text-blue-600" />
               {application.title}
             </h1>
-            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 dark:text-gray-400">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
                 {new Date(application.createdAt).toLocaleDateString()}
@@ -246,7 +246,7 @@ function IprApplicationDetailContent() {
           </div>
           <button
             onClick={fetchData}
-            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+          className="flex items-center gap-2 px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
             <RefreshCw className="w-4 h-4" />
             Refresh
@@ -255,20 +255,20 @@ function IprApplicationDetailContent() {
       </div>
 
       {/* Application Details Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Application Details</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Application Details</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-gray-500">Type</p>
-            <p className="font-medium text-gray-900 capitalize">{application.iprType?.replace(/_/g, ' ')}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Type</p>
+            <p className="font-medium text-gray-900 dark:text-white capitalize">{application.iprType?.replace(/_/g, ' ')}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">School</p>
-            <p className="font-medium text-gray-900">{application.school?.facultyName || 'N/A'}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">School</p>
+            <p className="font-medium text-gray-900 dark:text-white">{application.school?.facultyName || 'N/A'}</p>
           </div>
           <div className="md:col-span-2">
-            <p className="text-sm text-gray-500">Description</p>
-            <p className="font-medium text-gray-900">{application.description || 'No description provided'}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Description</p>
+            <p className="font-medium text-gray-900 dark:text-white">{application.description || 'No description provided'}</p>
           </div>
         </div>
       </div>
@@ -295,18 +295,18 @@ function IprApplicationDetailContent() {
 
       {/* Pending Suggestions */}
       {pendingSuggestions.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-orange-500" />
               Pending Changes ({pendingSuggestions.length})
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Review each suggestion and accept or reject the proposed changes
             </p>
           </div>
 
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {pendingSuggestions.map((suggestion) => (
               <div key={suggestion.id} className={`p-4 ${isMentorSuggestion(suggestion) ? 'bg-purple-50' : 'bg-orange-50'}`}>
                 <div className="flex items-start justify-between mb-3">
@@ -321,7 +321,7 @@ function IprApplicationDetailContent() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                       Suggested by {getReviewerName(suggestion)} •{' '}
                       {new Date(suggestion.createdAt).toLocaleDateString()}
                     </p>
@@ -344,11 +344,11 @@ function IprApplicationDetailContent() {
                 </div>
 
                 {getSuggestionNote(suggestion) && (
-                  <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <p className="text-xs text-gray-600 font-medium mb-1">
+                    <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 font-medium mb-1">
                       {isMentorSuggestion(suggestion) ? 'Mentor Note:' : 'Reviewer Note:'}
                     </p>
-                    <p className="text-sm text-gray-800">{getSuggestionNote(suggestion)}</p>
+                      <p className="text-sm text-gray-800 dark:text-gray-300">{getSuggestionNote(suggestion)}</p>
                   </div>
                 )}
 
@@ -365,7 +365,7 @@ function IprApplicationDetailContent() {
                       }
                     }}
                     onFocus={() => setResponding(suggestion.id)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={2}
                   />
                 </div>
@@ -436,10 +436,10 @@ function IprApplicationDetailContent() {
       )}
 
       {/* Status Updates Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-6">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Status History</h2>
-          <p className="text-sm text-gray-500 mt-1">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Status History</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             Track all updates and communications from DRD
           </p>
         </div>
@@ -450,23 +450,23 @@ function IprApplicationDetailContent() {
 
       {/* Resolved Suggestions */}
       {resolvedSuggestions.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-gray-500" />
               Resolved Suggestions ({resolvedSuggestions.length})
             </h2>
           </div>
 
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
             {resolvedSuggestions.map((suggestion) => (
               <div key={suggestion.id} className="p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div>
-                    <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wide">
                       {suggestion.fieldName}
                     </span>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       {getReviewerName(suggestion)} •{' '}
                       {new Date(suggestion.createdAt).toLocaleDateString()}
                     </p>
@@ -484,12 +484,12 @@ function IprApplicationDetailContent() {
                   </span>
                 </div>
 
-                <p className="text-sm text-gray-700 mb-2">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
                   <strong>Suggested:</strong> {suggestion.suggestedValue}
                 </p>
 
                 {suggestion.applicantResponse && (
-                  <p className="text-sm text-gray-600 italic">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                     <strong>Your response:</strong> {suggestion.applicantResponse}
                   </p>
                 )}
@@ -502,10 +502,10 @@ function IprApplicationDetailContent() {
       {/* No Suggestions */}
       {suggestions.length ===
    0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-          <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No Edit Suggestions</h3>
-          <p className="text-gray-500 mt-1">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+          <MessageSquare className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">No Edit Suggestions</h3>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             No changes have been requested for this application yet.
           </p>
         </div>

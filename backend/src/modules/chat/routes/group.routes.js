@@ -19,6 +19,7 @@ const {
   updateMemberRole,
   updateMemberPermissions,
   updateGroupPermissions,
+  searchUsersToAdd,
   searchMembers,
   muteMember,
   unmuteMember,
@@ -61,8 +62,9 @@ router.put('/:id/members/:userId/permissions', updateMemberPermissions);
 router.post('/:id/members/:userId/mute', muteMember);
 router.post('/:id/members/:userId/unmute', unmuteMember);
 
-// Search members
+// Search members (existing) and users to add
 router.get('/:id/members/search', searchMembers);
+router.get('/:id/members/search-users', searchUsersToAdd);
 
 // Group permissions
 router.put('/:id/permissions', updateGroupPermissions);

@@ -199,8 +199,22 @@ export default function ProgressTrackerListPage() {
 
       {/* Loading State */}
       {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="h-5 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-3" />
+                  <div className="flex gap-3 mb-3">
+                    <div className="h-4 w-24 bg-gray-100 dark:bg-gray-600 rounded animate-pulse" />
+                    <div className="h-4 w-32 bg-gray-100 dark:bg-gray-600 rounded animate-pulse" />
+                  </div>
+                  <div className="h-2 w-full bg-gray-100 dark:bg-gray-700 rounded-full animate-pulse" />
+                </div>
+                <div className="h-6 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse flex-shrink-0" />
+              </div>
+            </div>
+          ))}
         </div>
       ) : trackers.length ===
    0 ? (
